@@ -1,5 +1,23 @@
 # AGENTS.md
 
+## Personal fork scope and operation targets
+
+This repository, `Jopqior/gotgenes-pi-packages`, is a personal fork of `gotgenes/pi-packages`.
+Fork-maintainer requirements govern local product decisions; they do not represent upstream requests or require upstream acceptance.
+This section takes precedence over inherited repository-target, roadmap, and release instructions below and in project skills or prompt templates.
+
+- Reserve `main` for syncing upstream; commit fork-wide foundations on `fork-base` and create feature branches from `fork-base`.
+  Land fork work back into `fork-base`, not `main`.
+  Before running inherited ship or worktree workflows, check their branch assumptions and adapt them to this convention rather than executing their `main`-targeting steps unchanged.
+- Track fork-specific work in this fork's issues and PRs; contact or submit changes to upstream only when the operator explicitly requests it.
+- Before GitHub mutations, verify the target repository and pass `--repo Jopqior/gotgenes-pi-packages` explicitly where supported.
+  For wrapper tools or scripts without a repository argument, verify how they resolve their target before using them; use an explicitly targeted command instead if the target cannot be established.
+- Before pushing, verify the remote URL and name the intended remote and branch explicitly.
+- Treat inherited upstream issue numbers, roadmap priorities, and release procedures as upstream context, not automatic obligations for this fork.
+  Qualify upstream issue references with `gotgenes/pi-packages` or a full URL when adding new documentation so they cannot be mistaken for fork issues.
+- Existing `@gotgenes/*` package names and upstream publishing examples do not authorize publication.
+  Before dispatching a release or publishing, obtain explicit operator approval of the fork's release destination and npm package scope.
+
 ## Monorepo Structure
 
 This is a pnpm workspace monorepo.
