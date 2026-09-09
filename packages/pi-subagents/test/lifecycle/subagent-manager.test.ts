@@ -5,10 +5,11 @@ import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent
 import type { AgentSpawnConfig } from "#src/lifecycle/subagent-manager";
 import { resolveRetentionWindow, SubagentManager, type SubagentManagerObserver } from "#src/lifecycle/subagent-manager";
 import type { SubagentSession } from "#src/lifecycle/subagent-session";
-import type { WorkspaceProvider } from "#src/lifecycle/workspace";
+import type { Workspace, WorkspacePrepareContext, WorkspaceProvider } from "#src/lifecycle/workspace";
 import { NotificationManager } from "#src/observation/notification";
 import type { RunConfig } from "#src/runtime";
 import type { AgentConfig, Subagent } from "#src/types";
+import { makeWorkspace } from "#test/helpers/make-workspace";
 import { createBlockingFactory, createSessionFactory } from "#test/helpers/manager-stubs";
 import { createMockSession, createSubagentSessionStub, emitResumeUsageAndCompaction, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
@@ -500,6 +501,44 @@ describe("SubagentManager", () => {
         expect(startedIds).toEqual([id1, id2]);
 
         await manager.getRecord(id2)!.promise;
+      });
+    });
+
+    describe("admission timing", () => {
+      let manager: SubagentManager;
+
+      afterEach(async () => {
+        await manager.dispose();
+      });
+
+      it("calls the factory for an admitted background spawn before spawn() returns", async () => {
+        const factory = defaultFactory();
+        ({ manager } = createManager({ createSubagentSession: factory }));
+        const id = spawnBg(manager, "sync-start");
+        // The limiter admits synchronously when a slot is free, so the run has
+        // already reached the factory by the time spawn() hands back the ID.
+        expect(factory).toHaveBeenCalledTimes(1);
+        await manager.getRecord(id)!.promise;
+      });
+
+      it("prepares no workspace for a queued spawn until its slot opens", async () => {
+        const prepare = vi.fn((_ctx: WorkspacePrepareContext): Promise<Workspace | undefined> =>
+          Promise.resolve(makeWorkspace("/ws/queued")),
+        );
+        const factory = createBlockingFactory();
+        ({ manager } = createManager({ createSubagentSession: factory, getMaxConcurrent: () => 1 }));
+        manager.registerWorkspaceProvider({ prepare });
+
+        const running = spawnBg(manager, "a");
+        const queued = spawnBg(manager, "b");
+
+        expect(manager.getRecord(queued)!.status).toBe("queued");
+        // Only the admitted run's prepare has run — a queued spawn performs no
+        // workspace side effect before admission.
+        expect(prepare).toHaveBeenCalledTimes(1);
+
+        manager.abort(running);
+        manager.abort(queued);
       });
     });
 
