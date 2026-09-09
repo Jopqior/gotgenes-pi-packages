@@ -1,3 +1,4 @@
+import { getEventListeners } from "node:events";
 import { describe, expect, it, vi } from "vitest";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
 import { Subagent, type SubagentExecution, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
@@ -1105,6 +1106,71 @@ describe("Subagent.run() — error handling", () => {
 		await agent.run();
 		expect(agent.status).toBe("error");
 		expect(agent.error).toBe("creation failed");
+	});
+});
+
+describe("Subagent.run() — admitted-run timing", () => {
+	it("invokes the factory in the same turn as start() when no workspace provider is registered", async () => {
+		const { factory } = createFactory();
+		const agent = createRunnableAgent({ createSubagentSession: factory });
+		agent.start();
+		// The no-provider path reaches the factory call synchronously, so creation
+		// has already begun by the time start() returns — the timing spawn()
+		// relies on to hand back an ID for a run that is under way.
+		expect(factory).toHaveBeenCalledTimes(1);
+		await agent.promise;
+	});
+
+	it("holds the factory back until a registered provider's prepare resolves", async () => {
+		const { factory } = createFactory();
+		const { promise: gate, resolve: openGate } = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
+		const provider: WorkspaceProvider = {
+			prepare: () => gate.then(() => makeWorkspace("/ws/dir")),
+		};
+		const agent = createRunnableAgent({ createSubagentSession: factory, workspaceProvider: provider });
+		agent.start();
+		expect(factory).not.toHaveBeenCalled();
+		openGate();
+		await agent.promise;
+		expect(factory).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("Subagent.run() — terminal cleanup after cancellation", () => {
+	it("detaches the wired parent-signal listener when the run fails, even though the signal never fired", async () => {
+		const parentController = new AbortController();
+		const factory: SessionFactory = vi.fn().mockRejectedValue(new Error("creation failed"));
+		const agent = createRunnableAgent({ createSubagentSession: factory, signal: parentController.signal });
+		agent.start();
+		// While the run is in flight the listener is wired...
+		expect(getEventListeners(parentController.signal, "abort")).toHaveLength(1);
+		await agent.promise;
+		// ...and every terminal funnel releases it — not only the abort path
+		// itself, whose once-listener would have self-removed on firing.
+		expect(getEventListeners(parentController.signal, "abort")).toHaveLength(0);
+	});
+
+	it("notifies the terminal observer exactly once when a parent-aborted run settles", async () => {
+		const parentController = new AbortController();
+		const { factory, stub } = createFactory();
+		const { promise: gate, resolve: openGate } = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
+		stub.runTurnLoop.mockImplementation(() => gate.then(() => {
+			throw new Error("aborted mid-run");
+		}));
+		const onRunFinished = vi.fn();
+		const agent = createRunnableAgent({
+			createSubagentSession: factory,
+			signal: parentController.signal,
+			observer: { onRunFinished },
+		});
+		agent.start();
+
+		parentController.abort();
+		openGate();
+		await agent.promise;
+
+		expect(agent.status).toBe("stopped");
+		expect(onRunFinished).toHaveBeenCalledOnce();
 	});
 });
 
