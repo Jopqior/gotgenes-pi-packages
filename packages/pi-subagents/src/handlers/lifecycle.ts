@@ -18,6 +18,8 @@ export interface LifecycleManager {
 export interface LifecycleRuntime {
   setSessionContext(ctx: SessionContext): void;
   clearSessionContext(): void;
+  /** Closes the retained selection scope — owner-aware root revoke or child release. */
+  closeSelectionScope(): void;
 }
 
 /**
@@ -47,6 +49,9 @@ export class SessionLifecycleHandler {
   }
 
   // Cleanup order matters:
+  // 0. Close the selection scope — revoke the root lease (or free this
+  //    child's subtree) before anything else: a pending selection must lose
+  //    its authority now, not whenever a later companion handler runs
   // 1. Unpublish service — prevent new cross-extension calls
   // 2. Clear session context — no more session state
   // 3. Dispose notifications — silence nudges *before* the aborts that would
@@ -56,6 +61,7 @@ export class SessionLifecycleHandler {
   // 5. Dispose manager — final cleanup, awaited so each child's extensions get
   //    their `session_shutdown` before Pi tears the parent down (#709)
   handleSessionShutdown(): Promise<void> {
+    this.runtime.closeSelectionScope();
     this.unpublishService();
     this.runtime.clearSessionContext();
     this.disposeNotifications();

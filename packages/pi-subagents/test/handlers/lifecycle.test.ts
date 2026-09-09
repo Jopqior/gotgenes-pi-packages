@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LifecycleManager, LifecycleRuntime } from "#src/handlers/lifecycle";
 import { SessionLifecycleHandler } from "#src/handlers/lifecycle";
+import { SubagentRuntime } from "#src/runtime";
 
 describe("SessionLifecycleHandler", () => {
   let runtime: LifecycleRuntime;
   let manager: LifecycleManager;
   let mockSetSessionContext: ReturnType<typeof vi.fn<LifecycleRuntime["setSessionContext"]>>;
   let mockClearSessionContext: ReturnType<typeof vi.fn<LifecycleRuntime["clearSessionContext"]>>;
+  let mockCloseSelectionScope: ReturnType<typeof vi.fn<LifecycleRuntime["closeSelectionScope"]>>;
   let mockClearCompleted: ReturnType<typeof vi.fn<LifecycleManager["clearCompleted"]>>;
   let mockAbortAll: ReturnType<typeof vi.fn<LifecycleManager["abortAll"]>>;
   let mockDispose: ReturnType<typeof vi.fn<LifecycleManager["dispose"]>>;
@@ -17,6 +19,7 @@ describe("SessionLifecycleHandler", () => {
   beforeEach(() => {
     mockSetSessionContext = vi.fn();
     mockClearSessionContext = vi.fn();
+    mockCloseSelectionScope = vi.fn();
     mockClearCompleted = vi.fn(() => Promise.resolve());
     mockAbortAll = vi.fn();
     mockDispose = vi.fn(() => Promise.resolve());
@@ -26,6 +29,7 @@ describe("SessionLifecycleHandler", () => {
     runtime = {
       setSessionContext: mockSetSessionContext,
       clearSessionContext: mockClearSessionContext,
+      closeSelectionScope: mockCloseSelectionScope,
     };
     manager = {
       clearCompleted: mockClearCompleted,
@@ -111,6 +115,7 @@ describe("SessionLifecycleHandler", () => {
     it("calls all cleanup steps", async () => {
       await handler.handleSessionShutdown();
 
+      expect(mockCloseSelectionScope).toHaveBeenCalled();
       expect(mockUnpublishService).toHaveBeenCalled();
       expect(mockClearSessionContext).toHaveBeenCalled();
       expect(mockAbortAll).toHaveBeenCalled();
@@ -120,6 +125,9 @@ describe("SessionLifecycleHandler", () => {
 
     it("calls cleanup in correct order", async () => {
       const callOrder: string[] = [];
+      mockCloseSelectionScope.mockImplementation(() => {
+        callOrder.push("closeSelectionScope");
+      });
       mockUnpublishService.mockImplementation(() => { callOrder.push("unpublishService"); });
       mockClearSessionContext.mockImplementation(() => {
         callOrder.push("clearSessionContext");
@@ -135,10 +143,14 @@ describe("SessionLifecycleHandler", () => {
 
       await handler.handleSessionShutdown();
 
+      // The selection scope closes before anything else: a pending selection
+      // loses its authority before the service is unpublished or any work is
+      // aborted, not whenever a later companion handler gets around to it.
       // Notifications are torn down before the aborts: a terminal transition
       // fires its nudge synchronously when no parent run is active, and Pi
       // cannot recall a message already handed to it.
       expect(callOrder).toEqual([
+        "closeSelectionScope",
         "unpublishService",
         "clearSessionContext",
         "disposeNotifications",
@@ -161,6 +173,25 @@ describe("SessionLifecycleHandler", () => {
       disposed.resolve();
       await pending;
       expect(settled).toBe(true);
+    });
+
+    it("closes a real selection scope so a request arriving after shutdown is denied", async () => {
+      const realRuntime = new SubagentRuntime();
+      const realHandler = new SessionLifecycleHandler(
+        realRuntime,
+        manager,
+        mockDisposeNotifications,
+        mockUnpublishService,
+      );
+      const registration = realRuntime.registerSpawnSelectionProvider({ select: vi.fn() });
+      expect(registration.kind).toBe("owned");
+
+      await realHandler.handleSessionShutdown();
+
+      // A request that reaches this runtime after closure is refused outright —
+      // clearing the session context or unpublishing the service is not the
+      // revocation mechanism.
+      expect(() => realRuntime.registerSpawnSelectionProvider({ select: vi.fn() })).toThrow(/closed/i);
     });
   });
 });

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ParentPromptOptions, ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import { captureInheritedSelectionScope } from "#src/lifecycle/selection-scope";
+import { SpawnSelectionScope } from "#src/lifecycle/spawn-selection";
 import { createSubagentRuntime, SubagentRuntime } from "#src/runtime";
+import type { SpawnSelectionProvider } from "#src/service/service";
 import type { SessionContext } from "#src/types";
 import { makeModel } from "#test/helpers/make-model";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
@@ -187,5 +190,51 @@ describe("SubagentRuntime context query methods", () => {
     const info = runtime.getSessionInfo();
     expect(info.parentSessionFile).toBe("");
     expect(info.parentSessionId).toBe("session-99");
+  });
+});
+
+describe("SubagentRuntime — spawn selection scope", () => {
+  it("owns a root lease when constructed without an inherited handle", () => {
+    const runtime = createSubagentRuntime();
+    const provider: SpawnSelectionProvider = { select: vi.fn(async () => undefined) };
+
+    const registration = runtime.registerSpawnSelectionProvider(provider);
+
+    expect(registration.kind).toBe("owned");
+    // Only one provider fits the root lease.
+    expect(() => runtime.registerSpawnSelectionProvider(provider)).toThrow(/already registered/i);
+  });
+
+  it("retains an inherited child handle instead of creating a root lease", async () => {
+    const root = new SpawnSelectionScope();
+    const child = await root.constructChild(async () => captureInheritedSelectionScope());
+    const runtime = createSubagentRuntime(child);
+
+    const registration = runtime.registerSpawnSelectionProvider({ select: vi.fn() });
+
+    expect(registration.kind).toBe("inherited");
+    // The root lease is still available to the real root runtime.
+    expect(root.state).toBe("unconfigured");
+  });
+
+  it("closeSelectionScope revokes the runtime's own root lease", () => {
+    const runtime = createSubagentRuntime();
+    runtime.registerSpawnSelectionProvider({ select: vi.fn() });
+
+    runtime.closeSelectionScope();
+
+    expect(() => runtime.registerSpawnSelectionProvider({ select: vi.fn() })).toThrow(/closed/i);
+  });
+
+  it("closeSelectionScope frees only the child handle, leaving the root lease intact", async () => {
+    const root = new SpawnSelectionScope();
+    const child = await root.constructChild(async () => captureInheritedSelectionScope());
+    const runtime = createSubagentRuntime(child);
+    const owned = root.register({ select: vi.fn() });
+
+    runtime.closeSelectionScope();
+
+    expect(root.state).toBe("active");
+    owned.dispose();
   });
 });

@@ -10,7 +10,13 @@ import { parseThinkingLevel, thinkingLevelError } from "#src/config/thinking-lev
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { AgentSpawnConfig } from "#src/lifecycle/subagent-manager";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
-import type { SpawnOptions, SubagentRecord, SubagentsService } from "#src/service/service";
+import type {
+  SpawnOptions,
+  SpawnSelectionProvider,
+  SpawnSelectionRegistration,
+  SubagentRecord,
+  SubagentsService,
+} from "#src/service/service";
 import type { ModelRegistry } from "#src/session/model-resolver";
 import type { SessionContext, Subagent, ThinkingLevel } from "#src/types";
 
@@ -34,6 +40,8 @@ export interface ServiceRuntimeLike {
   buildSnapshot(inheritContext: boolean): ParentSnapshot;
   /** Parent session identity, so an SDK-spawned child nests under its parent. */
   getSessionInfo(): { parentSessionFile: string; parentSessionId: string };
+  /** Selection-provider registration, delegated to the runtime-owned scope. */
+  registerSpawnSelectionProvider(provider: SpawnSelectionProvider): SpawnSelectionRegistration;
 }
 
 /** Adapter that wraps SubagentManager to satisfy SubagentsService. */
@@ -106,6 +114,10 @@ export class SubagentsServiceAdapter implements SubagentsService {
 
   registerWorkspaceProvider(provider: WorkspaceProvider): () => void {
     return this.manager.registerWorkspaceProvider(provider);
+  }
+
+  registerSpawnSelectionProvider(provider: SpawnSelectionProvider): SpawnSelectionRegistration {
+    return this.runtime.registerSpawnSelectionProvider(provider);
   }
 
   /**
