@@ -1,0 +1,47 @@
+---
+issue: 1
+issue_title: "pi-subagents：启动前交互选择 model 和 thinking（优先独立扩展）"
+---
+
+# Retro: #1 — Per-spawn model and thinking selection
+
+## Stage: Planning (2026-09-09T14:17:47Z)
+
+### Session summary
+
+Planned fork issue `Jopqior/gotgenes-pi-packages#1` after a successful fast-forward-only pull on `fork-base`, and committed `docs/plans/0001-spawn-model-selection.md` as `0e6c43256426d716e27ad93b65fa6ec3a3a2fc21` on `issue-1-spawn-model-selection`.
+The operator confirmed a private, locally integrated `@jopqior/pi-subagents-model-selector` package with a minimal core provider seam, and no implementation or publication was performed.
+The next stage is `/tdd-plan`; land fork work into `fork-base`, never upstream-sync `main`.
+
+### Observations
+
+- The operator explicitly requested delegated investigation using `openai-codex/gpt-5.6-luna` with `max` thinking; research, Tidy First assessment and plan reviews used that model.
+- Settled behavior: preserve synchronous spawn IDs, wait after admission before workspace/session creation, use two Pi generic selection dialogs, let the human pair override model/thinking locks and arguments, use all available models of the spawning session, and forward in-process nested requests to the root UI.
+- Also settled: FIFO dialogs, no timeout or remembered choices, explicit confirmation even for an `off`-only model, cancellation/no-UI refusal without defaulting, and no reselection on resume.
+- Native model-selector reuse was examined rather than assumed: Pi `0.84.4` exports the component but not an extension-accessible parent runtime; constructing another runtime would lose dynamic provider/catalogue parity.
+- A task record is not a child session: conflating them initially overstated the need for an asynchronous replacement API.
+  The approved design retains IDs and occupies an admitted limiter slot while waiting.
+- Initial research lacked a tight budget and expanded excessively; subsequent requests used explicit turn limits and targeted questions.
+  Turn limits still permitted multiple tool calls per turn, so a future research budget should bound calls or evidence questions as well.
+- Some reports contradicted confirmed requirements by restoring locks or making thinking optional; those suggestions were rejected rather than silently incorporated.
+  Another review searched the wrong SDK package for the thinking helper; targeted verification established `@earendil-works/pi-ai.getSupportedThinkingLevels` and the core's `SubagentThinkingLevel` including `off`.
+- Pinned loader evidence corrected a proposed late session-ID registry: extension factories execute during `loader.reload()`, before the child session ID exists.
+  Construction context must surround the entire child factory and be captured as a retained runtime dependency, including the no-provider path.
+- The UI-ready startup race fails closed instead of awaiting a later sequential `session_start` handler.
+  Shutdown closes the core-owned scope first, and cancellation is checked inside the child factory after loader awaits as well as before entry.
+- Fresh plan review first returned FAIL on registration/shutdown/API specificity, then WARN on fixture construction, unconfigured inheritance and exact shutdown ordering.
+  All were addressed; final pre-completion reviewer: PASS, with no remaining findings.
+- Plan Markdown lint and commit hooks passed; implementation checks and new-package commands remain for the next stage.
+  The final reviewer also reported a clean repository Markdown check.
+- Root plan/retro number `0001` was free; historical package-local issue-1 artifacts belong to upstream contexts and were not reused.
+  The fork tracker had no related open issues or PRs, and no follow-up issues were filed.
+- An unrelated untracked `.pi/extensions/pi-permission-system/` appeared during tool execution and was left untouched and uncommitted.
+
+#### Deferred tidyings
+
+- `packages/pi-subagents/src/service/service.ts`: global locator ownership is a broader concern; the companion captures its service instance instead of redesigning the locator.
+- `packages/pi-subagents/src/session/model-resolver.ts`: existing availability fallback remains unchanged; only the new gated catalogue refuses missing authenticated availability.
+- `packages/pi-subagents/src/lifecycle/subagent-session.ts`: no preparatory refactor; selection precedes the session wrapper and resume must bypass it.
+- `packages/pi-subagents/src/lifecycle/concurrency-limiter.ts`: current admitted-run ownership already holds a slot through selection; no queue redesign.
+- The public `SubagentRecord` contract: transient selection display stays private rather than growing the public snapshot.
+- `packages/pi-subagents/src/ui/`: update the actual widget/foreground projections only, without module renaming or general modernization.
