@@ -308,41 +308,13 @@ export class Subagent {
 		this.execution.observer?.onStarted?.(this);
 		this.listeners.wireSignal(this.execution.signal, () => this.abort());
 
-		// Guard the await so the no-provider path stays synchronous, preserving
-		// the original run() timing: the factory is called in the same turn as
-		// spawn() when no workspace provider is registered.
-		let cwd: string | undefined;
-		if (this.workspaceBracket.hasProvider()) {
-			try {
-				cwd = await this.workspaceBracket.prepare({
-					agentId: this.id,
-					agentType: this.type,
-					baseCwd: this.execution.baseCwd,
-				});
-			} catch (err) {
-				this.markError(err);
-				this.listeners.release();
-				this.execution.observer?.onRunFinished?.(this);
-				return;
-			}
-		}
-
 		const runConfig = this.execution.getRunConfig?.();
 		try {
-			this.subagentSession = await this.execution.createSubagentSession({
-				snapshot: this.execution.snapshot,
-				type: this.type,
-				cwd,
-				parentSession: this.execution.parentSession,
-				model: this.execution.model,
-				thinkingLevel: this.execution.thinkingLevel,
-				askParent: (question) => { this.state.setPendingQuestion(question); },
-				notifyParent: this.canSendUpdates(runConfig)
-					? (message) => { this.announceUpdate(message); }
-					: undefined,
-			});
+			this.subagentSession = await this.prepareSession(runConfig);
 		} catch (err) {
-			// The factory disposed its own session on a post-creation failure.
+			// A prepare failure left no workspace behind; the factory disposed its
+			// own session on a post-creation failure. Either way the terminal funnel
+			// owns the cleanup.
 			this.failRun(err);
 			return;
 		}
@@ -364,6 +336,40 @@ export class Subagent {
 		} catch (err) {
 			this.failRun(err);
 		}
+	}
+
+	/**
+	 * Prepare the run's child session: workspace preparation (provider path
+	 * only) and the assembly-factory call — every side effect before the child
+	 * session exists, in order. Returns the born-complete session; a failure
+	 * throws after no partial state survives (a throwing prepare leaves no
+	 * workspace bracketed, a throwing factory disposes its own session).
+	 *
+	 * The hasProvider() guard keeps the no-provider path synchronous, preserving
+	 * the original run() timing: the factory is called in the same turn as
+	 * spawn() when no workspace provider is registered.
+	 */
+	private async prepareSession(runConfig: RunConfig | undefined): Promise<SubagentSession> {
+		let cwd: string | undefined;
+		if (this.workspaceBracket.hasProvider()) {
+			cwd = await this.workspaceBracket.prepare({
+				agentId: this.id,
+				agentType: this.type,
+				baseCwd: this.execution.baseCwd,
+			});
+		}
+		return this.execution.createSubagentSession({
+			snapshot: this.execution.snapshot,
+			type: this.type,
+			cwd,
+			parentSession: this.execution.parentSession,
+			model: this.execution.model,
+			thinkingLevel: this.execution.thinkingLevel,
+			askParent: (question) => { this.state.setPendingQuestion(question); },
+			notifyParent: this.canSendUpdates(runConfig)
+				? (message) => { this.announceUpdate(message); }
+				: undefined,
+		});
 	}
 
 	/**
