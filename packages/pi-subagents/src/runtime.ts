@@ -11,6 +11,9 @@ import {
   type ParentPromptOptions,
   type ParentSnapshot,
 } from "#src/lifecycle/parent-snapshot";
+import type { SelectionScopeHandle } from "#src/lifecycle/selection-scope";
+import { SpawnSelectionScope } from "#src/lifecycle/spawn-selection";
+import type { SpawnSelectionProvider, SpawnSelectionRegistration } from "#src/service/service";
 import type { ModelInfo } from "#src/tools/spawn-config";
 import type { SessionContext } from "#src/types";
 
@@ -41,6 +44,37 @@ export class SubagentRuntime {
    * `before_agent_start`. Undefined until the parent has run one.
    */
   private lastPromptOptions: ParentPromptOptions | undefined = undefined;
+
+  // ── Spawn selection ─────────────────────────────────────────────────────────
+  /**
+   * The selection scope this runtime retains: an owned root scope when the
+   * factory found no ambient construction context, an inherited child handle
+   * when it did. Captured once at factory initialization — never re-read from
+   * ambient state later.
+   */
+  private readonly selectionScope: SelectionScopeHandle;
+
+  constructor(selectionScope?: SelectionScopeHandle) {
+    this.selectionScope = selectionScope ?? new SpawnSelectionScope();
+  }
+
+  /**
+   * Register a spawn-selection provider on the retained scope — `owned` on a
+   * root, `inherited` (nothing installed) on a descendant.
+   */
+  registerSpawnSelectionProvider(provider: SpawnSelectionProvider): SpawnSelectionRegistration {
+    return this.selectionScope.register(provider);
+  }
+
+  /**
+   * Close the retained scope: owner-aware — a root revokes its lease and every
+   * descendant handle; a child frees only its own subtree. First operation of
+   * session shutdown, before anything that could still be observed by a
+   * pending selection.
+   */
+  closeSelectionScope(): void {
+    this.selectionScope.close();
+  }
 
   // ── Session-context methods ──────────────────────────────────────────────
 
@@ -92,10 +126,12 @@ export class SubagentRuntime {
 }
 
 /**
- * Create a fully-initialized SubagentRuntime with default values.
+ * Create a fully-initialized SubagentRuntime.
  *
- * Call once at extension startup; pass the result to factories and handlers.
+ * Call once at extension startup with the captured selection scope (a root
+ * lease here, an inherited handle in a child); pass the result to factories
+ * and handlers.
  */
-export function createSubagentRuntime(): SubagentRuntime {
-  return new SubagentRuntime();
+export function createSubagentRuntime(selectionScope?: SelectionScopeHandle): SubagentRuntime {
+  return new SubagentRuntime(selectionScope);
 }

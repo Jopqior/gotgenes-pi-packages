@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import { SubagentState } from "#src/lifecycle/subagent-state";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
-import type { SubagentsService } from "#src/service/service";
+import type {
+  SpawnSelectionProvider,
+  SpawnSelectionRegistration,
+  SubagentsService,
+} from "#src/service/service";
 import type { ServiceRuntimeLike, SubagentManagerLike } from "#src/service/service-adapter";
 import { SubagentsServiceAdapter, toSubagentRecord } from "#src/service/service-adapter";
 import { type SessionContext, Subagent } from "#src/types";
@@ -192,6 +196,10 @@ function makeRuntimeStub(override: Partial<ServiceRuntimeLike> = {}): ServiceRun
     getSessionInfo: vi.fn(() => ({
       parentSessionFile: "/sessions/parent.jsonl",
       parentSessionId: "parent-session-123",
+    })),
+    registerSpawnSelectionProvider: vi.fn(() => ({
+      kind: "owned" as const,
+      dispose: () => {},
     })),
     ...override,
   };
@@ -566,5 +574,23 @@ describe("SubagentsServiceAdapter — registerWorkspaceProvider", () => {
 
     expect(mgr.registerWorkspaceProvider).toHaveBeenCalledWith(provider);
     expect(result).toBe(disposer);
+  });
+});
+
+describe("SubagentsServiceAdapter — registerSpawnSelectionProvider", () => {
+  it("delegates to the runtime's scope registration and returns its result verbatim", () => {
+    const registration: SpawnSelectionRegistration = { kind: "inherited", dispose: () => {} };
+    const runtime = makeRuntimeStub({
+      registerSpawnSelectionProvider: vi.fn(() => registration),
+    });
+    const svc = new SubagentsServiceAdapter(createManagerStub(), vi.fn(), runtime);
+    const provider: SpawnSelectionProvider = {
+      select: vi.fn(async () => undefined),
+    };
+
+    const result = svc.registerSpawnSelectionProvider(provider);
+
+    expect(runtime.registerSpawnSelectionProvider).toHaveBeenCalledWith(provider);
+    expect(result).toBe(registration);
   });
 });

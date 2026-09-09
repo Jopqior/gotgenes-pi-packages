@@ -28,6 +28,8 @@ import { InterruptHandler, SessionLifecycleHandler, WidgetEventsHandler } from "
 import { createChildLifecyclePublisher } from "#src/lifecycle/child-lifecycle";
 import { ConcurrencyLimiter } from "#src/lifecycle/concurrency-limiter";
 import { createSubagentSession, type SubagentSessionDeps } from "#src/lifecycle/create-subagent-session";
+import { captureInheritedSelectionScope } from "#src/lifecycle/selection-scope";
+import { SpawnSelectionScope } from "#src/lifecycle/spawn-selection";
 import { SubagentManager } from "#src/lifecycle/subagent-manager";
 import { CompositeSubagentObserver } from "#src/observation/composite-subagent-observer";
 import {
@@ -72,7 +74,12 @@ export default function (pi: ExtensionAPI) {
   const registry = new AgentTypeRegistry(() => loadCustomAgents(process.cwd()));
 
   // ---- Runtime: all mutable extension state in one place ----
-  const runtime = createSubagentRuntime();
+  // Selection scope first: capture the inherited handle while the construction
+  // context is still ambient (this factory runs inside the parent's constructChild
+  // wrapper), or create this session's own root lease. A root never gets here
+  // with a context; a child core never gets here without one.
+  const selectionScope = captureInheritedSelectionScope() ?? new SpawnSelectionScope();
+  const runtime = createSubagentRuntime(selectionScope);
 
   // ---- Notification system ----
   // Owns completion nudges and live-activity cleanup. The widget detects finished
@@ -180,7 +187,12 @@ export default function (pi: ExtensionAPI) {
   const limiter = new ConcurrencyLimiter(() => settings.maxConcurrent);
 
   const manager = new SubagentManager({
-    createSubagentSession: (params) => createSubagentSession(params, subagentSessionDeps),
+    // The complete child factory call — loader reload, session creation, and
+    // extension binding — runs inside the construction wrapper, so a child
+    // core factory initializing during loader.reload() captures the inherited
+    // selection handle whether or not a provider is ever configured here.
+    createSubagentSession: (params) =>
+      selectionScope.constructChild(() => createSubagentSession(params, subagentSessionDeps)),
     baseCwd: process.cwd(),
     observer,
     limiter,

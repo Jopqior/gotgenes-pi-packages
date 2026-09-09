@@ -9,6 +9,8 @@
  *   svc?.spawn("Explore", "Check for stale TODOs");
  */
 
+import type { Api, Model } from "@earendil-works/pi-ai";
+import type { SubagentThinkingLevel } from "#src/config/thinking-level";
 import type { SubagentStatus } from "#src/lifecycle/subagent";
 import type { LifetimeUsage } from "#src/lifecycle/usage";
 import type {
@@ -79,6 +81,52 @@ export interface SpawnOptions {
   bypassQueue?: boolean;
 }
 
+/** The pair a human selected for one new run — the authority for model and thinking. */
+export interface SpawnSelection {
+  readonly model: Model<Api>;
+  /** Mandatory and never `undefined`: `off` through `max`, including `off`. */
+  readonly thinkingLevel: SubagentThinkingLevel;
+}
+
+/** What a provider is asked, for one admitted new run about to create a child session. */
+export interface SpawnSelectionRequest {
+  /** Identifies the request in the root UI. */
+  readonly agentId: string;
+  readonly agentType: string;
+  readonly description: string;
+  /** The authenticated available models of the session whose manager is spawning — the actual choices. */
+  readonly availableModels: readonly Model<Api>[];
+}
+
+/**
+ * Asks for the model and thinking level a new run should use.
+ *
+ * Resolves with the selected pair, or `undefined` for user cancellation —
+ * never an approval that silently keeps inherited values. Infrastructure
+ * failures (no UI, unavailable catalogue) reject rather than resolve.
+ */
+export interface SpawnSelectionProvider {
+  select(
+    request: SpawnSelectionRequest,
+    signal: AbortSignal,
+  ): Promise<SpawnSelection | undefined>;
+}
+
+/**
+ * The outcome of registering a selection provider.
+ *
+ * `owned` — this session is the root of its subagent tree and now holds the
+ * lease; `dispose()` revokes it (idempotent) and a new session is required to
+ * register again.
+ *
+ * `inherited` — this session is a descendant: the supplied provider is NOT
+ * installed and the root's ownership is untouched (including when the
+ * inherited lease is already closed); `dispose()` is a no-op.
+ */
+export type SpawnSelectionRegistration =
+  | { readonly kind: "owned"; dispose(): void }
+  | { readonly kind: "inherited"; dispose(): void };
+
 /** The public service contract for cross-extension subagent access. */
 export interface SubagentsService {
   /** Spawn an agent. Returns the agent ID immediately. */
@@ -108,6 +156,18 @@ export interface SubagentsService {
    * registered. Returns a disposer that unregisters the provider.
    */
   registerWorkspaceProvider(provider: WorkspaceProvider): () => void;
+
+  /**
+   * Register the per-spawn selection provider this session's subagent tree
+   * will consult before creating any new child session.
+   *
+   * On the tree's root session: installs the provider (throws if one is
+   * already registered, or once this session's scope is closed) and returns an
+   * `owned` registration whose disposer revokes it. On a descendant session:
+   * installs nothing and returns `inherited` — the root's chooser serves the
+   * whole tree.
+   */
+  registerSpawnSelectionProvider(provider: SpawnSelectionProvider): SpawnSelectionRegistration;
 }
 
 /** Event channel constants for pi.events subscriptions. */
