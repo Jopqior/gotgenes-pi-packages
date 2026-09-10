@@ -497,6 +497,8 @@ Run the check unpiped, or test `${PIPESTATUS[0]}`.
 To keep the output short without losing the gate, redirect rather than pipe: `pnpm run check >/tmp/check.log 2>&1 || tail -30 /tmp/check.log`.
 That redirect hides Biome findings at **warning** level, which exit 0 — `pnpm run lint` reports PASS while new warnings accumulate.
 After adding or heavily editing files, count them: `pnpm run lint >/tmp/l.log 2>&1; grep -c 'lint/' /tmp/l.log || true` — `grep -c` exits 1 on a zero count (Refs #694).
+Root `pnpm run lint` OOMs eslint at the default Node heap.
+Run it as `NODE_OPTIONS=--max-old-space-size=8192 pnpm run lint`.
 `biome check --write` reports `No fixes applied` for a warning, whose fix is unsafe-classified — hand-edit it, or `--write --unsafe` the one file.
 `rumdl` caches per markdown file keyed on that file's own content, but `MD057` (relative-link existence) depends on the filesystem around it — so moving or renaming a linked-to file leaves every unchanged doc that links to it cached as clean.
 After a commit that moves or renames files, clear the cache before trusting the gate: `find .rumdl_cache -type f -delete` (Refs #879).
