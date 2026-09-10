@@ -63,3 +63,20 @@ Steps 6–8 remain (nested lifecycle coverage, pending-activity docs, fork-local
 - `@gotgenes/pi-subagents` is `workspace:*` so the companion typechecks against the local core, not a published tarball that lacks `registerSpawnSelectionProvider`.
 - Unrelated untracked `.pi/extensions/pi-permission-system/` was left untouched.
 - Root `pnpm run lint` OOM'd eslint at default heap; `NODE_OPTIONS=--max-old-space-size=8192` eslint, biome, rumdl, package lint, `pnpm run check`, and `pnpm fallow dead-code` passed.
+
+## Stage: Implementation — TDD (2026-09-10T07:12:25Z)
+
+### Session summary
+
+Executed only TDD Order step 6 as requested: nested and lifecycle characterization tests through the real service, runtime, and manager, plus real-loader grandchild and chooser load/exclude.
+Committed `6eaefc99` (`test(pi-subagents): cover nested human selection and lifecycle isolation (#1)`); 12 new tests (8 nested, 3 real-loader, 1 companion), all green after killing-mutation checks.
+Steps 7–8 remain (pending-activity docs, fork-local wiring); pre-completion review was not run.
+
+### Observations
+
+- Step 6 is characterization of behavior steps 3–5 already implemented; Red evidence came from killing mutations, not missing production code.
+- Five named mutations each killed their pin: removing `constructChild` in `index.ts` (production nested inheritance), child `register()` installing on the root (child-loaded overwrite), `availableModels` reduced to `snapshot.model` (catalogue), a static shared provider (two-root isolation), and `runResume` calling `select` (resume reuse).
+- Companion mutation ignoring `kind === "inherited"` killed both inherited composition tests, including the new descendant-load pin.
+- Real-loader tests stayed fast here (~0.6s for five cases); grandchild inheritance used nested `constructChild` because the stub session never fires child `session_start`, so `childService.spawn()` cannot run.
+- `factory.mock.calls[0][0]` needed a typed `CreateSubagentSessionParams` parameter; untyped `vi.fn(async () => …)` made the call tuple `[]` and failed `tsc`.
+- Unrelated untracked `.pi/extensions/pi-permission-system/` was left untouched.
