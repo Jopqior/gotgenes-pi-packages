@@ -199,6 +199,9 @@ export default function (pi: ExtensionAPI) {
     getRunConfig: () => settings,
     getRetentionPolicy: () => settings,
     registry,
+    // The same retained scope: an admitted run consults the tree's active
+    // provider before creating its child session.
+    selectionScope,
   });
 
   // Typed service published via Symbol.for() for cross-extension access.

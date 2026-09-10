@@ -1,12 +1,18 @@
 import { getEventListeners } from "node:events";
+import type { Model } from "@earendil-works/pi-ai";
 import { describe, expect, it, vi } from "vitest";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
+import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import type { SelectionScopeHandle } from "#src/lifecycle/selection-scope";
+import { SpawnSelectionScope } from "#src/lifecycle/spawn-selection";
 import { Subagent, type SubagentExecution, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
 import { SubagentSession, type TurnLoopResult } from "#src/lifecycle/subagent-session";
 import { SubagentState, type SubagentStateInit } from "#src/lifecycle/subagent-state";
 import type { WorkspacePrepareContext, WorkspaceProvider } from "#src/lifecycle/workspace";
 import type { RunConfig } from "#src/runtime";
+import type { SpawnSelection, SpawnSelectionProvider, SpawnSelectionRequest } from "#src/service/service";
 import type { CompactionInfo, SubagentType } from "#src/types";
+import { makeModel } from "#test/helpers/make-model";
 import { createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
 import { makeWorkspace, makeWorkspaceProvider } from "#test/helpers/make-workspace";
 import { createMockSession, createSubagentSessionStub, emitResumeUsageAndCompaction, toAgentSession, toSubagentSession } from "#test/helpers/mock-session";
@@ -604,6 +610,10 @@ function createRunnableAgent(overrides?: {
 	baseCwd?: string;
 	workspaceProvider?: WorkspaceProvider;
 	isBackground?: boolean;
+	selectionScope?: SelectionScopeHandle;
+	snapshot?: ParentSnapshot;
+	model?: Model<any>;
+	thinkingLevel?: SubagentExecution["thinkingLevel"];
 }) {
 	const createSubagentSession = overrides?.createSubagentSession ?? defaultFactory();
 	const observer = overrides?.observer ?? {};
@@ -615,13 +625,16 @@ function createRunnableAgent(overrides?: {
 		execution: {
 			createSubagentSession,
 			observer,
-			snapshot: STUB_SNAPSHOT,
+			snapshot: overrides?.snapshot ?? STUB_SNAPSHOT,
 			prompt: "do something",
 			getRunConfig: overrides?.getRunConfig,
 			parentSession: overrides?.parentSession,
 			signal: overrides?.signal,
 			baseCwd: overrides?.baseCwd ?? "/base",
 			getWorkspaceProvider: provider ? () => provider : undefined,
+			selectionScope: overrides?.selectionScope,
+			model: overrides?.model,
+			thinkingLevel: overrides?.thinkingLevel,
 		},
 	});
 }
@@ -1895,5 +1908,347 @@ describe("Subagent.resume() — awaitable handle", () => {
 		await returned;
 		expect(agent.status).toBe("completed");
 		expect(agent.result).toBe("resumed late");
+	});
+});
+
+// ── The per-spawn selection gate ─────────────────────────────────────────────
+
+describe("Subagent.run() — the per-spawn selection gate", () => {
+	const gateModels = [
+		makeModel({ id: "claude-sonnet", name: "Claude Sonnet" }),
+		makeModel({ id: "claude-haiku", name: "Claude Haiku" }),
+	];
+
+	/** A snapshot whose registry exposes exactly the gate's models as available. */
+	function snapshotWithCatalogue(): ParentSnapshot {
+		return {
+			...STUB_SNAPSHOT,
+			modelRegistry: {
+				find: (provider, id) =>
+					gateModels.find((m) => m.provider === provider && m.id === id),
+				getAll: () => gateModels,
+				getAvailable: () => gateModels,
+			},
+		};
+	}
+
+	/** A provider whose selection stays pending until the test resolves it. */
+	function gatedSelection() {
+		const { promise, resolve } = Promise.withResolvers<SpawnSelection | undefined>();
+		const select = vi.fn(
+			(_request: SpawnSelectionRequest, _signal: AbortSignal) => promise,
+		);
+		const provider: SpawnSelectionProvider = { select };
+		return { provider, select, resolve };
+	}
+
+	/** An agent whose scope holds `provider`, wired to a spy factory and catalogue. */
+	function arrangeGatedAgent(overrides?: {
+		provider?: SpawnSelectionProvider;
+		workspaceProvider?: WorkspaceProvider;
+		model?: Model<any>;
+		thinkingLevel?: SubagentExecution["thinkingLevel"];
+		observer?: SubagentLifecycleObserver;
+	}) {
+		const factory = vi.fn(async (_params: CreateSubagentSessionParams) =>
+			toSubagentSession(createSubagentSessionStub()),
+		);
+		const scope = new SpawnSelectionScope();
+		scope.register(overrides?.provider ?? { select: vi.fn() });
+		const agent = createRunnableAgent({
+			createSubagentSession: factory,
+			selectionScope: scope,
+			snapshot: snapshotWithCatalogue(),
+			workspaceProvider: overrides?.workspaceProvider,
+			observer: overrides?.observer,
+			model: overrides?.model,
+			thinkingLevel: overrides?.thinkingLevel,
+		});
+		return { agent, factory, scope };
+	}
+
+	it("asks the registered provider before any workspace or session side effect", () => {
+		const { provider } = gatedSelection();
+		const workspace = makeWorkspace("/ws");
+		const wsProvider: WorkspaceProvider = {
+			prepare: vi.fn(() => Promise.resolve(workspace)),
+		};
+		const { agent, factory } = arrangeGatedAgent({ provider, workspaceProvider: wsProvider });
+
+		agent.start();
+
+		expect(provider.select).toHaveBeenCalledTimes(1);
+		expect(provider.select).toHaveBeenCalledWith(
+			{
+				agentId: "run-1",
+				agentType: "general-purpose",
+				description: "run test",
+				availableModels: gateModels,
+			},
+			expect.any(AbortSignal),
+		);
+		// Neither side effect may precede a successful selection.
+		expect(factory).not.toHaveBeenCalled();
+		expect(wsProvider.prepare).not.toHaveBeenCalled();
+	});
+
+	it("marks the record as awaiting selection only while the provider is pending", async () => {
+		const { provider, resolve } = gatedSelection();
+		const { agent } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		expect(agent.awaitingSelection).toBe(true);
+
+		resolve({ model: gateModels[0], thinkingLevel: "off" });
+		await agent.promise;
+		expect(agent.awaitingSelection).toBe(false);
+	});
+
+	it("overrides an explicitly resolved model with the selected pair", async () => {
+		const { provider, resolve } = gatedSelection();
+		const { agent, factory } = arrangeGatedAgent({
+			provider,
+			model: gateModels[0],
+			thinkingLevel: "high",
+		});
+
+		agent.start();
+		resolve({ model: gateModels[1], thinkingLevel: "off" });
+		await agent.promise;
+
+		const params = factory.mock.calls[0][0];
+		expect(params.model).toBe(gateModels[1]);
+		expect(params.thinkingLevel).toBe("off");
+	});
+
+	it("applies the selected pair when ordinary resolution produced no model", async () => {
+		const { provider, resolve } = gatedSelection();
+		const { agent, factory } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		resolve({ model: gateModels[1], thinkingLevel: "off" });
+		await agent.promise;
+
+		const params = factory.mock.calls[0][0];
+		expect(params.model).toBe(gateModels[1]);
+		expect(params.thinkingLevel).toBe("off");
+	});
+
+	it("carries the combined signal to the factory for in-flight revocation checks", async () => {
+		const { provider, select, resolve } = gatedSelection();
+		const { agent, factory } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		const signal = select.mock.calls[0][1];
+		resolve({ model: gateModels[0], thinkingLevel: "off" });
+		await agent.promise;
+
+		expect(factory.mock.calls[0][0].selectionSignal).toBe(signal);
+	});
+
+	it("stops the record without side effects when the provider reports cancellation", async () => {
+		const { provider, resolve } = gatedSelection();
+		const onRunFinished = vi.fn();
+		const { agent, factory } = arrangeGatedAgent({ provider, observer: { onRunFinished } });
+
+		agent.start();
+		resolve(undefined);
+		await agent.promise;
+
+		expect(agent.status).toBe("stopped");
+		expect(factory).not.toHaveBeenCalled();
+		expect(onRunFinished).toHaveBeenCalledOnce();
+		expect(agent.awaitingSelection).toBe(false);
+	});
+
+	it("fails the run before consulting the provider when the registry has no availability", async () => {
+		const { provider } = gatedSelection();
+		const { factory } = createFactory();
+		const scope = new SpawnSelectionScope();
+		scope.register(provider);
+		const agent = createRunnableAgent({
+			createSubagentSession: factory,
+			selectionScope: scope,
+			snapshot: {
+				...STUB_SNAPSHOT,
+				modelRegistry: {
+					// A populated getAll must not allow a gated spawn.
+					find: () => undefined,
+					getAll: () => gateModels,
+				},
+			},
+		});
+
+		agent.start();
+		await agent.promise;
+
+		expect(agent.status).toBe("error");
+		expect(agent.error).toMatch(/getAvailable/);
+		expect(provider.select).not.toHaveBeenCalled();
+		expect(factory).not.toHaveBeenCalled();
+	});
+
+	it("fails the run when the provider returns a model outside the catalogue", async () => {
+		const { provider, resolve } = gatedSelection();
+		const { agent, factory } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		resolve({ model: makeModel({ id: "claude-opus" }), thinkingLevel: "off" });
+		await agent.promise;
+
+		expect(agent.status).toBe("error");
+		expect(agent.error).toMatch(/not in the available catalogue/i);
+		expect(factory).not.toHaveBeenCalled();
+	});
+
+	it("fails the run when the provider omits the thinking level", async () => {
+		const { provider, resolve } = gatedSelection();
+		const { agent, factory } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		resolve({ model: gateModels[0], thinkingLevel: undefined } as unknown as SpawnSelection);
+		await agent.promise;
+
+		expect(agent.status).toBe("error");
+		expect(agent.error).toMatch(/thinking/i);
+		expect(factory).not.toHaveBeenCalled();
+	});
+
+	it("fails the run when the level is unsupported for the selected model", async () => {
+		const { provider, resolve } = gatedSelection();
+		const { agent, factory } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		// A non-reasoning model supports only `off`.
+		resolve({ model: gateModels[0], thinkingLevel: "high" });
+		await agent.promise;
+
+		expect(agent.status).toBe("error");
+		expect(agent.error).toMatch(/does not support/i);
+		expect(factory).not.toHaveBeenCalled();
+	});
+
+	it("cancels the run when the parent aborts while the selection is pending", async () => {
+		const { provider, resolve } = gatedSelection();
+		const onRunFinished = vi.fn();
+		const { agent, factory } = arrangeGatedAgent({ provider, observer: { onRunFinished } });
+
+		agent.start();
+		expect(agent.abort()).toBe(true);
+		// The dialog finished anyway — the post-selection recheck must refuse it.
+		resolve({ model: gateModels[0], thinkingLevel: "off" });
+		await agent.promise;
+
+		expect(agent.status).toBe("stopped");
+		expect(factory).not.toHaveBeenCalled();
+		expect(onRunFinished).toHaveBeenCalledOnce();
+	});
+
+	it("cancels the run when the root lease is revoked while the selection is pending", async () => {
+		const { provider, resolve } = gatedSelection();
+		const { agent, factory, scope } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		scope.revoke();
+		resolve({ model: gateModels[0], thinkingLevel: "off" });
+		await agent.promise;
+
+		expect(agent.status).toBe("stopped");
+		expect(factory).not.toHaveBeenCalled();
+	});
+
+	it("does not prepare a workspace for a selection that resolved after the run aborted", async () => {
+		const { provider, resolve } = gatedSelection();
+		const workspace = makeWorkspace("/ws");
+		const wsProvider: WorkspaceProvider = {
+			prepare: vi.fn(() => Promise.resolve(workspace)),
+		};
+		const { agent, factory } = arrangeGatedAgent({ provider, workspaceProvider: wsProvider });
+
+		agent.start();
+		agent.abort();
+		// The dialog finished anyway — the post-selection recheck must stop the
+		// run before the workspace side effect, not merely before the factory.
+		resolve({ model: gateModels[0], thinkingLevel: "off" });
+		await agent.promise;
+
+		expect(factory).not.toHaveBeenCalled();
+		expect(wsProvider.prepare).not.toHaveBeenCalled();
+		expect(workspace.dispose).not.toHaveBeenCalled();
+	});
+
+	it("hands the provider a signal that follows the run's abort", () => {
+		const { provider, select } = gatedSelection();
+		const { agent } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		const signal = select.mock.calls[0][1];
+		expect(signal.aborted).toBe(false);
+
+		agent.abort();
+		expect(signal.aborted).toBe(true);
+	});
+
+	it("hands the provider a signal that follows the lease's revocation", () => {
+		const { provider, select } = gatedSelection();
+		const { agent, scope } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		const signal = select.mock.calls[0][1];
+
+		scope.revoke();
+		expect(signal.aborted).toBe(true);
+	});
+
+	it("rechecks validity after workspace preparation, before the factory call", async () => {
+		const { provider, resolve } = gatedSelection();
+		const workspace = makeWorkspace("/ws");
+		const { promise: prepareGate, resolve: releasePrepare } = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
+		const wsProvider: WorkspaceProvider = {
+			prepare: vi.fn(() => prepareGate.then(() => workspace)),
+		};
+		const { agent, factory, scope } = arrangeGatedAgent({ provider, workspaceProvider: wsProvider });
+
+		agent.start();
+		resolve({ model: gateModels[0], thinkingLevel: "off" });
+		await vi.waitFor(() => expect(wsProvider.prepare).toHaveBeenCalled());
+
+		// The lease closed while the workspace was being prepared.
+		scope.revoke();
+		releasePrepare();
+		await agent.promise;
+
+		expect(factory).not.toHaveBeenCalled();
+		expect(agent.status).toBe("stopped");
+		expect(workspace.dispose).toHaveBeenCalledOnce();
+		expect(workspace.dispose).toHaveBeenCalledWith(expect.objectContaining({ status: "stopped" }));
+	});
+
+	it("keeps the ordinary timing when the scope holds no provider — factory in the same turn, no signal", async () => {
+		const { factory } = createFactory();
+		const scope = new SpawnSelectionScope();
+		const agent = createRunnableAgent({
+			createSubagentSession: factory,
+			selectionScope: scope,
+			snapshot: snapshotWithCatalogue(),
+		});
+
+		agent.start();
+		expect(factory).toHaveBeenCalledTimes(1);
+		expect(vi.mocked(factory).mock.calls[0][0].selectionSignal).toBeUndefined();
+		await agent.promise;
+	});
+
+	it("does not consult the provider again when a completed run is resumed", async () => {
+		const { provider, select, resolve } = gatedSelection();
+		const { agent } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		resolve({ model: gateModels[0], thinkingLevel: "off" });
+		await agent.promise;
+		expect(select).toHaveBeenCalledTimes(1);
+
+		await agent.resume("continue");
+		expect(select).toHaveBeenCalledTimes(1);
 	});
 });

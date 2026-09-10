@@ -425,7 +425,6 @@ describe("createSubagentSession — prompt inheritance", () => {
   function inheritedArgument() {
     return io.assemblerIO.buildAgentPrompt.mock.calls[0]?.[3];
   }
-
   it("hands the prompt builder the snapshot's portable parts", async () => {
     arrangeFactory();
 
@@ -454,5 +453,48 @@ describe("createSubagentSession — prompt inheritance", () => {
     );
 
     expect(inheritedArgument()?.strategy).toBe("portable");
+  });
+});
+
+describe("createSubagentSession — the gated-run signal", () => {
+  it("refuses to create the SDK session when the signal aborts during loader reload", async () => {
+    const { promise: reloadGate, resolve: finishReload } = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
+    io.createResourceLoader.mockReturnValue({ reload: vi.fn(() => reloadGate) });
+    const controller = new AbortController();
+
+    const pending = createSubagentSession(
+      { snapshot: STUB_SNAPSHOT, type: "Explore", selectionSignal: controller.signal },
+      defaultDeps(),
+    );
+    // The lease is revoked while the loader reload is still in flight.
+    controller.abort();
+    finishReload();
+
+    await expect(pending).rejects.toThrow(/cancel/i);
+    expect(io.createSession).not.toHaveBeenCalled();
+  });
+
+  it("disposes a session that creation returned after the signal aborted", async () => {
+    const session = createFactorySession();
+    const { promise: createGate, resolve: finishCreate } = Promise.withResolvers<{
+      session: typeof session;
+    }>();
+    io.createSession.mockReturnValue(createGate);
+    const lifecycle = createChildLifecycleMock();
+    const controller = new AbortController();
+
+    const pending = createSubagentSession(
+      { snapshot: STUB_SNAPSHOT, type: "Explore", selectionSignal: controller.signal },
+      createSubagentSessionDeps({ io, exec, registry: mockAgentLookup, lifecycle }),
+    );
+    // Creation has actually begun — the abort lands while createSession is pending.
+    await vi.waitFor(() => expect(io.createSession).toHaveBeenCalled());
+    controller.abort();
+    finishCreate({ session });
+
+    await expect(pending).rejects.toThrow(/cancel/i);
+    expect(session.dispose).toHaveBeenCalledOnce();
+    expect(session.bindExtensions).not.toHaveBeenCalled();
+    expect(lifecycle.sessionCreated).not.toHaveBeenCalled();
   });
 });

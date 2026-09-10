@@ -18,6 +18,37 @@ import { randomUUID } from "node:crypto";
 import { runInConstructionContext, type SelectionScopeHandle } from "#src/lifecycle/selection-scope";
 import type { SpawnSelectionProvider, SpawnSelectionRegistration } from "#src/service/service";
 
+/** Marker distinguishing a cancelled selection from an infrastructure error. */
+const CANCELLATION_MARKER = Symbol.for(
+	"@gotgenes/pi-subagents:spawn-selection-cancelled",
+);
+
+/**
+ * A gated run's selection phase ended without a pair: the user cancelled the
+ * dialog, the run aborted, or the lease closed while the chooser was open.
+ *
+ * Distinct from an infrastructure failure, which is an error: a cancellation
+ * stops the record, it does not fail it. The marker (rather than a plain
+ * `instanceof`) keeps the classification working even if the throwing and
+ * catching module instances differ.
+ */
+export class SelectionCancelledError extends Error {
+	readonly [CANCELLATION_MARKER] = true;
+
+	constructor(message = "The spawn selection was cancelled.") {
+		super(message);
+	}
+}
+
+/** Whether an error means a cancelled selection rather than a failed one. */
+export function isSelectionCancellation(err: unknown): boolean {
+	return (
+		typeof err === "object" &&
+		err !== null &&
+		(err as Record<symbol, unknown>)[CANCELLATION_MARKER] === true
+	);
+}
+
 /** The three lease states a root's selection scope moves through, in order. */
 export type SelectionLeaseState = "unconfigured" | "active" | "revoked";
 
@@ -44,6 +75,7 @@ export class SpawnSelectionScope implements SelectionScopeHandle {
 	private leaseState: SelectionLeaseState = "unconfigured";
 	private provider?: SpawnSelectionProvider;
 	private readonly children = new Set<ChildSelectionScope>();
+	private readonly closure = new AbortController();
 
 	constructor() {
 		this.rootId = `spawn-selection-${randomUUID()}`;
@@ -57,6 +89,11 @@ export class SpawnSelectionScope implements SelectionScopeHandle {
 	/** The registered provider, defined only while the lease is active. */
 	get activeProvider(): SpawnSelectionProvider | undefined {
 		return this.leaseState === "active" ? this.provider : undefined;
+	}
+
+	/** Aborts when the lease is revoked — the root's own closure. */
+	get closureSignal(): AbortSignal {
+		return this.closure.signal;
 	}
 
 	/** How many direct child handles are still open (diagnostics and tests). */
@@ -94,15 +131,22 @@ export class SpawnSelectionScope implements SelectionScopeHandle {
 
 	/**
 	 * Revoke the lease: deny every later registration and construction, and
-	 * close all descendant handles. Idempotent.
+	 * close all descendant handles. Idempotent. Aborts the closure signal so a
+	 * pending chooser is dismissed rather than awaited by manager disposal.
 	 */
 	revoke(): void {
 		if (this.leaseState === "revoked") return;
 		this.leaseState = "revoked";
 		this.provider = undefined;
+		this.closure.abort();
 		const children = [...this.children];
 		this.children.clear();
 		for (const child of children) child.close();
+	}
+
+	/** The root lease's provider — selection is required while it is defined. */
+	activeSelectionProvider(): SpawnSelectionProvider | undefined {
+		return this.activeProvider;
 	}
 
 	constructChild<T>(thunk: () => Promise<T>): Promise<T> {
@@ -145,10 +189,23 @@ export class ChildSelectionScope implements ConstructedHandle {
 	private closed = false;
 	private retained = false;
 	private readonly children = new Set<ChildSelectionScope>();
+	private readonly closure = new AbortController();
 
 	/** Created only by a construction wrapper — the root or a parent child handle. */
 	constructor(private readonly root: SpawnSelectionScope) {
 		this.rootId = root.rootId;
+	}
+
+	/** Aborts when this handle closes — its own shutdown or the root's revocation. */
+	// fallow-ignore-next-line unused-class-member -- reached via SelectionScopeHandle dispatch (gated run abort)
+	get closureSignal(): AbortSignal {
+		return this.closure.signal;
+	}
+
+	/** The root lease's provider — a descendant asks with the same authority. */
+	// fallow-ignore-next-line unused-class-member -- reached via SelectionScopeHandle dispatch (gated run consults the root lease)
+	activeSelectionProvider(): SpawnSelectionProvider | undefined {
+		return this.root.activeSelectionProvider();
 	}
 
 	// fallow-ignore-next-line unused-class-member -- reached via SelectionScopeHandle dispatch (a descendant's own spawns)
@@ -187,11 +244,13 @@ export class ChildSelectionScope implements ConstructedHandle {
 
 	/**
 	 * Close this handle and its subtree only. The root's lease and unrelated
-	 * siblings are untouched; the root stops tracking this child.
+	 * siblings are untouched; the root stops tracking this child. Aborts the
+	 * closure signal so this subtree's pending selections are invalidated.
 	 */
 	close(): void {
 		if (this.closed) return;
 		this.closed = true;
+		this.closure.abort();
 		const children = [...this.children];
 		this.children.clear();
 		for (const child of children) child.close();

@@ -26,6 +26,17 @@ export interface SelectionScopeHandle {
 	 */
 	register(provider: SpawnSelectionProvider): SpawnSelectionRegistration;
 	/**
+	 * The root lease's provider while new runs must select — undefined when the
+	 * lease is unconfigured or revoked, and on any handle whose root's is.
+	 */
+	activeSelectionProvider(): SpawnSelectionProvider | undefined;
+	/**
+	 * Aborts once this handle closes — its own shutdown, or the root lease's
+	 * revocation. A gated run combines this with its own abort signal for the
+	 * provider call and the pre-creation checks.
+	 */
+	readonly closureSignal: AbortSignal;
+	/**
 	 * Wrap the complete child factory call in the construction context: the
 	 * context is active for everything the thunk does, including the resource
 	 * loader's reload and the child extension factories it awaits.

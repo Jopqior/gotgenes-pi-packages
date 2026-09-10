@@ -21,6 +21,7 @@ import {
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import type { ChildLifecyclePublisher } from "#src/lifecycle/child-lifecycle";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import { SelectionCancelledError } from "#src/lifecycle/spawn-selection";
 import { SubagentSession } from "#src/lifecycle/subagent-session";
 import { AskParentTool, type QuestionRecorder } from "#src/session/ask-parent-tool";
 import type { EnvInfo } from "#src/session/env";
@@ -165,6 +166,13 @@ export interface CreateSubagentSessionParams {
   model?: Model<any>;
   thinkingLevel?: ThinkingLevel;
   /**
+   * Combined abort signal for a gated run (a selection was required). Checked
+   * after the asynchronous preparation awaits and immediately before the SDK
+   * session-creation call; a session that creation returned anyway is disposed
+   * before binding. Absent on the ordinary no-provider path.
+   */
+  selectionSignal?: AbortSignal;
+  /**
    * Records a question the child declares with `ask_parent`. Supplied for every
    * child; its absence installs no ask-back tool.
    */
@@ -261,6 +269,12 @@ export async function createSubagentSession(
   sessionManager.newSession({ parentSession: params.parentSession?.parentSessionId });
   const sessionId = sessionManager.getSessionId();
 
+  // A gated run rechecks its signal after the environment/loader awaits:
+  // revocation during loader.reload() must not reach SDK creation.
+  if (params.selectionSignal?.aborted) {
+    throw new SelectionCancelledError();
+  }
+
   const childTools = buildChildTools(params);
   const { session } = await deps.io.createSession({
     cwd: cfg.effectiveCwd,
@@ -275,6 +289,14 @@ export async function createSubagentSession(
     resourceLoader: loader,
     thinkingLevel: cfg.thinkingLevel,
   });
+
+  // Creation had already begun when the cancellation landed; the SDK call
+  // cannot be undone, but its session is torn down before binding or prompting.
+  if (params.selectionSignal?.aborted) {
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- dispose may not exist on all session implementations
+    session.dispose?.();
+    throw new SelectionCancelledError();
+  }
 
   const subagentSession = new SubagentSession(session, {
     outputFile: sessionManager.getSessionFile(),
