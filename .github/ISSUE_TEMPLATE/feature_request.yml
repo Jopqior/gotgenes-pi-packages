@@ -17,6 +17,7 @@ body:
         - pi-permission-system
         - pi-session-tools
         - pi-subagents
+        - pi-subagents-model-selector
         - pi-subagents-worktrees
         - repo-wide (not a specific package)
     validations:
