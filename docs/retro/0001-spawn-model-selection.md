@@ -80,3 +80,21 @@ Steps 7–8 remain (pending-activity docs, fork-local wiring); pre-completion re
 - Real-loader tests stayed fast here (~0.6s for five cases); grandchild inheritance used nested `constructChild` because the stub session never fires child `session_start`, so `childService.spawn()` cannot run.
 - `factory.mock.calls[0][0]` needed a typed `CreateSubagentSessionParams` parameter; untyped `vi.fn(async () => …)` made the call tuple `[]` and failed `tsc`.
 - Unrelated untracked `.pi/extensions/pi-permission-system/` was left untouched.
+
+## Stage: Implementation — TDD (2026-09-10T07:32:22Z)
+
+### Session summary
+
+Executed only TDD Order step 7 as requested: pending-selection wording in foreground, widget, and background projections, plus the core and companion docs.
+Committed `104585b7` (`feat(pi-subagents): show when a run awaits human selection (#1)`); 6 new tests, all green after killing-mutation checks.
+Step 8 remains (fork-local wiring); pre-completion review was not run.
+
+### Observations
+
+- Public status stays `running` while waiting; `toSubagentRecord` still withholds `awaitingSelection`.
+  That snapshot pin stayed green during Red, and leaking the field into the snapshot killed it as planned.
+- Named mutations matched: `Agent started` for a pending background run killed the wording pin; omitting the pending projection killed the foreground, widget-renderer, and widget mapping tests.
+- Foreground progress only saw the record at `onSessionCreated`, which is after selection.
+  Wiring `onStarted` is what makes pending activity visible before the child session exists.
+- Companion README is new; packed tarball will pick it up automatically on the next pack.
+- Unrelated untracked `.pi/extensions/pi-permission-system/` was left untouched.
