@@ -240,6 +240,35 @@ describe("AgentWidget — projection reads activity off Subagent records", () =>
 		// Active tool "read" → "reading…"
 		expect(allText).toContain("reading");
 	});
+
+	it("surfaces pending-selection activity from the record via renderWidget", () => {
+		const record = createTestSubagent({
+			status: "running",
+			completedAt: undefined,
+			startedAt: Date.now() - 100,
+			awaitingSelection: true,
+			isBackground: true,
+		});
+		const manager = { listAgents: () => [record] } as unknown as SubagentManager;
+		const registry = new AgentTypeRegistry(() => new Map());
+		const widget = new AgentWidget(manager, registry);
+
+		let renderFn: ((tui: unknown, theme: unknown) => { render(): string[] }) | undefined;
+		const ui: UICtx = {
+			setStatus: () => {},
+			setWidget: (_key, content) => {
+				if (typeof content === "function") renderFn = content as typeof renderFn;
+			},
+		};
+		widget.setUICtx(ui);
+		widget.update();
+
+		expect(renderFn).toBeDefined();
+		const stubTui = { terminal: { columns: 200 }, requestRender: () => {} };
+		const stubTheme = { fg: (_: string, t: string) => t, bold: (t: string) => t };
+		const allText = renderFn!(stubTui, stubTheme).render().join("\n");
+		expect(allText).toContain("Awaiting model/thinking selection");
+	});
 });
 
 describe("AgentWidget.update self-seeds finished agents", () => {

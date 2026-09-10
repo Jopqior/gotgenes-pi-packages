@@ -21,6 +21,7 @@ import {
 	formatTurns,
 	getDisplayName,
 	getPromptModeLabel,
+	PENDING_SELECTION_ACTIVITY,
 	type Theme,
 } from "#src/ui/display";
 import { GLYPHS, SPINNER } from "#src/ui/glyphs";
@@ -44,6 +45,8 @@ export interface WidgetAgent {
 	readonly maxTurns?: number;
 	readonly activeTools: ReadonlyMap<string, string>;
 	readonly responseText: string;
+	/** True while this run is waiting for a human model/thinking selection. */
+	readonly awaitingSelection?: boolean;
 	/** Context-window utilisation (0–100), or null when unavailable. */
 	readonly contextPercent: number | null;
 }
@@ -113,7 +116,9 @@ export function renderRunningLines(
 	const statsText = parts.join(" · ");
 
 	const frame = SPINNER[spinnerFrame % SPINNER.length];
-	const activityText = describeActivity(agent.activeTools, agent.responseText);
+	const activityText = agent.awaitingSelection
+		? PENDING_SELECTION_ACTIVITY
+		: describeActivity(agent.activeTools, agent.responseText);
 
 	const header = `${theme.fg("accent", frame)} ${theme.bold(name)}${modeTag}  ${theme.fg("muted", agent.description)} ${theme.fg("dim", "·")} ${theme.fg("dim", statsText)}`;
 	const activityLine = theme.fg("dim", `  ${GLYPHS.subLine}  ${activityText}`);

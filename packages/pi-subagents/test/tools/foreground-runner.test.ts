@@ -220,6 +220,33 @@ describe("runForeground", () => {
 		expect(result.content[0].text).toContain('Unknown agent type "unknown-type"');
 	});
 
+	it("projects pending selection into streaming activity before the session exists", async () => {
+		const pending = createTestSubagent({
+			status: "running",
+			completedAt: undefined,
+			awaitingSelection: true,
+		});
+		const held = Promise.withResolvers<ReturnType<typeof createTestSubagent>>();
+		const deps = createToolDeps({
+			manager: {
+				...createToolDeps().manager,
+				spawnAndWait: vi.fn((_snapshot, _type, _prompt, opts) => {
+					opts.observer?.onStarted?.(pending);
+					return held.promise;
+				}),
+			},
+		});
+		const onUpdate = vi.fn();
+		const runPromise = runForeground(deps.manager, makeParams(), undefined, onUpdate);
+
+		await vi.advanceTimersByTimeAsync(100);
+		const activities = onUpdate.mock.calls.map((call) => call[0].details.activity);
+		expect(activities).toContain("Awaiting model/thinking selection");
+
+		held.resolve(createTestSubagent({ result: "done" }));
+		await runPromise;
+	});
+
 	it("calls onUpdate with streaming details while running", async () => {
 		let resolve!: (r: any) => void;
 		const promise = new Promise<any>((res) => { resolve = res; });

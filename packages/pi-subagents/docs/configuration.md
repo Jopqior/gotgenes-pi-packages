@@ -178,6 +178,11 @@ A lock is never silent: when a caller passes a value for a locked field, the too
 A lock binds the `subagent` tool only.
 [`SubagentsService.spawn`](../README.md#for-extension-authors) is a programmatic caller rather than a model guessing at harness settings, so its options win regardless.
 
+A registered spawn-selection provider is a later authority for `model` and `thinking` only.
+The operator still chooses both after ordinary resolution, and that pair overrides defaults, explicit arguments, and `locked:` values for those two fields.
+Other locked fields are unchanged.
+With no provider, locking and ordinary resolution are unchanged.
+
 ### Tool selection
 
 `tools` is the agent's **complete allowlist** of capability tools, not a filter over the built-ins.

@@ -235,6 +235,14 @@ Agent lifecycle events are emitted via `pi.events.emit()` so other extensions ca
 `cacheRead` is excluded — each turn's `cacheRead` is the cumulative cached prefix re-read on that one API call, so summing per-message would over-count it.
 Use `contextUsage.percent` (surfaced as `(NN%)` in the widget) for current context size.
 
+## Per-spawn model and thinking selection
+
+Interactive model and thinking choice lives in a companion package, not this core.
+This fork's `@jopqior/pi-subagents-model-selector` registers a `SpawnSelectionProvider` so every new in-process run asks the operator before a workspace or child session is created.
+The selected pair overrides model and thinking defaults, explicit arguments, and `locked:` values for those two fields only.
+Installing this core without the companion leaves ordinary resolution unchanged.
+See [`@jopqior/pi-subagents-model-selector`](../pi-subagents-model-selector/README.md) for load order, nested routing, and non-interactive refusal.
+
 ## Worktree Isolation
 
 Worktree isolation lives in a companion package, not this core.
@@ -291,7 +299,7 @@ svc?.spawn("Explore", "Check for stale TODOs");
 ```
 
 Declare this package as an optional peer dependency.
-See `src/service/service.ts` for the full `SubagentsService` interface and the `WorkspaceProvider` seam.
+See `src/service/service.ts` for the full `SubagentsService` interface, the `WorkspaceProvider` seam, and `registerSpawnSelectionProvider`.
 
 #### `spawn` contract
 
@@ -311,12 +319,36 @@ It throws in four cases:
 Agent frontmatter never overrides an option you pass.
 It fills `model`, `thinkingLevel`, and `maxTurns` when you omit them; `inheritContext` is the exception, and defaults to `false` whatever the agent file declares.
 An agent file's [`locked`](./docs/configuration.md#locking-fields-against-callers) frontmatter does not apply here — it guards against a model guessing harness settings, and an SDK caller is not that.
+A registered spawn-selection provider still asks after this resolution and overrides `model` and `thinkingLevel` for the new run.
 
 Background mode follows the caller's degree of commitment.
 Omit `foreground` and the agent's own `run_in_background` frontmatter decides, defaulting to background when the agent declares nothing.
 Pass `foreground` explicitly and it wins outright, whatever the frontmatter says.
 
 A spawned agent is a first-class citizen of the runtime: it appears in the background widget, carries its parent's session identity so permission prompts route correctly, and nests its session file under the parent's.
+
+#### `registerSpawnSelectionProvider` contract
+
+Register the single provider this session's subagent tree will consult before creating any **new** child session.
+`spawn()` still returns the id immediately.
+The admitted record exists while the operator chooses, but neither workspace nor child session is created until selection succeeds.
+
+Capture the service instance once during extension initialization.
+Do not look the locator up again on later events.
+
+```typescript
+const service = getSubagentsService();
+const registration = service.registerSpawnSelectionProvider(chooser);
+if (registration.kind === "inherited") return;
+```
+
+On the tree's root session, the result is `owned` and `dispose()` revokes that generation's lease.
+A second registration on an active root throws.
+On a descendant, the result is `inherited`: the supplied provider is not installed, `dispose()` is a no-op, and the root's ownership is untouched — including when the inherited lease is already revoked.
+
+`undefined` from `select()` is user cancellation, never an approval that keeps inherited values.
+Infrastructure failures (no UI, empty catalogue, invalid pair) must reject.
+Resume does not call the provider.
 
 #### `getRecord` / `listAgents` contract
 
@@ -325,7 +357,7 @@ Poll again for fresh data.
 
 The snapshot carries identity (`id`, `type`, `description`), lifecycle status (`status`, `startedAt`, `completedAt`, `result`, `error`), the resolved spawn facts (`isBackground`, `maxTurns`), cumulative metrics (`toolUses`, `turnCount`, `compactionCount`, `lifetimeUsage`), and `outputFile` — the path to the agent's session JSONL, which you can read with Pi's own `parseSessionEntries`.
 
-It deliberately withholds momentary activity (the tools running right now, the partial response text) and this package's internal bookkeeping.
+It deliberately withholds momentary activity (the tools running right now, the partial response text, whether the run is awaiting a human model/thinking selection) and this package's internal bookkeeping.
 A pulled snapshot of momentary state would be stale on arrival; [decision 0005](docs/decisions/0005-subagent-record-admission-policy.md) records the full policy and what would reopen it.
 
 `SubagentRecord` and `SubagentsService` are types this package produces and you read — not contracts to implement.
@@ -412,6 +444,7 @@ The [architecture doc](./docs/architecture/architecture.md#scope-and-non-goals) 
 **Where adjacent requests belong.**
 Tool restriction and per-agent permission policy → [@gotgenes/pi-permission-system](https://www.npmjs.com/package/@gotgenes/pi-permission-system).
 Worktree isolation → [@gotgenes/pi-subagents-worktrees](https://www.npmjs.com/package/@gotgenes/pi-subagents-worktrees).
+Per-spawn model and thinking selection → this fork's `@jopqior/pi-subagents-model-selector` (local companion).
 Timed dispatch, telemetry, and alternate UIs → a consumer over the lifecycle events and the typed service.
 A batteries-included alternative → upstream [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents).
 

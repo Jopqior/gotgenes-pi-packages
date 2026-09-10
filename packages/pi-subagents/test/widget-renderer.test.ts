@@ -175,6 +175,19 @@ describe("renderRunningLines", () => {
 		expect(activityLine).toContain("thinking…");
 	});
 
+	it("projects pending selection instead of tool activity", () => {
+		const agent = makeAgent({
+			status: "running",
+			completedAt: undefined,
+			awaitingSelection: true,
+			activeTools: new Map([["read_1", "read"]]),
+		});
+		const [, activityLine] = renderRunningLines(agent, testRegistry, 0, theme);
+
+		expect(activityLine).toContain("Awaiting model/thinking selection");
+		expect(activityLine).not.toContain("reading");
+	});
+
 	it("advances spinner frame", () => {
 		const agent = makeAgent({ status: "running", completedAt: undefined });
 		const [header0] = renderRunningLines(agent, testRegistry, 0, theme);

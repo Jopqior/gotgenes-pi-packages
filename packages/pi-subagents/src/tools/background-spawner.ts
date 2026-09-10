@@ -48,15 +48,20 @@ export function spawnBackground(
   const record = manager.getRecord(id);
 
   const isQueued = record?.status === "queued";
+  const isAwaitingSelection = record?.awaitingSelection === true;
+  const launchVerb = isQueued ? "queued" : isAwaitingSelection ? "submitted" : "started";
   return textResult(
     renderSpawnNotes(notes) +
-      `Agent ${isQueued ? "queued" : "started"} in background.\n` +
+      `Agent ${launchVerb} in background.\n` +
       `Agent ID: ${id}\n` +
       `Type: ${identity.displayName}\n` +
       `Description: ${execution.description}\n` +
       (record?.outputFile ? `Output file: ${record.outputFile}\n` : "") +
       (isQueued
         ? `Position: queued (max ${params.settings.maxConcurrent} concurrent)\n`
+        : "") +
+      (isAwaitingSelection && !isQueued
+        ? `Awaiting model/thinking selection.\n`
         : "") +
       `\nYou will be notified when this agent completes.\n` +
       `Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n` +

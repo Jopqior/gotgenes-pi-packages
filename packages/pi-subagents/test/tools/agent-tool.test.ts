@@ -52,6 +52,13 @@ describe("AgentTool", () => {
 		expect(def.description).toContain("- Explore: Fast codebase exploration agent");
 	});
 
+	it("explains that a registered spawn-selection provider overrides model and thinking locks", () => {
+		const def = makeTool(createToolDeps()).toToolDefinition();
+		expect(def.description).toContain(
+			"When a spawn-selection provider is registered, the subagent tool still accepts model and thinking, but the operator's choice after the call overrides those arguments and any agent locks for those two fields.",
+		);
+	});
+
 	it("lists the built-in agent guidelines in registry order", () => {
 		const def = makeTool(createToolDeps()).toToolDefinition();
 		const guidelines = [

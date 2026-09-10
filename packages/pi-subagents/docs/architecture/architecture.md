@@ -304,6 +304,7 @@ sequenceDiagram
     Spawn-->>Tool: ResolvedSpawnConfig
     Tool->>Mgr: spawn(snapshot, type, prompt, config)
     Mgr->>Ag: run()
+    Note over Ag: a registered provider selects model and thinking before workspace or factory
     Ag->>Factory: createSubagentSession(params, deps)
     Factory->>Asm: assembleSessionConfig(type, ctx, opts, env, registry, io)
     Asm-->>Factory: SessionConfig
@@ -328,8 +329,8 @@ The extension's source files are organized into domain directories — `config/`
 
 ```text
 src/
-├── index.ts                        entry point, tool registration, event wiring
-├── runtime.ts                      SubagentRuntime factory (session-scoped state)
+├── index.ts                        entry point, tool registration, event wiring; captures inherited selection scope at factory initialization
+├── runtime.ts                      SubagentRuntime factory (session-scoped state); owns selection-scope lifetime and revokes the root lease before teardown
 ├── types.ts                        shared type definitions
 ├── settings.ts                     SettingsManager (persistent operational settings)
 ├── debug.ts                        debug logging utility
@@ -352,17 +353,18 @@ src/
 │   ├── conversation.ts             render a session's messages as formatted text
 │   ├── env.ts                      git/platform detection
 │   ├── model-resolver.ts           fuzzy model name resolution
+│   ├── selection-catalogue.ts      authenticated available models and validation of a human-selected pair
 │   ├── package-exclusions.ts       child settings view that disables excluded packages' extensions
 │   ├── provider-inheritance.ts     replays the parent's runtime-registered providers onto the child's own runtime, so the child inherits them without sharing the parent's mutable pool
 │   └── session-dir.ts              session directory derivation
 │
 ├── lifecycle/                      agent execution and state tracking
 │   ├── subagent-manager.ts         collection manager + observer wiring + session-retention sweep (consumption-aware; an unanswered question holds the safety cap)
-│   ├── create-subagent-session.ts  assembly factory: session creation, spawn-tool denylist, core child-tool install, binding
+│   ├── create-subagent-session.ts  assembly factory: session creation, spawn-tool denylist, core child-tool install, binding; optional gated-run signal after loader awaits
 │   ├── subagent-session.ts         born-complete child session: turn loop, steer, shutdown-then-dispose teardown
 │   ├── turn-limits.ts              normalizeMaxTurns (turn-count policy)
-│   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal), which the resume door and every result carrier read rather than re-deriving
-│   ├── subagent-state.ts           lifecycle status + metrics + result-delivery value object (transitions, accumulators, classification predicates); delivery carries a revocable carrier claim and a one-way consumption latch
+│   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); awaits a registered spawn-selection provider after admission and before workspace or session creation; a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal), which the resume door and every result carrier read rather than re-deriving
+│   ├── subagent-state.ts           lifecycle status + metrics + result-delivery value object (transitions, accumulators, classification predicates); delivery carries a revocable carrier claim and a one-way consumption latch; private awaiting-selection activity, never a public status
 │   ├── run-listeners.ts            per-run observer-unsub and signal-detach handles
 │   ├── workspace-bracket.ts        child workspace prepare/dispose lifecycle; idempotent dispose, reports a torn-down workspace
 │   ├── concurrency-limiter.ts       background admission gate: schedules run thunks FIFO against the limit
@@ -370,6 +372,8 @@ src/
 │   ├── child-lifecycle.ts          child-execution lifecycle event publisher
 │   ├── child-shutdown.ts           bounded session_shutdown emit for a child being disposed
 │   ├── workspace.ts                workspace provider seam (generative extension surface)
+│   ├── spawn-selection.ts          root provider lease (never-configured, active, revoked) and inherited child handles
+│   ├── selection-scope.ts          process-shared construction carrier; child factory captures the handle at initialization
 │   └── usage.ts                    token usage tracking
 │
 ├── observation/                    progress tracking and notification
@@ -381,24 +385,24 @@ src/
 │   └── subagent-events-observer.ts manager lifecycle observer (event emission + persistence + notification)
 │
 ├── service/                        cross-extension API boundary
-│   ├── service.ts                  SubagentsService interface + Symbol.for() accessors
+│   ├── service.ts                  SubagentsService interface + Symbol.for() accessors, including spawn-selection registration
 │   └── service-adapter.ts          SubagentsServiceAdapter class wrapping SubagentManager
 │
 ├── tools/                          LLM-facing tool implementations
 │   ├── agent-tool.ts               subagent tool definition, validation, dispatch
 │   ├── result-renderer.ts          pure per-status result rendering
 │   ├── spawn-config.ts             pure config resolution
-│   ├── foreground-runner.ts        foreground execution loop
-│   ├── background-spawner.ts       background spawn setup
+│   ├── foreground-runner.ts        foreground execution loop; projects private pending-selection activity
+│   ├── background-spawner.ts       background spawn setup; submitted/waiting wording while selection is pending
 │   ├── get-result-tool.ts          get_subagent_result tool
 │   ├── get-result-report.ts        pure get_subagent_result report formatter
 │   ├── steer-tool.ts               steer_subagent tool
 │   └── helpers.ts                  shared tool utilities
 │
 ├── ui/                             user-facing presentation
-│   ├── agent-widget.ts             above-editor live status widget
-│   ├── widget-renderer.ts          pure rendering for widget
-│   ├── display.ts                  pure formatters and shared types
+│   ├── agent-widget.ts             above-editor live status widget; maps private pending-selection activity onto the renderer
+│   ├── widget-renderer.ts          pure rendering for widget, including pending-selection activity
+│   ├── display.ts                  pure formatters and shared types, including pending-selection activity wording
 │   ├── glyphs.ts                   semantic display-glyph vocabulary (monospace-coverage constraint, #669)
 │   ├── subagents-settings.ts       /subagents:settings command handler
 │   ├── session-navigation.ts       pure session-selection and transcript-source logic
@@ -408,7 +412,7 @@ src/
 └── handlers/                       event handlers
     ├── index.ts                    barrel re-export
     ├── interrupt.ts                turn_start handler — abort all subagents on parent interrupt (ESC), when policy allows
-    ├── lifecycle.ts                session_start, session_before_switch, session_shutdown
+    ├── lifecycle.ts                session_start, session_before_switch, session_shutdown; closes the selection scope before abort and disposal
     └── widget-events.ts            widget's host events — session_start (UI context), turn_start (linger aging), session_shutdown (teardown)
 ```
 
@@ -451,6 +455,9 @@ They declare this package as an optional peer dependency and use dynamic import 
   This replaced the former outbound `permission-bridge` (#261, [ADR-0002]) — the core no longer looks up a named consumer.
 - `workspace` — the single generative seam (#262, [ADR-0002]): a registered `WorkspaceProvider` supplies a child's cwd plus bracketed `dispose()` at run-start.
   With no provider, children run in the parent cwd (default unchanged); the git worktree strategy lives behind this seam in `@gotgenes/pi-subagents-worktrees` (#263, the seam's first consumer).
+- `registerSpawnSelectionProvider` — an optional generative seam: a registered provider supplies the model and thinking pair for each new run after admission and before workspace or session creation.
+  With no provider, ordinary resolution is unchanged.
+  A descendant captures an inherited handle during child factory initialization rather than installing a second provider.
 - `session-config` — pure configuration assembler (called by `createSubagentSession`).
 - `SubagentRuntime` — session-scoped state bag with methods.
 - `ParentSnapshot` — immutable snapshot of parent session state, captured once at spawn time.

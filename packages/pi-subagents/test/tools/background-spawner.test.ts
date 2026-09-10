@@ -87,6 +87,25 @@ describe("spawnBackground", () => {
     expect(result.content[0].text).toContain("started");
   });
 
+  it("does not claim the child session started while selection is pending", () => {
+    const record = createTestSubagent({
+      status: "running",
+      completedAt: undefined,
+      awaitingSelection: true,
+    });
+    const deps = createToolDeps({
+      manager: {
+        ...createToolDeps().manager,
+        spawn: vi.fn().mockReturnValue("bg-pending"),
+        getRecord: vi.fn().mockReturnValue(record),
+      },
+    });
+    const text = spawnBackground(deps.manager, makeParams()).content[0].text;
+    expect(text).not.toContain("Agent started");
+    expect(text).toContain("Agent submitted in background.");
+    expect(text).toContain("Awaiting model/thinking selection");
+  });
+
   it("includes output file path in result when present", () => {
     const record = createTestSubagent({ status: "running" });
     record.subagentSession = toSubagentSession(createSubagentSessionStub(createMockSession(), "/sessions/bg.jsonl"));

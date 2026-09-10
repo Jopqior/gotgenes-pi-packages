@@ -46,6 +46,9 @@ export interface AgentDetails {
 /** Statuses that indicate an error/non-success outcome (used for linger behavior and icon rendering). */
 export const ERROR_STATUSES = new Set(["error", "aborted", "steered", "stopped"]);
 
+/** Private pending-selection activity shown while public status stays `running`. */
+export const PENDING_SELECTION_ACTIVITY = "Awaiting model/thinking selection";
+
 /** Tool name → human-readable action for activity descriptions. */
 const TOOL_DISPLAY: Record<string, string> = {
   read: "reading",
