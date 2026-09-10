@@ -2,13 +2,18 @@ import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vite
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import { ConcurrencyLimiter } from "#src/lifecycle/concurrency-limiter";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
+import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import type { SelectionScopeHandle } from "#src/lifecycle/selection-scope";
+import { SpawnSelectionScope } from "#src/lifecycle/spawn-selection";
 import type { AgentSpawnConfig } from "#src/lifecycle/subagent-manager";
 import { resolveRetentionWindow, SubagentManager, type SubagentManagerObserver } from "#src/lifecycle/subagent-manager";
 import type { SubagentSession } from "#src/lifecycle/subagent-session";
 import type { Workspace, WorkspacePrepareContext, WorkspaceProvider } from "#src/lifecycle/workspace";
 import { NotificationManager } from "#src/observation/notification";
 import type { RunConfig } from "#src/runtime";
+import type { SpawnSelection, SpawnSelectionProvider } from "#src/service/service";
 import type { AgentConfig, Subagent } from "#src/types";
+import { makeModel } from "#test/helpers/make-model";
 import { makeWorkspace } from "#test/helpers/make-workspace";
 import { createBlockingFactory, createSessionFactory } from "#test/helpers/manager-stubs";
 import { createMockSession, createSubagentSessionStub, emitResumeUsageAndCompaction, toSubagentSession } from "#test/helpers/mock-session";
@@ -56,6 +61,7 @@ function createManager(overrides?: {
   getRetentionPolicy?: () => { consumedSessionRetentionMinutes: number; unconsumedSessionRetentionMinutes: number };
   baseCwd?: string;
   registry?: AgentTypeRegistry;
+  selectionScope?: SelectionScopeHandle;
 }) {
   const createSubagentSession: SessionFactory = overrides?.createSubagentSession ?? defaultFactory();
   const observer: SubagentManagerObserver | undefined = overrides?.observer
@@ -77,6 +83,7 @@ function createManager(overrides?: {
     getRunConfig: overrides?.getRunConfig,
     getRetentionPolicy: overrides?.getRetentionPolicy,
     registry: overrides?.registry ?? defaultRegistry(),
+    selectionScope: overrides?.selectionScope ?? new SpawnSelectionScope(),
   });
   return { manager: mgr, createSubagentSession, limiter };
 }
@@ -1519,5 +1526,133 @@ describe("resolveRetentionWindow", () => {
         ),
       ).toEqual({ referenceAt: 9_000, windowMinutes: 720 });
     });
+  });
+});
+
+describe("SubagentManager — spawn selection threading", () => {
+  const catalogueModels = [
+    makeModel({ id: "claude-sonnet", name: "Claude Sonnet" }),
+    makeModel({ id: "claude-haiku", name: "Claude Haiku" }),
+  ];
+
+  /** A snapshot whose registry exposes exactly the catalogue models as available. */
+  function snapshotWithCatalogue(): ParentSnapshot {
+    return {
+      ...STUB_SNAPSHOT,
+      modelRegistry: {
+        find: (provider, id) =>
+          catalogueModels.find((m) => m.provider === provider && m.id === id),
+        getAll: () => catalogueModels,
+        getAvailable: () => catalogueModels,
+      },
+    };
+  }
+
+  /** A root scope whose lease holds the supplied provider. */
+  function scopeWithProvider(select: SpawnSelectionProvider["select"]): SelectionScopeHandle {
+    const scope = new SpawnSelectionScope();
+    scope.register({ select });
+    return scope;
+  }
+
+  it("consults the tree's provider for a background spawn and threads the selected pair to the factory", async () => {
+    const select = vi.fn().mockResolvedValue({
+      model: catalogueModels[1],
+      thinkingLevel: "off",
+    } satisfies SpawnSelection);
+    const { factory } = createSessionFactory();
+    const { manager } = createManager({
+      createSubagentSession: factory,
+      selectionScope: scopeWithProvider(select),
+    });
+
+    const id = manager.spawn(snapshotWithCatalogue(), "general-purpose", "test", {
+      description: "gate test",
+      background: { kind: "explicit", isBackground: true },
+    });
+
+    expect(typeof id).toBe("string");
+    await manager.waitForAll();
+    expect(select).toHaveBeenCalledTimes(1);
+    const params = factory.mock.calls[0][0];
+    expect(params.model).toBe(catalogueModels[1]);
+    expect(params.thinkingLevel).toBe("off");
+  });
+
+  it("consults the tree's provider for a foreground spawnAndWait", async () => {
+    const select = vi.fn().mockResolvedValue({
+      model: catalogueModels[0],
+      thinkingLevel: "off",
+    } satisfies SpawnSelection);
+    const { factory } = createSessionFactory();
+    const { manager } = createManager({
+      createSubagentSession: factory,
+      selectionScope: scopeWithProvider(select),
+    });
+
+    await manager.spawnAndWait(snapshotWithCatalogue(), "general-purpose", "test", {
+      description: "gate test",
+    });
+
+    expect(select).toHaveBeenCalledTimes(1);
+    const params = factory.mock.calls[0][0];
+    expect(params.model).toBe(catalogueModels[0]);
+    expect(params.thinkingLevel).toBe("off");
+  });
+
+  it("returns the id synchronously while the selection is pending", () => {
+    const select = vi.fn(() => new Promise<SpawnSelection | undefined>(() => {}));
+    const { factory } = createSessionFactory();
+    const { manager } = createManager({
+      createSubagentSession: factory,
+      selectionScope: scopeWithProvider(select),
+    });
+
+    const id = manager.spawn(snapshotWithCatalogue(), "general-purpose", "test", {
+      description: "gate test",
+      background: { kind: "explicit", isBackground: true },
+    });
+
+    // The synchronous-ID invariant: spawn() has returned while the chooser is
+    // still deciding, and no factory call has happened yet.
+    expect(typeof id).toBe("string");
+    expect(select).toHaveBeenCalledTimes(1);
+    expect(factory).not.toHaveBeenCalled();
+  });
+
+  it("holds a queued record's selection until the limiter admits it", async () => {
+    const select = vi.fn().mockResolvedValue({
+      model: catalogueModels[0],
+      thinkingLevel: "off",
+    } satisfies SpawnSelection);
+    const { promise: firstGate, resolve: releaseFirst } = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
+    const stub = createSubagentSessionStub();
+    const factory = vi
+      .fn()
+      .mockImplementationOnce(() => firstGate.then(() => toSubagentSession(stub)))
+      .mockImplementation(async () => toSubagentSession(createSubagentSessionStub()));
+    const { manager } = createManager({
+      createSubagentSession: factory,
+      getMaxConcurrent: () => 1,
+      selectionScope: scopeWithProvider(select),
+    });
+
+    manager.spawn(snapshotWithCatalogue(), "general-purpose", "first", {
+      description: "first",
+      background: { kind: "explicit", isBackground: true },
+    });
+    expect(select).toHaveBeenCalledTimes(1);
+
+    // The second record queues behind the first: no selection dialog for it
+    // until its execution actually begins.
+    manager.spawn(snapshotWithCatalogue(), "general-purpose", "second", {
+      description: "second",
+      background: { kind: "explicit", isBackground: true },
+    });
+    expect(select).toHaveBeenCalledTimes(1);
+
+    releaseFirst();
+    await manager.waitForAll();
+    expect(select).toHaveBeenCalledTimes(2);
   });
 });

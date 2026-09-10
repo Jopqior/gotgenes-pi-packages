@@ -146,6 +146,16 @@ export class SubagentState {
 	private _turnCount: number;
 	get turnCount(): number { return this._turnCount; }
 
+	// The run is waiting for a human model/thinking selection. Private activity,
+	// never a public status: the record stays `running` while it waits, and the
+	// projections that display it read it as activity, like activeTools.
+	private _awaitingSelection = false;
+	get awaitingSelection(): boolean { return this._awaitingSelection; }
+	/** Record that this admitted run is waiting for a human selection. */
+	markAwaitingSelection(): void { this._awaitingSelection = true; }
+	/** Clear the waiting marker — the selection resolved, failed, or the run ended. */
+	clearAwaitingSelection(): void { this._awaitingSelection = false; }
+
 	private _activeTools = new Map<string, string>();
 	get activeTools(): ReadonlyMap<string, string> { return this._activeTools; }
 

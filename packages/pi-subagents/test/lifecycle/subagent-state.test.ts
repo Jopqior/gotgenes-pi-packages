@@ -612,3 +612,19 @@ describe("SubagentState — run updates", () => {
 		expect(state.runUpdates).toEqual([]);
 	});
 });
+
+describe("SubagentState — awaiting-selection activity", () => {
+	// One lifecycle: set, read, clear — the run marks it before awaiting the
+	// provider and clears it in a finally, so the flag never outlives the wait.
+
+	it("is false by default, true once marked, and false once cleared", () => {
+		const state = new SubagentState();
+		expect(state.awaitingSelection).toBe(false);
+
+		state.markAwaitingSelection();
+		expect(state.awaitingSelection).toBe(true);
+
+		state.clearAwaitingSelection();
+		expect(state.awaitingSelection).toBe(false);
+	});
+});

@@ -13,6 +13,7 @@ import { debugLog } from "#src/debug";
 import type { ConcurrencyLimiter } from "#src/lifecycle/concurrency-limiter";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import type { SelectionScopeHandle } from "#src/lifecycle/selection-scope";
 import { Subagent, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
 import type { SubagentSession } from "#src/lifecycle/subagent-session";
 import { SubagentState } from "#src/lifecycle/subagent-state";
@@ -134,6 +135,12 @@ export interface SubagentManagerOptions {
   observer?: SubagentManagerObserver;
   /** Agent registry, consulted to canonicalize a spawn's type and resolve its config. */
   registry: SpawnTypeResolver;
+  /**
+   * The spawning session's retained selection scope, threaded into every
+   * record — queued records included — so an admitted run consults the tree's
+   * active provider before creating its child session.
+   */
+  selectionScope: SelectionScopeHandle;
 }
 
 export interface AgentSpawnConfig {
@@ -172,6 +179,7 @@ export class SubagentManager {
   private getRunConfig?: () => RunConfig;
   private getRetentionPolicy?: () => RetentionPolicy;
   private readonly registry: SpawnTypeResolver;
+  private readonly selectionScope: SelectionScopeHandle;
   private _workspaceProvider?: WorkspaceProvider;
 
   /** The registered workspace provider, or undefined when none is registered. */
@@ -187,6 +195,7 @@ export class SubagentManager {
     this.getRunConfig = options.getRunConfig;
     this.getRetentionPolicy = options.getRetentionPolicy;
     this.registry = options.registry;
+    this.selectionScope = options.selectionScope;
     // Periodically release the heavy session of terminal agents past their
     // retention window. The lightweight record (with its result) is kept for the
     // session lifetime, so get_subagent_result never misses in-session.
@@ -326,6 +335,7 @@ export class SubagentManager {
         observer: this.buildObserver(options),
         getRunConfig: this.getRunConfig,
         getWorkspaceProvider: () => this._workspaceProvider,
+        selectionScope: this.selectionScope,
         model: options.model,
         maxTurns: options.maxTurns,
         thinkingLevel: options.thinkingLevel,
@@ -456,7 +466,6 @@ export class SubagentManager {
   }
 
   /** Wait for all running and queued agents to complete (including queued ones). */
-  // fallow-ignore-next-line unused-class-member
   async waitForAll(): Promise<void> {
     // Every spawned agent has a settled-on-completion promise (the limiter starts
     // queued ones as slots free), so a single allSettled covers the queued case.

@@ -12,6 +12,11 @@ import { debugLog } from "#src/debug";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import { RunListeners } from "#src/lifecycle/run-listeners";
+import type { SelectionScopeHandle } from "#src/lifecycle/selection-scope";
+import {
+	isSelectionCancellation,
+	SelectionCancelledError,
+} from "#src/lifecycle/spawn-selection";
 import type { SubagentSession, TurnLoopResult } from "#src/lifecycle/subagent-session";
 import { SubagentState, type SubagentStatus } from "#src/lifecycle/subagent-state";
 import type { LifetimeUsage } from "#src/lifecycle/usage";
@@ -19,6 +24,12 @@ import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import { WorkspaceBracket } from "#src/lifecycle/workspace-bracket";
 import { subscribeSubagentObserver } from "#src/observation/record-observer";
 import type { RunConfig } from "#src/runtime";
+import type { SpawnSelectionProvider } from "#src/service/service";
+import {
+	readSelectionChoices,
+	type ValidatedSpawnSelection,
+	validateSpawnSelection,
+} from "#src/session/selection-catalogue";
 import type { CompactionInfo, ParentSessionInfo, SessionMessage, SubagentType, ThinkingLevel } from "#src/types";
 
 /** Per-subagent lifecycle observer — created by SubagentManager for each spawn. */
@@ -84,6 +95,11 @@ export interface SubagentExecution {
 	getRunConfig?: () => RunConfig;
 	/** Resolves the registered workspace provider (if any) at run-start. */
 	getWorkspaceProvider?: () => WorkspaceProvider | undefined;
+	/**
+	 * The spawning session's retained selection scope. Supplied in production
+	 * for every spawn; a run consults it only while the root lease is active.
+	 */
+	selectionScope?: SelectionScopeHandle;
 	model?: Model<any>;
 	maxTurns?: number;
 	thinkingLevel?: ThinkingLevel;
@@ -146,6 +162,8 @@ export class Subagent {
 	get turnCount(): number { return this.state.turnCount; }
 	get activeTools(): ReadonlyMap<string, string> { return this.state.activeTools; }
 	get responseText(): string { return this.state.responseText; }
+	/** True while this run is waiting for a human model/thinking selection. */
+	get awaitingSelection(): boolean { return this.state.awaitingSelection; }
 	isActive(): boolean { return this.state.isActive(); }
 	isTerminalError(): boolean { return this.state.isTerminalError(); }
 	isRunning(): boolean { return this.state.isRunning(); }
@@ -312,10 +330,11 @@ export class Subagent {
 		try {
 			this.subagentSession = await this.prepareSession(runConfig);
 		} catch (err) {
-			// A prepare failure left no workspace behind; the factory disposed its
-			// own session on a post-creation failure. Either way the terminal funnel
-			// owns the cleanup.
-			this.failRun(err);
+			// A cancelled selection stops the record (the user declined, the run
+			// aborted, or the lease closed); every other prepare failure is an error.
+			// Either way the terminal funnel owns the cleanup.
+			if (isSelectionCancellation(err)) this.stopRunForCancelledSelection();
+			else this.failRun(err);
 			return;
 		}
 
@@ -338,18 +357,82 @@ export class Subagent {
 		}
 	}
 
+	/** The selection gate this run passes through, or undefined on the ordinary path. */
+	private openSelectionGate(): { provider: SpawnSelectionProvider; signal: AbortSignal } | undefined {
+		const scope = this.execution.selectionScope;
+		if (!scope) return undefined;
+		const provider = scope.activeSelectionProvider();
+		if (!provider) return undefined;
+		return {
+			provider,
+			// The run's own abort and the handle's closure (its shutdown or the
+			// root's revocation) invalidate the selection together.
+			signal: AbortSignal.any([this.abortController.signal, scope.closureSignal]),
+		};
+	}
+
 	/**
-	 * Prepare the run's child session: workspace preparation (provider path
-	 * only) and the assembly-factory call — every side effect before the child
-	 * session exists, in order. Returns the born-complete session; a failure
-	 * throws after no partial state survives (a throwing prepare leaves no
-	 * workspace bracketed, a throwing factory disposes its own session).
+	 * Ask the scope's provider for the pair this run will use, and validate its
+	 * answer against the spawning session's authenticated catalogue.
+	 *
+	 * `undefined` from the provider is user cancellation — a stop, not an error.
+	 * Catalogue and validation failures throw and fail the run: a gated run
+	 * never falls back to the resolved or inherited pair.
+	 */
+	private async obtainSelection(gate: {
+		provider: SpawnSelectionProvider;
+		signal: AbortSignal;
+	}): Promise<ValidatedSpawnSelection> {
+		const registry = this.execution.snapshot.modelRegistry;
+		const choices = readSelectionChoices(registry);
+		const outcome = await gate.provider.select(
+			{
+				agentId: this.id,
+				agentType: this.type,
+				description: this.description,
+				availableModels: choices,
+			},
+			gate.signal,
+		);
+		if (outcome === undefined) {
+			throw new SelectionCancelledError();
+		}
+		return validateSpawnSelection(outcome, choices, registry);
+	}
+
+	/** Recheck after an await: an aborted run or closed lease must not reach the factory. */
+	private assertSelectionLive(signal: AbortSignal): void {
+		if (signal.aborted) throw new SelectionCancelledError();
+	}
+
+	/**
+	 * Prepare the run's child session: the selection gate (when the root lease
+	 * is active), workspace preparation (provider path only), and the
+	 * assembly-factory call — every side effect before the child session
+	 * exists, in order. Returns the born-complete session; a failure throws
+	 * after no partial state survives (a throwing prepare leaves no workspace
+	 * bracketed, a throwing factory disposes its own session).
 	 *
 	 * The hasProvider() guard keeps the no-provider path synchronous, preserving
 	 * the original run() timing: the factory is called in the same turn as
-	 * spawn() when no workspace provider is registered.
+	 * spawn() when no workspace provider is registered. The gate is likewise
+	 * absent unless the scope holds an active provider, so an unconfigured or
+	 * revoked lease changes nothing on this path.
 	 */
 	private async prepareSession(runConfig: RunConfig | undefined): Promise<SubagentSession> {
+		const gate = this.openSelectionGate();
+		let selected: ValidatedSpawnSelection | undefined;
+		if (gate) {
+			this.state.markAwaitingSelection();
+			try {
+				selected = await this.obtainSelection(gate);
+			} finally {
+				this.state.clearAwaitingSelection();
+			}
+			// The chooser finished, but the run may have aborted or the lease
+			// closed while it was open.
+			this.assertSelectionLive(gate.signal);
+		}
 		let cwd: string | undefined;
 		if (this.workspaceBracket.hasProvider()) {
 			cwd = await this.workspaceBracket.prepare({
@@ -358,13 +441,17 @@ export class Subagent {
 				baseCwd: this.execution.baseCwd,
 			});
 		}
+		// Immediately before the factory call: the lease may have closed while
+		// the workspace was being prepared.
+		if (gate) this.assertSelectionLive(gate.signal);
 		return this.execution.createSubagentSession({
 			snapshot: this.execution.snapshot,
 			type: this.type,
 			cwd,
 			parentSession: this.execution.parentSession,
-			model: this.execution.model,
-			thinkingLevel: this.execution.thinkingLevel,
+			model: selected?.model ?? this.execution.model,
+			thinkingLevel: selected?.thinkingLevel ?? this.execution.thinkingLevel,
+			...(gate ? { selectionSignal: gate.signal } : {}),
 			askParent: (question) => { this.state.setPendingQuestion(question); },
 			notifyParent: this.canSendUpdates(runConfig)
 				? (message) => { this.announceUpdate(message); }
@@ -677,6 +764,21 @@ export class Subagent {
 		this.clearPendingQuestion();
 		this.listeners.release();
 		this.disposeWorkspaceQuietly("error");
+		this.execution.observer?.onRunFinished?.(this);
+	}
+
+	/**
+	 * Terminate a run whose selection was cancelled — the user closed the
+	 * dialog, the run aborted, or the lease closed. A cancellation is a stop,
+	 * not an error: the record ends `stopped`, a prepared workspace (if the
+	 * cancellation landed after preparation) is torn down, and the terminal
+	 * observer fires exactly once, like every other funnel.
+	 */
+	private stopRunForCancelledSelection(): void {
+		this.abortController.abort();
+		this.markStopped();
+		this.listeners.release();
+		this.disposeWorkspaceQuietly("stopped");
 		this.execution.observer?.onRunFinished?.(this);
 	}
 
