@@ -45,3 +45,21 @@ The next stage is `/tdd-plan`; land fork work into `fork-base`, never upstream-s
 - `packages/pi-subagents/src/lifecycle/concurrency-limiter.ts`: current admitted-run ownership already holds a slot through selection; no queue redesign.
 - The public `SubagentRecord` contract: transient selection display stays private rather than growing the public snapshot.
 - `packages/pi-subagents/src/ui/`: update the actual widget/foreground projections only, without module renaming or general modernization.
+
+## Stage: Implementation — TDD (2026-09-10T06:42:43Z)
+
+### Session summary
+
+Executed only TDD Order step 5 as requested: added private `@jopqior/pi-subagents-model-selector` with a Pi-free FIFO queue, two-dialog `ModelSelector`, and an extension factory that registers at initialization.
+Committed `d5e2be58` (`feat(pi-subagents-model-selector): ask for model and thinking on every new run (#1)`); 27 new tests, all green after killing-mutation checks.
+Steps 6–8 remain (nested lifecycle coverage, pending-activity docs, fork-local wiring); pre-completion review was not run.
+
+### Observations
+
+- Red was import-failure until `src/` existed; after Green, six named mutations each killed their pin (auto-choose first option, `undefined` thinking, concurrent B during A's thinking, ignore dialog abort, absent UI as approval, register only at `session_start`) and were restored from `/tmp` copies before commit.
+- `void promise.finally(...)` re-rejected and became 8 unhandled rejections under Vitest; attaching both `then` handlers for abort-listener cleanup fixed it without swallowing the returned promise.
+- First `Write`s tripped pi-autoformat because biome ran across the workspace before `pnpm install` listed the new package; after the lockfile update, format/lint were applied (optional chaining, `Model<Api>`, `Promise.withResolvers<true>()`).
+- Packed tarball is `src/` plus auto-included `package.json` and `LICENSE`; no tests, tsconfig, or README (companion README is step 7).
+- `@gotgenes/pi-subagents` is `workspace:*` so the companion typechecks against the local core, not a published tarball that lacks `registerSpawnSelectionProvider`.
+- Unrelated untracked `.pi/extensions/pi-permission-system/` was left untouched.
+- Root `pnpm run lint` OOM'd eslint at default heap; `NODE_OPTIONS=--max-old-space-size=8192` eslint, biome, rumdl, package lint, `pnpm run check`, and `pnpm fallow dead-code` passed.
