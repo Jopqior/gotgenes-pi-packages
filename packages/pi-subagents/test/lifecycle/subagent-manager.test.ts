@@ -1574,9 +1574,12 @@ describe("SubagentManager — spawn selection threading", () => {
     expect(typeof id).toBe("string");
     await manager.waitForAll();
     expect(select).toHaveBeenCalledTimes(1);
-    const params = factory.mock.calls[0][0];
-    expect(params.model).toBe(catalogueModels[1]);
-    expect(params.thinkingLevel).toBe("off");
+    expect(factory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: catalogueModels[1],
+        thinkingLevel: "off",
+      }),
+    );
   });
 
   it("consults the tree's provider for a foreground spawnAndWait", async () => {
@@ -1595,9 +1598,12 @@ describe("SubagentManager — spawn selection threading", () => {
     });
 
     expect(select).toHaveBeenCalledTimes(1);
-    const params = factory.mock.calls[0][0];
-    expect(params.model).toBe(catalogueModels[0]);
-    expect(params.thinkingLevel).toBe("off");
+    expect(factory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: catalogueModels[0],
+        thinkingLevel: "off",
+      }),
+    );
   });
 
   it("returns the id synchronously while the selection is pending", () => {
