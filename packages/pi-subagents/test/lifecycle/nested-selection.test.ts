@@ -238,8 +238,24 @@ describe("nested human selection and lifecycle isolation", () => {
       treeB.service.spawn("general-purpose", "root B", { description: "root B" });
       expect(providerA.select).toHaveBeenCalledTimes(1);
       expect(providerB.select).toHaveBeenCalledTimes(1);
-      expect(providerA.select.mock.calls[0][0].availableModels).toEqual(rootModels);
-      expect(providerB.select.mock.calls[0][0].availableModels).toEqual(childModels);
+      expect(providerA.select).toHaveBeenCalledWith(
+        {
+          agentId: expect.any(String),
+          agentType: "general-purpose",
+          description: "root A",
+          availableModels: rootModels,
+        },
+        expect.any(AbortSignal),
+      );
+      expect(providerB.select).toHaveBeenCalledWith(
+        {
+          agentId: expect.any(String),
+          agentType: "general-purpose",
+          description: "root B",
+          availableModels: childModels,
+        },
+        expect.any(AbortSignal),
+      );
 
       treeA.runtime.closeSelectionScope();
       providerA.resolve(0, { model: rootModels[0], thinkingLevel: "off" });
@@ -304,7 +320,16 @@ describe("nested human selection and lifecycle isolation", () => {
       expect(tree.manager.abort(firstId)).toBe(true);
       provider.resolve(0, { model: rootModels[0], thinkingLevel: "off" });
       await vi.waitFor(() => expect(provider.select).toHaveBeenCalledTimes(2));
-      expect(provider.select.mock.calls[1][0].description).toBe("second");
+      expect(provider.select).toHaveBeenNthCalledWith(
+        2,
+        {
+          agentId: expect.any(String),
+          agentType: "general-purpose",
+          description: "second",
+          availableModels: rootModels,
+        },
+        expect.any(AbortSignal),
+      );
 
       provider.resolve(1, { model: rootModels[0], thinkingLevel: "off" });
       await tree.manager.waitForAll();
@@ -327,7 +352,15 @@ describe("nested human selection and lifecycle isolation", () => {
       provider.resolve(0, { model: rootModels[0], thinkingLevel: "off" });
       await tree.manager.waitForAll();
       expect(provider.select).toHaveBeenCalledTimes(1);
-      expect(provider.select.mock.calls[0][0].description).toBe("first");
+      expect(provider.select).toHaveBeenCalledWith(
+        {
+          agentId: expect.any(String),
+          agentType: "general-purpose",
+          description: "first",
+          availableModels: rootModels,
+        },
+        expect.any(AbortSignal),
+      );
       expect(tree.factory).toHaveBeenCalledTimes(1);
       expect(tree.manager.getRecord(firstId)?.status).toBe("completed");
     });

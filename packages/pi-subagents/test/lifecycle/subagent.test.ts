@@ -1935,11 +1935,23 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 	/** A provider whose selection stays pending until the test resolves it. */
 	function gatedSelection() {
 		const { promise, resolve } = Promise.withResolvers<SpawnSelection | undefined>();
-		const select = vi.fn(
-			(_request: SpawnSelectionRequest, _signal: AbortSignal) => promise,
-		);
+		let handedSignal: AbortSignal | undefined;
+		const select = vi.fn((_request: SpawnSelectionRequest, signal: AbortSignal) => {
+			handedSignal = signal;
+			return promise;
+		});
 		const provider: SpawnSelectionProvider = { select };
-		return { provider, select, resolve };
+		return {
+			provider,
+			select,
+			resolve,
+			handedSignal: (): AbortSignal => {
+				if (handedSignal === undefined) {
+					throw new Error("select has not been called");
+				}
+				return handedSignal;
+			},
+		};
 	}
 
 	/** An agent whose scope holds `provider`, wired to a spy factory and catalogue. */
@@ -2016,9 +2028,12 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 		resolve({ model: gateModels[1], thinkingLevel: "off" });
 		await agent.promise;
 
-		const params = factory.mock.calls[0][0];
-		expect(params.model).toBe(gateModels[1]);
-		expect(params.thinkingLevel).toBe("off");
+		expect(factory).toHaveBeenCalledWith(
+			expect.objectContaining({
+				model: gateModels[1],
+				thinkingLevel: "off",
+			}),
+		);
 	});
 
 	it("applies the selected pair when ordinary resolution produced no model", async () => {
@@ -2029,21 +2044,24 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 		resolve({ model: gateModels[1], thinkingLevel: "off" });
 		await agent.promise;
 
-		const params = factory.mock.calls[0][0];
-		expect(params.model).toBe(gateModels[1]);
-		expect(params.thinkingLevel).toBe("off");
+		expect(factory).toHaveBeenCalledWith(
+			expect.objectContaining({
+				model: gateModels[1],
+				thinkingLevel: "off",
+			}),
+		);
 	});
 
 	it("carries the combined signal to the factory for in-flight revocation checks", async () => {
-		const { provider, select, resolve } = gatedSelection();
+		const { provider, resolve, handedSignal } = gatedSelection();
 		const { agent, factory } = arrangeGatedAgent({ provider });
 
 		agent.start();
-		const signal = select.mock.calls[0][1];
+		const signal = handedSignal();
 		resolve({ model: gateModels[0], thinkingLevel: "off" });
 		await agent.promise;
 
-		expect(factory.mock.calls[0][0].selectionSignal).toBe(signal);
+		expect(factory).toHaveBeenCalledWith(expect.objectContaining({ selectionSignal: signal }));
 	});
 
 	it("stops the record without side effects when the provider reports cancellation", async () => {
@@ -2178,11 +2196,12 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 	});
 
 	it("hands the provider a signal that follows the run's abort", () => {
-		const { provider, select } = gatedSelection();
+		const { provider, select, handedSignal } = gatedSelection();
 		const { agent } = arrangeGatedAgent({ provider });
 
 		agent.start();
-		const signal = select.mock.calls[0][1];
+		expect(select).toHaveBeenCalledWith(expect.anything(), expect.any(AbortSignal));
+		const signal = handedSignal();
 		expect(signal.aborted).toBe(false);
 
 		agent.abort();
@@ -2190,11 +2209,11 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 	});
 
 	it("hands the provider a signal that follows the lease's revocation", () => {
-		const { provider, select } = gatedSelection();
+		const { provider, handedSignal } = gatedSelection();
 		const { agent, scope } = arrangeGatedAgent({ provider });
 
 		agent.start();
-		const signal = select.mock.calls[0][1];
+		const signal = handedSignal();
 
 		scope.revoke();
 		expect(signal.aborted).toBe(true);
@@ -2235,7 +2254,9 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 
 		agent.start();
 		expect(factory).toHaveBeenCalledTimes(1);
-		expect(vi.mocked(factory).mock.calls[0][0].selectionSignal).toBeUndefined();
+		expect(factory).toHaveBeenCalledWith(
+			expect.not.objectContaining({ selectionSignal: expect.any(AbortSignal) }),
+		);
 		await agent.promise;
 	});
 
