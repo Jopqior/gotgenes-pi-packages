@@ -10,7 +10,7 @@ issue_title: "pi-subagents：启动前交互选择 model 和 thinking（优先�
 **Release:** ship independently
 
 This is fork-maintainer work in `Jopqior/gotgenes-pi-packages`, independent of inherited `gotgenes/pi-packages` roadmaps and release batches.
-Implement on a feature branch from `fork-base` and land there, never on upstream-sync `main`.
+Implement on a feature branch from `main` and land there.
 The new package is `@jopqior/pi-subagents-model-selector`; this plan authorizes local workspace integration, not npm publication or upstream submissions.
 Any later release requires separate approval of the destination, scopes, and compatibility floor; do not invent an upstream version containing this fork-only service capability.
 

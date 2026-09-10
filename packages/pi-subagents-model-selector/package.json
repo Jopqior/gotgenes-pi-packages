@@ -35,7 +35,7 @@
     "url": "git+https://github.com/Jopqior/gotgenes-pi-packages.git",
     "directory": "packages/pi-subagents-model-selector"
   },
-  "homepage": "https://github.com/Jopqior/gotgenes-pi-packages/tree/fork-base/packages/pi-subagents-model-selector#readme",
+  "homepage": "https://github.com/Jopqior/gotgenes-pi-packages/tree/main/packages/pi-subagents-model-selector#readme",
   "bugs": {
     "url": "https://github.com/Jopqior/gotgenes-pi-packages/issues"
   },
