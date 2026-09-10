@@ -176,6 +176,36 @@ describe("piSubagentsModelSelectorExtension", () => {
       expect(handlers.size).toBe(0);
       expect(dispose).not.toHaveBeenCalled();
     });
+
+    it("does not replace an owned root when a descendant also loads the extension", () => {
+      const disposeOwned = vi.fn();
+      const disposeInherited = vi.fn();
+      let calls = 0;
+      const registerSpawnSelectionProvider = vi.fn(
+        (): SpawnSelectionRegistration => {
+          calls += 1;
+          return calls === 1
+            ? { kind: "owned", dispose: disposeOwned }
+            : { kind: "inherited", dispose: disposeInherited };
+        },
+      );
+      publishSubagentsService({
+        registerSpawnSelectionProvider,
+      } as unknown as SubagentsService);
+
+      const root = makeFakePi();
+      piSubagentsModelSelectorExtension(root.pi);
+      expect(root.handlers.has("session_start")).toBe(true);
+      expect(root.handlers.has("session_shutdown")).toBe(true);
+
+      const child = makeFakePi();
+      piSubagentsModelSelectorExtension(child.pi);
+
+      expect(registerSpawnSelectionProvider).toHaveBeenCalledTimes(2);
+      expect(child.handlers.size).toBe(0);
+      expect(disposeOwned).not.toHaveBeenCalled();
+      expect(disposeInherited).not.toHaveBeenCalled();
+    });
   });
 
   describe("missing core capability", () => {
