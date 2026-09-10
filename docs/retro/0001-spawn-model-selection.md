@@ -11,7 +11,7 @@ issue_title: "pi-subagents：启动前交互选择 model 和 thinking（优先�
 
 Planned fork issue `Jopqior/gotgenes-pi-packages#1` after a successful fast-forward-only pull on `fork-base`, and committed `docs/plans/0001-spawn-model-selection.md` as `0e6c43256426d716e27ad93b65fa6ec3a3a2fc21` on `issue-1-spawn-model-selection`.
 The operator confirmed a private, locally integrated `@jopqior/pi-subagents-model-selector` package with a minimal core provider seam, and no implementation or publication was performed.
-The next stage is `/tdd-plan`; land fork work into `fork-base`, never upstream-sync `main`.
+The next stage is `/tdd-plan`.
 
 ### Observations
 

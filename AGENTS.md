@@ -6,9 +6,9 @@ This repository, `Jopqior/gotgenes-pi-packages`, is a personal fork of `gotgenes
 Fork-maintainer requirements govern local product decisions; they do not represent upstream requests or require upstream acceptance.
 This section takes precedence over inherited repository-target, roadmap, and release instructions below and in project skills or prompt templates.
 
-- Reserve `main` for syncing upstream; commit fork-wide foundations on `fork-base` and create feature branches from `fork-base`.
-  Land fork work back into `fork-base`, not `main`.
-  Before running inherited ship or worktree workflows, check their branch assumptions and adapt them to this convention rather than executing their `main`-targeting steps unchanged.
+- This fork's primary branch is `main`.
+  Create feature branches from `main` and land them back on `main`.
+  Inherited ship and worktree workflows already target `main`; run those steps against this fork's `main`.
 - Track fork-specific work in this fork's issues and PRs; contact or submit changes to upstream only when the operator explicitly requests it.
 - Before GitHub mutations, verify the target repository and pass `--repo Jopqior/gotgenes-pi-packages` explicitly where supported.
   For wrapper tools or scripts without a repository argument, verify how they resolve their target before using them; use an explicitly targeted command instead if the target cannot be established.
