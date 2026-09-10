@@ -101,7 +101,7 @@ Worktree lane: the peer worktree shares this repo's `.git`, so the branch ref is
 
 Run from the **repo root** (not a package subdirectory), on the tree that is about to be pushed:
 
-1. `pnpm run lint` — catches cross-package lint violations CI runs at root level; package-level `pnpm run lint` may miss sibling-package issues.
+1. `NODE_OPTIONS=--max-old-space-size=8192 pnpm run lint` — catches cross-package lint violations CI runs at root level; package-level `pnpm run lint` may miss sibling-package issues.
 2. `pnpm fallow dead-code` — CI runs this gate on every `main` push (not on PRs), so a pre-existing failure blocks your push regardless of whether this issue introduced it.
 
 If either fails, fix the issues and commit before pushing.
