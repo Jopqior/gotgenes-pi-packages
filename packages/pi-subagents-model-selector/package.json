@@ -1,0 +1,66 @@
+{
+  "name": "@jopqior/pi-subagents-model-selector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pi extension that asks for model and thinking before every new pi-subagents run.",
+  "type": "module",
+  "imports": {
+    "#src/*": "./src/*",
+    "#test/*": "./test/*"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "check": "pnpm --dir ../pi-subagents run build:types && tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint:md": "rumdl check .",
+    "lint": "biome check . && eslint . && pnpm run lint:md"
+  },
+  "keywords": [
+    "pi-package",
+    "pi",
+    "pi-extension",
+    "pi-coding-agent",
+    "subagents",
+    "model-selector"
+  ],
+  "author": {
+    "name": "Jopqior"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jopqior/gotgenes-pi-packages.git",
+    "directory": "packages/pi-subagents-model-selector"
+  },
+  "homepage": "https://github.com/Jopqior/gotgenes-pi-packages/tree/fork-base/packages/pi-subagents-model-selector#readme",
+  "bugs": {
+    "url": "https://github.com/Jopqior/gotgenes-pi-packages/issues"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": ">=0.84.4",
+    "@earendil-works/pi-coding-agent": ">=0.84.4"
+  },
+  "dependencies": {
+    "@gotgenes/pi-subagents": "workspace:*"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@earendil-works/pi-ai": "0.84.4",
+    "@earendil-works/pi-coding-agent": "0.84.4",
+    "@types/node": "catalog:",
+    "rumdl": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
