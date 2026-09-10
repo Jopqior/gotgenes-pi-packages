@@ -6,6 +6,7 @@
     "../packages/pi-permission-system",
     "../packages/pi-permission-model-judge",
     "../packages/pi-subagents",
+    "../packages/pi-subagents-model-selector",
     "../packages/pi-subagents-worktrees",
     "../packages/pi-session-tools",
     "../packages/pi-nocd",
