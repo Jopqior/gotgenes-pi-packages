@@ -157,6 +157,7 @@ export class AgentTool {
 			"- Use steer_subagent to send mid-run messages to a running background agent.",
 			'- Use model to specify a different model (as "provider/modelId", or fuzzy e.g. "haiku", "sonnet").',
 			"- Use thinking to control extended thinking level.",
+			"- When a spawn-selection provider is registered, the subagent tool still accepts model and thinking, but the operator's choice after the call overrides those arguments and any agent locks for those two fields.",
 			"- Use inherit_context if the agent needs the parent conversation history.",
 		].join("\n");
 

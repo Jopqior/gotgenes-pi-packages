@@ -59,6 +59,8 @@ export interface TestSubagentOptions {
 	activeTools?: string[];
 	/** Seed the run's updates, in order (each replays recordUpdate). */
 	runUpdates?: string[];
+	/** Seed private pending-selection activity. */
+	awaitingSelection?: boolean;
 	/** Seed responseText. */
 	responseText?: string;
 	/** Thread maxTurns into the stub execution. Ignored when `execution` is supplied. */
@@ -77,7 +79,7 @@ export interface TestSubagentOptions {
 }
 
 export function createTestSubagent(overrides: TestSubagentOptions = {}): Subagent {
-	const { id, type, description, isBackground, execution, toolCallId, toolUses, lifetimeUsage, compactionCount, turnCount, activeTools, responseText, runUpdates, maxTurns, sessionReady, outputFile, ...stateOverrides } =
+	const { id, type, description, isBackground, execution, toolCallId, toolUses, lifetimeUsage, compactionCount, turnCount, activeTools, responseText, runUpdates, awaitingSelection, maxTurns, sessionReady, outputFile, ...stateOverrides } =
 		overrides;
 	const state = new SubagentState({
 		status: "completed",
@@ -93,6 +95,7 @@ export function createTestSubagent(overrides: TestSubagentOptions = {}): Subagen
 		...stateOverrides,
 	});
 	for (const update of runUpdates ?? []) state.recordUpdate(update);
+	if (awaitingSelection) state.markAwaitingSelection();
 	const agent = new Subagent({
 		id: id ?? "agent-1",
 		type: type ?? "general-purpose",

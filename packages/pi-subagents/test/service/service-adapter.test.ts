@@ -111,6 +111,21 @@ describe("toSubagentRecord", () => {
     expect(result).not.toHaveProperty("stoppedWhileQueued");
   });
 
+  it("withholds pending-selection activity from the public snapshot", () => {
+    const record = createTestSubagent({
+      status: "running",
+      completedAt: undefined,
+      awaitingSelection: true,
+    });
+    expect(record.awaitingSelection).toBe(true);
+    expect(record.status).toBe("running");
+
+    const snapshot = toSubagentRecord(record);
+
+    expect(snapshot.status).toBe("running");
+    expect(snapshot).not.toHaveProperty("awaitingSelection");
+  });
+
   it("does not drift when the agent keeps accumulating usage", () => {
     const state = new SubagentState({ lifetimeUsage: { input: 100, output: 200, cacheWrite: 50 } });
     const agent = new Subagent({

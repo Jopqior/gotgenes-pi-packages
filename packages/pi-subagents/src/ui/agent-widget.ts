@@ -189,6 +189,7 @@ export class AgentWidget implements SubagentManagerObserver {
       maxTurns: record.maxTurns,
       activeTools: record.activeTools,
       responseText: record.responseText,
+      awaitingSelection: record.awaitingSelection,
       contextPercent: record.getContextPercent(),
     };
   }

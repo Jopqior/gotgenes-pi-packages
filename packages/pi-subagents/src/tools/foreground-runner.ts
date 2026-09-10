@@ -16,7 +16,7 @@ import {
 } from "#src/tools/helpers";
 import type { ResolvedSpawnConfig } from "#src/tools/spawn-config";
 import type { ParentSessionInfo, Subagent } from "#src/types";
-import { type AgentDetails, describeActivity, formatMs } from "#src/ui/display";
+import { type AgentDetails, describeActivity, formatMs, PENDING_SELECTION_ACTIVITY } from "#src/ui/display";
 import { SPINNER } from "#src/ui/glyphs";
 
 /** Narrow manager interface for the foreground runner. */
@@ -58,15 +58,18 @@ export async function runForeground(
       ...presentation.detailBase,
       toolUses,
       tokens: recordRef ? formatLifetimeTokens(recordRef) : "",
-      // Read activity off the record; fall back to safe defaults before onSessionCreated fires
+      // Read activity off the record; fall back to safe defaults before session creation.
+      // onStarted fires at admission, so pending selection is visible before onSessionCreated.
       turnCount: recordRef?.turnCount ?? 1,
       maxTurns: recordRef?.maxTurns ?? execution.effectiveMaxTurns,
       durationMs: Date.now() - startedAt,
       status: "running",
-      activity: describeActivity(
-        recordRef?.activeTools ?? new Map(),
-        recordRef?.responseText ?? "",
-      ),
+      activity: recordRef?.awaitingSelection
+        ? PENDING_SELECTION_ACTIVITY
+        : describeActivity(
+            recordRef?.activeTools ?? new Map(),
+            recordRef?.responseText ?? "",
+          ),
       spinnerFrame: spinnerFrame % SPINNER.length,
     };
     onUpdate?.({
@@ -98,6 +101,9 @@ export async function runForeground(
         signal,
         parentSession: params.parentSession,
         observer: {
+          onStarted: (agent) => {
+            recordRef = agent;
+          },
           onSessionCreated: (agent) => {
             recordRef = agent;
           },
