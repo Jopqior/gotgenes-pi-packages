@@ -48,12 +48,14 @@ import {
   type ResourceLoaderOptions,
   type SubagentSessionDeps,
 } from "#src/lifecycle/create-subagent-session";
+import { captureInheritedSelectionScope } from "#src/lifecycle/selection-scope";
 import { SpawnSelectionScope } from "#src/lifecycle/spawn-selection";
 import {
   getSubagentsService,
   publishSubagentsService,
   unpublishSubagentsService,
 } from "#src/service/service";
+import { makeModel } from "#test/helpers/make-model";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 import {
   createFactorySession,
@@ -66,9 +68,12 @@ const CORE_PACKAGE_DIR = join(import.meta.dirname, "..", "..");
 
 /** globalThis channel the jiti-loaded fixture and this test share (Symbol.for, like the carrier itself). */
 const RECORD_KEY = Symbol.for("pi-subagents-test:construction-scope-record");
+const CHOOSER_KIND_KEY = Symbol.for("pi-subagents-test:chooser-kind-record");
 
 /** What the fixture pushed per initialization: a rootId, or "<none>" when no context was ambient. */
 const recordedScopeIds: string[] = [];
+/** Registration kind recorded by the child-loaded chooser stub, or "no-service". */
+const chooserKinds: string[] = [];
 
 /** A tiny extension that records the ambient construction handle at factory initialization. */
 function writeScopeObserverFixture(dir: string): string {
@@ -79,6 +84,26 @@ function writeScopeObserverFixture(dir: string): string {
     `export default function () {`,
     `  const captured = captureInheritedSelectionScope();`,
     `  record.push(captured ? captured.rootId : "<none>");`,
+    `}`,
+  ].join("\n");
+  writeFileSync(fixturePath, source, "utf8");
+  return fixturePath;
+}
+
+/** A companion-shaped stub: registers at init and records the kind it received. */
+function writeChooserStubFixture(dir: string): string {
+  const fixturePath = join(dir, "chooser-stub-fixture.ts");
+  const source = [
+    `import { getSubagentsService } from "${join(CORE_PACKAGE_DIR, "src", "service", "service.ts")}";`,
+    `const record: string[] = (globalThis as Record<symbol, string[]>)[Symbol.for("pi-subagents-test:chooser-kind-record")];`,
+    `export default function () {`,
+    `  const service = getSubagentsService();`,
+    `  if (typeof service?.registerSpawnSelectionProvider !== "function") {`,
+    `    record.push("no-service");`,
+    `    return;`,
+    `  }`,
+    `  const registration = service.registerSpawnSelectionProvider({ select: async () => undefined });`,
+    `  record.push(registration.kind);`,
     `}`,
   ].join("\n");
   writeFileSync(fixturePath, source, "utf8");
@@ -112,13 +137,18 @@ function makePi() {
 }
 
 /** The session context Pi hands a session_start handler. */
-function makeSessionStartCtx() {
+function makeSessionStartCtx(models: ReturnType<typeof makeModel>[] = []) {
   return {
     hasUI: false,
     ui: { setStatus: vi.fn(), setWidget: vi.fn() },
     cwd: "/tmp",
-    model: undefined,
-    modelRegistry: { find: vi.fn(), getAll: vi.fn(() => []), getAvailable: vi.fn(() => []) },
+    model: models[0],
+    modelRegistry: {
+      find: (provider: string, id: string) =>
+        models.find((model) => model.provider === provider && model.id === id),
+      getAll: () => models,
+      getAvailable: () => models,
+    },
     sessionManager: {
       getSessionId: vi.fn(() => "root-session"),
       getSessionFile: vi.fn(() => "/sessions/root.jsonl"),
@@ -138,7 +168,9 @@ describe("construction inheritance through the real resource loader", () => {
     // source below is a local absolute path, so nothing should try.
     vi.stubEnv("PI_OFFLINE", "1");
     recordedScopeIds.length = 0;
+    chooserKinds.length = 0;
     (globalThis as Record<symbol, unknown>)[RECORD_KEY] = recordedScopeIds;
+    (globalThis as Record<symbol, unknown>)[CHOOSER_KIND_KEY] = chooserKinds;
     previouslyPublished = getSubagentsService();
     unpublishSubagentsService();
   });
@@ -163,7 +195,12 @@ describe("construction inheritance through the real resource loader", () => {
   }
 
   /** Build the deps bag whose loader is the real SDK one, limited to local test sources. */
-  function makeRealLoaderDeps(fixturePath: string, tempCwd: string, tempAgentDir: string): SubagentSessionDeps {
+  function makeRealLoaderDeps(
+    fixturePath: string,
+    tempCwd: string,
+    tempAgentDir: string,
+    extraExtensionPaths: string[] = [],
+  ): SubagentSessionDeps {
     const io = createSubagentSessionIO();
     io.getAgentDir.mockReturnValue(tempAgentDir);
     io.deriveSessionDir.mockReturnValue(join(tempCwd, "tasks"));
@@ -173,7 +210,10 @@ describe("construction inheritance through the real resource loader", () => {
     // seam the composition root exposes.
     io.createResourceLoader.mockImplementation(
       (opts: ResourceLoaderOptions) =>
-        new DefaultResourceLoader({ ...opts, additionalExtensionPaths: [CORE_PACKAGE_DIR, fixturePath] }),
+        new DefaultResourceLoader({
+          ...opts,
+          additionalExtensionPaths: [CORE_PACKAGE_DIR, ...extraExtensionPaths, fixturePath],
+        }),
     );
     // The session IO seam injected after loading: factories have already run
     // inside loader.reload(), and the stub session never prompts a provider
@@ -254,6 +294,76 @@ describe("construction inheritance through the real resource loader", () => {
       select: async () => undefined,
     });
     expect(registration.kind).toBe("inherited");
+
+    await fire("session_shutdown", {}, {});
+  });
+
+  it("nests: a grandchild factory captures the same root through the child's construction handle", { timeout: 120_000 }, async () => {
+    const { tempCwd, tempAgentDir, fixturePath } = makeTempRoots();
+    const deps = makeRealLoaderDeps(fixturePath, tempCwd, tempAgentDir);
+
+    root = new SpawnSelectionScope();
+    const childHandle = await root.constructChild(async () => captureInheritedSelectionScope());
+    const grandchild = await childHandle!.constructChild(() =>
+      createSubagentSession({ snapshot: STUB_SNAPSHOT, type: "Explore", cwd: tempCwd }, deps),
+    );
+
+    expect(recordedScopeIds).toEqual([root.rootId]);
+    const grandchildService = getSubagentsService();
+    expect(
+      grandchildService!.registerSpawnSelectionProvider({ select: async () => undefined }).kind,
+    ).toBe("inherited");
+
+    await grandchild.dispose();
+  });
+
+  it("loads a chooser in one descendant and excludes it from another without replacing the root", { timeout: 120_000 }, async () => {
+    const { tempCwd, tempAgentDir, fixturePath } = makeTempRoots();
+    const chooserPath = writeChooserStubFixture(tempAgentDir);
+    root = new SpawnSelectionScope();
+    const rootProvider = { select: vi.fn() };
+    root.register(rootProvider);
+
+    const withChooser = makeRealLoaderDeps(fixturePath, tempCwd, tempAgentDir, [chooserPath]);
+    await root.constructChild(() =>
+      createSubagentSession({ snapshot: STUB_SNAPSHOT, type: "Explore", cwd: tempCwd }, withChooser),
+    );
+    expect(chooserKinds).toEqual(["inherited"]);
+    expect(root.activeProvider).toBe(rootProvider);
+
+    const withoutChooser = makeRealLoaderDeps(fixturePath, tempCwd, tempAgentDir);
+    await root.constructChild(() =>
+      createSubagentSession({ snapshot: STUB_SNAPSHOT, type: "Explore", cwd: tempCwd }, withoutChooser),
+    );
+    // The excluded descendant never ran the chooser, and the loaded one did not take ownership.
+    expect(chooserKinds).toEqual(["inherited"]);
+    expect(recordedScopeIds).toEqual([root.rootId, root.rootId]);
+    expect(root.state).toBe("active");
+    expect(root.activeProvider).toBe(rootProvider);
+  });
+
+  it("keeps the production spawn path's child-loaded chooser inherited after a gated selection", { timeout: 120_000 }, async () => {
+    const { tempCwd, tempAgentDir, fixturePath } = makeTempRoots();
+    const chooserPath = writeChooserStubFixture(tempAgentDir);
+    injected.deps = makeRealLoaderDeps(fixturePath, tempCwd, tempAgentDir, [chooserPath]);
+
+    const sonnet = makeModel({ id: "claude-sonnet" });
+    const { pi, fire } = makePi();
+    subagentsExtension(pi);
+    await fire("session_start", {}, makeSessionStartCtx([sonnet]));
+
+    const rootService = getSubagentsService()!;
+    const registration = rootService.registerSpawnSelectionProvider({
+      select: async () => ({ model: sonnet, thinkingLevel: "off" }),
+    });
+    expect(registration.kind).toBe("owned");
+
+    rootService.spawn("general-purpose", "run", { description: "child" });
+    await vi.waitFor(() => {
+      expect(chooserKinds).toEqual(["inherited"]);
+    });
+    expect(recordedScopeIds).toHaveLength(1);
+    expect(recordedScopeIds[0]).not.toBe("<none>");
 
     await fire("session_shutdown", {}, {});
   });
