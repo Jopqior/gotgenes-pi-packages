@@ -98,3 +98,25 @@ Step 8 remains (fork-local wiring); pre-completion review was not run.
   Wiring `onStarted` is what makes pending activity visible before the child session exists.
 - Companion README is new; packed tarball will pick it up automatically on the next pack.
 - Unrelated untracked `.pi/extensions/pi-permission-system/` was left untouched.
+
+## Stage: Implementation — TDD (2026-09-10T13:32:40Z)
+
+### Session summary
+
+Executed TDD Order step 8: wired local fork activation for `@jopqior/pi-subagents-model-selector` after the core load path, plus root README, both issue-form options, and `pkg:pi-subagents-model-selector` on `Jopqior/gotgenes-pi-packages`.
+Committed `c92b9b5e` (`build: wire fork-local subagent model selector (#1)`); no test-count delta.
+Pre-completion reviewer: WARN (ready for `/ship`; mermaid not renderer-validated; minor test-assertion convention drift).
+
+### Observations
+
+- Remote verified as `Jopqior/gotgenes-pi-packages` before `gh label create --repo Jopqior/gotgenes-pi-packages`.
+  The fork had no other `pkg:*` labels; only this one was created.
+- `.pi/settings.json` lists `../packages/pi-subagents-model-selector` immediately after the core.
+  No unpublished `npm:@jopqior/pi-subagents-model-selector` disable entry was added.
+- Root README Packages table was re-padded (column 0 78 to 81) so the longer `@jopqior` row satisfies rumdl `MD060` aligned style.
+  Downloads cell is `unpublished (local)`, not an npm badge.
+- Packed tarball contains `src/`, `README.md`, `LICENSE`, and `package.json`; no `test/`, `tsconfig.json`, or `vitest.config.ts`.
+- Manual foreground/background/service/nested smoke test was not run: this process cannot restart Pi to load the new settings path.
+- Unrelated untracked `.pi/extensions/pi-permission-system/` was left untouched.
+- Pre-completion reviewer: WARN.
+  Reviewer warnings: `nested-selection.test.ts` and new pins in `subagent.test.ts` use `mock.calls[0][0]` instead of `toHaveBeenCalledWith`; `mmdc` is not installed so Mermaid was not renderer-validated.
