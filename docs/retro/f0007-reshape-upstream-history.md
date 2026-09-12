@@ -24,3 +24,23 @@ Tidy-First and design-review were skipped (no `src/`/`test/`; no shared TypeScri
 - Reshape uses `git commit-tree` (copy trees, preserve author and committer) rather than `git rebase --onto` or `git cherry-pick`, which would apply patches and run hooks 33+ times.
 - No reshape script is committed; the `/tmp` snippet lives only in the build step.
 - `mmdc` needed `--no-sandbox` to render the history flowchart; syntax was fine.
+
+## Stage: Implementation — Build (2026-09-12T16:23:33Z)
+
+### Session summary
+
+Reshaped `main` into a 40-commit linear history (orphan import `9799f29d`, 33 replayed fork commits, single-parent squash `01bc18fd`, 5 post-sync replays), then rewrote `scripts/upstream-sync.sh` to `--sync` / `--continue` / `--derive-type` and updated the handbook, README, and `AGENTS.md`.
+Force-pushed `origin main` to `163d88e8` with `--force-with-lease` against the pre-reshape origin tip.
+A pre-completion FAIL on `MERGE_HEAD` blocking `git switch` was fixed in `c979ef0e` (`git merge --quit` before transplant).
+
+### Observations
+
+- `N_after` at reshape time was 5, not the planning-time 3.
+- `main...origin/main` was `2 0` (unpushed plan and planning retro), not `0 0`.
+  Proceeded because origin had no unique commits.
+- Force-with-lease targeted `origin/main` (`7e55552d`), not `refs/backup/pre-reshape` (`fe79c5f4`), because origin never received those two local commits.
+- `--derive-type` bash `=~` needed the regex in a variable; an inline `(\([^)]+\))` is a syntax error on bash 5.3.
+- Historical range still prints `feat!:`; throwaway subject lists match the plan table, including `fix!:` → `feat!:` and a `BREAKING CHANGE:` body.
+- Pre-completion reviewer: round 1 FAIL (`transplant_onto_main` switched while `MERGE_HEAD` existed; `--continue` and recipe-resolved `--sync` aborted with exit 128).
+  Round 2 WARN after `c979ef0e`: `docs/upstream-sync.md` says lockfile regeneration happens after the squash-sync commit, but `pnpm install` runs inside `transplant_onto_main` before `git commit`.
+  Reviewer warnings: one-line ordering wording in the handbook; no behavioral gap.
