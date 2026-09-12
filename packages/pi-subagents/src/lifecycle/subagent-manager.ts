@@ -14,7 +14,7 @@ import type { ConcurrencyLimiter } from "#src/lifecycle/concurrency-limiter";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { SelectionScopeHandle } from "#src/lifecycle/selection-scope";
-import { Subagent, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
+import { type ResumeRefusal, Subagent, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
 import type { SubagentSession } from "#src/lifecycle/subagent-session";
 import { SubagentState } from "#src/lifecycle/subagent-state";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
@@ -30,6 +30,36 @@ export interface SpawnTypeResolver {
   resolveType(name: string): string | undefined;
   isValidType(type: string): boolean;
   resolveAgentConfig(type: string): AgentConfig;
+}
+
+/**
+ * Why a resume was refused, across every front door.
+ *
+ * Widens the record's own vocabulary by the one refusal that is not a fact
+ * about a record: an id no record answers to.
+ */
+export type ResumeRefusalReason = ResumeRefusal | "unknown-agent";
+
+/**
+ * What a resume attempt produced: the record whose run was restarted, or the
+ * reason nothing was started.
+ *
+ * A resumed run that *failed* is still `resumed` — the record carries the
+ * error. `refused` means the turn loop never ran.
+ */
+export type ResumeOutcome =
+  | { kind: "resumed"; record: Subagent }
+  | { kind: "refused"; reason: ResumeRefusalReason };
+
+/** Per-call knobs for a resume; both doors pass their own. */
+export interface ResumeCallOptions {
+  /** Cancels the resumed turn loop. A resume does not run under the record's own controller. */
+  signal?: AbortSignal;
+  /**
+   * The caller will deliver this outcome to the parent, so nothing announces
+   * it. Omitted, the resumed outcome is announced like any other completion.
+   */
+  claimOutcome?: boolean;
 }
 
 /** A spawn's resolved identity and mode — the invariants every front door shares. */
@@ -102,6 +132,12 @@ export function resolveRetentionWindow(
 export interface SubagentManagerObserver {
   onSubagentStarted(record: Subagent): void;
   onSubagentCompleted(record: Subagent): void;
+  /**
+   * Fires when a resume starts, from whichever front door asked for it.
+   * Required: a consumer that tracks the widget's live set has to learn that a
+   * settled record went back to running, and the only alternative is polling.
+   */
+  onSubagentResuming(record: Subagent): void;
   /** Fires when a resumed run reaches a terminal state (distinct from a fresh completion). */
   onSubagentResumed(record: Subagent): void;
   /**
@@ -237,6 +273,9 @@ export class SubagentManager {
       onRunFinished: (agent) => {
         try { this.observer?.onSubagentCompleted(agent); } catch (err) { debugLog("onSubagentCompleted observer", err); }
       },
+      onResumeStarted: (agent) => {
+        try { this.observer?.onSubagentResuming(agent); } catch (err) { debugLog("onSubagentResuming observer", err); }
+      },
       onResumeFinished: (agent) => {
         try { this.observer?.onSubagentResumed(agent); } catch (err) { debugLog("onSubagentResumed observer", err); }
       },
@@ -363,17 +402,22 @@ export class SubagentManager {
 
   /**
    * Resume an existing agent session with a new prompt.
-   * Delegates to Subagent.resume(), which owns the observer subscription lifecycle.
+   *
+   * The refusal policy lives here rather than in a caller, so every front door
+   * declines the same resumes for the same reasons; a door owns only how it
+   * words the answer. Delegates to Subagent.resume(), which owns the observer
+   * subscription lifecycle.
    */
-  async resume(
-    id: string,
-    prompt: string,
-    signal?: AbortSignal,
-  ): Promise<Subagent | undefined> {
+  async resume(id: string, prompt: string, options: ResumeCallOptions = {}): Promise<ResumeOutcome> {
     const agent = this.agents.get(id);
-    if (!agent?.isSessionReady()) return undefined;
-    await agent.resume(prompt, signal);
-    return agent;
+    if (!agent) return { kind: "refused", reason: "unknown-agent" };
+    const refusal = agent.resumeRefusal;
+    if (refusal) return { kind: "refused", reason: refusal };
+    // Before the resume starts: resetForResume runs synchronously inside
+    // resume(), so a claim taken afterwards would miss the terminal edge.
+    if (options.claimOutcome) agent.claim();
+    await agent.resume(prompt, options.signal);
+    return { kind: "resumed", record: agent };
   }
 
   getRecord(id: string): Subagent | undefined {

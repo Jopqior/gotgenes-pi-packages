@@ -11,7 +11,8 @@
 
 import type { Api, Model } from "@earendil-works/pi-ai";
 import type { SubagentThinkingLevel } from "#src/config/thinking-level";
-import type { SubagentStatus } from "#src/lifecycle/subagent";
+import type { ResumeRefusal, SubagentStatus } from "#src/lifecycle/subagent";
+import type { ResumeRefusalReason } from "#src/lifecycle/subagent-manager";
 import type { LifetimeUsage } from "#src/lifecycle/usage";
 import type {
   Workspace,
@@ -25,12 +26,17 @@ import type {
 // SubagentStatus is defined in the lifecycle layer (single home) and re-exported
 // here for the public API surface — mirrors the LifetimeUsage / workspace pattern.
 export type { SubagentStatus } from "#src/lifecycle/subagent";
+// The resume vocabulary is re-exported for the same reason: the record owns the
+// reasons a resume is refused, and the manager adds the one that is not a fact
+// about a record.
 // Generative extension seam (ADR 0002, Phase 16 Step 2). The provider type
 // and all four collaborator types it references are re-exported by name so
 // consumers can import them directly rather than recovering them via
 // indexed-access inference (e.g. `Parameters<WorkspaceProvider["prepare"]>[0]`).
 export type {
   LifetimeUsage,
+  ResumeRefusal,
+  ResumeRefusalReason,
   Workspace,
   WorkspaceDisposeOutcome,
   WorkspaceDisposeResult,
@@ -69,6 +75,31 @@ export interface SubagentRecord {
   /** Path to the agent's session JSONL, once the session exists. */
   outputFile?: string;
 }
+
+/** Options for resuming an agent via the service. */
+export interface ResumeOptions {
+  /**
+   * Declare that the caller will deliver the resumed outcome to the parent,
+   * suppressing the completion nudge for it. Omitted, the resumed outcome is
+   * announced exactly as a background completion is.
+   */
+  claimOutcome?: boolean;
+  /**
+   * Cancels the resumed turn loop. `abort(id)` does not reach it: a resume does
+   * not run under the record's own abort controller.
+   */
+  signal?: AbortSignal;
+}
+
+/**
+ * What a resume attempt produced.
+ *
+ * A resumed run that *failed* is still `resumed` — the snapshot carries
+ * `status: "error"` and the message. `refused` means no turn loop ran.
+ */
+export type ResumeResult =
+  | { kind: "resumed"; record: SubagentRecord }
+  | { kind: "refused"; reason: ResumeRefusalReason };
 
 /** Options for spawning an agent via the service. */
 export interface SpawnOptions {
@@ -144,6 +175,16 @@ export interface SubagentsService {
   /** Send a steering message to a running agent. */
   steer(id: string, message: string): Promise<boolean>;
 
+  /**
+   * Resume a settled agent with a new prompt, continuing its session.
+   *
+   * Resolves when the resumed run reaches a terminal state, carrying the
+   * terminal snapshot — a caller that does not need the outcome can ignore the
+   * promise. A refusal resolves promptly instead: the checks are synchronous
+   * and no turn loop is started.
+   */
+  resume(id: string, prompt: string, options?: ResumeOptions): Promise<ResumeResult>;
+
   /** Wait for all running and queued agents to complete. */
   waitForAll(): Promise<void>;
 
@@ -175,6 +216,7 @@ export const SUBAGENT_EVENTS = {
   STARTED: "subagents:started",
   COMPLETED: "subagents:completed",
   FAILED: "subagents:failed",
+  RESUMING: "subagents:resuming",
   RESUMED: "subagents:resumed",
   COMPACTED: "subagents:compacted",
   CREATED: "subagents:created",

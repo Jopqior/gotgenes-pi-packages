@@ -4,8 +4,12 @@ import { Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
-import type { ResumeRefusal } from "#src/lifecycle/subagent";
-import type { AgentSpawnConfig } from "#src/lifecycle/subagent-manager";
+import type {
+	AgentSpawnConfig,
+	ResumeCallOptions,
+	ResumeOutcome,
+	ResumeRefusalReason,
+} from "#src/lifecycle/subagent-manager";
 import {
 	renderOutcomeAddenda,
 	renderOutcomeBody,
@@ -15,7 +19,7 @@ import { spawnBackground } from "#src/tools/background-spawner";
 import { runForeground } from "#src/tools/foreground-runner";
 import { buildAgentGuidelines, buildDetails, buildTypeListText, textResult } from "#src/tools/helpers";
 import { renderAgentResult } from "#src/tools/result-renderer";
-import { type ModelInfo, resolveSpawnConfig } from "#src/tools/spawn-config";
+import { type ModelInfo, resolveSpawnConfig, type SpawnPresentation } from "#src/tools/spawn-config";
 import type { ParentSessionInfo, Subagent } from "#src/types";
 import { type AgentDetails, getDisplayName, type Theme } from "#src/ui/display";
 import { GLYPHS } from "#src/ui/glyphs";
@@ -26,7 +30,7 @@ import { GLYPHS } from "#src/ui/glyphs";
 export interface AgentToolManager {
 	spawn: (snapshot: ParentSnapshot, type: string, prompt: string, opts: AgentSpawnConfig) => string;
 	spawnAndWait: (snapshot: ParentSnapshot, type: string, prompt: string, opts: Omit<AgentSpawnConfig, "background">) => Promise<Subagent>;
-	resume: (id: string, prompt: string, signal: AbortSignal) => Promise<Subagent | undefined>;
+	resume: (id: string, prompt: string, options: ResumeCallOptions) => Promise<ResumeOutcome>;
 	getRecord: (id: string) => Subagent | undefined;
 }
 
@@ -88,39 +92,11 @@ export class AgentTool {
 
 		// ---- Resume existing agent ----
 		if (params.resume) {
-			const existing = this.manager.getRecord(params.resume as string);
-			if (!existing) {
-				return textResult(
-					`Agent not found: "${params.resume as string}". Records are cleared at session start/switch, so it may be from a previous session.`,
-				);
-			}
-			// The record owns the decision; this door owns only how it is worded. The
-			// result carriers read the same predicate, so an affordance can no longer
-			// name a resume this branch would decline.
-			const refusal = existing.resumeRefusal;
-			if (refusal) {
-				return textResult(resumeRefusalMessage(refusal, params.resume as string));
-			}
-			// Resuming commits this call to delivering the resumed outcome. Claim it
-			// before the resume starts: resetForResume runs synchronously inside
-			// resume(), so a claim made afterwards would miss the terminal edge.
-			existing.claim();
-			const record = await this.manager.resume(
+			return this.resumeExisting(
 				params.resume as string,
 				params.prompt as string,
-				signal ?? new AbortController().signal,
-			);
-			if (!record) {
-				existing.release();
-				return textResult(`Failed to resume agent "${params.resume as string}".`);
-			}
-			// Resume-return delivery edge: the resumed outcome is returned directly.
-			record.markConsumed();
-			return textResult(
-				`Agent ID: ${record.id}${renderStatusNote(record.status)}\n\n` +
-					renderOutcomeBody(record) +
-					renderOutcomeAddenda(record),
-				buildDetails(config.presentation.detailBase, record),
+				signal,
+				config.presentation.detailBase,
 			);
 		}
 
@@ -138,6 +114,37 @@ export class AgentTool {
 			{ config, snapshot, parentSession },
 			signal,
 			onUpdate,
+		);
+	}
+
+	/**
+	 * Continue an existing agent's session with a new prompt, returning its
+	 * resumed outcome directly to the parent.
+	 */
+	private async resumeExisting(
+		id: string,
+		prompt: string,
+		signal: AbortSignal | undefined,
+		detailBase: SpawnPresentation["detailBase"],
+	) {
+		// The manager owns whether a resume happens; this door owns only how the
+		// answer is worded. Resuming commits this call to delivering the outcome,
+		// so it claims it — nothing else announces what is already being returned.
+		const outcome = await this.manager.resume(id, prompt, {
+			signal: signal ?? new AbortController().signal,
+			claimOutcome: true,
+		});
+		if (outcome.kind === "refused") {
+			return textResult(resumeRefusalMessage(outcome.reason, id));
+		}
+		const record = outcome.record;
+		// Resume-return delivery edge: the resumed outcome is returned directly.
+		record.markConsumed();
+		return textResult(
+			`Agent ID: ${record.id}${renderStatusNote(record.status)}\n\n` +
+				renderOutcomeBody(record) +
+				renderOutcomeAddenda(record),
+			buildDetails(detailBase, record),
 		);
 	}
 
@@ -271,11 +278,18 @@ ${guidelines}
 /**
  * The operator-facing sentence for each reason a resume is refused.
  *
- * Exhaustive over `ResumeRefusal`, so a reason added later fails to compile
- * here rather than falling through to an attempted resume.
+ * Exhaustive over `ResumeRefusalReason`, so a reason added later fails to
+ * compile here rather than falling through to an attempted resume.
  */
-function resumeRefusalMessage(refusal: ResumeRefusal, id: string): string {
+function resumeRefusalMessage(refusal: ResumeRefusalReason, id: string): string {
 	switch (refusal) {
+		case "unknown-agent":
+			return `Agent not found: "${id}". Records are cleared at session start/switch, so it may be from a previous session.`;
+		case "still-running":
+			return (
+				`Agent "${id}" is still running; wait for it to finish before resuming. ` +
+				"Use steer_subagent to send it a message while it runs."
+			);
 		case "session-released":
 			return `Agent "${id}" had its session released after its retention window; resume is unavailable, but its result is still retrievable via get_subagent_result.`;
 		case "no-session":

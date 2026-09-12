@@ -779,6 +779,20 @@ describe("Subagent — resumeRefusal", () => {
 		expect(makeSubagent().resumeRefusal).toBe("no-session");
 	});
 
+	it("reports still-running for a live run whose session is ready", () => {
+		expect(
+			createTestSubagent({ status: "running", sessionReady: true }).resumeRefusal,
+		).toBe("still-running");
+	});
+
+	it("prefers the live run over the missing session it has not created yet", () => {
+		expect(createTestSubagent({ status: "running" }).resumeRefusal).toBe("still-running");
+	});
+
+	it("leaves a queued agent reporting no-session, which is what it has", () => {
+		expect(createTestSubagent({ status: "queued" }).resumeRefusal).toBe("no-session");
+	});
+
 	it("reports session-released once the retention sweep has freed the session", async () => {
 		const agent = createRunnableAgent();
 		await agent.run();
@@ -1330,7 +1344,7 @@ describe("Subagent — the mid-run update channel", () => {
 			expect(agent.runUpdates).toEqual(["The bug is in the retry wrapper."]);
 		});
 
-		it("holds nothing back when no carrier has claimed the outcome", async () => {
+		it("records the update for a carrier even when none has claimed the outcome", async () => {
 			const { factory } = createSpyFactory();
 			const agent = createRunnableAgent({
 				createSubagentSession: factory,
@@ -1340,7 +1354,9 @@ describe("Subagent — the mid-run update channel", () => {
 
 			factory.mock.calls[0][0].notifyParent?.("The bug is in the retry wrapper.");
 
-			expect(agent.runUpdates).toEqual([]);
+			// The announcement channel is what decides to announce, and it marks what
+			// it delivers. Until then the run owes the message to a carrier.
+			expect(agent.runUpdates).toEqual(["The bug is in the retry wrapper."]);
 		});
 
 		it("tells the observer either way, because the update is a fact about the run", async () => {
@@ -1694,6 +1710,31 @@ describe("Subagent.resume() — observer lifecycle", () => {
 		// Events emitted after resume must not accumulate — subscription released.
 		session.emit({ type: "tool_execution_end" });
 		expect(agent.toolUses).toBe(0);
+	});
+
+	it("fires observer.onResumeStarted once the resumed run is under way", async () => {
+		const seen: Array<{ status: string; completedAt: number | undefined }> = [];
+		const onResumeStarted = (agent: Subagent) =>
+			seen.push({ status: agent.status, completedAt: agent.completedAt });
+		const { agent } = createResumableAgent({ observer: { onResumeStarted } });
+
+		await agent.resume("continue");
+
+		// After the rewind, not before it: a subscriber reading the record must see
+		// the run that just started, not the outcome of the one it replaced.
+		expect(seen).toEqual([{ status: "running", completedAt: undefined }]);
+		expect(agent.status).toBe("completed");
+	});
+
+	it("fires observer.onResumeStarted even when the resumed run fails", async () => {
+		const onResumeStarted = vi.fn();
+		const stub = createSubagentSessionStub();
+		stub.resumeTurnLoop.mockRejectedValue(new Error("resume exploded"));
+		const { agent } = createResumableAgent({ observer: { onResumeStarted }, stub });
+
+		await agent.resume("continue");
+
+		expect(onResumeStarted).toHaveBeenCalledExactlyOnceWith(agent);
 	});
 
 	it("fires observer.onResumeFinished once the resume completes", async () => {

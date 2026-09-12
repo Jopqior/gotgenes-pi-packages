@@ -33,6 +33,7 @@ import { childNodeAbsentMessage } from "#src/authority/child-node-audit";
 import {
   createPermissionForwardingLocation,
   type ForwardedPermissionRequest,
+  SUBAGENT_ENV_HINT_KEYS,
 } from "#src/authority/permission-forwarding";
 import { getServingSessionRegistry } from "#src/authority/serving-registry";
 import {
@@ -78,6 +79,11 @@ const EXPECTED_HANDLERS = [
 let agentDir: string;
 
 beforeEach(() => {
+  // The factory's detection and forwarding paths read ambient `process.env`, so
+  // a host session exporting a subagent marker must not change the answers.
+  for (const key of SUBAGENT_ENV_HINT_KEYS) {
+    vi.stubEnv(key, undefined);
+  }
   agentDir = mkdtempSync(join(tmpdir(), "pi-perm-comp-root-"));
   vi.stubEnv("PI_CODING_AGENT_DIR", agentDir);
 });
@@ -500,6 +506,61 @@ describe("unguarded in-process child detection", () => {
   });
 });
 
+describe("interactive serving eligibility", () => {
+  // A spawner may export the parent-session marker from its own root process so
+  // the children it later launches inherit it — `nicobailon/pi-subagents` sets
+  // it to the root's own session id at `session_start`. A node with a UI has a
+  // human who can answer, so it serves its inbox whatever the marker names
+  // (#907).
+  async function startRootThenSetMarker(
+    markerValue: string,
+  ): Promise<{ cwd: string; pi: ReturnType<typeof makeFakePi> }> {
+    const cwd = mkdtempSync(join(tmpdir(), "pi-perm-root-serving-cwd-"));
+    const pi = makeFakePi();
+    const ctx = makeBaseCtx(cwd, "ui-root-session");
+    piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+    await fireSessionStart(pi, ctx);
+    expect(getServingSessionRegistry().servingIds()).toEqual([
+      "ui-root-session",
+    ]);
+
+    vi.stubEnv("PI_SUBAGENT_PARENT_SESSION", markerValue);
+    await pi.fire(
+      "before_agent_start",
+      { systemPrompt: "", systemPromptOptions: { cwd: "/test" } },
+      ctx,
+    );
+
+    return { cwd, pi };
+  }
+
+  it("keeps serving when the root inherits its own session id as the marker", async () => {
+    const { cwd, pi } = await startRootThenSetMarker("ui-root-session");
+
+    expect(getServingSessionRegistry().servingIds()).toEqual([
+      "ui-root-session",
+    ]);
+
+    await pi.fire("session_shutdown");
+    rmSync(cwd, { recursive: true, force: true });
+  });
+
+  it("keeps serving when the marker names a different session", async () => {
+    // Not merely the self-naming case: the marker is stale after any mid-session
+    // id change, since the spawner refreshes it only at `session_start`. A UI
+    // host serves regardless of what the marker names.
+    const { cwd, pi } = await startRootThenSetMarker("some-other-session");
+
+    expect(getServingSessionRegistry().servingIds()).toEqual([
+      "ui-root-session",
+    ]);
+
+    await pi.fire("session_shutdown");
+    rmSync(cwd, { recursive: true, force: true });
+  });
+});
+
 describe("out-of-process forwarding liveness", () => {
   // A child spawned as its own `pi` process resolves its parent from the
   // environment and shares no `globalThis` with it, so the serving registry the
@@ -597,6 +658,54 @@ describe("out-of-process forwarding liveness", () => {
 
     const result = (await firePromise) as { block?: true };
     expect(result.block).toBeUndefined();
+
+    rmSync(childCwd, { recursive: true, force: true });
+    rmSync(externalDir, { recursive: true, force: true });
+  });
+
+  // A subprocess child kept visible for observability — a Pi Herdsman managed
+  // agent in its own Herdr pane — has a UI of its own and still names the lead
+  // session as its forwarding target (#909).
+  it("forwards from a child that has its own UI while the named parent serves", async () => {
+    writeGlobalConfig(externalAsk);
+    const childCwd = mkdtempSync(join(tmpdir(), "pi-perm-child-cwd-"));
+    const externalDir = mkdtempSync(join(tmpdir(), "pi-perm-external-"));
+    const forwardingDir = join(agentDir, "sessions", "permission-forwarding");
+    const parentSessionId = "parent-session-ui-child";
+    vi.stubEnv("PI_SUBAGENT_PARENT_SESSION", parentSessionId);
+    publishServingHeartbeat(forwardingDir, parentSessionId);
+
+    const capturedTitles: string[] = [];
+    const childPi = makeFakePi({
+      events: createEventBus(),
+      toolNames: ["read"],
+    });
+    piPermissionSystemExtension(childPi as unknown as ExtensionAPI);
+    const firePromise = childPi.fire(
+      "tool_call",
+      {
+        toolName: "read",
+        toolCallId: "ui-child-external-read",
+        input: { path: join(externalDir, "secret.txt") },
+      },
+      makeBaseCtx(childCwd, "child-session-ui", {
+        select: async (title: string): Promise<string | undefined> => {
+          capturedTitles.push(title);
+          return "Yes";
+        },
+      }),
+    );
+
+    const request = await approveForwardedRequest(
+      forwardingDir,
+      parentSessionId,
+    );
+    expect(request.requesterSessionId).toBe("child-session-ui");
+
+    const result = (await firePromise) as { block?: true };
+    expect(result.block).toBeUndefined();
+    // The pane's own dialog never opened: the parent answered.
+    expect(capturedTitles).toEqual([]);
 
     rmSync(childCwd, { recursive: true, force: true });
     rmSync(externalDir, { recursive: true, force: true });
@@ -903,11 +1012,19 @@ describe("fact-shaping inheritance stops at live authority", () => {
     });
     piPermissionSystemExtension(childPi as unknown as ExtensionAPI);
 
-    await fireSessionStart(parentPi, makeBaseCtx(parentCwd, parentSessionId));
+    // The parent is headless so it serves no inbox: a serving parent would make
+    // the child relay its ask instead of deciding it (#909), and the question
+    // here is what a *locally adjudicating* child does with a link it does not
+    // have. It still publishes its service and its registry entry, which is all
+    // the ancestor walk under test needs.
+    await fireSessionStart(
+      parentPi,
+      makeBaseCtx(parentCwd, parentSessionId, { hasUI: false }),
+    );
     getSubagentSessionRegistry().register(childSessionId, { parentSessionId });
 
-    // hasUI makes the child adjudicate locally, so its own chain runs — the
-    // one shape in which a missing link changes the verdict.
+    // The child has UI and no serving parent, so it adjudicates locally and its
+    // own chain runs — the one shape in which a missing link changes the verdict.
     const capturedTitles: string[] = [];
     const childCtx = makeBaseCtx(childCwd, childSessionId, {
       select: async (title: string): Promise<string | undefined> => {

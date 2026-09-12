@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [21.7.0](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.6.0...pi-subagents-v21.7.0) (2026-09-11)
+
+
+### Features
+
+* **pi-subagents:** show subagent results compactly, expandable with Ctrl+O ([46dc3f0](https://github.com/gotgenes/pi-packages/commit/46dc3f0e98fa19821be68c52aaba9b326ba0fba4)), closes [#636](https://github.com/gotgenes/pi-packages/issues/636)
+
+### Documentation
+
+* **pi-subagents:** document the compact result presentation ([b5a4a86](https://github.com/gotgenes/pi-packages/commit/b5a4a86a4df6d3bae7e346f5bf8caecb759dd945))
+
+## [21.6.0](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.5.1...pi-subagents-v21.6.0) (2026-09-11)
+
+
+### Features
+
+* **pi-subagents:** let an extension resume a subagent through the service ([0e15734](https://github.com/gotgenes/pi-packages/commit/0e157344ac5a6b00ded9db6228a8437d185ba8ba)), closes [#885](https://github.com/gotgenes/pi-packages/issues/885)
+* **pi-subagents:** emit an event when a subagent resume starts ([315640c](https://github.com/gotgenes/pi-packages/commit/315640c2d7c783a97543d47a568d6d44d76d6499)), closes [#832](https://github.com/gotgenes/pi-packages/issues/832)
+
+### Bug Fixes
+
+* **pi-subagents:** refuse to resume an agent that is still running ([5853ec0](https://github.com/gotgenes/pi-packages/commit/5853ec07430234cc4ff3bb3b994fe951bc6432c5)), closes [#896](https://github.com/gotgenes/pi-packages/issues/896)
+
+### Documentation
+
+* **pi-subagents:** document the service resume door and the resuming event ([1ac3bd0](https://github.com/gotgenes/pi-packages/commit/1ac3bd0ae8fa9e991505a90071d0889279c1dfe9))
+
+## [21.5.1](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.5.0...pi-subagents-v21.5.1) (2026-09-10)
+
+
+### Bug Fixes
+
+* **pi-subagents:** deliver each mid-run update once, on the channel that can reach the parent ([673c265](https://github.com/gotgenes/pi-packages/commit/673c2651b798d64217b201cddf0ee2e33d6e3976)), closes [#903](https://github.com/gotgenes/pi-packages/issues/903)
+
+### Documentation
+
+* **pi-subagents:** state where a mid-run update lands ([e00026a](https://github.com/gotgenes/pi-packages/commit/e00026a3a63e810ddf7a3e5d8329ae9917211f9b)), closes [#903](https://github.com/gotgenes/pi-packages/issues/903)
+
 ## [21.5.0](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.4.7...pi-subagents-v21.5.0) (2026-09-08)
 
 
