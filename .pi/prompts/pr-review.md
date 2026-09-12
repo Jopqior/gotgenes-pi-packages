@@ -144,8 +144,8 @@ Whichever direction is chosen, the contributor gets explicit, durable credit:
 ## Record the decision and hand off
 
 Write a triage note so the next stage has the full context.
-Path: `packages/<PKG>/docs/retro/NNNN-<slug>.md` (single-package) or `docs/retro/NNNN-<slug>.md` (cross-package), with `<slug>` derived from the title.
-`NNNN` is the **issue** the PR addresses (read the PR body for `Refs #N` / `Closes #N`), not the PR number — the directory is issue-keyed and `/plan-issue` looks the retro up by issue number.
+Path: `packages/<PKG>/docs/retro/fNNNN-<slug>.md` (single-package) or `docs/retro/fNNNN-<slug>.md` (cross-package), with `<slug>` derived from the title.
+`NNNN` (the number inside `fNNNN-`) is the **issue** the PR addresses (read the PR body for `Refs #N` / `Closes #N`), not the PR number — the directory is issue-keyed and `/plan-issue` looks the retro up by issue number.
 Fall back to the PR number only when the PR references no issue.
 If the file does not exist, create it with frontmatter:
 

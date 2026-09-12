@@ -15,6 +15,9 @@ This section takes precedence over inherited repository-target, roadmap, and rel
 - Before pushing, verify the remote URL and name the intended remote and branch explicitly.
 - Treat inherited upstream issue numbers, roadmap priorities, and release procedures as upstream context, not automatic obligations for this fork.
   Qualify upstream issue references with `gotgenes/pi-packages` or a full URL when adding new documentation so they cannot be mistaken for fork issues.
+- Fork plan/retro files are named `fNNNN-<slug>.md` — `f` plus the four-digit zero-padded fork issue number (e.g. `f0001-spawn-model-selection.md`), never the next free `NNNN` among inherited files.
+  Create fork files as `fNNNN-`; look them up by issue number by globbing `fNNNN-*` first and falling back to the unprefixed `NNNN-*` (inherited upstream files) only when no `f` match exists — short-circuit, not union.
+  Frontmatter `issue: N` stays the numeric fork issue.
 - Existing `@gotgenes/*` package names and upstream publishing examples do not authorize publication.
   Before dispatching a release or publishing, obtain explicit operator approval of the fork's release destination and npm package scope.
 
@@ -238,7 +241,7 @@ The standard flow is:
 A change that lands outside `/tdd-plan` or `/build-plan` fires no automatic `pre-completion-reviewer` dispatch.
 Dispatch one by hand before committing a rewrite of an artifact a prior review rejected (Refs #639).
 
-Each prompt template writes a stage entry to `docs/retro/NNNN-<slug>.md` (or `packages/<PKG>/docs/retro/`) before finishing.
+Each prompt template writes a stage entry to `docs/retro/fNNNN-<slug>.md` (or `packages/<PKG>/docs/retro/`) before finishing.
 These entries accumulate across sessions and serve as the cross-session context bridge — when a later stage starts, it reads the retro file to pick up decisions, observations, and warnings from prior sessions.
 
 An issue spun off mid-lifecycle — by a step's implementation, a plan's follow-up, or a retrospective — is evaluated for roadmap fit when it is filed, not at phase close, so load the `roadmap-fit` skill at the filing point.

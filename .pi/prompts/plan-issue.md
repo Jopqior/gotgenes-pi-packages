@@ -8,7 +8,7 @@ model: anthropic/claude-opus-5
 Issue number: `$1`
 
 Your job is to produce a numbered implementation plan for issue #$1, then commit it.
-Single-package plans go in `packages/<PKG>/docs/plans/NNNN-<slug>.md`; cross-package plans go in `docs/plans/NNNN-<slug>.md`.
+Single-package plans go in `packages/<PKG>/docs/plans/fNNNN-<slug>.md`; cross-package plans go in `docs/plans/fNNNN-<slug>.md` — `f` plus the four-digit zero-padded fork issue number, never the next free `NNNN` among inherited files.
 Stop after the commit.
 Do **not** start implementation — the next step is `/tdd-plan` (for plans with test cycles) or `/build-plan` (for docs-only or non-code changes).
 
@@ -50,9 +50,8 @@ Before investigating the issue, load skills relevant to the change:
    Labels are a hint, not the determinant: the plan is cross-package only if code in more than one package actually changes.
    If the confirmed scope is a single package despite multiple `pkg:*` labels, file in that package's directory.
    Set `PKG` to the package name for single-package issues; for cross-package issues, load skills for each affected package.
-3. List the target plans directory (`packages/<PKG>/docs/plans/` for single-package, `docs/plans/` for cross-package) to see numbering and style conventions (create the directory if it does not exist yet).
-   Pick the next free `NNNN` (prefer matching the issue number when reasonable).
-   If `docs/plans/archive/` exists, those files use issue numbers from a previous repository — ignore them when resolving conflicts.
+3. List the target plans directory (`packages/<PKG>/docs/plans/` for single-package, `docs/plans/` for cross-package) to see style conventions (create the directory if it does not exist yet).
+   Name the plan `f` + four-digit zero-padded issue number + `-` + slug (e.g. issue 12 → `f0012-<slug>.md`) — never the next free `NNNN` among inherited files.
 4. Read every issue the body references as a prerequisite or related (`gh issue view <n>`).
    Note whether each is implemented yet — your plan must say what it depends on vs. defers.
    Then search for open issues the body does **not** reference but that touch the same module or symbol (`gh issue list --state open --search "<symbol>"`) — a sibling issue on the same file changes the framing, and the operator should not have to supply it (Refs #635).
@@ -88,7 +87,8 @@ Before investigating the issue, load skills relevant to the change:
 
 Before starting fresh, check whether prior sessions have already done work on this issue:
 
-1. Search for an existing retro file: look for `packages/*/docs/retro/NNNN-*.md` and `docs/retro/NNNN-*.md` where NNNN matches the issue number (zero-padded to 4 digits).
+1. Search for an existing retro file: glob `packages/*/docs/retro/fNNNN-*.md` and `docs/retro/fNNNN-*.md` where NNNN matches the issue number (zero-padded to 4 digits); if any regular file matches, use only those.
+   If none match, fall back to the inherited unprefixed `NNNN-*.md` — short-circuit, not union.
 2. If a retro file exists, read it in full.
    It contains stage-boundary notes from prior sessions — summaries, observations, friction points, and decisions already made.
 3. If prior stage entries exist (e.g., a "Stage: Planning" entry from an earlier attempt), factor them into your approach.
@@ -146,7 +146,7 @@ The assessor reads the real files against your design summary, so treat a contra
 
 ## Write the plan
 
-File: `packages/<PKG>/docs/plans/NNNN-<short-slug>.md` (single-package) or `docs/plans/NNNN-<short-slug>.md` (cross-package).
+File: `packages/<PKG>/docs/plans/fNNNN-<short-slug>.md` (single-package) or `docs/plans/fNNNN-<short-slug>.md` (cross-package).
 
 Start with YAML frontmatter:
 
@@ -279,8 +279,8 @@ git commit -m "docs: plan <short summary> (#$1)"
 
 Before stopping, persist planning observations for cross-session continuity:
 
-1. Determine the retro file path: same location logic as the plan file (single-package → `packages/<PKG>/docs/retro/NNNN-<slug>.md`; cross-package → `docs/retro/NNNN-<slug>.md`).
-   Use the same slug as the plan file.
+1. Determine the retro file path: same location logic as the plan file (single-package → `packages/<PKG>/docs/retro/fNNNN-<slug>.md`; cross-package → `docs/retro/fNNNN-<slug>.md`).
+   Use the same stem as the plan file.
    Create the directory if needed.
 2. If the retro file does not exist, create it with YAML frontmatter:
 

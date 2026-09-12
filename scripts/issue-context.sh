@@ -15,15 +15,20 @@ gh issue view "$ISSUE" || printf '(failed to fetch issue #%s)\n' "$ISSUE"
 # --- Plan files ---
 printf '\n=== Plan Files ===\n\n'
 plan_files=()
-for f in packages/*/docs/plans/"${PADDED}"-*.md docs/plans/"${PADDED}"-*.md; do
+for f in packages/*/docs/plans/"f${PADDED}"-*.md docs/plans/"f${PADDED}"-*.md; do
   [[ -f "$f" ]] && plan_files+=("$f")
 done
+if [[ ${#plan_files[@]} -eq 0 ]]; then
+  for f in packages/*/docs/plans/"${PADDED}"-*.md docs/plans/"${PADDED}"-*.md; do
+    [[ -f "$f" ]] && plan_files+=("$f")
+  done
+fi
 
 if [[ ${#plan_files[@]} -eq 0 ]]; then
   printf '(none found)\n'
 else
   for f in "${plan_files[@]}"; do
-    printf '--- %s ---\n' "$f"
+    printf -- '--- %s ---\n' "$f"
     cat "$f"
     printf '\n'
   done
@@ -32,15 +37,20 @@ fi
 # --- Retro files ---
 printf '\n=== Retro Files ===\n\n'
 retro_files=()
-for f in packages/*/docs/retro/"${PADDED}"-*.md docs/retro/"${PADDED}"-*.md; do
+for f in packages/*/docs/retro/"f${PADDED}"-*.md docs/retro/"f${PADDED}"-*.md; do
   [[ -f "$f" ]] && retro_files+=("$f")
 done
+if [[ ${#retro_files[@]} -eq 0 ]]; then
+  for f in packages/*/docs/retro/"${PADDED}"-*.md docs/retro/"${PADDED}"-*.md; do
+    [[ -f "$f" ]] && retro_files+=("$f")
+  done
+fi
 
 if [[ ${#retro_files[@]} -eq 0 ]]; then
   printf '(none found)\n'
 else
   for f in "${retro_files[@]}"; do
-    printf '--- %s ---\n' "$f"
+    printf -- '--- %s ---\n' "$f"
     cat "$f"
     printf '\n'
   done

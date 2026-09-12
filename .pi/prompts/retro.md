@@ -40,14 +40,14 @@ After identifying the issue number and title, call `set_session_name` with name 
 2. Otherwise, infer `N` from recent commit subjects (`git log --oneline -25`; look for `(#N)` at the end of `feat:`, `fix:`, or `docs:` commits).
    If multiple issues appear, list them and ask the user which to retro on with `ask-user`.
 3. **Determine the target package(s).**
-   Find the plan for issue `N` at `packages/*/docs/plans/NNNN-<slug>.md` or `docs/plans/NNNN-<slug>.md`.
+   Find the plan for issue `N` by globbing `packages/*/docs/plans/fNNNN-<slug>.md` and `docs/plans/fNNNN-<slug>.md` first; if none match, fall back to the inherited unprefixed `NNNN-<slug>.md` — short-circuit, not union.
    If the plan is under `packages/<PKG>/docs/plans/`, the retro goes in `packages/<PKG>/docs/retro/`.
    If the plan is under `docs/plans/` (cross-package), the retro goes in `docs/retro/`.
    If no plan exists, run `gh issue view N` and extract the `pkg:*` label(s).
    Multiple `pkg:*` labels → cross-package → use `docs/retro/`.
    If no label exists or it seems incongruent, ask the user which package.
 4. Resolve the slug from the plan filename; if no plan exists, derive a short slug from the issue title via `gh issue view N --json title -q .title`.
-5. The retro file is `packages/<PKG>/docs/retro/NNNN-<slug>.md` (single-package) or `docs/retro/NNNN-<slug>.md` (cross-package).
+5. The retro file uses the plan's stem: `packages/<PKG>/docs/retro/fNNNN-<slug>.md` (single-package) or `docs/retro/fNNNN-<slug>.md` (cross-package) for fork issues, `NNNN-<slug>.md` when the plan itself is inherited and unprefixed.
    Create the directory if missing.
 
 ## Step 2 — Synthesize observations
@@ -110,7 +110,7 @@ Skip a lens entirely when it finds nothing notable.
 
 ## Step 3 — Write the retro file
 
-Append (or create) `packages/<PKG>/docs/retro/NNNN-<slug>.md` with this structure.
+Append (or create) the retro file — `fNNNN-<slug>.md` for fork issues, inherited `NNNN-<slug>.md` stems unchanged — with this structure.
 Author and append the retro file with the `Edit`/`Write` tools, not a shell heredoc.
 When creating a new file, include YAML frontmatter (see the `markdown-conventions` skill § Documentation frontmatter):
 
