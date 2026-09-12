@@ -175,7 +175,8 @@ The first data row lands in [#3] as `1.0.0 ← 21.7.0`.
 
 ## Sync log
 
-| Date (UTC) | Upstream SHA | Upstream `pi-subagents` tag | Fork merge SHA |
-| ---------- | ------------ | --------------------------- | -------------- |
+| Date (UTC)           | Upstream SHA                             | Upstream `pi-subagents` tag | Fork merge SHA                           |
+| -------------------- | ---------------------------------------- | --------------------------- | ---------------------------------------- |
+| 2026-09-12T14:16:33Z | 045213317de608c04a7b6052b2b843e3a0f2176f | pi-subagents-v21.7.0        | 2d8cea699b08afa0f6a2c06eeb1507a52d699636 |
 
 [#3]: https://github.com/Jopqior/gotgenes-pi-packages/issues/3
