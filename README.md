@@ -99,7 +99,7 @@ An equivalent command for [Diffview.nvim](https://github.com/sindrets/diffview.n
 ### Upstream sync
 
 `scripts/upstream-sync.sh` fetches `gotgenes/pi-packages` `main` without importing tags.
-Pass `--merge` on this fork's `main` to merge `upstream/main` locally; the script never pushes.
+Pass `--sync` on this fork's `main` to squash-sync `upstream/main` locally; never merge, and the script never pushes.
 See [docs/upstream-sync.md](docs/upstream-sync.md) for the procedure, forbidden commands, conflict handbook, and version correspondence.
 
 ### Agentic development workflow

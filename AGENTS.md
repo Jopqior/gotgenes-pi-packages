@@ -20,6 +20,8 @@ This section takes precedence over inherited repository-target, roadmap, and rel
 - Never import upstream tags into this fork's tag namespace.
   `git fetch --tags`, `git fetch --all --tags`, and a flagless `git fetch upstream` are forbidden; they override `remote.upstream.tagOpt`.
 - Sync from `gotgenes/pi-packages` only through `scripts/upstream-sync.sh`.
+  The mutating flag is `--sync` (squash-sync); never `git merge upstream/main` on `main`.
+  `refs/sync/upstream-main` is a local-only base pointer; a fresh clone recreates it from the Sync log.
   See `docs/upstream-sync.md` for the procedure, conflict handbook, and version correspondence.
 - Treat inherited upstream issue numbers, roadmap priorities, and release procedures as upstream context, not automatic obligations for this fork.
   Qualify upstream issue references with `gotgenes/pi-packages` or a full URL when adding new documentation so they cannot be mistaken for fork issues.
