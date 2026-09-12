@@ -141,7 +141,7 @@ flowchart LR
 | 5. Retrospective | `/retro`                     | Reviews the session(s) for workflow improvements and persists retro notes.                                |
 
 Each issue repeats stages 2–5.
-Every stage can run in its own session; the prompt templates set a stage-encoded session name and write a `## Stage:` entry to a `docs/retro/NNNN-<slug>.md` file that bridges context across sessions.
+Every stage can run in its own session; the prompt templates set a stage-encoded session name and write a `## Stage:` entry to a `docs/retro/fNNNN-<slug>.md` file that bridges context across sessions.
 
 #### Parallel worktree workflow
 

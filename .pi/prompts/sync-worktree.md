@@ -35,7 +35,7 @@ Write a concise **sync** stage breadcrumb — not the final retrospective.
 The deliberate, interactive final `/retro $1` runs once at the root after `/ship $1`, on `main`; do **not** run it here.
 The stage note lives in an `exclude-paths` dir, so it triggers no release — but it must be committed **on this branch** so it rides the single ff-merge when root lands the work.
 
-1. Determine the retro file path (same `NNNN-<slug>` as the plan file: single-package → `packages/<PKG>/docs/retro/`; cross-package → `docs/retro/`).
+1. Determine the retro file path (same stem as the plan file — `fNNNN-<slug>` for fork issues, `NNNN-<slug>` for inherited ones: single-package → `packages/<PKG>/docs/retro/`; cross-package → `docs/retro/`).
 2. Capture this peer session's transcript path so the root's final `/retro` can read it with `read_session_file` (sessions live under `~/.pi/agent/sessions/`, so they survive the worktree teardown):
 
    ```bash

@@ -246,7 +246,7 @@ Finally, restate the recommended working sequence: list the issues as `#N — ti
 
 ## Write planning notes
 
-Before stopping, persist planning observations for cross-session continuity — `/plan-improvements` is phase-scoped, not issue-scoped, so it uses a **phase retro** file rather than the issue-keyed `NNNN-<slug>.md` convention.
+Before stopping, persist planning observations for cross-session continuity — `/plan-improvements` is phase-scoped, not issue-scoped, so it uses a **phase retro** file rather than the issue-keyed `fNNNN-<slug>.md` convention.
 
 1. Write `packages/$1/docs/retro/phase-N-<slug>.md` (create `packages/$1/docs/retro/` if needed), using the phase number N and slug from Step 1.
    Derive the slug from the phase title so `/finish-phase` reuses it for `history/phase-N-<slug>.md` — the two files should share a slug and stay greppable as a pair.

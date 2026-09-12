@@ -24,7 +24,8 @@ Before locating or reading the plan, make sure the working tree is up to date wi
 ## Locate the plan
 
 - If `$1` looks like a path, use it.
-- If `$1` is a number, find `packages/*/docs/plans/NNNN-*.md` or `docs/plans/NNNN-*.md` matching that integer (issue number or plan number).
+- If `$1` is a number, glob `packages/*/docs/plans/fNNNN-*.md` and `docs/plans/fNNNN-*.md` first (zero-padded to 4 digits); if any regular file matches, use only those.
+  If none match, fall back to the inherited unprefixed `packages/*/docs/plans/NNNN-*.md` or `docs/plans/NNNN-*.md` — short-circuit, not union.
 - Otherwise, use the newest file across all `packages/*/docs/plans/` and `docs/plans/` (by mtime).
 
 If the plan lives under `packages/<PKG>/docs/plans/`, that determines the target package.
@@ -33,7 +34,7 @@ If the plan lives under `docs/plans/`, it is cross-package — load skills for e
 Read the plan in full before doing anything else.
 If the plan has a "TDD Order" section with red→green test cycles, stop and tell the user to run `/tdd-plan` instead.
 
-Extract the issue number from the plan filename pattern `NNNN-` or from the plan's frontmatter `issue:` field.
+Extract the issue number from the plan's frontmatter `issue:` field first; the filename patterns are `fNNNN-` or `NNNN-`.
 Fetch the issue title via `gh issue view N --json title -q .title` if it is not in the frontmatter.
 Call `set_session_name` with name `#N Build — <issue title>` to identify this session in the session selector.
 
@@ -41,8 +42,9 @@ Call `set_session_name` with name `#N Build — <issue title>` to identify this 
 
 Check whether prior sessions have already done work on this issue:
 
-1. Extract the issue number from the plan filename (pattern `NNNN-`) or its frontmatter `issue:` field.
-2. Search for an existing retro file: look for `packages/*/docs/retro/NNNN-*.md` and `docs/retro/NNNN-*.md` matching the issue number.
+1. Extract the issue number from the plan's frontmatter `issue:` field first; the filename patterns are `fNNNN-` or `NNNN-`.
+2. Search for an existing retro file: glob `packages/*/docs/retro/fNNNN-*.md` and `docs/retro/fNNNN-*.md` first; if any regular file matches, use only those.
+   If none match, fall back to the inherited unprefixed `NNNN-*.md` — short-circuit, not union.
 3. If a retro file exists, read it.
    Prior stage entries contain summaries and observations from earlier sessions (e.g., planning decisions, risks identified, alternatives rejected).
 4. Use this context to inform your work — it may contain warnings about edge cases, decisions that were already debated, or friction points to avoid repeating.
@@ -135,7 +137,7 @@ Print:
 Before stopping, persist implementation observations for cross-session continuity:
 
 1. Determine the retro file path: same location as the plan file (single-package → `packages/<PKG>/docs/retro/`; cross-package → `docs/retro/`).
-   Use the same `NNNN-<slug>` as the plan file.
+   Use the same stem as the plan file (`fNNNN-<slug>` for fork issues, `NNNN-<slug>` for inherited ones).
    Create the directory if needed.
 2. If the retro file does not exist, create it with YAML frontmatter:
 

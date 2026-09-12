@@ -27,8 +27,8 @@ Scope to the issue's own commits instead — anchor on the plan commit (`docs: p
 Note:
 
 - The list of modified files.
-- The issue number (from the plan frontmatter `issue:` field or the plan filename pattern `NNNN-`).
-- The plan file path (`docs/plans/NNNN-*.md` or `packages/*/docs/plans/NNNN-*.md` matching the issue number; may be absent for unplanned work).
+- The issue number (from the plan frontmatter `issue:` field first; the filename patterns are `fNNNN-` or `NNNN-`).
+- The plan file path (`docs/plans/fNNNN-*.md` or `packages/*/docs/plans/fNNNN-*.md` for fork issues; the inherited unprefixed `NNNN-*.md` when no `f` match exists; may be absent for unplanned work).
 
 ## Step 2: Dispatch the reviewer
 

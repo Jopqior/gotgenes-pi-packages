@@ -65,6 +65,12 @@ Docs under `docs/plans/` and `docs/retro/` use YAML frontmatter for structured m
 Single-package work lives in `packages/<PKG>/docs/{plans,retro}/`; cross-package work lives in the top-level `docs/{plans,retro}/`.
 GitHub renders it as a table at the top of the file.
 
+Filename numbering distinguishes fork files from inherited upstream ones.
+Create a fork issue `N`'s file as `f` + four-digit zero-padded `N` + `-` + slug + `.md` (e.g. `f0001-spawn-model-selection.md`) — never the next free `NNNN` among inherited files.
+Look up by issue number by globbing `fNNNN-*` first in both `docs/{plans,retro}/` and `packages/*/docs/{plans,retro}/`; if any regular file matches, use only those matches, otherwise fall back to the unprefixed `NNNN-*` (inherited upstream files) — short-circuit, not union.
+Inherited `NNNN-` files keep their original names.
+The frontmatter `issue: N` stays the numeric fork issue either way.
+
 Schema (both fields are strings/numbers — quote any title containing backticks or colons):
 
 ```yaml
