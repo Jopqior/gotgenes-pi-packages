@@ -22,3 +22,18 @@ Tidy-First and design-review were skipped (no `src/`/`test/` files, no shared Ty
 - When `f` files exist, a restricted grep that returns empty must not fall through to unrestricted grep — that reintroduces the inherited hit.
 - Accepting a plan path as `/ship`'s `$1` stays out of scope (recorded in issue 5's final retro as a different defect).
 - No follow-up issue filed.
+
+## Stage: Implementation — Build (2026-09-12T11:29:38Z)
+
+### Session summary
+
+Implemented the `/ship` plan-location short-circuit in `.pi/prompts/ship.md` as a single step.
+Both the trunk `grep` and worktree `git grep` snippets now glob `fNNNN-*` first and restrict frontmatter matching to those files, falling back to unrestricted frontmatter grep only when no `f` file exists.
+A no-fallback sentence was added so an empty restricted grep does not reintroduce an inherited plan.
+
+### Observations
+
+- No deviations from the plan.
+- Dry-run of the prescribed snippets with `$1` in `{1,5,6,890}` matched the plan: issues 1, 5, and 6 each printed exactly one `fNNNN-` path; issue 890 fell back to `docs/plans/0890-inherited-region-tool-surface-relocation.md`.
+- Worktree lane via `git ls-files --with-tree=HEAD` agreed with the trunk glob on all four cases.
+- Pre-completion reviewer: PASS — ready for `/ship`.
