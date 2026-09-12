@@ -15,6 +15,10 @@ This section takes precedence over inherited repository-target, roadmap, and rel
 - Before GitHub mutations, verify the target repository and pass `--repo Jopqior/gotgenes-pi-packages` explicitly where supported.
   For wrapper tools or scripts without a repository argument, verify how they resolve their target before using them; use an explicitly targeted command instead if the target cannot be established.
 - Before pushing, verify the remote URL and name the intended remote and branch explicitly.
+- Never import upstream tags into this fork's tag namespace.
+  `git fetch --tags`, `git fetch --all --tags`, and a flagless `git fetch upstream` are forbidden; they override `remote.upstream.tagOpt`.
+- Sync from `gotgenes/pi-packages` only through `scripts/upstream-sync.sh`.
+  See `docs/upstream-sync.md` for the procedure, conflict handbook, and version correspondence.
 - Treat inherited upstream issue numbers, roadmap priorities, and release procedures as upstream context, not automatic obligations for this fork.
   Qualify upstream issue references with `gotgenes/pi-packages` or a full URL when adding new documentation so they cannot be mistaken for fork issues.
 - Fork plan/retro files are named `fNNNN-<slug>.md` — `f` plus the four-digit zero-padded fork issue number (e.g. `f0001-spawn-model-selection.md`), never the next free `NNNN` among inherited files.
