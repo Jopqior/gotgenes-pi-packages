@@ -6,6 +6,8 @@ This repository, `Jopqior/gotgenes-pi-packages`, is a personal fork of `gotgenes
 Fork-maintainer requirements govern local product decisions; they do not represent upstream requests or require upstream acceptance.
 This section takes precedence over inherited repository-target, roadmap, and release instructions below and in project skills or prompt templates.
 
+- Reply to the operator in Chinese.
+  Keep committed artifacts (plans, retros, commit messages, issue bodies) in English unless the operator asks otherwise.
 - This fork's primary branch is `main`.
   Create feature branches from `main` and land them back on `main`.
   Inherited ship and worktree workflows already target `main`; run those steps against this fork's `main`.
