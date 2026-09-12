@@ -4,7 +4,7 @@
  * Consumers declare this package as an optional peer dependency and use
  * dynamic import to access the accessor functions:
  *
- *   const { getSubagentsService } = await import("@gotgenes/pi-subagents");
+ *   const { getSubagentsService } = await import("@jopqior/pi-subagents");
  *   const svc = getSubagentsService();
  *   svc?.spawn("Explore", "Check for stale TODOs");
  */

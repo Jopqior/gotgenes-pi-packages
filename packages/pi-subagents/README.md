@@ -1,6 +1,6 @@
-# @gotgenes/pi-subagents
+# @jopqior/pi-subagents
 
-[![npm version](https://img.shields.io/npm/v/@gotgenes/pi-subagents?style=flat&logo=npm&logoColor=white)](https://www.npmjs.com/package/@gotgenes/pi-subagents) [![CI](https://img.shields.io/github/actions/workflow/status/gotgenes/pi-packages/ci.yml?style=flat&logo=github&label=CI)](https://github.com/gotgenes/pi-packages/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![pnpm](https://img.shields.io/badge/pnpm-%3E%3D11-F69220?style=flat&logo=pnpm&logoColor=white)](https://pnpm.io/) [![Pi Package](https://img.shields.io/badge/Pi-Package-6366F1?style=flat)](https://pi.mariozechner.at/)
+[![npm version](https://img.shields.io/npm/v/@jopqior/pi-subagents?style=flat&logo=npm&logoColor=white)](https://www.npmjs.com/package/@jopqior/pi-subagents) [![CI](https://img.shields.io/github/actions/workflow/status/Jopqior/gotgenes-pi-packages/ci.yml?style=flat&logo=github&label=CI)](https://github.com/Jopqior/gotgenes-pi-packages/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![pnpm](https://img.shields.io/badge/pnpm-%3E%3D11-F69220?style=flat&logo=pnpm&logoColor=white)](https://pnpm.io/) [![Pi Package](https://img.shields.io/badge/Pi-Package-6366F1?style=flat)](https://pi.mariozechner.at/)
 
 A [pi](https://pi.dev) extension that gives pi **a focused, in-process sub-agent core** — autonomous agents that run inside the same pi runtime (no spawned subprocesses), plus a typed API and lifecycle events other extensions build on.
 Spawn specialized agents that run in isolated sessions — each with its own tools, system prompt, model, and thinking level.
@@ -37,7 +37,7 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 ## Install
 
 ```bash
-pi install npm:@gotgenes/pi-subagents
+pi install npm:@jopqior/pi-subagents
 ```
 
 Or load directly for development:
@@ -293,12 +293,12 @@ When `@gotgenes/pi-permission-system` is not installed, the lifecycle events hav
 
 This package exposes two public subpath exports for companion extensions to import from the published tarball.
 
-### `@gotgenes/pi-subagents` — cross-extension service contract
+### `@jopqior/pi-subagents` — cross-extension service contract
 
 Access the subagent service from another extension at runtime:
 
 ```typescript
-const { getSubagentsService } = await import("@gotgenes/pi-subagents");
+const { getSubagentsService } = await import("@jopqior/pi-subagents");
 const svc = getSubagentsService();
 svc?.spawn("Explore", "Check for stale TODOs");
 ```
@@ -393,12 +393,12 @@ Pass `claimOutcome: true` to declare that your extension is delivering it, which
 Pass `signal` to cancel the resumed turn loop.
 `abort(id)` does not reach it: a resume does not run under the record's own abort controller.
 
-### `@gotgenes/pi-subagents/settings` — layered config loader
+### `@jopqior/pi-subagents/settings` — layered config loader
 
 Extensions that store configuration in JSON files can use the shared layered loader, which reads a global file (`<agentDir>/<filename>`) and a project file (`<cwd>/.pi/<filename>`) and merges them — project wins on conflicts, missing files are silent, malformed files warn and fall back:
 
 ```typescript
-import { loadLayeredSettings, type LayeredSettingsSource } from "@gotgenes/pi-subagents/settings";
+import { loadLayeredSettings, type LayeredSettingsSource } from "@jopqior/pi-subagents/settings";
 
 interface MyConfig { enabled?: boolean; limit?: number }
 
