@@ -40,6 +40,12 @@ export interface SubagentLifecycleObserver {
 	onSessionCreated?(agent: Subagent): void;
 	/** Fires once when the run completes or fails (for concurrency drain). */
 	onRunFinished?(agent: Subagent): void;
+	/**
+	 * Fires once a resumed run is under way — after the record is rewound, so a
+	 * subscriber reading it sees the run that just started rather than the
+	 * outcome of the one it replaced.
+	 */
+	onResumeStarted?(agent: Subagent): void;
 	/** Fires once when a resumed run reaches a terminal state. */
 	onResumeFinished?(agent: Subagent): void;
 	/** Fires when the running agent sends its parent a mid-run message. */
@@ -63,8 +69,15 @@ export type { SubagentStatus } from "#src/lifecycle/subagent-state";
  * separately: the resume door decided it from `isSessionReady()`,
  * `sessionReleased`, and `workspaceDisposed`, while the result carriers never
  * consulted any of them and advertised the resume regardless.
+ *
+ * `still-running` is the one transient member: it is a refusal of *now* rather
+ * than of ever, and the carriers word it accordingly.
  */
-export type ResumeRefusal = "no-session" | "session-released" | "workspace-disposed";
+export type ResumeRefusal =
+	| "still-running"
+	| "no-session"
+	| "session-released"
+	| "workspace-disposed";
 
 /**
  * The result of a steer attempt. `Subagent.steer` owns the non-running
@@ -227,13 +240,19 @@ export class Subagent {
 	 * The conditions are checked in the order the resume door checks them, so a
 	 * record whose session was released *and* whose workspace is gone reports the
 	 * session — the door's message for it names the retention window, which is
-	 * the fact that explains both.
+	 * the fact that explains both. A live run outranks all of them: nothing about
+	 * a settled record is decided yet.
 	 *
 	 * A getter rather than a predicate method because the result carriers read it
 	 * as a field: `OutcomeAddenda` and `AgentReport` both declare it, and a live
 	 * record satisfies them structurally only if it is a property.
 	 */
 	get resumeRefusal(): ResumeRefusal | undefined {
+		// Before the session check: a run transitions to running before it creates
+		// its session, and "still running" describes that record better than "no
+		// session" does. A queued agent is not running and keeps the no-session
+		// answer, which is the truth about it.
+		if (this.isRunning()) return "still-running";
 		if (!this.isSessionReady()) return this._sessionReleased ? "session-released" : "no-session";
 		if (this.workspaceDisposed) return "workspace-disposed";
 		return undefined;
@@ -472,20 +491,20 @@ export class Subagent {
 	}
 
 	/**
-	 * Route an update the child sent: to the carrier holding this run's outcome
-	 * when one has claimed it, to the announcement channel otherwise.
+	 * Record an update the child sent, then offer it to the announcement channel.
 	 *
-	 * A claim means a carrier is blocked awaiting this run, so an announcement
-	 * would reach the parent only after that carrier's own return — and cost it
-	 * a turn to read what it already has. Buffering hands the message to the
-	 * carrier instead; NotificationManager reads the same claim and stays quiet.
+	 * Every update joins the run's ledger, whoever ends up delivering it: this
+	 * side cannot know whether an announcement will reach the parent in time, or
+	 * at all, so it records unconditionally and lets the channel that delivers
+	 * mark what it took. What the ledger still owes is what an outcome carrier
+	 * renders alongside the result.
 	 *
 	 * The observer is told either way: an update is a fact about the run, like
 	 * the terminal transitions, so the lifecycle event fires regardless of which
 	 * carrier delivers it.
 	 */
 	private announceUpdate(message: string): void {
-		if (this.claimed) this.state.recordUpdate(message);
+		this.state.recordUpdate(message);
 		this.execution.observer?.onUpdateSent?.(this, message);
 	}
 
@@ -561,6 +580,7 @@ export class Subagent {
 	/** The resume body. Always resolves — errors terminate through failResume(). */
 	private async runResume(subagentSession: SubagentSession, prompt: string, signal?: AbortSignal): Promise<void> {
 		this.resetForResume(Date.now());
+		this.execution.observer?.onResumeStarted?.(this);
 		this.listeners.attachObserver(subscribeSubagentObserver(subagentSession, this.state, {
 			onCompact: (info) => this.execution.observer?.onCompacted?.(this, info),
 		}));
@@ -638,6 +658,11 @@ export class Subagent {
 	/** Record the parent collected this agent's outcome. Idempotent. */
 	markConsumed(at?: number): void {
 		this.state.markConsumed(at);
+	}
+
+	/** The announcement channel delivered this update; no outcome carrier repeats it. */
+	markUpdateAnnounced(message: string): void {
+		this.state.markUpdateAnnounced(message);
 	}
 
 	/** A carrier has committed to delivering this outcome; nothing else announces it. */

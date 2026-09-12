@@ -28,7 +28,7 @@ Before investigating the issue, load skills relevant to the change:
 - Load the `package-<PKG>` skill for each affected package (e.g., `package-pi-permission-system`) for package-specific architecture, priorities, and testing context.
 - Load the `colgrep` skill before code exploration — it contains the decision table for when to use semantic search vs. exact grep, which shapes how you approach unfamiliar modules.
 - Load the `code-design` skill for design principles and structural heuristics.
-- Load the `testing` skill if the plan involves test changes or TDD steps, or if investigation will run a disposable spike test.
+- Load the `testing` skill for any plan with TDD steps — its TDD planning rules govern the plan's step sequencing, not just its test content — or if investigation will run a disposable spike test.
 - Load the `markdown-conventions` skill — it contains project-specific rules (one-sentence-per-line, frontmatter schema) that differ from standard markdown conventions.
 - Load the `design-review` skill and run its checklist before finalizing the design for any refactor, extraction, or change to shared interfaces or layer wiring — judge this from the issue, not from a plan that already shows wiring changes.
 - Load the `tidy-first` skill if the change will create or modify `src/`/`test/` files — you will use it after the design is settled to dispatch the Tidy-First assessor, whose recommendations become preparatory steps in the plan's TDD Order (a docs-only or config-only change skips it).
@@ -119,6 +119,9 @@ A collision found after the design settles can only be argued around; found befo
 Before writing the plan, identify any genuinely ambiguous design choices.
 If there are 1–2 such choices (breaking-vs-non-breaking, result-shape change, fallback semantics, etc.), use the `ask-user` skill once to surface them with a short context summary and concrete options.
 Skip this step if the issue's "Proposed change" section is unambiguous.
+
+For a bug report, the gate's substance leads with the **observed scenario in the affected party's terms** — what the user or parent agent saw, in order — before the code trace that explains it.
+A mechanism-first gate gets bounced for it (Refs #903).
 
 If the issue is third-party (its author is not the gh CLI user, as determined in Gather context), do **not** skip the `ask-user` gate even when the proposed change is unambiguous.
 The ambiguity for a third-party issue is not *how* to build it but *whether* the operator wants it built, and in what form.

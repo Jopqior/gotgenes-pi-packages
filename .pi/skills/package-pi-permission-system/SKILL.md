@@ -56,6 +56,10 @@ Neither rule sees a `vi.mock()` specifier, which is a call argument rather than 
 - In the flat permission format, `permission["*"]` is the universal fallback; pattern ordering is last-match-wins.
 - The four path layers (`path`, `external_directory`, per-tool, `bash`) compose with **most-restrictive-wins** across surfaces: a more-permissive rule on one surface cannot loosen a more-restrictive rule on another (`ask` > `allow`).
   So a `path` allow cannot suppress an `external_directory: ask` prompt — allow outside-CWD directories on `external_directory`, not `path`.
+  The ordering's top half is enforced in the pipeline rather than the resolver: `ToolCallGatePipeline.evaluate` produces all six gates before running any, and `orderDenyFirst` (`src/handlers/gates/descriptor.ts`) runs an unconditionally denying one first, so an earlier gate's `ask` cannot suspend the call ahead of a later gate's `deny` (Refs #899).
+  `deny` is absorbing, which is what makes that an ordering change rather than a semantic one — do not extend it to `ask`, where two gates ask two genuinely different questions ([#915]).
+  `isUnconditionalDeny` excludes a `source: "session"` check because `GateRunner.runDescriptor` tests the session fast path first; the predicate and the runner read one `preResolvedCheckOf`, so the precedence is expressed once.
+  A pre-empted call records the denial alone — a gate whose answer had no consequence emits no `permissions:decision` event.
 - `path` and `external_directory` each carry a **read/write axis** (ADR 0013 §3–§4, Refs #806), and the two directions are independent bits, not tiers — a `path_write` allow grants no read, a `path_read` deny floors no write.
   A bare family key is **load-time sugar**: `expandDirectionalSugar` (`src/policy/normalize.ts`), called once per scope inside `mergeScopesWithOrigins` before origin bookkeeping and the merge, rewrites it into both directional members, sugar entries first and explicit directional entries appended after, whatever the file's key order.
   Expanding after composition would attribute every expanded rule to `builtin`; do not move it.
@@ -136,6 +140,16 @@ The heartbeat records live **beside** `sessions/`, never inside it: a record und
 For the same reason the `serving/` directory is created on demand and never removed.
 `ForwardingManager` re-announces on every poll tick, and that refresh runs **ahead of the `processing` guard** — a parent holding `processInbox` open for a deliberating human is serving throughout, and refreshing behind the guard would let its record decay exactly when it is most demonstrably alive, fast-failing every other child.
 A regression test pins it ("re-announces while a drain is still in flight").
+Whether it serves at all is `ctx.hasUI` **alone**: it consults no `SubagentDetector`, because a spawner may export `PI_SUBAGENT_PARENT_SESSION` from its own root process so the children it launches inherit it, and reading that marker as child evidence made the root withdraw serving on its first turn event and fail every forwarded ask closed (Refs #907).
+`isSubagentExecutionContext` is unchanged and still answers `true` for such a root — it means "is this process a child", not "should this node relay" — so do not re-add the consult, and do not read that predicate as a relay decision anywhere.
+Whether a node **relays** is `selectAuthorizer`'s alone, and since #909 it is not `hasUI` either: a node with a UI relays when `resolvePermissionForwardingTarget` names another session **and** `serving.isServing(target)` is exactly `true`, and decides locally otherwise.
+That `=== true` is the point — a human is present, so an unconfirmable target keeps the local dialog, which is the opposite burden of proof from `ParentAuthorizer.checkServingLiveness`, where an unjudgeable target waits out the timeout.
+The selection is remade on every activation, so a visible pane whose lead exits returns to its own dialog at the next turn event; `AuthorizerSelection` records `forwarded_permission.relay_started`/`relay_stopped` on a change only, the way `ForwardingManager.announceServing` does.
+One consequence to keep in mind when reading tests: a child ctx built with `hasUI: true` under a **serving** parent now relays, which is what silently defeated `composition-root.test.ts`'s `fact-shaping inheritance stops at live authority` guard until its parent was made headless.
+The refresh also re-resolves the live session id each tick and republishes through `announceServing` when it changed: `ForwardedRequestServer.processInbox` reads the live id every tick and ignores a request targeting any other, so an announcement pinned to the id captured at `start` strands children on both sides of a mid-session id change — the holder of the old id sees a live heartbeat and is then ignored, which is a full-timeout stall rather than a fast-fail.
+Delegating to `announceServing` is what withdraws the old record first; marking the new id alone would leave two live heartbeats.
+A migration logs its `serving_stopped`/`serving_started` pair because it is rare and diagnosis-worthy; the unchanged case never reaches that path, which is what keeps the per-tick refresh silent.
+`resolvePermissionForwardingTarget` likewise skips a candidate — in either channel — naming the requesting session itself, since a request filed into one's own inbox is drained by no watcher.
 Every `ParentAuthorizer` abandonment path sets `confirmationUnavailable: true` with a path-naming `denialReason` and a matching `decidedBy: { kind: "unavailable" }`; `PermissionGateParams.messages.refusedReason` is therefore a function of the decision, not a precomputed string.
 Which refusal sentence the agent gets is dispatched once, at `renderRefusal` (`src/presentation/agent-renderer.ts`), on `effectiveDecider(decision.decidedBy)` — not on the `confirmationUnavailable` marker, which attributed a chain link's denial to the human (Refs #772).
 The dispatch reads the **outer** frame too (`decidedBy.kind === "forwarded"`), because a refusal decided one hop away has to say so; the responder's session id stays undisclosed, so the render says another session decided and never which (Refs #844).
@@ -255,7 +269,8 @@ A `bash` query routes through `resolveBashAdvisoryCheck` (`src/service/bash-advi
 The `session_start`-gated publication (session-keyed plus the #302-guarded root slot), both ready-event emits carrying the node's `sessionId`/`adjudicatesLocally`, and session teardown ordering are all owned by `PermissionServiceLifecycle` (`src/service/service-lifecycle.ts`), which is injected into `SessionLifecycleHandler` as `ServiceLifecycle` and into `SessionTurnPrep` (`src/handlers/session-turn-prep.ts`) as `ReadyAnnouncer`.
 One private `emitReady` builds both payloads from the ctx it is handed, so the `session_start` emission and the latch emission cannot drift; `activate` re-arms the once-per-activation guard, so a reload generation announces twice again.
 `SessionTurnPrep` is the `before_agent_start` routine — warm the bash parser, `session.activate`, trust-gated `refreshConfig`, then announce — extracted from `AgentPrepHandler` so the handler keeps the one job its name describes (#787).
-It reads the node's chain role through the `AdjudicationRole` seam on `AuthorizerSelection` (whose `activate` runs first, inside `PermissionSession.resetForNewSession`); do not re-derive that role from `detection.isSubagent(ctx)` — `selectAuthorizer` tests `hasUI` first, so a subagent with its own UI adjudicates locally.
+It reads the node's chain role through the `AdjudicationRole` seam on `AuthorizerSelection` (whose `activate` runs first, inside `PermissionSession.resetForNewSession`); do not re-derive that role from `detection.isSubagent(ctx)` or from `ctx.hasUI` — a subagent with its own UI adjudicates locally unless it names a parent that is serving (#909), so either shortcut is wrong in one direction.
+The role can also change between activations of one session, so read it live rather than caching what `permissions:ready` announced.
 Changes to publication timing or teardown order should go through `PermissionServiceLifecycle`, not `index.ts`.
 
 Do not propose module-scoped singletons or Node.js module-cache sharing as a cross-extension communication mechanism — module isolation keeps them invisible to other extensions.
@@ -466,6 +481,7 @@ When a plan or test asserts a specific bash repro string, trace the token throug
 [#645]: https://github.com/gotgenes/pi-packages/issues/645
 [#520]: https://github.com/gotgenes/pi-packages/issues/520
 [#694]: https://github.com/gotgenes/pi-packages/issues/694
+[#915]: https://github.com/gotgenes/pi-packages/issues/915
 [#839]: https://github.com/gotgenes/pi-packages/issues/839
 [earendil-works/pi#4731]: https://github.com/earendil-works/pi/issues/4731
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md

@@ -24,7 +24,7 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 - **Session resume** — pick up where an agent left off, preserving full conversation context.
   An agent given an isolated workspace by a `WorkspaceProvider` is resumable while that workspace is live — which, for an agent that ended its turn with a question, lasts until you answer it
 - **Ask-back** — an agent that needs information only you have calls `ask_parent` and ends its turn, and every result surfaces the question with the exact `resume` call that answers it; once that agent can no longer be resumed, the result says so and why instead of naming a call that would be refused
-- **Mid-run updates** — an agent that finds something material calls `notify_parent` and keeps working, so you hear about a course change rather than only at the end; while you are blocked awaiting that agent the update rides its own result instead
+- **Mid-run updates** — an agent that finds something material calls `notify_parent` and keeps working; the message arrives on its own while you are idle and that agent is still running, and otherwise rides that agent's own result, so you hear it exactly once and never as a stale prompt to steer an agent that has finished
 - **Graceful turn limits** — agents get a "wrap up" warning before hard abort, producing clean partial results instead of cut-off output
 - **Case-insensitive agent types** — `"explore"`, `"Explore"`, `"EXPLORE"` all work.
   Unknown types fall back to general-purpose with a note
@@ -32,7 +32,7 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 - **Context inheritance** — optionally fork the parent conversation into a sub-agent so it knows what's been discussed
 - **Styled completion notifications** — background agent results render as themed, compact notification boxes (icon, stats, result preview) instead of raw XML.
   Expandable to show full output
-- **Event bus** — lifecycle events (`subagents:created`, `started`, `completed`, `failed`, `resumed`, `steered`, `compacted`) emitted via `pi.events`, enabling other extensions to react to sub-agent activity
+- **Event bus** — lifecycle events (`subagents:created`, `started`, `completed`, `failed`, `resuming`, `resumed`, `steered`, `compacted`) emitted via `pi.events`, enabling other extensions to react to sub-agent activity
 
 ## Install
 
@@ -139,6 +139,10 @@ Check status and retrieve results from a background agent.
 | `wait`     | boolean | no       | Wait for completion           |
 | `verbose`  | boolean | no       | Include full conversation log |
 
+The result renders as a compact three-line summary — status, stats, description, and a one-line preview.
+Press `Ctrl+O` to expand it to the full report, bounded so a long result cannot fill the terminal; the expanded view names the transcript path when it withholds anything.
+The complete report, including the conversation `verbose` requests, always reaches the model regardless of what the terminal shows.
+
 ### `steer_subagent`
 
 Send a steering message to a running agent.
@@ -225,6 +229,7 @@ Agent lifecycle events are emitted via `pi.events.emit()` so other extensions ca
 | `subagents:started`          | Agent transitions to running (including queued→running) | `id`, `type`, `description`                                                                                          |
 | `subagents:completed`        | Agent finished successfully                             | `id`, `type`, `durationMs`, `tokens` (lifetime `{ input, output, total }`), `toolUses`, `result`                     |
 | `subagents:failed`           | Agent errored, stopped, or aborted                      | same as completed + `error`, `status`                                                                                |
+| `subagents:resuming`         | Resume started, from either front door                  | `id`, `type`, `description`                                                                                          |
 | `subagents:resumed`          | Resumed run reached a terminal state (completed/error)  | same as completed + `error`, `status` (`buildEventData` shape) — `status`/`error` discriminate                       |
 | `subagents:steered`          | Steering message sent                                   | `id`, `message`                                                                                                      |
 | `subagents:compacted`        | Agent's session successfully compacted                  | `id`, `type`, `description`, `reason` (`"manual"` / `"threshold"` / `"overflow"`), `tokensBefore`, `compactionCount` |
@@ -362,6 +367,31 @@ A pulled snapshot of momentary state would be stale on arrival; [decision 0005](
 
 `SubagentRecord` and `SubagentsService` are types this package produces and you read — not contracts to implement.
 A new field is therefore a minor release; use a cast or a `Partial<>` for a test double rather than implementing either type.
+
+#### `resume` contract
+
+`resume(id, prompt, options?)` continues a settled agent's session, and is the one service call that waits: it resolves when the resumed run reaches a terminal state, carrying the terminal snapshot.
+A caller that does not need the outcome can ignore the promise.
+
+It never throws and never rejects.
+A resume that could not start resolves to `{ kind: "refused", reason }` instead, promptly — the checks are synchronous and no turn loop runs:
+
+| `reason`             | Meaning                                                         |
+| -------------------- | --------------------------------------------------------------- |
+| `unknown-agent`      | No record answers to that id (records are cleared per session)  |
+| `still-running`      | The agent has not settled; wait, or `steer` it while it runs    |
+| `no-session`         | The agent never had a session to continue                       |
+| `session-released`   | Its session was released after the retention window             |
+| `workspace-disposed` | Its isolated workspace is gone, so a resume cannot re-enter it  |
+
+A resumed run that _fails_ is still `{ kind: "resumed" }`; the snapshot carries `status: "error"` and the message.
+Refused means nothing started.
+
+By default the resumed outcome is announced to the parent like any other background completion.
+Pass `claimOutcome: true` to declare that your extension is delivering it, which suppresses that announcement — do this only if you will actually carry the result to the parent, or it reaches nobody.
+
+Pass `signal` to cancel the resumed turn loop.
+`abort(id)` does not reach it: a resume does not run under the record's own abort controller.
 
 ### `@gotgenes/pi-subagents/settings` — layered config loader
 

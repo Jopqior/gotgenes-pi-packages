@@ -6,7 +6,7 @@ description: Land the work (trunk or worktree branch), verify CI, close the issu
 # Ship the implementation
 
 Argument: `$1` is the issue number that was just implemented, or the number of an adopted third-party PR.
-When it is empty, derive the number from the newest plan commit (`git log --format='%s' --grep='^docs: plan ' -1` → the trailing `(#N)`), name the issue you derived, and confirm it before step 3.
+When it is empty, derive the number from the newest plan commit (`git log --format='%s' --grep='^docs: plan ' -1` → the trailing `(#N)`), name the issue you derived, and confirm it in step 0 — lane detection reads it.
 
 `/ship` runs at the **root** checkout on `main` in both of its lanes:
 
@@ -23,12 +23,15 @@ Run `git rev-parse --show-toplevel` and `git branch --show-current`.
 1. If the branch is not `main`, stop and report.
    On an `issue-<N>-*` branch you are in a peer worktree: run `/sync-worktree $1` here, then `/ship $1` from the root session.
 2. If the toplevel is not the root checkout, stop and report — the same applies.
+3. Resolve the issue number before step 1.
+   With `$1` empty, step 1's glob widens and matches a sibling peer's `issue-<M>-*` branch, which reads as this issue's worktree lane (Refs #885).
 
 Do this before anything else, so a mis-invocation costs nothing.
 
 ## 1. Detect the lane and name the session
 
 1. Run `git branch --list "issue-$1-*"`.
+   Glob the resolved number literally (`issue-885-*`), never a widened `issue-*-*`.
    - Exactly one match → **worktree lane**.
      Record the branch: `BRANCH=$(git branch --list "issue-$1-*" | tr -d ' +*')`.
    - Zero matches → **trunk lane**.
@@ -108,8 +111,10 @@ Worktree lane: the peer worktree shares this repo's `.git`, so the branch ref is
 
 1. Predict the merge before running it: `git merge-base --is-ancestor main "$BRANCH" && echo ff-ok`.
    If it fails, stop and send the peer back to `/sync-worktree $1` — do not push root commits to `origin` to make a stale rebase target agree (Refs #813).
-2. `git merge --ff-only "$BRANCH"`.
-3. If the merge is **not** a fast-forward, stop and report.
+2. Record the pre-merge tip — `PRE_MERGE=$(git rev-parse main)` — and report it.
+   A branch can carry commits that precede its plan commit (a roadmap disposition, a baseline fixup), and steps 9 and 10 read a range anchored on the plan (Refs #899).
+3. `git merge --ff-only "$BRANCH"`.
+4. If the merge is **not** a fast-forward, stop and report.
    Name the divergent commits with `git log --oneline "$BRANCH"..main` — run it without `wc -l`, and report those commits, not a cause inferred from `git log main`'s recent subjects (Refs #815).
    The peer must re-run `/sync-worktree $1`, rebasing onto the ref this merge will actually use, then retry this step.
 
@@ -173,6 +178,8 @@ Note the deferral in the final report.
 
 ## 9. Close the issue
 
+Load the `github-voice` skill before drafting — this comment and any PR close comment are contributor-facing.
+
 Build the close comment from this issue's own commits, anchored on the plan commit — not on the package's last tag.
 Each package releases on its own cadence, so a tag range spans every sibling issue that landed since: measured at 165 commits across 32 issues for a 13-commit change (Refs #817).
 
@@ -182,10 +189,12 @@ git log --oneline "$PLAN"^..HEAD
 ```
 
 If no plan commit matches, anchor on the parent of the issue's first commit.
+In the worktree lane, use step 4's `PRE_MERGE` as the anchor instead when it is an ancestor of `"$PLAN"^` — the branch then carried pre-plan commits the plan range cannot see.
 
 The comment should include:
 
 - The commit hash that lands the change ("Implemented in <sha> …") — the commit carrying the behavior, not the range's last commit.
+  With several `fix:`/`feat:` commits in range, anchor on the one that fixes the **issue's title defect** and list the rest as bullets — not the newest or largest (Refs #907).
   Run `git rev-parse` for **every** SHA the comment will contain — the landing commit and any follow-on commits — before you start drafting.
   Paste each exactly; never hand-type or extend a short SHA from memory, and never leave a placeholder to fill in later.
   A fabricated SHA does not auto-link (Refs #704, #777).
@@ -210,9 +219,11 @@ The multi-SHA credit list here is where hand-extended short hashes slip in (Refs
 
 A shipped issue can also supersede open third-party PRs without either being the close target — this repo reimplements rather than merges.
 Close each PR that step 2's plan-and-retro read named, with `gh pr comment` then `gh pr close`, never merge, crediting the author by `@login` (Refs #670, #690).
+Read each PR's body first (`gh pr view <M> --json body -q .body`) — what a PR flagged, covered, or omitted is a claim about the PR, and the plan's summary of it is not that source (Refs #907).
 
 Then check whether this push shipped work for **other** issues in the `"$PLAN"^..HEAD` range.
 A co-shipped issue shows as a stacked refactor/enabler, a subject-trailing `(#M)` commit ref, or a sibling `docs/plans/`/`docs/retro/` file added in range — a body-line `Refs #M` is a citation, not a ship (Refs #793).
+A roadmap step heading that names a second issue (`#### Step 16: … ([#885], with [#896])`) is a fold-in: its work shipped here and it closes with this issue, even where no commit subject carries its number (Refs #885).
 A mid-batch sibling that shipped on its own ship is already closed by it — this scan is for stacked work that never had a ship of its own.
 Close each with its own short summary — `refactor:` commits are omitted from the changelog, so a stacked refactor issue leaves no reminder.
 
@@ -229,6 +240,9 @@ Skip this step entirely if step 8 recorded a defer/batch decision — the releas
    PLAN=$(git log --format='%H' --grep="docs: plan .*(#$1)" -1)
    git diff --name-only "$PLAN"^..HEAD | sed -n 's#^packages/\([^/]*\)/.*#\1#p' | sort -u
    ```
+
+   Use step 4's `PRE_MERGE` as the anchor instead when it is an ancestor of `"$PLAN"^`.
+   A pre-plan commit touching a sibling package is invisible to the plan range, and the dispatch would silently omit that package (Refs #899).
 
    Do not filter by commit type: `docs:` and `chore:` are visible changelog groups that cut a patch on their own, so a `feat|fix` scope grep silently drops a sibling bumped by a docs-only commit (Refs #857).
    Step 2 below is the authority on which candidates actually release.

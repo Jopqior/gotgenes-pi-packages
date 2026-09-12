@@ -137,6 +137,8 @@ A shared table row asserts its fact of every implementation the *name* reaches: 
 A dependency floor is a claim about **each** symbol the change uses, not about the release that introduced the feature.
 `git tag --contains <sha>` answers which release carries one commit; sibling accessors can land in a later one.
 Resolve every symbol against the candidate floor (`git show <tag>:<path> | grep <symbol>`) before pinning it (Refs #812).
+Sampling one version without the symbol and one with it bounds an interval, not a boundary — name the later one only after checking every version between.
+Enumerate them from the registry (`pnpm view <pkg> versions`), not from git tags: `pi-ai@0.80.0` was tagged and never published, so no operator can be on it (Refs #905).
 
 Pull-request status is an **inverted** signal here, because the repo reimplements adopted third-party changes through its own TDD cycle rather than merging them.
 Seven of nine closed-unmerged external PRs on `pi-permission-system`, and six on `pi-subagents`, shipped as capability with `Co-authored-by` credit — so "closed unmerged" usually means *accepted*.
@@ -192,6 +194,8 @@ It likewise joins a sentence onto the previous line when the sentence opens with
 It also reads a numbered section citation (`§ *7. Verify CI*`) as a sentence end and splits it — cite the heading instead (`` the `## 7. Verify CI` section ``).
 It also reads a leading `~` as strikethrough and rewrites a `~`-prefixed token (`(~:211)` → `(~~211)`), which `rumdl check` passes — write an approximate line reference as `line ~211` (Refs #878).
 It fires on `Edit`/`Write` only, so a file appended with a shell heredoc skips formatting entirely and fails `pnpm run lint` — append source with `Write`/`Edit` too, not just markdown.
+It also merges a new `export type { … }` statement into an adjacent one and emits the merge unformatted, so the pre-commit hook rewrites the file and rejects the commit.
+Write the merged statement by hand (Refs #885).
 
 #### Stale prompt-template expansion
 
@@ -219,6 +223,7 @@ When the rule line is itself the target (deleting a section header with its bloc
 When the rule line must be **rewritten** (a new label, so the padding changes), `Edit` has nothing to copy — write the line programmatically (`'─' * (78 - len(label))`).
 If you delete such a block by line number with `sed`, re-read the region afterward to confirm you did not remove an enclosing brace.
 A multi-line `perl -0777`/`sed` regex substitution across many similar blocks is a trap — a non-greedy `.*?` group spans block boundaries and silently corrupts a neighbor; collapse repeated multi-line literals with per-block `Edit` calls and reserve scripted substitution for single-line per-symbol renames (Refs #525).
+A line-mode `sed -i`/`perl -pi` (no `-0777`) holds one line in the pattern space, so a pattern containing `\n` silently matches nothing and reports success — use `Edit` (Refs #914).
 A scripted bulk edit across test files cannot tell a mock **producer** from an **assertion**, whatever its regex safety, so its correctness rests on the suite rather than the script.
 That holds only where assertions are exact (`toEqual`/`toHaveBeenCalledWith`).
 A touched `toMatchObject`/`objectContaining` site absorbs a wrong insertion and still passes — re-read those by hand instead of counting the green run as verification (Refs #726).
@@ -464,7 +469,8 @@ Do not start a bash word with `=` — zsh's `equals` expansion reads `=word` as 
 Use `echo ---`.
 Each `bash` call runs in a fresh shell — a variable set in one call is unset in the next.
 Chain producer and consumer in one call, or re-derive the value (Refs #772).
-A `gh issue comment` / `gh pr comment` body containing backticks or fences belongs in a file passed with `--body-file` — inside single quotes a `` \` `` ships literally (Refs #794).
+A `gh issue comment` / `gh pr comment` body containing backticks or fences belongs in a file passed with `--body-file`, whatever the quoting (Refs #794, #636).
+Single quotes ship a `` \` `` literally, and double quotes need every `` ` `` escaped, where one miscount publishes mismatched code spans.
 A `git commit` body with quotes or backticks belongs in a file passed with `-F` — a `-m` string corrupted one, invisible until `git log -1 --format=%B` (Refs #898).
 A shell snippet quoted inside a `/* */` block comment must not contain `*/` — a `sed 's/,.*//'` closes the comment and breaks the file's parse.
 Use `cut -d, -f1`.
@@ -474,6 +480,7 @@ A hand-written convention drifts — `Open-issue sweep dispositions` had three s
 When re-verifying a count established earlier in the session, re-run the original command — do not re-derive it with a new pattern.
 A looser one (`rg -l` for an anchored `rg -c '^…'`) admits prose mentions and overturns a correct number (Refs #843).
 Do not spend a tool call measuring the shape of a deterministic command's own output — `git rev-parse` emits exactly 40 hex characters, so `| wc -c` on it tests git, not your work.
+Re-running it a second way (`git log -1 --format=%H`) is the same mistake wearing a disguise.
 Re-resolve the identifiers you *typed*, which is the only place a wrong value can enter (Refs #839).
 
 ##### Markdown
@@ -503,6 +510,7 @@ Commit at meaningful checkpoints without waiting for an explicit reminder.
 Prefer small, reviewable commits that leave the repository in a valid state.
 Do not gate a commit (or any `&&` step) on a check piped through `tail`/`head` — a pipeline's exit status is the filter's, so a failed `pnpm run lint`/`check` is masked and the commit still runs.
 Run the check unpiped, or test `${PIPESTATUS[0]}`.
+`git commit … | tail -3` likewise hides a hook rejection behind the hook's own PASS lines — confirm the commit landed with `git log -1` (Refs #885).
 To keep the output short without losing the gate, redirect rather than pipe: `pnpm run check >/tmp/check.log 2>&1 || tail -30 /tmp/check.log`.
 That redirect hides Biome findings at **warning** level, which exit 0 — `pnpm run lint` reports PASS while new warnings accumulate.
 After adding or heavily editing files, count them: `pnpm run lint >/tmp/l.log 2>&1; grep -c 'lint/' /tmp/l.log || true` — `grep -c` exits 1 on a zero count (Refs #694).
@@ -511,6 +519,7 @@ Run it as `NODE_OPTIONS=--max-old-space-size=8192 pnpm run lint`.
 `biome check --write` reports `No fixes applied` for a warning, whose fix is unsafe-classified — hand-edit it, or `--write --unsafe` the one file.
 `rumdl` caches per markdown file keyed on that file's own content, but `MD057` (relative-link existence) depends on the filesystem around it — so moving or renaming a linked-to file leaves every unchanged doc that links to it cached as clean.
 After a commit that moves or renames files, clear the cache before trusting the gate: `find .rumdl_cache -type f -delete` (Refs #879).
+Clearing it otherwise is waste, not caution — a cold `rumdl check .` costs ~1.9 s against ~0.1 s warm, and a content edit already invalidates its own entry.
 When a shell loop or script needs a status variable, do not name it `status` — zsh reserves `$status` (an alias for `$?`) as read-only, so the assignment aborts with `read-only variable: status`; use `state`/`rc` instead.
 Do not edit `CHANGELOG.md` — `scripts/release/prepare-release.sh` owns it, splicing each release in below the header.
 Do not name an unreleased version in docs — git-cliff assigns it at release time, so a number written during implementation is a guess. (`./scripts/release/next-version.sh <pkg>` will tell you what it would be, but that answer moves with every commit until the release runs.) Describe the condition instead: "a version that predates the heartbeat", not "older than 25.2.0" (Refs #721).
@@ -542,7 +551,7 @@ A scripted rebase reports `Successfully rebased` even when the sequence editor m
 Verify by diffing the subjects, and confirm the content is untouched with `git diff <backup-tag> HEAD` (Refs #710).
 After `git reset --soft HEAD~N`, all N commits' changes are staged together — to re-split into separate commits, run `git reset` (mixed) first, then `git add` per commit.
 A commit a pre-commit hook rejected never moved `HEAD`, so a following `git reset --soft HEAD~1` undoes the *previous* commit — confirm with `git log -1` first (Refs #866).
-`git checkout <ref> -- <path>` as the swap in an A/B measurement destroys uncommitted work: the restore half (`git checkout HEAD -- <path>`) restores HEAD, which is the *previous* commit while the current step is still uncommitted.
+`git checkout <ref> -- <path>` to revert any probe — an A/B swap, a killing mutation, a type-check spike — destroys uncommitted work: the restore half (`git checkout HEAD -- <path>`) restores HEAD, which is the *previous* commit while the current step is still uncommitted.
 Back both sides up as files first — `cp` the working state aside, `git show <ref>:<path> >` the baseline — and swap with `cp` in both directions; never lead the restore with `rm -rf <path>`, which the permission gate denies mid-command and leaves a partial tree (Refs #742).
 Staged deletions from `git rm` ride along with the next `git commit` even when you `git add` only unrelated paths — commit with an explicit pathspec (`git commit -- <paths>`) or check `git status` first.
 Before `git commit --amend`, confirm HEAD is your own commit (`git log -1`) — a concurrent session may have committed since yours, and amend rewrites whatever HEAD points at.
