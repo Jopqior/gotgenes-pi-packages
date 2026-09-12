@@ -77,7 +77,7 @@ Before a fork publish, check whether upstream `main` has new commits or a new `p
    `--continue` refuses unless the current branch is `sync/in-progress` and no unmerged paths remain.
    Do not `Edit`/`Write` a file that still has conflict markers.
    Do not `git checkout --ours` or `git checkout --theirs` wholesale.
-4. After the squash-sync commit, the script regenerates `pnpm-lock.yaml` with `pnpm install` from the repo root even if git auto-merged it with zero markers.
+4. The squash-sync commit includes a regenerated `pnpm-lock.yaml`: the script runs `pnpm install` from the repo root after materializing the tree, even if git auto-merged the lockfile with zero markers.
 5. If the sync renamed files, it clears the rumdl cache:
 
    ```bash
