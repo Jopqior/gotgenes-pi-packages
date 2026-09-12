@@ -46,16 +46,32 @@ A decision presented early from the plan is far less likely to be reversed than 
    Trunk lane — it is already on `main`:
 
    ```bash
-   grep -rl "^issue: $1$" docs/plans packages/*/docs/plans
+   PADDED=$(printf '%04d' "$1")
+   files=()
+   for f in docs/plans/"f${PADDED}"-*.md packages/*/docs/plans/"f${PADDED}"-*.md; do
+     [[ -f "$f" ]] && files+=("$f")
+   done
+   if [[ ${#files[@]} -gt 0 ]]; then
+     grep -l "^issue: $1$" "${files[@]}"
+   else
+     grep -rl "^issue: $1$" docs/plans packages/*/docs/plans
+   fi
    ```
 
    Worktree lane — it does not reach `main` until step 4, so read it off the branch:
 
    ```bash
-   git grep -l "^issue: $1$" "$BRANCH" -- 'docs/plans/*' 'packages/*/docs/plans/*'
+   PADDED=$(printf '%04d' "$1")
+   f_files=$(git ls-files --with-tree="$BRANCH" -- "docs/plans/f${PADDED}-*" "packages/*/docs/plans/f${PADDED}-*")
+   if [[ -n "$f_files" ]]; then
+     git grep -l "^issue: $1$" "$BRANCH" -- "docs/plans/f${PADDED}-*" "packages/*/docs/plans/f${PADDED}-*"
+   else
+     git grep -l "^issue: $1$" "$BRANCH" -- 'docs/plans/*' 'packages/*/docs/plans/*'
+   fi
    ```
 
    The output is `<branch>:<plan-path>` — feed that line straight to `git show`.
+   When any `fNNNN-*` plan file exists, do not fall back to the unrestricted grep even if the restricted frontmatter grep is empty — report that those files did not carry matching frontmatter.
 2. If a plan is found, read its `**Release:**` marker (written by `/plan-issue`) with a fixed-string grep — a leading `*` is an invalid regex/BRE operator.
    Trunk lane: `grep -F '**Release:**' <plan-file>`.
    Worktree lane: `git show "<branch>:<plan-path>" | grep -F '**Release:**'`.
