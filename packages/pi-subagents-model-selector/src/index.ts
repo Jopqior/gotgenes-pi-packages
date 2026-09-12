@@ -7,11 +7,11 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { getSubagentsService } from "@gotgenes/pi-subagents";
+import { getSubagentsService } from "@jopqior/pi-subagents";
 import { ModelSelector } from "./model-selector";
 
 const MISSING_CORE_MESSAGE =
-  "@jopqior/pi-subagents-model-selector requires @gotgenes/pi-subagents with registerSpawnSelectionProvider, loaded before this extension.";
+  "@jopqior/pi-subagents-model-selector requires @jopqior/pi-subagents with registerSpawnSelectionProvider, loaded before this extension.";
 
 export default function piSubagentsModelSelectorExtension(
   pi: ExtensionAPI,

@@ -11,7 +11,7 @@ import type {
   SpawnSelection,
   SpawnSelectionProvider,
   SpawnSelectionRequest,
-} from "@gotgenes/pi-subagents";
+} from "@jopqior/pi-subagents";
 import {
   SelectionQueue,
   SelectionQueueCancelledError,

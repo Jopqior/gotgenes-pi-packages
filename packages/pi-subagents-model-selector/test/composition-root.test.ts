@@ -12,7 +12,7 @@ import {
   type SpawnSelectionRegistration,
   type SubagentsService,
   unpublishSubagentsService,
-} from "@gotgenes/pi-subagents";
+} from "@jopqior/pi-subagents";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import piSubagentsModelSelectorExtension from "#src/index";
 import { makeModel } from "#test/helpers/make-model";
@@ -213,7 +213,7 @@ describe("piSubagentsModelSelectorExtension", () => {
       const { pi, handlers } = makeFakePi();
 
       expect(() => piSubagentsModelSelectorExtension(pi)).toThrow(
-        "@jopqior/pi-subagents-model-selector requires @gotgenes/pi-subagents with registerSpawnSelectionProvider, loaded before this extension.",
+        "@jopqior/pi-subagents-model-selector requires @jopqior/pi-subagents with registerSpawnSelectionProvider, loaded before this extension.",
       );
       expect(handlers.size).toBe(0);
     });

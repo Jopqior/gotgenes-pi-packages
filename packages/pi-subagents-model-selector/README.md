@@ -1,13 +1,13 @@
 # @jopqior/pi-subagents-model-selector
 
-Ask for model and thinking before every new in-process `@gotgenes/pi-subagents` child session.
+Ask for model and thinking before every new in-process `@jopqior/pi-subagents` child session.
 
 This is a private, locally loaded companion.
 Installing or upgrading the core alone does not change selection.
 
 ## Install
 
-Load **after** `@gotgenes/pi-subagents`.
+Load **after** `@jopqior/pi-subagents`.
 Pi loads packages in the order they are listed in `.pi/settings.json`, and this extension registers its provider with the subagents service at load time — so the core must load first.
 
 ```json

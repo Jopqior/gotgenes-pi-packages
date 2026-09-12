@@ -52,7 +52,7 @@
     "@earendil-works/pi-coding-agent": ">=0.84.4"
   },
   "dependencies": {
-    "@gotgenes/pi-subagents": "workspace:*"
+    "@jopqior/pi-subagents": "workspace:*"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",

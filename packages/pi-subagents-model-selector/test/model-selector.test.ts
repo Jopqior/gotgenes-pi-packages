@@ -2,7 +2,7 @@ import type { Api, Model } from "@earendil-works/pi-ai";
 import type {
   SpawnSelection,
   SpawnSelectionRequest,
-} from "@gotgenes/pi-subagents";
+} from "@jopqior/pi-subagents";
 import { describe, expect, it, vi } from "vitest";
 import { ModelSelector } from "#src/model-selector";
 import { makeModel } from "#test/helpers/make-model";
