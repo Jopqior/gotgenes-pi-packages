@@ -96,6 +96,11 @@ Do not bundle unrelated steps into one commit.
 If a step uncovers a problem the plan didn't anticipate, fix it as part of the same commit and note the deviation in the commit body.
 If the deviation is large, stop and ask.
 
+If the next numbered step is irreversible published-git, stop the step loop and run Pre-completion review first.
+That means `git push --force-with-lease`, rewriting `origin/main`, or `git reset --hard` of a pushed tip.
+Resume that step only after PASS or WARN, or after a FAIL the operator chose to skip.
+`/ship` never force-pushes (Refs #7).
+
 Before a decision record narrows or replaces a published contract (an event payload, a wire format, a service method), list that contract's current fields and their stability guarantees.
 A field the record never mentions is a field an implementer drops (Refs #737).
 

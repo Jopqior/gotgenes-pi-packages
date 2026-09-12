@@ -233,10 +233,15 @@ Then an H1 title (e.g., `# <short descriptive title>`) — required by markdownl
   Write it as an edit a reader could apply ("make `resolveBackgroundMode` return `request.isBackground` unconditionally"), not as a description of intent.
   This is where a test's discriminating power is cheapest to specify — stating it forces you to name the signal that distinguishes the step's two outcomes, which is the check that catches an assertion passing under both (Refs #724).
   When a step's tests span several equivalence classes, name one mutation per class and say which tests each should kill; a mutation that leaves a test green is a finding only when the plan predicted otherwise.
+  When a step's pin is a shell fixture rather than Vitest, a conflict or `--continue` recovery path is still an equivalence class.
+  Name a killing mutation that leaves the recovery broken and a throwaway command that would go red.
+  Example: `git switch` while `MERGE_HEAD` exists (Refs #7).
   When a step **moves** an existing registration or call site rather than adding one, name a mutation that deletes it at the new site — a relocated line is as unpinned there as at its old one (Refs #827).
   The Tidy-First assessment's accepted preparatory refactorings are steps here like any other, each with its `refactor:`/`test:` commit message and a sentence naming the friction it prepares.
   Place each one before the step it prepares — leading the whole order when every later step depends on it, immediately before the relevant part when a larger plan needs its tidying split across several points.
   The implementing session executes them in order; it runs no second assessment.
+  A force-push or rewrite of published history is not an ordinary implementation step.
+  `/build-plan` runs pre-completion before it; put it last in TDD Order and say so (Refs #7).
   When a change has a mechanism half and a data half — a walker plus its lookup table, a parser plus its keyword list — sequence them as separate steps.
   They have different failure rates and different verification instruments, and fusing them makes every data defect re-review the mechanism.
   When the data is a table of external facts, write the check that verifies one row before writing the rows (Refs #823).
