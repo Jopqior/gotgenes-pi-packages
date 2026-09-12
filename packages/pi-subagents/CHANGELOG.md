@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] (2026-09-12)
+
+First `@jopqior/pi-subagents` release.
+Independent version line; upstream baseline `@gotgenes/pi-subagents` 21.7.0.
+
+### Features
+
+* **pi-subagents:** publish this fork as `@jopqior/pi-subagents`, with spawn-selection from the fork's issue 1.
+  Runtime `Symbol.for` keys remain `@gotgenes/pi-subagents:*`.
+
 ## [21.7.0](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.6.0...pi-subagents-v21.7.0) (2026-09-11)
 
 
