@@ -342,6 +342,13 @@ clear_rumdl_cache_if_renames() {
   fi
 }
 
+quit_in_progress_merge() {
+  # git switch --force still refuses while MERGE_HEAD exists.
+  if [[ -e "${git_dir}/MERGE_HEAD" ]]; then
+    git merge --quit
+  fi
+}
+
 transplant_onto_main() {
   local u_old="$1" u_new="$2"
   local tree type old_short new_short tag sync_sha
@@ -350,6 +357,7 @@ transplant_onto_main() {
   git add pnpm-lock.yaml
   clear_rumdl_cache_if_renames "$u_old" "$u_new"
   tree="$(git write-tree)"
+  quit_in_progress_merge
 
   git switch --force main
   git read-tree -u --reset "$tree"
