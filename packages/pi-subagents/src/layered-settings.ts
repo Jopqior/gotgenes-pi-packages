@@ -15,7 +15,7 @@
  * ## Usage
  *
  * ```typescript
- * import { loadLayeredSettings, type LayeredSettingsSource } from "@gotgenes/pi-subagents/settings";
+ * import { loadLayeredSettings, type LayeredSettingsSource } from "@jopqior/pi-subagents/settings";
  *
  * interface MyConfig { enabled?: boolean; limit?: number }
  *

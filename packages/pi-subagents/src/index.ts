@@ -205,7 +205,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // Typed service published via Symbol.for() for cross-extension access.
-  // Consumers: const { getSubagentsService } = await import("@gotgenes/pi-subagents");
+  // Consumers: const { getSubagentsService } = await import("@jopqior/pi-subagents");
   const service = new SubagentsServiceAdapter(manager, resolveModel, runtime);
   publishSubagentsService(service);
 

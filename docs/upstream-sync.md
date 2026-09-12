@@ -167,7 +167,6 @@ Keep fork-only spawn-selection and `fNNNN-` lookup, and keep incoming upstream b
 Anything not in this list stays conflicted for the operator.
 
 **`packages/pi-subagents/package.json`** — take stage 3 (theirs), restore `name` and `version` from stage 2 (ours) with `jq`.
-Until [#3] those two fields still match upstream, so this is a no-op until the rename.
 
 **`packages/pi-subagents/CHANGELOG.md`** — section splice, not ours/theirs wholesale:
 
