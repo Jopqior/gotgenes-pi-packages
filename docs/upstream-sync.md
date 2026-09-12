@@ -23,6 +23,12 @@ Before a fork publish, check whether upstream `main` has new commits or a new `p
    ```
 
    This ensures the `upstream` remote, sets `tagOpt=--no-tags` and `pushurl=DISABLE`, fetches with `--no-tags`, refuses if the local tag set changed, and prints ahead/behind plus the newest upstream `pi-subagents-v*` (via `git ls-remote`, which does not import tags).
+   The first time that remote is added, pin the GitHub CLI default so `gh repo view` stays on this fork:
+
+   ```bash
+   gh repo set-default Jopqior/gotgenes-pi-packages
+   ```
+
 2. Review the ahead/behind counts.
    If you want the commits on fork `main`:
 
