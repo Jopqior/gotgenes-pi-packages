@@ -43,5 +43,65 @@ Local tag count stayed 0.
 - Pre-completion reviewer: WARN.
   Reviewer warnings: `packages/pi-subagents/docs/architecture/architecture.md` health-metrics still say 63 files while the tree is 71; byte-identical in both merge parents, so inherited staleness rather than a regression of this issue.
 
+## Stage: Final Retrospective (2026-09-12T14:56:58Z)
+
+### Session summary
+
+Shipped fork issue 2 on trunk: guarded `scripts/upstream-sync.sh`, `docs/upstream-sync.md`, and the first merge of 102 upstream commits (keep-both spawn-selection plus resume), then closed the issue with no release.
+Four sessions ran on `xai/grok-4.6` (plan, build, ship, this retro) plus a `pre-completion-reviewer` whose agent frontmatter requests `anthropic/claude-sonnet-5`.
+Adding the `upstream` remote redirected `gh repo view` to `gotgenes/pi-packages`, so `/ship`'s `ci_find` waited on the parent; the ship session recovered with `--repo Jopqior/gotgenes-pi-packages`.
+
+### Observations
+
+#### What went well
+
+- Planning measured conflicts with `git merge-tree` before adding any remote: seven keep-both hunks in spawn-selection versus resume, not the issue body's `README.md` / `.pi/settings.json` / issue-form list.
+- Local tag count stayed 0 through fetch and merge; `next-version.sh` refused every package, so ship skipped `release.yml` as planned.
+- After `ci_find` timed out, ship switched to `gh run watch --repo Jopqior/gotgenes-pi-packages` and closed the issue with `gh issue close --repo` instead of `issue_close`, which would have targeted `gotgenes/pi-packages`.
+
+#### What caused friction (agent side)
+
+- `missing-context` — neither the plan nor `scripts/upstream-sync.sh` recorded that adding `upstream` changes `gh repo view` (and therefore `ci_find` / `ci_watch` / `ci_list` / `issue_close`) to `gotgenes/pi-packages`.
+  Issue [#6]'s ship had verified CWD resolution to `Jopqior/gotgenes-pi-packages` before this remote existed.
+  Impact: a 120s `ci_find` timeout, then extra `gh run list` / `gh run watch` recovery; the close used `gh` instead of `issue_close`.
+  No wrong-repo mutation.
+- `instruction-violation` (self-identified) — `Edit` on conflicted `.pi/skills/package-pi-subagents/SKILL.md` let `pi-autoformat` join `<<<<<<< HEAD` / `=======` onto the following sentences, so git no longer saw markers.
+  Recovery was a Python rewrite of the domain table (build turns 28–33).
+  Impact: about six extra turns and a recount to 71 files; no lost hunk.
+- `missing-context` — the plan said git's default merge subject was fine; `committed` rejected `Merge remote-tracking branch 'upstream/main'`.
+  Recovered with `chore: merge upstream/main without importing tags (#2)`.
+  Impact: one failed commit, then the planned subject.
+- `wrong-abstraction` — the README "Upstream sync" insertion reparented the following Diffview paragraph under the new heading.
+  Caught by a re-read before commit.
+  Impact: one follow-up edit; no extra commit.
+- `other` — the `github-voice` skill path missed (`~/.pi/agent/skills/` 404); ship drafted the close comment from issues [#5] and [#6].
+  Impact: extra searches; the close comment still posted.
+
+#### What caused friction (user side)
+
+- The [#6] retro's "wrapper tools resolve from CWD to the fork" was true until this issue added `upstream`.
+  Opportunity: a one-line "re-check `gh repo view` after adding a remote" in the plan would have moved the recovery into build instead of ship.
+
+### Diagnostic details
+
+- **Model-performance correlation** — Plan, build, ship, and this retro ran on `xai/grok-4.6`.
+  The parent build transcript does not inline the reviewer's model; `.pi/agents/pre-completion-reviewer.md` requests `anthropic/claude-sonnet-5` and returned WARN (inherited `architecture.md` health-metrics 63 versus tree 71).
+  No quality mismatch: grok measured `merge-tree`, recovered the `gh` redirect, and did not retry the wrappers after the timeout.
+- **Escalation-delay tracking** — `SKILL.md` conflict recovery spent six consecutive turns on the same file after autoformat joined the markers.
+  A `Write` of the resolved table after the first re-read would have ended it.
+- **Unused-tool detection** — after the `ci_find` timeout, `gh repo view --json nameWithOwner` would have printed `gotgenes/pi-packages` in one call.
+  The session inferred the wrong repo from the timeout plus `gh run list --repo` instead.
+
+### Changes made
+
+1. Appended this Final Retrospective stage to `docs/retro/f0002-upstream-sync.md`.
+2. `AGENTS.md` fork-scope: after `upstream` exists, `gh repo view` and the no-repo wrappers resolve to `gotgenes/pi-packages`; check `nameWithOwner` and use `--repo Jopqior/gotgenes-pi-packages`.
+3. `AGENTS.md` `pi-autoformat` notes: do not `Edit`/`Write` a file that still has conflict markers.
+4. `AGENTS.md` Commits: a merge commit needs a Conventional Commits type.
+5. `docs/upstream-sync.md`: first-time `gh repo set-default Jopqior/gotgenes-pi-packages` after the remote is added.
+6. Ran `gh repo set-default Jopqior/gotgenes-pi-packages` in this checkout (`gh repo view` now prints `Jopqior/gotgenes-pi-packages`).
+
 [#1]: https://github.com/Jopqior/gotgenes-pi-packages/issues/1
 [#3]: https://github.com/Jopqior/gotgenes-pi-packages/issues/3
+[#5]: https://github.com/Jopqior/gotgenes-pi-packages/issues/5
+[#6]: https://github.com/Jopqior/gotgenes-pi-packages/issues/6

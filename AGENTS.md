@@ -13,7 +13,9 @@ This section takes precedence over inherited repository-target, roadmap, and rel
   Inherited ship and worktree workflows already target `main`; run those steps against this fork's `main`.
 - Track fork-specific work in this fork's issues and PRs; contact or submit changes to upstream only when the operator explicitly requests it.
 - Before GitHub mutations, verify the target repository and pass `--repo Jopqior/gotgenes-pi-packages` explicitly where supported.
-  For wrapper tools or scripts without a repository argument, verify how they resolve their target before using them; use an explicitly targeted command instead if the target cannot be established.
+  After `upstream` exists, `gh repo view` resolves to `gotgenes/pi-packages`.
+  Wrapper tools with no repo argument (`ci_find`, `ci_watch`, `ci_list`, `issue_close`) inherit that.
+  If `gh repo view --json nameWithOwner` is not `Jopqior/gotgenes-pi-packages`, use `gh … --repo Jopqior/gotgenes-pi-packages` instead of those wrappers.
 - Before pushing, verify the remote URL and name the intended remote and branch explicitly.
 - Never import upstream tags into this fork's tag namespace.
   `git fetch --tags`, `git fetch --all --tags`, and a flagless `git fetch upstream` are forbidden; they override `remote.upstream.tagOpt`.
@@ -190,6 +192,8 @@ It is informational — not a turn boundary.
 Continue the current step (e.g. Red→Green→Verify→Commit) until it is complete.
 It also reflows what you just wrote (line wrapping, quote style), so an `oldText` — or a shell/regex pattern — built from the layout you emitted can fail to match; re-read a region you just edited before matching against it again.
 It also joins a line ending in `:` with the sentence after it — to add a sentence there, start a new paragraph, not a new line.
+It also joins a conflict-marker line (`<<<<<<< HEAD`, `=======`, `>>>>>>> …`) onto the following sentence, so git no longer sees the conflict.
+Do not `Edit`/`Write` a file that still has markers; replace the whole hunk with resolved text in one edit.
 It likewise joins a sentence onto the previous line when the sentence opens with a lowercase token (a package or command name such as `git-cliff`) — lead with a capital instead (Refs #816).
 It also reads a numbered section citation (`§ *7. Verify CI*`) as a sentence end and splits it — cite the heading instead (`` the `## 7. Verify CI` section ``).
 It also reads a leading `~` as strikethrough and rewrites a `~`-prefixed token (`(~:211)` → `(~~211)`), which `rumdl check` passes — write an approximate line reference as `line ~211` (Refs #878).
@@ -503,6 +507,7 @@ A module no code imports yet is `refactor:` however new it is; the commit that w
 For a breaking change, place the `!` **after** the scope: `fix(pkg)!:` / `feat(pkg)!:` — never `fix!(pkg):`, which the grammar rejects, so the commit is dropped and the major bump skipped (Refs #452).
 The `!` carries the major bump even on a type that is otherwise skipped from the changelog, such as `refactor(pkg)!:` — `protect_breaking_commits` in `cliff.toml` is what preserves that; do not remove it (Refs #865).
 A `commit-msg` hook runs [`committed`](https://github.com/crate-ci/committed) (wired via `prek`, installed by `pnpm install`) and enforces this deterministically: a malformed header fails locally before it can mis-version a release (Refs #457, #468).
+A merge commit needs a Conventional Commits type — `committed` rejects git's default `Merge branch '…'` subject.
 When a `prek` hook fails to **install** (a network error building the hook env — e.g. `uv` fetching `setuptools`, not a lint/grammar failure), it blocks the commit without having run any check.
 Run the equivalent gate manually (`pnpm exec rumdl check`, `pnpm run lint`) and, once clean, commit with `--no-verify`.
 This applies only to a hook *install* failure — a hook that runs and *reports* a violation is a real gate; fix it, never `--no-verify` past it.
