@@ -1,6 +1,6 @@
 {
-  "name": "@gotgenes/pi-subagents",
-  "version": "21.7.0",
+  "name": "@jopqior/pi-subagents",
+  "version": "1.0.0",
   "type": "module",
   "exports": {
     ".": {
@@ -31,12 +31,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gotgenes/pi-packages.git",
+    "url": "git+https://github.com/Jopqior/gotgenes-pi-packages.git",
     "directory": "packages/pi-subagents"
   },
-  "homepage": "https://github.com/gotgenes/pi-packages/tree/main/packages/pi-subagents#readme",
+  "homepage": "https://github.com/Jopqior/gotgenes-pi-packages/tree/main/packages/pi-subagents#readme",
   "bugs": {
-    "url": "https://github.com/gotgenes/pi-packages/issues"
+    "url": "https://github.com/Jopqior/gotgenes-pi-packages/issues"
   },
   "keywords": [
     "pi-package",
