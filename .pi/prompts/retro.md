@@ -41,6 +41,7 @@ After identifying the issue number and title, call `set_session_name` with name 
    If multiple issues appear, list them and ask the user which to retro on with `ask-user`.
 3. **Determine the target package(s).**
    Find the plan for issue `N` by globbing `packages/*/docs/plans/fNNNN-<slug>.md` and `docs/plans/fNNNN-<slug>.md` first; if none match, fall back to the inherited unprefixed `NNNN-<slug>.md` — short-circuit, not union.
+   Locate those paths with a shell glob (`ls docs/plans/fNNNN-* docs/retro/fNNNN-*`), not the find tool.
    If the plan is under `packages/<PKG>/docs/plans/`, the retro goes in `packages/<PKG>/docs/retro/`.
    If the plan is under `docs/plans/` (cross-package), the retro goes in `docs/retro/`.
    If no plan exists, run `gh issue view N` and extract the `pkg:*` label(s).
