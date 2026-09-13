@@ -15,9 +15,7 @@ import {
 } from "@jopqior/pi-subagents";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import piSubagentsModelSelectorExtension from "#src/index";
-import { makeModel } from "#test/helpers/make-model";
-
-const sonnet = makeModel({ id: "claude-sonnet", name: "Claude Sonnet" });
+import { makeRequest, sonnet } from "#test/helpers/selection-fixtures";
 
 type RecordedHandler = (event: unknown, ctx: unknown) => unknown;
 
@@ -65,12 +63,7 @@ function makeService(kind: SpawnSelectionRegistration["kind"] = "owned") {
   };
 }
 
-const request = {
-  agentId: "agent-1",
-  agentType: "Explore",
-  description: "find TODOs",
-  availableModels: [sonnet],
-};
+const request = makeRequest({ availableModels: [sonnet] });
 
 beforeEach(() => {
   unpublishSubagentsService();
