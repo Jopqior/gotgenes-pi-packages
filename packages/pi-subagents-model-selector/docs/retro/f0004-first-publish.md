@@ -43,3 +43,61 @@ Steps 3–4 (manual first publish, tag, Trusted Publisher, disable entry, root R
 - Pre-completion reviewer: PASS.
   Ready for `/ship`; `release.yml` must not be dispatched until tag `pi-subagents-model-selector-v0.1.0` exists.
 - Reviewer note (unrelated): untracked `.pi/extensions/pi-permission-system/` is still in the working tree and was not committed.
+
+## Stage: Final Retrospective (2026-09-13T08:24:08Z)
+
+### Session summary
+
+Shipped fork issue 4 on trunk: `@jopqior/pi-subagents-model-selector` 0.1.0 is on npmjs.org, tagged `pi-subagents-model-selector-v0.1.0` at `957ece11ecbbeb0523584d2d808ed433feb430ca`, with Trusted Publisher on `Jopqior/gotgenes-pi-packages`.
+`release.yml` was not dispatched.
+Four sessions ran on `xai/grok-4.6` (plan, build, ship, this retro) plus `pre-completion-reviewer` whose agent frontmatter requests `anthropic/claude-sonnet-5`; Tidy-First was skipped (no `src/` / `test/` change).
+
+### Observations
+
+#### What went well
+
+- The [#3] retro's `ship.md` "no dispatch" branch ran for the first time.
+  `**Release:** ship independently` plus the plan sentence not to dispatch `release.yml` skipped steps 10–11 and ran the OTP checklist; this ship did not repeat [#3]'s instruction-violation of that mapping.
+- Planning pack-measured the workspace rewrite instead of trusting the issue body: `workspace:*` packs to exact `"1.0.0"`, `workspace:^` packs to `"^1.0.0"`.
+  The gate chose caret; packed `jq` in build confirmed it, and the lockfile stayed `link:../pi-subagents`.
+
+#### What caused friction (agent side)
+
+- `missing-context` — the issue body still claimed `@gotgenes/pi-subagents: workspace:*` after [#3] retargeted the name.
+  Planning measured `pnpm pack` and restored a `workspace:^` spike (lockfile needed `git checkout`).
+  Impact: extra pack cycle; no rework of the published range.
+  Self-identified.
+- `instruction-violation` (self-identified) — `pi-autoformat` joined colon-terminated verify commands in the new plan; planning re-split before the plan commit.
+  `AGENTS.md` already records the colon-join rule.
+  Impact: one extra edit cycle; no rework after commit.
+- `other` — `/ship` hunted `github-voice` across several `find`/`grep` calls (`~/.pi/agent/skills/` 404), the same missing install [#3] already recorded.
+  Impact: extra searches; the close comment still posted.
+- `wrong-abstraction` — after the operator installed the skill at `~/.agents/skills/github-voice/`, ship attributed the earlier 404s to searching the wrong directory.
+  The files had not existed.
+  Impact: one extra user correction after close; no rework of the comment.
+  User-caught.
+
+#### What caused friction (user side)
+
+- The issue body was not updated after [#3] changed the companion dependency name and left `workspace:*`.
+  Opportunity: a one-line body edit would have saved the stale-specifier measurement, not the `workspace:*` versus `workspace:^` pack spike (that measurement was still required).
+- `github-voice` was installed after this issue closed.
+  Opportunity: saying "not installed, skip" during ship would have stopped the directory hunt; the later path correction would not have been needed.
+- Untracked `.pi/extensions/pi-permission-system/` is still in the working tree (build reviewer noted it; this retro still sees it).
+- OTP publish and Trusted Publisher remain operator-terminal steps.
+  That is the designed split, not mechanical oversight.
+
+### Diagnostic details
+
+- **Model-performance correlation** — Plan, build, ship, and this retro ran on `xai/grok-4.6`.
+  Parent transcripts do not inline subagent models; `.pi/agents/pre-completion-reviewer.md` requests `anthropic/claude-sonnet-5`.
+  Reviewer PASS; no quality mismatch.
+- **Escalation-delay tracking** — the `github-voice` hunt was about five consecutive search calls, at the flag line.
+  After the first 404 the session should have drafted without the skill, as [#3] did.
+- **Unused-tool detection** — ship loaded the `wizard` skill and did not use it.
+  `github-voice` was unavailable until after close.
+
+### Changes made
+
+1. Appended this Final Retrospective stage to `packages/pi-subagents-model-selector/docs/retro/f0004-first-publish.md`.
+   No `AGENTS.md` or prompt edits.
