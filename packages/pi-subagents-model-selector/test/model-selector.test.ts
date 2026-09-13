@@ -1,7 +1,10 @@
-import type { Api, Model } from "@earendil-works/pi-ai";
 import type { SpawnSelection } from "@jopqior/pi-subagents";
 import { describe, expect, it, vi } from "vitest";
 import { ModelSelector } from "#src/model-selector";
+import type {
+  SelectionFormInput,
+  SelectionFormResult,
+} from "#src/selection-form";
 import {
   haiku,
   liveSignal,
@@ -10,30 +13,33 @@ import {
   sonnet,
 } from "#test/helpers/selection-fixtures";
 
-function modelLabel(model: Model<Api>): string {
-  return `${model.provider}/${model.id} — ${model.name}`;
-}
-
-/** A UI port that holds every dialog until the test resolves it. */
-function makeHeldUI(hasUI = true) {
+/** A UI port that holds every form until the test resolves it. */
+function makeHeldUI(isTui = true) {
   const calls: Array<{
-    title: string;
-    options: string[];
+    input: SelectionFormInput;
     signal: AbortSignal;
-    resolve: (value: string | undefined) => void;
+    resolve: (value: SelectionFormResult) => void;
   }> = [];
-  const select = vi.fn(
+  const presentForm = vi.fn(
     (
-      title: string,
-      options: string[],
+      input: SelectionFormInput,
       signal: AbortSignal,
-    ): Promise<string | undefined> => {
-      const { promise, resolve } = Promise.withResolvers<string | undefined>();
-      calls.push({ title, options, signal, resolve });
+    ): Promise<SelectionFormResult> => {
+      const { promise, resolve } = Promise.withResolvers<SelectionFormResult>();
+      calls.push({ input, signal, resolve });
       return promise;
     },
   );
-  return { hasUI, select, calls };
+  return {
+    isTui,
+    sessionFacts: () => ({
+      currentModel: undefined,
+      scopedModels: [],
+      defaultModel: undefined,
+    }),
+    presentForm,
+    calls,
+  };
 }
 
 function attachChooser(
@@ -48,8 +54,8 @@ function attachChooser(
 }
 
 describe("ModelSelector", () => {
-  describe("two-dialog selection", () => {
-    it("asks for a model, then thinking, and returns the chosen pair", async () => {
+  describe("one-form selection", () => {
+    it("asks on one form and returns the chosen pair", async () => {
       const ui = makeHeldUI();
       const chooser = attachChooser(ui);
       const resultPromise = chooser.select(makeRequest(), liveSignal());
@@ -57,31 +63,23 @@ describe("ModelSelector", () => {
       await vi.waitFor(() => {
         expect(ui.calls).toHaveLength(1);
       });
-      expect(ui.calls[0].title).toBe(
+      expect(ui.calls[0].input.title).toBe(
         "Select model for Explore agent-1 — find TODOs",
       );
-      expect(ui.calls[0].options).toEqual([
-        modelLabel(sonnet),
-        modelLabel(haiku),
-      ]);
+      expect(ui.calls[0].input.availableModels).toEqual([sonnet, haiku]);
 
-      ui.calls[0].resolve(modelLabel(haiku));
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(2);
+      ui.calls[0].resolve({
+        kind: "submit",
+        model: haiku,
+        thinkingLevel: "high",
       });
-      expect(ui.calls[1].title).toBe(
-        "Select thinking level for anthropic/claude-haiku (Claude Sonnet)",
-      );
-      expect(ui.calls[1].options).toEqual(["off", "high"]);
-
-      ui.calls[1].resolve("high");
       await expect(resultPromise).resolves.toEqual({
         model: haiku,
         thinkingLevel: "high",
       });
     });
 
-    it("gives each model a unique label even when display names collide", async () => {
+    it("maps the selected model back to the catalogue's own object", async () => {
       const ui = makeHeldUI();
       const chooser = attachChooser(ui);
       const resultPromise = chooser.select(makeRequest(), liveSignal());
@@ -89,67 +87,18 @@ describe("ModelSelector", () => {
       await vi.waitFor(() => {
         expect(ui.calls).toHaveLength(1);
       });
-      expect(new Set(ui.calls[0].options).size).toBe(2);
-      expect(ui.calls[0].options[0]).not.toBe(ui.calls[0].options[1]);
-
-      ui.calls[0].resolve(modelLabel(sonnet));
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(2);
-      });
-      ui.calls[1].resolve("off");
-      await expect(resultPromise).resolves.toEqual({
+      ui.calls[0].resolve({
+        kind: "submit",
         model: sonnet,
         thinkingLevel: "off",
       });
-    });
-
-    it("maps the selected label back to the catalogue's own model object", async () => {
-      const ui = makeHeldUI();
-      const chooser = attachChooser(ui);
-      const resultPromise = chooser.select(makeRequest(), liveSignal());
-
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(1);
-      });
-      ui.calls[0].resolve(modelLabel(sonnet));
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(2);
-      });
-      ui.calls[1].resolve("off");
       const result = await resultPromise;
       expect(result?.model).toBe(sonnet);
-    });
-
-    it("still opens both dialogs when there is only one model and one thinking level", async () => {
-      const ui = makeHeldUI();
-      const chooser = attachChooser(ui, ["off"]);
-      const resultPromise = chooser.select(
-        makeRequest({ availableModels: [opus] }),
-        liveSignal(),
-      );
-
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(1);
-      });
-      expect(ui.calls[0].options).toEqual([modelLabel(opus)]);
-      ui.calls[0].resolve(modelLabel(opus));
-
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(2);
-      });
-      expect(ui.calls[1].options).toEqual(["off"]);
-      ui.calls[1].resolve("off");
-
-      await expect(resultPromise).resolves.toEqual({
-        model: opus,
-        thinkingLevel: "off",
-      });
-      expect(ui.select).toHaveBeenCalledTimes(2);
     });
   });
 
   describe("cancellation", () => {
-    it("returns undefined and skips thinking when the model dialog is dismissed", async () => {
+    it("returns undefined when the form is dismissed", async () => {
       const ui = makeHeldUI();
       const chooser = attachChooser(ui);
       const resultPromise = chooser.select(makeRequest(), liveSignal());
@@ -157,30 +106,13 @@ describe("ModelSelector", () => {
       await vi.waitFor(() => {
         expect(ui.calls).toHaveLength(1);
       });
-      ui.calls[0].resolve(undefined);
+      ui.calls[0].resolve({ kind: "cancel" });
 
       await expect(resultPromise).resolves.toBeUndefined();
       expect(ui.calls).toHaveLength(1);
     });
 
-    it("returns undefined when the thinking dialog is dismissed", async () => {
-      const ui = makeHeldUI();
-      const chooser = attachChooser(ui);
-      const resultPromise = chooser.select(makeRequest(), liveSignal());
-
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(1);
-      });
-      ui.calls[0].resolve(modelLabel(sonnet));
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(2);
-      });
-      ui.calls[1].resolve(undefined);
-
-      await expect(resultPromise).resolves.toBeUndefined();
-    });
-
-    it("aborts the open dialog when the request signal is aborted", async () => {
+    it("aborts the open form when the request signal is aborted", async () => {
       const ui = makeHeldUI();
       const chooser = attachChooser(ui);
       const controller = new AbortController();
@@ -194,7 +126,7 @@ describe("ModelSelector", () => {
       controller.abort();
       expect(ui.calls[0].signal.aborted).toBe(true);
 
-      ui.calls[0].resolve(modelLabel(sonnet));
+      ui.calls[0].resolve({ kind: "cancel" });
       await expect(resultPromise).resolves.toBeUndefined();
       expect(ui.calls).toHaveLength(1);
     });
@@ -207,18 +139,18 @@ describe("ModelSelector", () => {
       });
 
       await expect(chooser.select(makeRequest(), liveSignal())).rejects.toThrow(
-        "Spawn model selection requires an interactive UI.",
+        "Spawn model selection requires a TUI.",
       );
     });
 
-    it("rejects when the attached UI cannot show dialogs", async () => {
+    it("rejects when the attached session is not a TUI", async () => {
       const ui = makeHeldUI(false);
       const chooser = attachChooser(ui);
 
       await expect(chooser.select(makeRequest(), liveSignal())).rejects.toThrow(
-        "Spawn model selection requires an interactive UI.",
+        "Spawn model selection requires a TUI.",
       );
-      expect(ui.select).not.toHaveBeenCalled();
+      expect(ui.presentForm).not.toHaveBeenCalled();
     });
 
     it("rejects an empty catalogue rather than inventing a model", async () => {
@@ -228,12 +160,12 @@ describe("ModelSelector", () => {
       await expect(
         chooser.select(makeRequest({ availableModels: [] }), liveSignal()),
       ).rejects.toThrow("No models are available to select.");
-      expect(ui.select).not.toHaveBeenCalled();
+      expect(ui.presentForm).not.toHaveBeenCalled();
     });
   });
 
-  describe("FIFO across two dialogs", () => {
-    it("does not open B's model dialog while A is choosing thinking", async () => {
+  describe("FIFO", () => {
+    it("does not open B's form while A's form is pending", async () => {
       const ui = makeHeldUI();
       const chooser = attachChooser(ui);
       const requestA = makeRequest({
@@ -252,31 +184,28 @@ describe("ModelSelector", () => {
       await vi.waitFor(() => {
         expect(ui.calls).toHaveLength(1);
       });
-      expect(ui.calls[0].title).toContain("agent-a");
+      expect(ui.calls[0].input.title).toContain("agent-a");
 
-      ui.calls[0].resolve(modelLabel(sonnet));
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(2);
+      ui.calls[0].resolve({
+        kind: "submit",
+        model: sonnet,
+        thinkingLevel: "off",
       });
-      expect(ui.calls[1].title).toContain("thinking");
-      expect(ui.calls[1].title).not.toContain("agent-b");
-
-      ui.calls[1].resolve("off");
       await expect(a).resolves.toEqual({
         model: sonnet,
         thinkingLevel: "off",
       });
 
       await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(3);
+        expect(ui.calls).toHaveLength(2);
       });
-      expect(ui.calls[2].title).toContain("agent-b");
+      expect(ui.calls[1].input.title).toContain("agent-b");
 
-      ui.calls[2].resolve(modelLabel(opus));
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(4);
+      ui.calls[1].resolve({
+        kind: "submit",
+        model: opus,
+        thinkingLevel: "high",
       });
-      ui.calls[3].resolve("high");
       await expect(b).resolves.toEqual({
         model: opus,
         thinkingLevel: "high",
@@ -285,7 +214,7 @@ describe("ModelSelector", () => {
   });
 
   describe("shutdown", () => {
-    it("cancels the active request and drains a waiter without opening its dialog", async () => {
+    it("cancels the active request and drains a waiter without opening its form", async () => {
       const ui = makeHeldUI();
       const chooser = attachChooser(ui);
       const a = chooser.select(
@@ -303,7 +232,7 @@ describe("ModelSelector", () => {
       chooser.close();
 
       expect(ui.calls[0].signal.aborted).toBe(true);
-      ui.calls[0].resolve(modelLabel(sonnet));
+      ui.calls[0].resolve({ kind: "cancel" });
       await expect(a).resolves.toBeUndefined();
       await expect(b).resolves.toBeUndefined();
       expect(ui.calls).toHaveLength(1);

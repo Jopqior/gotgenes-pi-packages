@@ -1,17 +1,19 @@
 /**
- * model-selector.ts — Two public Pi dialogs for one spawn selection.
+ * model-selector.ts — One TUI form for spawn model and thinking.
  *
- * Model first, then thinking. Every option — including a single `off` — is
- * confirmed explicitly. Missing UI is an error, not an approval.
+ * Missing TUI is an error, not an approval. Cancel returns undefined and
+ * creates no child. Concurrent requests stay FIFO at the queue.
  */
 
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { getSupportedThinkingLevels } from "@earendil-works/pi-ai";
+import type { ScopedModel } from "@earendil-works/pi-coding-agent";
 import type {
   SpawnSelection,
   SpawnSelectionProvider,
   SpawnSelectionRequest,
 } from "@jopqior/pi-subagents";
+import type { SelectionFormInput, SelectionFormResult } from "./selection-form";
 import { modelTitle } from "./selection-labels";
 import {
   SelectionQueue,
@@ -19,17 +21,25 @@ import {
   SelectionQueueClosedError,
 } from "./selection-queue";
 
-const NO_UI = "Spawn model selection requires an interactive UI.";
+const NO_UI = "Spawn model selection requires a TUI.";
 const NO_MODELS = "No models are available to select.";
 const CLOSED = "Spawn model selection is closed.";
 
+export interface SelectionSessionFacts {
+  readonly currentModel: Model<Api> | undefined;
+  readonly scopedModels: readonly ScopedModel[];
+  readonly defaultModel:
+    | { readonly provider: string; readonly id: string }
+    | undefined;
+}
+
 export interface SelectionUIPort {
-  readonly hasUI: boolean;
-  select(
-    title: string,
-    options: string[],
+  readonly isTui: boolean;
+  sessionFacts(): SelectionSessionFacts;
+  presentForm(
+    input: SelectionFormInput,
     signal: AbortSignal,
-  ): Promise<string | undefined>;
+  ): Promise<SelectionFormResult>;
 }
 
 export class ModelSelector implements SpawnSelectionProvider {
@@ -83,7 +93,7 @@ export class ModelSelector implements SpawnSelectionProvider {
     if (this.queue.closed) {
       throw new Error(CLOSED);
     }
-    if (!this.ui?.hasUI) {
+    if (!this.ui?.isTui) {
       throw new Error(NO_UI);
     }
     if (request.availableModels.length === 0) {
@@ -100,54 +110,28 @@ export class ModelSelector implements SpawnSelectionProvider {
       return undefined;
     }
     const ui = this.ui;
-    if (!ui?.hasUI) {
+    if (!ui?.isTui) {
       throw new Error(NO_UI);
     }
-
-    const labels = request.availableModels.map(modelLabel);
-    const modelChoice = await ui.select(
-      modelTitle(request),
-      [...labels],
+    const facts = ui.sessionFacts();
+    const result = await ui.presentForm(
+      {
+        title: modelTitle(request),
+        availableModels: request.availableModels,
+        currentModel: facts.currentModel,
+        scopedModels: facts.scopedModels,
+        defaultModel: facts.defaultModel,
+        levelsFor: this.levelsFor,
+      },
       dialogSignal,
     );
     if (
-      modelChoice === undefined ||
+      result.kind === "cancel" ||
       this.abandoned(requestSignal, dialogSignal)
     ) {
       return undefined;
     }
-    const modelIndex = labels.indexOf(modelChoice);
-    const model =
-      modelIndex < 0 ? undefined : request.availableModels[modelIndex];
-    if (model === undefined) {
-      throw new Error(
-        `Selected option ${JSON.stringify(modelChoice)} does not match any offered model.`,
-      );
-    }
-
-    const levels = [...this.levelsFor(model)];
-    if (levels.length === 0) {
-      throw new Error(
-        `Model ${model.provider}/${model.id} has no supported thinking levels.`,
-      );
-    }
-    const thinkingChoice = await ui.select(
-      thinkingTitle(model),
-      [...levels],
-      dialogSignal,
-    );
-    if (
-      thinkingChoice === undefined ||
-      this.abandoned(requestSignal, dialogSignal)
-    ) {
-      return undefined;
-    }
-    if (!isListedLevel(thinkingChoice, levels)) {
-      throw new Error(
-        `Selected thinking level ${JSON.stringify(thinkingChoice)} is not supported.`,
-      );
-    }
-    return { model, thinkingLevel: thinkingChoice };
+    return { model: result.model, thinkingLevel: result.thinkingLevel };
   }
 
   private abandoned(
@@ -156,19 +140,4 @@ export class ModelSelector implements SpawnSelectionProvider {
   ): boolean {
     return this.queue.closed || requestSignal.aborted || dialogSignal.aborted;
   }
-}
-
-function isListedLevel(
-  value: string,
-  levels: readonly SpawnSelection["thinkingLevel"][],
-): value is SpawnSelection["thinkingLevel"] {
-  return levels.some((level) => level === value);
-}
-
-function modelLabel(model: Model<Api>): string {
-  return `${model.provider}/${model.id} — ${model.name}`;
-}
-
-function thinkingTitle(model: Model<Api>): string {
-  return `Select thinking level for ${model.provider}/${model.id} (${model.name})`;
 }

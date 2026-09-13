@@ -100,25 +100,30 @@ describe("piSubagentsModelSelectorExtension", () => {
 
       await expect(
         provider!.select(request, new AbortController().signal),
-      ).rejects.toThrow("Spawn model selection requires an interactive UI.");
+      ).rejects.toThrow("Spawn model selection requires a TUI.");
     });
 
-    it("attaches UI at session_start and uses it for the two dialogs", async () => {
+    it("attaches UI at session_start and uses custom, not select", async () => {
       const { service, getProvider } = makeService();
       publishSubagentsService(service);
       const { pi, fire } = makeFakePi();
       piSubagentsModelSelectorExtension(pi);
 
-      const select = vi.fn(async (title: string, options: string[]) => {
-        if (title.includes("thinking")) return "off";
-        return options[0];
-      });
+      const custom = vi.fn(async () => ({
+        kind: "submit",
+        model: sonnet,
+        thinkingLevel: "off",
+      }));
+      const select = vi.fn();
       await fire(
         "session_start",
         { reason: "start" },
         {
-          hasUI: true,
-          ui: { select },
+          mode: "tui",
+          model: sonnet,
+          scopedModels: [],
+          cwd: "/tmp",
+          ui: { custom, select },
         },
       );
 
@@ -127,8 +132,35 @@ describe("piSubagentsModelSelectorExtension", () => {
         new AbortController().signal,
       );
 
-      expect(select).toHaveBeenCalledTimes(2);
+      expect(custom).toHaveBeenCalled();
+      expect(select).not.toHaveBeenCalled();
       expect(result).toEqual({ model: sonnet, thinkingLevel: "off" });
+    });
+
+    it("fails closed for RPC even when hasUI is true", async () => {
+      const { service, getProvider } = makeService();
+      publishSubagentsService(service);
+      const { pi, fire } = makeFakePi();
+      piSubagentsModelSelectorExtension(pi);
+
+      const custom = vi.fn();
+      await fire(
+        "session_start",
+        { reason: "start" },
+        {
+          mode: "rpc",
+          hasUI: true,
+          model: sonnet,
+          scopedModels: [],
+          cwd: "/tmp",
+          ui: { custom },
+        },
+      );
+
+      await expect(
+        getProvider()!.select(request, new AbortController().signal),
+      ).rejects.toThrow("Spawn model selection requires a TUI.");
+      expect(custom).not.toHaveBeenCalled();
     });
 
     it("closes the chooser and disposes the owned registration on session_shutdown", async () => {
@@ -141,9 +173,16 @@ describe("piSubagentsModelSelectorExtension", () => {
         "session_start",
         { reason: "start" },
         {
-          hasUI: true,
+          mode: "tui",
+          model: sonnet,
+          scopedModels: [],
+          cwd: "/tmp",
           ui: {
-            select: async (_title: string, options: string[]) => options[0],
+            custom: async () => ({
+              kind: "submit",
+              model: sonnet,
+              thinkingLevel: "off",
+            }),
           },
         },
       );
@@ -152,7 +191,7 @@ describe("piSubagentsModelSelectorExtension", () => {
       expect(dispose).toHaveBeenCalledTimes(1);
       await expect(
         getProvider()!.select(request, new AbortController().signal),
-      ).rejects.toThrow(/closed|interactive UI/i);
+      ).rejects.toThrow(/closed|TUI/i);
     });
   });
 
