@@ -72,11 +72,22 @@ latest_tag() {
   git tag --list "$1-v*" --sort=-v:refname | head -1
 }
 
-# Print the version git-cliff derives as the next release. Requires CLIFF_ARGS
-# to already hold the scoping flags for the package (via `cliff_args`), like
-# every other CLIFF_ARGS consumer.
+# Print the version git-cliff derives as the next release, bounded at the
+# commit tag $1 points at. Requires CLIFF_ARGS to already hold the scoping
+# flags for the package (via `cliff_args`), like every other CLIFF_ARGS
+# consumer. Prints the current version when nothing has landed since the tag.
+#
+# The explicit "<sha>..HEAD" range is load-bearing, not an optimization.
+# git-cliff splits releases when it encounters the tagged commit during its
+# walk, and --include-path filters commits before release splitting — so a tag
+# whose only file change is outside the package's path scope never forms a
+# release boundary, every pre-tag commit spills into the unreleased section,
+# and breaking_always_bump_major turns them into a fake major. A hand-cut
+# first-release tag on a retro-only commit (the natural end of the manual
+# first publish) is exactly that shape (Refs #11). Bounding the walk at the
+# tag's commit makes tag placement stop mattering.
 bumped_version() { # <tag>
-  git-cliff "${CLIFF_ARGS[@]}" --bumped-version 2>/dev/null
+  git-cliff "${CLIFF_ARGS[@]}" --bumped-version "$(git rev-parse "$1")..HEAD" 2>/dev/null
 }
 
 # Print the version recorded in package $1's package.json.
