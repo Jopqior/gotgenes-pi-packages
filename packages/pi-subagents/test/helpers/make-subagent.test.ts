@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { makeModel } from "./make-model";
 import { createTestSubagent } from "./make-subagent";
 
 describe("createTestSubagent", () => {
@@ -93,6 +94,15 @@ describe("createTestSubagent", () => {
 		record.start();
 		expect(record.promise).toBeInstanceOf(Promise);
 		await record.promise;
+	});
+
+	it("seeds selectedPair from init", () => {
+		const selectedPair = {
+			model: makeModel({ id: "claude-haiku", name: "Claude Haiku" }),
+			thinkingLevel: "high" as const,
+		};
+		const record = createTestSubagent({ selectedPair });
+		expect(record.selectedPair).toEqual(selectedPair);
 	});
 
 	it("allows overriding defaults to undefined", () => {

@@ -1,5 +1,5 @@
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
-import { Subagent, type SubagentExecution } from "#src/lifecycle/subagent";
+import { Subagent, type SubagentExecution, type SubagentInit } from "#src/lifecycle/subagent";
 import type { SubagentSession } from "#src/lifecycle/subagent-session";
 import { SubagentState, type SubagentStatus } from "#src/lifecycle/subagent-state";
 import type { SubagentType } from "#src/types";
@@ -61,6 +61,8 @@ export interface TestSubagentOptions {
 	runUpdates?: string[];
 	/** Seed private pending-selection activity. */
 	awaitingSelection?: boolean;
+	/** Seed the pair spawn selection already chose. */
+	selectedPair?: SubagentInit["selectedPair"];
 	/** Seed responseText. */
 	responseText?: string;
 	/** Thread maxTurns into the stub execution. Ignored when `execution` is supplied. */
@@ -79,7 +81,7 @@ export interface TestSubagentOptions {
 }
 
 export function createTestSubagent(overrides: TestSubagentOptions = {}): Subagent {
-	const { id, type, description, isBackground, execution, toolCallId, toolUses, lifetimeUsage, compactionCount, turnCount, activeTools, responseText, runUpdates, awaitingSelection, maxTurns, sessionReady, outputFile, ...stateOverrides } =
+	const { id, type, description, isBackground, execution, toolCallId, toolUses, lifetimeUsage, compactionCount, turnCount, activeTools, responseText, runUpdates, awaitingSelection, selectedPair, maxTurns, sessionReady, outputFile, ...stateOverrides } =
 		overrides;
 	const state = new SubagentState({
 		status: "completed",
@@ -106,6 +108,7 @@ export function createTestSubagent(overrides: TestSubagentOptions = {}): Subagen
 			...(maxTurns !== undefined ? { maxTurns } : {}),
 		}),
 		state,
+		selectedPair,
 	});
 	// Assigned rather than passed to the constructor: run() is what sets this in
 	// production, and a passive fixture never runs.
