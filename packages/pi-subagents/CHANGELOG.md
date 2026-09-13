@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v1.0.0...pi-subagents-v1.0.1) (2026-09-13)
+
+
+### Bug Fixes
+
+* **pi-subagents:** show the selected model on the foreground tool card ([ba3cdbd](https://github.com/Jopqior/gotgenes-pi-packages/commit/ba3cdbdb8465625347631e92cf2db42cb03ef9aa)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)
+* **pi-subagents:** strip pending model from background launch details ([bc318e2](https://github.com/Jopqior/gotgenes-pi-packages/commit/bc318e28a0297f178f6df65c660c46407cb0965f)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)
+
+### Documentation
+
+* note that the tool card names the selected pair ([30d95be](https://github.com/Jopqior/gotgenes-pi-packages/commit/30d95bef32978dfce03e120574e9ffaa892ffc02)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)
+
 ## [1.0.0] (2026-09-12)
 
 First `@jopqior/pi-subagents` release.
