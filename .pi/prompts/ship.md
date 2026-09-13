@@ -168,6 +168,9 @@ Trust its answer over any reasoning about which commit types are hidden.
 Empty output means the work auto-batches until a releasing commit lands: `refactor:`/`style:`/`test:`/`build:`/`ci:` are skipped types, while `feat:`/`fix:`/`perf:`/`revert:`/`docs:`/`chore:` all release.
 A `docs:` or `chore:` commit counts only when it touches a file under `packages/<pkg>/` that is not an internal docs directory (`docs/plans`, `docs/retro`, `docs/architecture`, `docs/decisions`, `docs/assets`).
 Files outside the package tree (`.pi/skills/`, `.pi/prompts/`, root `AGENTS.md`/`README.md`) belong to no package and release nothing.
+If the script exits nonzero, stop and report its stderr — that is "could not answer" (`git-cliff` missing from PATH, or no tag), not "nothing to release".
+Do not search `~` for `git-cliff` or install it.
+CI uses `taiki-e/install-action@git-cliff`.
 
 For a repo-root tooling change — no `packages/` file in the range (`git diff --name-only "$PLAN"^..HEAD | grep '^packages/'` is empty), whatever the plan's location — skip the command; every commit is outside the package tree, so nothing releases now.
 Say so in the final report and skip the batch-vs-release question.
