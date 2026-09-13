@@ -6,6 +6,7 @@
 
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { modelsAreEqual } from "@earendil-works/pi-ai";
+import { fuzzyFilter } from "@earendil-works/pi-tui";
 import type { SpawnSelection } from "@jopqior/pi-subagents";
 import { getModelSelectorSearchText } from "./model-search-text";
 
@@ -353,14 +354,9 @@ function filterModels(
   if (!query) {
     return models;
   }
-  const tokens = query
-    .trim()
-    .split(/[\s/]+/)
-    .filter((token) => token.length > 0);
-  const filtered = models.filter((model) => {
-    const text = modelHaystack(model, input).toLowerCase();
-    return tokens.every((token) => text.includes(token.toLowerCase()));
-  });
+  const filtered = fuzzyFilter([...models], query, (model) =>
+    modelHaystack(model, input),
+  );
   if (!isDefaultSearch(query)) {
     return filtered;
   }
