@@ -32,3 +32,20 @@ Next stage is `/tdd-plan`.
 #### Deferred tidyings
 
 - Root `.fallowrc.json` `ignoreDependencies` still lists `@gotgenes/pi-subagents` while this fork's companion depends on `@jopqior/pi-subagents` (inert; no package declares the old name).
+
+## Stage: Implementation — TDD (2026-09-13T11:39:28Z)
+
+### Session summary
+
+Implemented the `/model`-style spawn form across four TDD steps: shared fixtures, title helper, the `feat!` form plus wiring, and README.
+Package tests went from 28 to 59.
+Next stage is `/ship 8` on trunk.
+
+### Observations
+
+- Pre-completion reviewer: WARN.
+  Search matching is token-substring `includes`, not native `fuzzyFilter` (ordered subsequences and score order).
+  `canSubmit` is computed on every view but only asserted in tests; the renderer uses `submitMessage` instead.
+- Killing mutations behaved as named except: ignoring `signal.abort` timed out rather than asserting a wrong result; skipping the queue also reddened shutdown; `isTui: ctx.hasUI` also broke the TUI attach fixture because it omitted `hasUI`.
+- ESLint `no-unnecessary-condition` rejected array-index `undefined` guards without `noUncheckedIndexedAccess`; `modelAt` restores a real out-of-range `undefined`.
+- Unrelated untracked `.pi/extensions/pi-permission-system/` was left untouched.
