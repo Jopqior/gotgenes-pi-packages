@@ -27,3 +27,19 @@ Planned fork issue 4 as a package-local `/build-plan`: drop `private`, add `publ
 - `RELEASE_PLEASE_TOKEN` already exists from [#3]; this issue does not touch secrets.
 
 [#3]: https://github.com/Jopqior/gotgenes-pi-packages/issues/3
+
+## Stage: Implementation — Build (2026-09-13T06:21:48Z)
+
+### Session summary
+
+Completed TDD Order steps 1–2 of the `/build-plan`.
+Dropped `private`, added `publishConfig.access: public`, changed the core specifier to `workspace:^`, rewrote the package README for npm install, and verified the packed manifest, allowlist, `fallow dead-code`, check, lint, and 28 package tests.
+Steps 3–4 (manual first publish, tag, Trusted Publisher, disable entry, root README badge) remain for `/ship` after CI.
+
+### Observations
+
+- No deviations from the plan in steps 1–2.
+  Packed `jq` showed `private` null, `publishConfig.access` `"public"`, and `dependencies["@jopqior/pi-subagents"]` `"^1.0.0"`; lockfile stayed `link:../pi-subagents`.
+- Pre-completion reviewer: PASS.
+  Ready for `/ship`; `release.yml` must not be dispatched until tag `pi-subagents-model-selector-v0.1.0` exists.
+- Reviewer note (unrelated): untracked `.pi/extensions/pi-permission-system/` is still in the working tree and was not committed.
