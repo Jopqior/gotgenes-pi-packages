@@ -178,6 +178,7 @@ The first data row lands in [#3] as `1.0.0 ← 21.7.0`.
 
 | Fork `@jopqior/pi-subagents` | Upstream `pi-subagents` tag |
 | ---------------------------- | --------------------------- |
+| 1.0.0                        | 21.7.0                      |
 
 ## Sync log
 
