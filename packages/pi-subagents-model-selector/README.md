@@ -1,14 +1,33 @@
 # @jopqior/pi-subagents-model-selector
 
+[![npm version](https://img.shields.io/npm/v/@jopqior/pi-subagents-model-selector?style=flat&logo=npm&logoColor=white)](https://www.npmjs.com/package/@jopqior/pi-subagents-model-selector) [![CI](https://img.shields.io/github/actions/workflow/status/Jopqior/gotgenes-pi-packages/ci.yml?style=flat&logo=github&label=CI)](https://github.com/Jopqior/gotgenes-pi-packages/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![pnpm](https://img.shields.io/badge/pnpm-%3E%3D11-F69220?style=flat&logo=pnpm&logoColor=white)](https://pnpm.io/) [![Pi Package](https://img.shields.io/badge/Pi-Package-6366F1?style=flat)](https://pi.mariozechner.at/)
+
 Ask for model and thinking before every new in-process `@jopqior/pi-subagents` child session.
 
-This is a private, locally loaded companion.
 Installing or upgrading the core alone does not change selection.
 
 ## Install
 
 Load **after** `@jopqior/pi-subagents`.
 Pi loads packages in the order they are listed in `.pi/settings.json`, and this extension registers its provider with the subagents service at load time — so the core must load first.
+
+```bash
+pi install npm:@jopqior/pi-subagents
+pi install npm:@jopqior/pi-subagents-model-selector
+```
+
+Then list those two `npm:` sources in that order:
+
+```json
+{
+  "packages": [
+    "npm:@jopqior/pi-subagents",
+    "npm:@jopqior/pi-subagents-model-selector"
+  ]
+}
+```
+
+Or load from a checkout:
 
 ```json
 {
@@ -19,7 +38,6 @@ Pi loads packages in the order they are listed in `.pi/settings.json`, and this 
 }
 ```
 
-Do not add an unpublished `npm:@jopqior/pi-subagents-model-selector` entry.
 If the core is missing, failed to load, or lacks `registerSpawnSelectionProvider`, this extension throws a configuration error at initialization and does not activate.
 
 ## Behavior
