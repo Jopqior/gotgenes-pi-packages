@@ -184,6 +184,12 @@ result:   ## [1.0.0] + ## [21.8.0] + ## [21.7.0] + older
 
 **`pnpm-lock.yaml`** — always `pnpm install` from the repo root after the sync tree is materialized, even when git reports zero markers, then `git add pnpm-lock.yaml`.
 
+**`packages/pi-subagents/src/tools/spawn-config.ts`** — if the conflict is on `modelName`:
+
+1. Keep the `formatSpawnModelName(...)` call.
+2. Put theirs' new formula into `formatSpawnModelName` in `packages/pi-subagents/src/ui/display.ts`.
+3. Do not paste the formula back into `resolveSpawnConfig`.
+
 If the sync renamed files, `find .rumdl_cache -type f -delete`.
 
 ### First merge (history)
@@ -258,6 +264,9 @@ Restore any dropped spawn-selection sentence in `AGENTS.md` or `packages/pi-suba
 `pnpm-lock.yaml` is untrusted after an auto-merge; always `pnpm install`.
 
 Pin: `rg 'f\$\{PADDED\}' .pi/prompts/ship.md` still hits both snippets.
+
+`rg formatSpawnModelName packages/pi-subagents/src/tools/spawn-config.ts` still hits, and that file must not regain `.replace(/^Claude`.
+If the extract was lost, restore the call and copy the formula back into `formatSpawnModelName`.
 
 ## Version correspondence
 

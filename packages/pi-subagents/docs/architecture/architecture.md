@@ -364,7 +364,7 @@ src/
 │   ├── create-subagent-session.ts  assembly factory: session creation, spawn-tool denylist, core child-tool install, binding; optional gated-run signal after loader awaits
 │   ├── subagent-session.ts         born-complete child session: turn loop, steer, shutdown-then-dispose teardown
 │   ├── turn-limits.ts              normalizeMaxTurns (turn-count policy)
-│   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); awaits a registered spawn-selection provider after admission and before workspace or session creation; a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal, including a live run), which the resume choke point and every result carrier read rather than re-deriving; reports a resume's start as well as its end
+│   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); awaits a registered spawn-selection provider after admission and before workspace or session creation, then stamps the selected pair on the record; a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal, including a live run), which the resume choke point and every result carrier read rather than re-deriving; reports a resume's start as well as its end
 │   ├── subagent-state.ts           lifecycle status + metrics + result-delivery value object (transitions, accumulators, classification predicates); delivery carries a revocable carrier claim, a one-way consumption latch, and a per-run update ledger that renders only what no announcement delivered; private awaiting-selection activity, never a public status
 │   ├── run-listeners.ts            per-run observer-unsub and signal-detach handles
 │   ├── workspace-bracket.ts        child workspace prepare/dispose lifecycle; idempotent dispose, reports a torn-down workspace
@@ -393,8 +393,8 @@ src/
 │   ├── agent-tool.ts               subagent tool definition, validation, dispatch
 │   ├── result-renderer.ts          pure per-status result rendering
 │   ├── spawn-config.ts             pure config resolution
-│   ├── foreground-runner.ts        foreground execution loop; projects private pending-selection activity
-│   ├── background-spawner.ts       background spawn setup; submitted/waiting wording while selection is pending
+│   ├── foreground-runner.ts        foreground execution loop; projects private pending-selection activity; overlays tool-card modelName and thinking tags from the selected pair
+│   ├── background-spawner.ts       background spawn setup; submitted/waiting wording while selection is pending; overlays launch details from the selected pair
 │   ├── get-result-tool.ts          get_subagent_result tool
 │   ├── get-result-report.ts        pure get_subagent_result report formatter
 │   ├── get-result-renderer.ts      pure get_subagent_result line assembly for the collapsed and expanded TUI views
@@ -404,7 +404,7 @@ src/
 ├── ui/                             user-facing presentation
 │   ├── agent-widget.ts             above-editor live status widget; maps private pending-selection activity onto the renderer
 │   ├── widget-renderer.ts          pure rendering for widget, including pending-selection activity
-│   ├── display.ts                  pure formatters and shared types, including pending-selection activity wording
+│   ├── display.ts                  pure formatters and shared types, including pending-selection activity wording, the spawn-model short-name rule, and overlay of tool-card presentation from the selected pair
 │   ├── bounded-lines.ts            component spending exactly one clipped terminal row per line
 │   ├── glyphs.ts                   semantic display-glyph vocabulary (monospace-coverage constraint, #669)
 │   ├── subagents-settings.ts       /subagents:settings command handler
