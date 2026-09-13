@@ -72,6 +72,13 @@ latest_tag() {
   git tag --list "$1-v*" --sort=-v:refname | head -1
 }
 
+# Print the version git-cliff derives as the next release. Requires CLIFF_ARGS
+# to already hold the scoping flags for the package (via `cliff_args`), like
+# every other CLIFF_ARGS consumer.
+bumped_version() { # <tag>
+  git-cliff "${CLIFF_ARGS[@]}" --bumped-version 2>/dev/null
+}
+
 # Print the version recorded in package $1's package.json.
 package_json_version() {
   jq -r '.version' "packages/$1/package.json"

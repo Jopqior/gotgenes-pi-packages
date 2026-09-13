@@ -46,7 +46,7 @@ cliff_args "$pkg"
 
 # git-cliff prints the *current* version, plus a "nothing to bump" warning on
 # stderr, when no releasable commit has landed since the last tag.
-next=$(git-cliff "${CLIFF_ARGS[@]}" --bumped-version 2>/dev/null)
+next=$(bumped_version "$current")
 
 if [ -z "$next" ]; then
   echo "Error: git-cliff produced no version for '$pkg'." >&2

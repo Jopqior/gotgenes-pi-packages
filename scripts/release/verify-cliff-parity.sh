@@ -60,7 +60,7 @@ while IFS= read -r pkg; do
   fi
 
   cliff_args "$pkg"
-  if ! next=$(git-cliff "${CLIFF_ARGS[@]}" --bumped-version 2>/dev/null); then
+  if ! next=$(bumped_version "$tag"); then
     printf '%-28s FAIL  git-cliff could not derive a version\n' "$pkg"
     failures=$((failures + 1))
     continue
