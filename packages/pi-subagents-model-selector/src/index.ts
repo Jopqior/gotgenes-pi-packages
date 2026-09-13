@@ -7,8 +7,10 @@
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { SettingsManager } from "@earendil-works/pi-coding-agent";
 import { getSubagentsService } from "@jopqior/pi-subagents";
 import { ModelSelector } from "./model-selector";
+import { presentSelectionForm } from "./selection-form-component";
 
 const MISSING_CORE_MESSAGE =
   "@jopqior/pi-subagents-model-selector requires @jopqior/pi-subagents with registerSpawnSelectionProvider, loaded before this extension.";
@@ -34,9 +36,18 @@ export default function piSubagentsModelSelectorExtension(
 
   pi.on("session_start", (_event, ctx) => {
     chooser.attachUI({
-      hasUI: ctx.hasUI,
-      select: (title, options, signal) =>
-        ctx.ui.select(title, options, { signal }),
+      isTui: ctx.mode === "tui",
+      sessionFacts: () => ({
+        currentModel: ctx.model,
+        scopedModels: ctx.scopedModels,
+        defaultModel: readDefaultModel(ctx.cwd),
+      }),
+      presentForm: (input, signal) =>
+        presentSelectionForm(
+          (factory, options) => ctx.ui.custom(factory, options),
+          input,
+          signal,
+        ),
     });
   });
 
@@ -44,4 +55,20 @@ export default function piSubagentsModelSelectorExtension(
     chooser.close();
     registration.dispose();
   });
+}
+
+function readDefaultModel(
+  cwd: string,
+): { provider: string; id: string } | undefined {
+  try {
+    const settings = SettingsManager.create(cwd);
+    const provider = settings.getDefaultProvider();
+    const id = settings.getDefaultModel();
+    if (!provider || !id) {
+      return undefined;
+    }
+    return { provider, id };
+  } catch {
+    return undefined;
+  }
 }
