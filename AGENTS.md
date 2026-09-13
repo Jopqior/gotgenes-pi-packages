@@ -139,6 +139,8 @@ A Non-Goal decays fastest in the most active packages: `pi-colgrep`'s plan `0092
 The same holds for a plan's enumerated **external** facts — a command's options, an API surface, a spec's values.
 Verify each against the real surface (`man`, `--help`, the schema) before it lands in a security boundary; #807's plan omitted `find -fprint0` and admitted `file` as read-only, and both shipped as fail-opens.
 Documentation answers whether a flag exists, not what a given binary does with it — run the tool when the answer gates a security boundary.
+A killing mutation that predicts a tool's output is such a fact — probe each mutation at plan time, not only the fix.
+The #11 plan predicted a spilled fake major for a dropped range bound; the binary degraded every walk to the current version instead, and the kill set changed with it (Refs #11).
 A shared table row asserts its fact of every implementation the *name* reaches: `grep --context` takes no separate argument and `rg --context` does, and `awk` is GNU awk on Fedora and one-true-awk elsewhere (Refs #823).
 A dependency floor is a claim about **each** symbol the change uses, not about the release that introduced the feature.
 `git tag --contains <sha>` answers which release carries one commit; sibling accessors can land in a later one.
@@ -502,6 +504,8 @@ Before authoring or reviewing Mermaid diagrams, load the `mermaid` skill.
 ##### Testing
 
 Before writing or debugging tests, load the `testing` skill for Vitest mock patterns and TDD planning rules.
+The root test suite is not self-contained: `test/release/` shells out to `git-cliff`, which no `package.json` manages (CI installs it via `taiki-e/install-action@git-cliff`).
+A checkout without the binary fails the suite loudly by design (Refs #11).
 
 ##### Commits
 
