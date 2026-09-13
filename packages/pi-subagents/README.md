@@ -245,6 +245,7 @@ Use `contextUsage.percent` (surfaced as `(NN%)` in the widget) for current conte
 Interactive model and thinking choice lives in a companion package, not this core.
 This fork's `@jopqior/pi-subagents-model-selector` registers a `SpawnSelectionProvider` so every new in-process run asks the operator before a workspace or child session is created.
 The selected pair overrides model and thinking defaults, explicit arguments, and `locked:` values for those two fields only.
+The `subagent` tool card names the selected pair.
 Installing this core without the companion leaves ordinary resolution unchanged.
 See [`@jopqior/pi-subagents-model-selector`](../pi-subagents-model-selector/README.md) for load order, nested routing, and non-interactive refusal.
 

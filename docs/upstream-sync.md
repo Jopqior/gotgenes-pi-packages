@@ -168,6 +168,15 @@ Restore any dropped spawn-selection sentence in `AGENTS.md` or `packages/pi-suba
 
 Pin: `rg 'f\$\{PADDED\}' .pi/prompts/ship.md` still hits both snippets.
 
+`rg formatSpawnModelName packages/pi-subagents/src/tools/spawn-config.ts` still hits, and that file must not regain `.replace(/^Claude`.
+If the extract was lost, restore the call and copy the formula back into `formatSpawnModelName`.
+
+If a conflict affects `modelName` in `packages/pi-subagents/src/tools/spawn-config.ts`:
+
+1. Keep the `formatSpawnModelName(...)` call.
+2. Put upstream's new formula into `formatSpawnModelName` in `packages/pi-subagents/src/ui/display.ts`.
+3. Do not paste the formula back into `resolveSpawnConfig`.
+
 ## Version correspondence
 
 Each published `@jopqior/pi-subagents` version maps to the newest upstream `pi-subagents-v*` contained in that release's merge base.
