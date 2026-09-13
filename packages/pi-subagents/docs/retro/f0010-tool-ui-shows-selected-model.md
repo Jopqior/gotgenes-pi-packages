@@ -50,3 +50,48 @@ Pre-completion reviewer: WARN (non-blocking).
   All deterministic checks passed.
   Non-blocking: `thinkingTag` and `isThinkingTag` do not share a prefix constant; `SpawnDetailBase` is not folded into `spawn-config.ts` / `helpers.ts`; Mermaid was not machine-validated (`mmdc` Chromium sandbox).
 - Round 2 (2026-09-13T15:39:56Z): `THINKING_TAG_PREFIX` and exported `SpawnDetailBase` landed in `b2282ded`; reviewer Overall: PASS.
+
+## Stage: Final Retrospective (2026-09-13T15:55:24Z)
+
+### Session summary
+
+Issue #10 shipped on trunk as a `pi-subagents`-only `fix:`: after spawn selection chooses a pair, the foreground tool card names that pair, and pending selection no longer claims the call's model.
+Planning committed a DRY extract, then the operator spent four turns tightening squash-sync coupling before the plan was revised (`d0ce4601`).
+Ship closed the issue after green CI and skipped the release: `next-version.sh` printed `pi-subagents-v2.0.0` because git-cliff re-counted breaking commits already in `pi-subagents-v1.0.0`.
+
+### Observations
+
+#### What went well
+
+- Overlay is a render-time projection; `SubagentRecord` stayed closed under ADR 0005.
+- TDD ran killing mutations from `/tmp` copies, not `git checkout`, and the changelog preview rewrote the background `fix:` subject from overlay-mechanism to the pending-strip symptom.
+- Ship refused the fake major instead of dispatching `release.yml`.
+
+#### What caused friction (agent side)
+
+- `premature-convergence` — `/plan-issue` committed a tidy-first extract of `formatSpawnModelName` from `spawn-config.ts` without mapping which production files already carried a fork patch.
+  `spawn-config.ts` had none (`git log refs/sync/upstream-main..HEAD --` empty).
+  Impact: four operator turns after the plan commit, then `d0ce4601` / `d89e2514` to keep one short-name rule and add the squash-sync recipe.
+- `instruction-violation` (self-identified) — TDD copied `pnpm --filter @gotgenes/pi-subagents` from `.pi/prompts/tdd-plan.md`; this package's `package.json` `name` is `@jopqior/pi-subagents`.
+  Impact: one failed vitest command, then the correct filter.
+- `other` — git-cliff's unreleased window still contains `51bbd743` and `01bc18fd`, both ancestors of `pi-subagents-v1.0.0`, so `next-version.sh` printed `pi-subagents-v2.0.0` for two `fix:` commits.
+  Impact: release correctly skipped; about ten diagnostic commands after the script printed the tag.
+
+#### What caused friction (user side)
+
+- The squash-sync coupling constraint arrived after the plan commit, not in the issue body or at the Decide gate.
+- Dual `pkg:` labels (`pi-subagents` and `pi-subagents-model-selector`) suggested a cross-package plan; only the core changed.
+
+### Diagnostic details
+
+- **Model-performance correlation** — Planning, TDD, and Ship parent sessions ran `xai/grok-4.6`.
+  `tidy-first-assessor` and both `pre-completion-reviewer` rounds ran `deepseek/deepseek-flash`.
+  Flash still produced the extract recommendation and the two non-blocking WARNs that round 2 landed; no quality miss this issue.
+- **Unused-tool detection** — Planning skipped `ask_user` because the issue was operator-authored and the behavior was unambiguous.
+  The skipped gate was the coupling map, not the bug shape; `ask_user` after listing upstream-clean files would have caught it before `63baed14`.
+
+### Changes made
+
+1. `.pi/prompts/plan-issue.md` — Decide now maps production files against `refs/sync/upstream-main` and gates an upstream-clean edit even when the issue's behavior is unambiguous.
+2. `.pi/prompts/tdd-plan.md` — per-file vitest uses `pnpm -C packages/<pkg>` instead of `--filter @gotgenes/<pkg>`.
+3. `.pi/prompts/ship.md` — a major from `next-version.sh` with no `!:` in the plan range is stop-and-ask.

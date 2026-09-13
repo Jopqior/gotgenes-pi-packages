@@ -163,6 +163,7 @@ Ask what would actually release, rather than reasoning about commit types:
 Where `<pkg>` is the shipped package from the issue's plan path.
 The script is read-only and offline, and it applies the same path scoping and commit-type rules the release itself will.
 It prints the tag that would be cut, or nothing at all when the package has no releasable commits.
+If the printed tag is a major bump and `"$PLAN"^..HEAD` has no `!:` commit, stop and ask (Refs #10).
 
 Trust its answer over any reasoning about which commit types are hidden.
 Empty output means the work auto-batches until a releasing commit lands: `refactor:`/`style:`/`test:`/`build:`/`ci:` are skipped types, while `feat:`/`fix:`/`perf:`/`revert:`/`docs:`/`chore:` all release.
