@@ -133,6 +133,9 @@ export interface SubagentInit {
 
 	/** Lifecycle status and metrics. Defaults to a fresh queued state. */
 	state?: SubagentState;
+
+	/** Seed a born-complete fixture with the pair spawn selection already chose. */
+	selectedPair?: { model: Model<any>; thinkingLevel: ThinkingLevel };
 }
 
 export class Subagent {
@@ -177,6 +180,11 @@ export class Subagent {
 	get responseText(): string { return this.state.responseText; }
 	/** True while this run is waiting for a human model/thinking selection. */
 	get awaitingSelection(): boolean { return this.state.awaitingSelection; }
+	private _selectedPair: { model: Model<any>; thinkingLevel: ThinkingLevel } | undefined;
+	/** The pair spawn selection chose, if a provider has resolved one. */
+	get selectedPair(): { model: Model<any>; thinkingLevel: ThinkingLevel } | undefined {
+		return this._selectedPair;
+	}
 	isActive(): boolean { return this.state.isActive(); }
 	isTerminalError(): boolean { return this.state.isTerminalError(); }
 	isRunning(): boolean { return this.state.isRunning(); }
@@ -324,6 +332,7 @@ export class Subagent {
 
 		// Execution machinery — a single mandatory collaborator
 		this.execution = init.execution;
+		this._selectedPair = init.selectedPair;
 
 		// Per-run lifecycle collaborators
 		this.workspaceBracket = new WorkspaceBracket(
@@ -419,6 +428,10 @@ export class Subagent {
 		return validateSpawnSelection(outcome, choices, registry);
 	}
 
+	private applySelectedPair(pair: { model: Model<any>; thinkingLevel: ThinkingLevel }): void {
+		this._selectedPair = pair;
+	}
+
 	/** Recheck after an await: an aborted run or closed lease must not reach the factory. */
 	private assertSelectionLive(signal: AbortSignal): void {
 		if (signal.aborted) throw new SelectionCancelledError();
@@ -445,6 +458,7 @@ export class Subagent {
 			this.state.markAwaitingSelection();
 			try {
 				selected = await this.obtainSelection(gate);
+				this.applySelectedPair(selected);
 			} finally {
 				this.state.clearAwaitingSelection();
 			}

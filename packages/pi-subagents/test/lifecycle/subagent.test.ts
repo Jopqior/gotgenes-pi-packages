@@ -2077,6 +2077,17 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 		);
 	});
 
+	it("exposes the selected pair on the record after the gate resolves", async () => {
+		const { provider, resolve } = gatedSelection();
+		const { agent } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		resolve({ model: gateModels[1], thinkingLevel: "off" });
+		await agent.promise;
+
+		expect(agent.selectedPair).toEqual({ model: gateModels[1], thinkingLevel: "off" });
+	});
+
 	it("applies the selected pair when ordinary resolution produced no model", async () => {
 		const { provider, resolve } = gatedSelection();
 		const { agent, factory } = arrangeGatedAgent({ provider });
@@ -2118,6 +2129,7 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 		expect(factory).not.toHaveBeenCalled();
 		expect(onRunFinished).toHaveBeenCalledOnce();
 		expect(agent.awaitingSelection).toBe(false);
+		expect(agent.selectedPair).toBeUndefined();
 	});
 
 	it("fails the run before consulting the provider when the registry has no availability", async () => {
@@ -2299,6 +2311,7 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 			expect.not.objectContaining({ selectionSignal: expect.any(AbortSignal) }),
 		);
 		await agent.promise;
+		expect(agent.selectedPair).toBeUndefined();
 	});
 
 	it("does not consult the provider again when a completed run is resumed", async () => {
