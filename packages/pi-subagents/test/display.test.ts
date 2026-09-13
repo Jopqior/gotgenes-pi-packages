@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { AgentConfig } from "#src/types";
-import { formatSessionTokens, getDisplayName, getPromptModeLabel } from "#src/ui/display";
+import {
+  formatSessionTokens,
+  formatSpawnModelName,
+  getDisplayName,
+  getPromptModeLabel,
+} from "#src/ui/display";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
 
@@ -61,6 +66,31 @@ describe("getPromptModeLabel", () => {
 
   it("returns undefined for replace promptMode", () => {
     expect(getPromptModeLabel("Explore", testRegistry)).toBeUndefined();
+  });
+});
+
+describe("formatSpawnModelName", () => {
+  it("strips a leading Claude and lowercases when the model differs from the parent", () => {
+    expect(formatSpawnModelName({ id: "claude-haiku", name: "Claude Haiku" }, "claude-sonnet")).toBe(
+      "haiku",
+    );
+    expect(formatSpawnModelName({ id: "claude-opus-4-6", name: "Claude Opus 4.6" }, "claude-sonnet")).toBe(
+      "opus 4.6",
+    );
+  });
+
+  it("returns undefined when model.id equals the parent id", () => {
+    expect(
+      formatSpawnModelName({ id: "claude-sonnet", name: "Claude Sonnet" }, "claude-sonnet"),
+    ).toBeUndefined();
+  });
+
+  it("returns undefined when model is missing", () => {
+    expect(formatSpawnModelName(undefined, "claude-sonnet")).toBeUndefined();
+  });
+
+  it("passes a non-Claude name through lowercased", () => {
+    expect(formatSpawnModelName({ id: "gpt-5.5", name: "GPT-5.5" }, "claude-sonnet")).toBe("gpt-5.5");
   });
 });
 
