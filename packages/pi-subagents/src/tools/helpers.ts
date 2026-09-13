@@ -1,10 +1,10 @@
 import type { AgentConfigLookup } from "#src/config/agent-types";
 import { getLifetimeTotal, type LifetimeUsage } from "#src/lifecycle/usage";
-import { type AgentDetails, formatTokens } from "#src/ui/display";
+import { type AgentDetails, formatTokens, type SpawnDetailBase } from "#src/ui/display";
 
 /** Build AgentDetails from a base + record-specific fields. */
 export function buildDetails(
-  base: Pick<AgentDetails, "displayName" | "description" | "subagentType" | "modelName" | "tags">,
+  base: SpawnDetailBase,
   record: {
     toolUses: number;
     startedAt: number;

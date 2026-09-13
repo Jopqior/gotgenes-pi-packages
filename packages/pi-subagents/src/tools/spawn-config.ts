@@ -15,11 +15,11 @@ import type { ModelRegistry } from "#src/session/model-resolver";
 import { resolveInvocationModel } from "#src/session/model-resolver";
 import type { AgentInvocation, SubagentType, ThinkingLevel } from "#src/types";
 import {
-  type AgentDetails,
   buildInvocationTags,
   formatSpawnModelName,
   getDisplayName,
   getPromptModeLabel,
+  type SpawnDetailBase,
 } from "#src/ui/display";
 
 /** Model info extracted from the parent session context. */
@@ -52,7 +52,7 @@ export interface SpawnExecution {
 export interface SpawnPresentation {
   modelName: string | undefined;
   agentTags: string[];
-  detailBase: Pick<AgentDetails, "displayName" | "description" | "subagentType" | "modelName" | "tags">;
+  detailBase: SpawnDetailBase;
 }
 
 /** Fully resolved config for spawning an agent — composed of domain-aligned sub-interfaces. */
