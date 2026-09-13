@@ -20,6 +20,9 @@ Committed `docs/plans/f0010-tool-ui-shows-selected-model.md`.
 - Test seam is `SubagentInit.selectedPair` (construct-complete), not a post-construction write, matching design principle 8.
 - Field/getter cannot share the name `selectedPair`; the plan uses `_selectedPair` plus a getter.
 - Skipped `ask_user`: operator-authored issue, expected behavior is the spec, ADR 0005 declines a public-snapshot widening.
+- Operator chose one short-name function (`formatSpawnModelName`) over duplicating the ternary in the overlay.
+  Squash-sync follow-through is the `spawn-config.ts` conflict plus a `docs/upstream-sync.md` recipe: copy upstream's new formula into that function, do not inline it back.
+- Operator declined a `tags` option on `createResolvedSpawnConfig`; runner tests assign `detailBase.tags` in the test body.
 
 #### Deferred tidyings
 
@@ -27,3 +30,4 @@ Committed `docs/plans/f0010-tool-ui-shows-selected-model.md`.
 - `src/tools/spawn-config.ts` — only the Claude-strip ternary moves; the rest of `resolveSpawnConfig` is untouched.
 - `test/lifecycle/subagent.test.ts` — gated-selection `start` / `resolve` / `await promise` idiom stays inlined; no `settleGatedRun` helper.
 - `src/ui/display.ts` — `"twin"` mode-label literal stays in `getPromptModeLabel`; overlay matches a leading `"twin"` by string.
+- `test/helpers/make-spawn-config.ts` — no `tags` option; runner tests assign `detailBase.tags` in the test body.
