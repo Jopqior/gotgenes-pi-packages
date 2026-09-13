@@ -100,10 +100,15 @@ describe("spawnBackground", () => {
         getRecord: vi.fn().mockReturnValue(record),
       },
     });
-    const text = spawnBackground(deps.manager, makeParams()).content[0].text;
+    const config = makeConfig({ model: "gpt-5.5" });
+    config.presentation.detailBase.tags = ["thinking: high", "inherit context"];
+    const result = spawnBackground(deps.manager, makeParams({ config }));
+    const text = result.content[0].text;
     expect(text).not.toContain("Agent started");
     expect(text).toContain("Agent submitted in background.");
     expect(text).toContain("Awaiting model/thinking selection");
+    expect(result.details?.modelName).toBeUndefined();
+    expect(result.details?.tags).toEqual(["inherit context"]);
   });
 
   it("includes output file path in result when present", () => {
