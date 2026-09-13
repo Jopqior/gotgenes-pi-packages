@@ -57,3 +57,55 @@ Pre-completion reviewer: WARN.
 
 Pre-completion reviewer verdict: **WARN** — no FAILs; findings 1 (ADR 0002 harness sentence) and 2 (undocumented git-cliff prerequisite) above, plus the two amended fixes.
 AC 1's concrete version number must be re-read at `/ship` time — it moves with every commit until the release runs.
+
+## Stage: Final Retrospective (2026-09-13T17:18:24Z)
+
+### Session summary
+
+Issue #11 closed across three clean trunk sessions — planning (`glm-5.3`), TDD (`glm-5.3-flash`), ship (`glm-5.3-flash`) — landing `a9c3cb46` (extraction) and `c3792f79` (bounded walk) plus the repo's first shell-harness test, with CI green and the release correctly skipped (`scope:repo`, no package paths).
+The fake `pi-subagents-v2.0.0` is gone: `next-version.sh` now derives from a walk bounded at the tag's commit, pinned by three equivalence classes in `test/release/bumped-version.test.mjs`.
+
+### Observations
+
+#### What went well
+
+- **The repo's first shell-harness test pattern** — scratch git repo + sourced `lib.sh` + `cliff.toml` copied at run time so config drift flows into the fixture — is a reusable seam for the three remaining untested release scripts (the ADR 0002 residual this plan deliberately narrowed, not closed).
+- **Probe-first discipline paid for itself at TDD time**: mutation 2's kill-set mismatch triggered a direct probe of git-cliff 2.14.1 rather than an argument, and the real mechanism (explicit range ⇒ current version established from the lower-bound commit's tag) is now recorded in the fix commit body and the class-2 test comment, where a future session will meet it.
+- **Model downshift was free**: `glm-5.3-flash` carried the judgment-heavy TDD session (mutation classification, binary probing) with no observable quality loss, and the pre-completion reviewer (`anthropic/claude-sonnet-5` per its frontmatter) independently reproduced the mutation-2 analysis — the two layers caught different things.
+- The ship session resolved the plan's `ship independently` marker against the deterministic no-package-path rule correctly and skipped the release steps without asking — the plan's Release Recommendation rationale had pre-answered the question.
+
+#### What caused friction (agent side)
+
+- `missing-context` — the plan's killing mutation 2 was wrong in mechanism, kill set, and even syntax: predicted "drop the lower bound ⇒ pre-tag commits spill ⇒ classes 2–3 red with a fake major"; measured "git-cliff rejects the literal `HEAD` form outright, and the valid `..HEAD` form degrades every walk to printing the current version", killing classes 1 and 3 instead.
+  Root cause: the planning session probed the fix and mutation 1 (which coincides with the bug reproduction) in its scratch-repo prototype, but **inferred** mutations 2–3's predicted outputs instead of running them.
+  Impact: ~7 tool calls of re-probing and re-classification at TDD time, the plan text superseded inside the fix commit body, and a test comment needed to explain class 2's non-discriminability — no wrong claim reached a committed artifact, and the TDD session caught it itself (self-identified).
+- `other` — four one-call self-corrections across the lifecycle: the Red run needed one iteration (fixture `mkdir` before `git init`), one overlapping-`Edit` batch was rejected and re-merged, one `git log --oneline 5` typo (missing `-`), and the ship session's retro-glob `ls` errored before the `read` fallback.
+  Impact: added friction but no rework.
+- `instruction-violation` (self-identified, during this retro) — the P2 line landed as `#11's plan predicted…`, violating the `markdown-conventions` rule that a line-initial issue number must be prefixed with `Issue` (a line starting `#N` reads as an H2).
+  The autoformatter normalized it into a real `##` heading and then re-leveled every heading downstream of it (`####` → `#####`, `#####` → `######`), corrupting the document structure far beyond the edited line.
+  Impact: one backup + `git checkout HEAD -- AGENTS.md` + edit replay (3 calls); the committed text was rewritten as `The #11 plan predicted…`.
+  The existing autoformat bullet list in `AGENTS.md` documents line-joining, conflict-marker, `§`, `~`, heredoc, and export-merge behaviors but not this one — a candidate bullet for a future retro, not implemented here.
+
+#### What caused friction (user side)
+
+- The fail-loudly decision (no skip guard when `git-cliff` is absent) was settled in-plan without a gate, yet it changes the local dev-loop default for every future session — root `pnpm run test` now hard-requires a binary no `package.json` manages.
+  It surfaced to the operator only via the reviewer's WARN and the ship report's footnote.
+  Opportunity: a design point that changes the local test-running experience is gate-worthy even when the fix itself is unambiguous; this retro proposes the documentation half (below), and the skip-vs-fail call stays as made.
+- The issue itself was high-quality context — named call sites, a proposed fix shape, and a pre-rejected alternative (tag rewrite) — which is why planning ran nearly friction-free.
+
+### Diagnostic details
+
+- **Model-performance correlation** — planning `zai-coding-cn/glm-5.3`, TDD and ship `zai-coding-cn/glm-5.3-flash`, pre-completion reviewer `anthropic/claude-sonnet-5` (all attributed from the session transcripts' inline `[provider/model]` labels).
+  No mismatches; notably, the lighter model on the judgment-heavy TDD session produced no quality loss — downshifting TDD sessions is empirically safe here.
+- **Escalation-delay tracking** — no rabbit-holes.
+  The mutation-2 investigation ran ~7 consecutive calls, but each was a distinct forward step (invalid form rejected ⇒ valid `..HEAD` form ⇒ output inspection ⇒ direct binary probes), not repeated attempts at one error; no sequence exceeded the 5-call threshold on a *single* error.
+- **Unused-tool detection** — none.
+  The change was well-scoped with exact symbols (`bumped_version`, `cliff_args`), so `grep` sufficed; no Explore/Plan dispatch or semantic search was warranted.
+- **Feedback-loop gap analysis** — verification ran incrementally at every boundary: measured equivalence after the refactor commit, `vitest` after each mutation, `check`/`lint`/`test` before the pre-completion review, and `lint` + `fallow dead-code` pre-push in the ship session.
+  No gaps.
+
+### Changes made
+
+1. `AGENTS.md` `##### Testing` — documented that the root test suite shells out to `git-cliff` (no `package.json` manages it; CI installs it via `taiki-e/install-action@git-cliff`) and fails loudly when the binary is absent — the pre-completion reviewer's finding 2, resolved as approved (P1).
+2. `AGENTS.md` external-facts paragraph (after "Documentation answers whether a flag exists…") — added the rule that a killing mutation predicting a tool's output must be probed at plan time, with the #11 fake-major instance — the plan-time friction point 1, resolved as approved (P2).
+3. No other files changed; the ADR 0002 sentence stays stale by recorded decision, and the deferred tidyings stay queued for `/plan-improvements`.
