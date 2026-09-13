@@ -85,6 +85,10 @@ The fake `pi-subagents-v2.0.0` is gone: `next-version.sh` now derives from a wal
   The autoformatter normalized it into a real `##` heading and then re-leveled every heading downstream of it (`####` → `#####`, `#####` → `######`), corrupting the document structure far beyond the edited line.
   Impact: one backup + `git checkout HEAD -- AGENTS.md` + edit replay (3 calls); the committed text was rewritten as `The #11 plan predicted…`.
   The existing autoformat bullet list in `AGENTS.md` documents line-joining, conflict-marker, `§`, `~`, heredoc, and export-merge behaviors but not this one — a candidate bullet for a future retro, not implemented here.
+- `other` — **the release debt from #10 was never re-dispatched, and this retro session initially repeated the blind spot**.
+  Each ship was locally correct (#10 refused against the fake major; #11's repo-scope range released nothing), but nothing re-visited the deferral once #11 lifted the blocker — `pi-subagents` sat at 1.0.0 with `next-version.sh` correctly printing `pi-subagents-v1.0.1`.
+  The operator caught it; the retro's own next-step recommendation had surveyed the roadmap and the triage queue without ever running `next-version.sh`/`verify-cliff-parity.sh` — the offline, read-only tools that answer exactly this question.
+  Impact: two `fix(pi-subagents)` commits from #10 stayed unreleased past one complete fix-and-ship cycle; remedied in-session (dispatch below) and tracked as #12.
 
 #### What caused friction (user side)
 
@@ -109,3 +113,5 @@ The fake `pi-subagents-v2.0.0` is gone: `next-version.sh` now derives from a wal
 1. `AGENTS.md` `##### Testing` — documented that the root test suite shells out to `git-cliff` (no `package.json` manages it; CI installs it via `taiki-e/install-action@git-cliff`) and fails loudly when the binary is absent — the pre-completion reviewer's finding 2, resolved as approved (P1).
 2. `AGENTS.md` external-facts paragraph (after "Documentation answers whether a flag exists…") — added the rule that a killing mutation predicting a tool's output must be probed at plan time, with the #11 fake-major instance — the plan-time friction point 1, resolved as approved (P2).
 3. No other files changed; the ADR 0002 sentence stays stale by recorded decision, and the deferred tidyings stay queued for `/plan-improvements`.
+4. Filed [#12](https://github.com/Jopqior/gotgenes-pi-packages/issues/12) — a deferred release has no re-dispatch trigger once its blocker lifts; `/ship`'s nothing-to-release path should sweep all packages with `next-version.sh` and surface pending tags (operator-caught during this retro; roadmap-fit exits at step 1, repo scope, no open phase).
+5. Dispatched `release.yml` for `pi-subagents` from this retro session (run [34771784394](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/34771784394)), closing #10's release debt.
