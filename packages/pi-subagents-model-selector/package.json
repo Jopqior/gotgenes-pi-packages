@@ -1,7 +1,6 @@
 {
   "name": "@jopqior/pi-subagents-model-selector",
   "version": "0.1.0",
-  "private": true,
   "description": "Pi extension that asks for model and thinking before every new pi-subagents run.",
   "type": "module",
   "imports": {
@@ -26,6 +25,9 @@
     "subagents",
     "model-selector"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "author": {
     "name": "Jopqior"
   },
@@ -52,7 +54,7 @@
     "@earendil-works/pi-coding-agent": ">=0.84.4"
   },
   "dependencies": {
-    "@jopqior/pi-subagents": "workspace:*"
+    "@jopqior/pi-subagents": "workspace:^"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",

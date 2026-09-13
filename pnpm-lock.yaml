@@ -291,7 +291,7 @@ importers:
   packages/pi-subagents-model-selector:
     dependencies:
       '@jopqior/pi-subagents':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../pi-subagents
     devDependencies:
       '@biomejs/biome':
