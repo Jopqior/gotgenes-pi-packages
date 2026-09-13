@@ -32,4 +32,19 @@ Next stage is `/tdd-plan`.
 - `src/selection-form.ts` — narrow `modelHaystack(model, input)` to `input.defaultModel` (wide bag; zero effect on the `fuzzyFilter` call).
 - `test/helpers/selection-fixtures.ts` — shared fixture for `id: "haiku"` (one caller; inline `makeModel` matches existing one-off style).
 
+## Stage: Implementation — TDD (2026-09-13T13:15:03Z)
+
+### Session summary
+
+One red-green cycle landed `fix(pi-subagents-model-selector): match native /model fuzzyFilter`.
+`filterModels` now calls pi-tui `fuzzyFilter` and keeps the `isDefaultSearch` prepend; haystack `.toLowerCase()` dropped because `fuzzyMatch` lowercases internally.
+Package tests went 59 to 61 (+2) in `test/selection-form.test.ts`.
+
+### Observations
+
+No deviations from the plan.
+Both killing mutations matched the prediction: restoring the `includes` predicate reddened both new tests; reordering hits with `models.filter((model) => filtered.includes(model))` reddened only the score-order test.
+Empty-query sort, `haiku` haystack, and `def` default prepend stayed green without edits.
+Pre-completion reviewer: PASS.
+
 [#8]: https://github.com/Jopqior/gotgenes-pi-packages/issues/8
