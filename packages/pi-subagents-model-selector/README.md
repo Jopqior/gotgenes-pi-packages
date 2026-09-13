@@ -42,21 +42,24 @@ If the core is missing, failed to load, or lacks `registerSpawnSelectionProvider
 
 ## Behavior
 
-Every **new** run in an enabled root's in-process tree asks twice: model, then thinking.
+Every **new** run in an enabled root's in-process tree opens one `/model`-style form: model, thinking, and Submit.
 Foreground tool calls, background tool calls, and `SubagentsService.spawn()` all go through the same gate.
 
 The operator's pair is applied after ordinary call and config resolution.
 It overrides defaults, explicit `model`/`thinking` arguments, and `locked:` values for those two fields only.
 Other locked fields are unchanged.
 
-The catalogue is every authenticated available model of the session whose manager is spawning — not a process-global list, and not `/scoped-models`.
-A model that supports only `off` still shows `off` and requires confirmation.
+The all-tab catalogue is every authenticated available model of the session whose manager is spawning — not a process-global list.
+The scoped tab is `ctx.scopedModels` intersected with that catalogue, and is hidden when the intersection is empty.
+Ctrl+S toggles all/scoped when the scoped tab exists.
+A model that supports only `off` still shows `off` and requires an explicit choice on the thinking tab.
 
 Concurrent requests are FIFO at the root chooser.
-A queued run does not open a dialog until it is admitted.
-Cancel either dialog stops that run without creating a workspace or child session.
+A queued run does not open the form until it is admitted.
+Cancel the form stops that run without creating a workspace or child session.
 
-Missing UI, a UI that is not yet attached, an empty catalogue, or an invalid selection fails that run explicitly.
+A missing TUI, a UI that is not yet attached, an empty catalogue, or an invalid selection fails that run explicitly.
+Print, JSON, and RPC sessions fail closed — there is no `ui.select` fallback.
 There is no default, timeout, remembered choice, or retry.
 
 Nested children still route to the root UI, including when this package is excluded from them.
@@ -68,15 +71,13 @@ The parent's active model, thinking level, agent files, and tool-call arguments 
 ## Lifecycle
 
 The extension captures `getSubagentsService()` once during initialization and registers the provider immediately, before any `session_start` handler can spawn.
-It attaches `ctx.ui.select` at `session_start` and closes the chooser at `session_shutdown`.
+It attaches `ctx.ui.custom` at `session_start` when `ctx.mode` is `tui`, and closes the chooser at `session_shutdown`.
 A request that arrives before the UI is attached fails closed rather than waiting for a later sequential handler.
-
-Print, JSON, and other non-interactive sessions cannot satisfy the selection requirement.
 
 ## Limitations
 
 - Out-of-process children and third-party session factories are not covered.
-- The dialogs are Pi's generic `ui.select()`, not the native `/model` picker.
+- The form rebuilds the `/model` experience without mounting Pi's `ModelSelectorComponent` (no type-to-filter on the thinking tab, no set-as-default).
 - Public task status stays `running` while waiting.
   Pending selection is private widget, foreground, and background wording.
 
