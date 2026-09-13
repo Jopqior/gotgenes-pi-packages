@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type ForegroundParams, runForeground } from "#src/tools/foreground-runner";
 import { createToolDeps } from "#test/helpers/make-deps";
+import { makeModel } from "#test/helpers/make-model";
 import { createResolvedSpawnConfig } from "#test/helpers/make-spawn-config";
 import { createTestSubagent } from "#test/helpers/make-subagent";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
@@ -245,6 +246,78 @@ describe("runForeground", () => {
 
 		held.resolve(createTestSubagent({ result: "done" }));
 		await runPromise;
+	});
+
+	it("strips call modelName and thinking tags from streamed details while selection is pending", async () => {
+		const pending = createTestSubagent({
+			status: "running",
+			completedAt: undefined,
+			awaitingSelection: true,
+		});
+		const held = Promise.withResolvers<ReturnType<typeof createTestSubagent>>();
+		const deps = createToolDeps({
+			manager: {
+				...createToolDeps().manager,
+				spawnAndWait: vi.fn((_snapshot, _type, _prompt, opts) => {
+					opts.observer?.onStarted?.(pending);
+					return held.promise;
+				}),
+			},
+		});
+		const onUpdate = vi.fn();
+		const config = createResolvedSpawnConfig({ description: "fg task", model: "gpt-5.5" });
+		config.presentation.detailBase.tags = ["thinking: high", "inherit context"];
+		const runPromise = runForeground(deps.manager, makeParams({ config }), undefined, onUpdate);
+
+		await vi.advanceTimersByTimeAsync(100);
+		const pendingDetails = onUpdate.mock.calls
+			.map((call) => call[0].details)
+			.filter((details) => details.activity === "Awaiting model/thinking selection");
+		expect(pendingDetails.length).toBeGreaterThan(0);
+		for (const details of pendingDetails) {
+			expect(details.modelName).toBeUndefined();
+			expect(details.tags).toEqual(["inherit context"]);
+		}
+
+		held.resolve(createTestSubagent({ result: "done" }));
+		await runPromise;
+	});
+
+	it("names the selected pair on completed details", async () => {
+		const { manager } = createToolDeps();
+		manager.spawnAndWait = vi.fn().mockResolvedValue(
+			createTestSubagent({
+				selectedPair: {
+					model: makeModel({ id: "deepseek/deepseek-flash", name: "DeepSeek Flash" }),
+					thinkingLevel: "high",
+				},
+			}),
+		);
+		const config = createResolvedSpawnConfig({ description: "fg task", model: "gpt-5.5" });
+		config.presentation.detailBase.tags = ["thinking: low"];
+		const result = await runForeground(manager, makeParams({ config }), undefined, undefined);
+		expect(result.details?.modelName).toBe("deepseek flash");
+		expect(result.details?.tags).toEqual(["thinking: high"]);
+	});
+
+	it("omits modelName on completed details when the selected id equals the parent", async () => {
+		const parent = makeModel({ id: "openai-codex/gpt-5.5", name: "GPT-5.5" });
+		const { manager } = createToolDeps();
+		manager.spawnAndWait = vi.fn().mockResolvedValue(
+			createTestSubagent({
+				selectedPair: { model: parent, thinkingLevel: "medium" },
+			}),
+		);
+		const config = createResolvedSpawnConfig({ description: "fg task", model: "haiku" });
+		config.presentation.detailBase.tags = ["thinking: high"];
+		const result = await runForeground(
+			manager,
+			makeParams({ config, snapshot: { ...STUB_SNAPSHOT, model: parent } }),
+			undefined,
+			undefined,
+		);
+		expect(result.details?.modelName).toBeUndefined();
+		expect(result.details?.tags).toEqual(["thinking: medium"]);
 	});
 
 	it("calls onUpdate with streaming details while running", async () => {

@@ -16,7 +16,13 @@ import {
 } from "#src/tools/helpers";
 import type { ResolvedSpawnConfig } from "#src/tools/spawn-config";
 import type { ParentSessionInfo, Subagent } from "#src/types";
-import { type AgentDetails, describeActivity, formatMs, PENDING_SELECTION_ACTIVITY } from "#src/ui/display";
+import {
+  type AgentDetails,
+  describeActivity,
+  formatMs,
+  overlaySpawnPresentation,
+  PENDING_SELECTION_ACTIVITY,
+} from "#src/ui/display";
 import { SPINNER } from "#src/ui/glyphs";
 
 /** Narrow manager interface for the foreground runner. */
@@ -55,7 +61,11 @@ export async function runForeground(
   const streamUpdate = () => {
     const toolUses = recordRef?.toolUses ?? 0;
     const details: AgentDetails = {
-      ...presentation.detailBase,
+      ...overlaySpawnPresentation(
+        presentation.detailBase,
+        recordRef,
+        params.snapshot.model?.id,
+      ),
       toolUses,
       tokens: recordRef ? formatLifetimeTokens(recordRef) : "",
       // Read activity off the record; fall back to safe defaults before session creation.
@@ -122,7 +132,11 @@ export async function runForeground(
   record.markConsumed();
 
   const tokenText = formatLifetimeTokens(record);
-  const details = buildDetails(presentation.detailBase, record, { tokens: tokenText });
+  const details = buildDetails(
+    overlaySpawnPresentation(presentation.detailBase, record, params.snapshot.model?.id),
+    record,
+    { tokens: tokenText },
+  );
 
   const noteText = renderSpawnNotes(params.config.notes);
 
