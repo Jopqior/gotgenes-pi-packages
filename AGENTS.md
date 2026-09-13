@@ -28,6 +28,8 @@ This section takes precedence over inherited repository-target, roadmap, and rel
   Frontmatter `issue: N` stays the numeric fork issue.
 - Existing `@gotgenes/*` package names and upstream publishing examples do not authorize publication.
   Before dispatching a release or publishing, obtain explicit operator approval of the fork's release destination and npm package scope.
+- Default pnpm/npm registry on this machine is npmmirror.
+  Every `whoami` / `view` / `publish` against npmjs.org must pass `--registry=https://registry.npmjs.org/`.
 
 ## Monorepo Structure
 
@@ -86,7 +88,7 @@ Versions and changelogs come from [git-cliff](https://git-cliff.org) reading loc
 See `docs/decisions/0002-git-cliff-release-automation.md` for why, and for the accepted residual (there is no release-PR review gate).
 
 A brand-new package's **first** release is a manual, operator-chosen step. npm Trusted Publishing cannot create a package that does not exist, so `publish` 404s; and `next-version.sh` refuses an untagged package rather than inventing a first version, because this repo's packages opened at 1.0.0, 0.2.0, and 0.1.0 with no convention to infer.
-Publish the first version manually (`pnpm login`, then `pnpm --filter @gotgenes/<pkg> publish --access public --no-git-checks` — no `--provenance`), tag it `<pkg>-v<version>`, then configure the Trusted Publisher on npmjs.org (repo `gotgenes/pi-packages`, workflow **`release.yml`**).
+Publish the first version manually (`pnpm login`, then `pnpm --filter @gotgenes/<pkg> publish --access public --no-git-checks --registry=https://registry.npmjs.org/` — no `--provenance`), tag it `<pkg>-v<version>`, then configure the Trusted Publisher on npmjs.org (repo `gotgenes/pi-packages`, workflow **`release.yml`**).
 The publish needs an interactive terminal when the registry requires an OTP (`ERR_PNPM_OTP_NON_INTERACTIVE`) — the operator runs it, not the agent (Refs #732).
 Every release after that runs through the workflow (Refs #600, #865).
 
