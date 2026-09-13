@@ -120,30 +120,6 @@ describe("ModelSelector", () => {
       expect(result?.model).toBe(sonnet);
     });
 
-    it("bounds a long description in the model title", async () => {
-      const ui = makeHeldUI();
-      const chooser = attachChooser(ui);
-      const description = "d".repeat(81);
-      const resultPromise = chooser.select(
-        makeRequest({ description }),
-        liveSignal(),
-      );
-
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(1);
-      });
-      expect(ui.calls[0].title).toBe(
-        `Select model for Explore agent-1 — ${"d".repeat(79)}…`,
-      );
-
-      ui.calls[0].resolve(modelLabel(sonnet));
-      await vi.waitFor(() => {
-        expect(ui.calls).toHaveLength(2);
-      });
-      ui.calls[1].resolve("off");
-      await resultPromise;
-    });
-
     it("still opens both dialogs when there is only one model and one thinking level", async () => {
       const ui = makeHeldUI();
       const chooser = attachChooser(ui, ["off"]);

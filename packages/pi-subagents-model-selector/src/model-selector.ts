@@ -12,13 +12,12 @@ import type {
   SpawnSelectionProvider,
   SpawnSelectionRequest,
 } from "@jopqior/pi-subagents";
+import { modelTitle } from "./selection-labels";
 import {
   SelectionQueue,
   SelectionQueueCancelledError,
   SelectionQueueClosedError,
 } from "./selection-queue";
-
-const DESCRIPTION_LIMIT = 80;
 
 const NO_UI = "Spawn model selection requires an interactive UI.";
 const NO_MODELS = "No models are available to select.";
@@ -168,17 +167,6 @@ function isListedLevel(
 
 function modelLabel(model: Model<Api>): string {
   return `${model.provider}/${model.id} — ${model.name}`;
-}
-
-function boundDescription(description: string): string {
-  if (description.length <= DESCRIPTION_LIMIT) {
-    return description;
-  }
-  return `${description.slice(0, DESCRIPTION_LIMIT - 1)}…`;
-}
-
-function modelTitle(request: SpawnSelectionRequest): string {
-  return `Select model for ${request.agentType} ${request.agentId} — ${boundDescription(request.description)}`;
 }
 
 function thinkingTitle(model: Model<Api>): string {
