@@ -81,6 +81,8 @@ A decision presented early from the plan is far less likely to be reversed than 
    The grep can match prose mentions as well as the canonical line; the marker is the one matching exactly one of the three forms `/plan-issue` writes.
    - A marker containing `mid-batch — defer` → ask the operator **now**: defer the release (simply do not name that package), or release anyway?
      Record the decision.
+   - A plan whose Release Recommendation (or the sentence after the marker) says not to dispatch `release.yml` → record "no dispatch"; skip steps 10–11.
+     After CI is green, follow that plan's operator first-publish checklist (OTP publish, tag, Trusted Publisher, post-publish commits).
    - Any other `**Release:**` value (`ship independently` or `ship now — batch "<name>" tail`) → record "release now"; note the recommendation in the final report; do **not** ask.
    - No `**Release:**` marker, or no plan found → record "release now" (default); do **not** ask, and say so in the final report rather than letting the absence pass silently.
 3. Read the issue's retro file in full — glob `docs/retro/fNNNN-*.md` and `packages/*/docs/retro/fNNNN-*.md` first; if none match, fall back to the inherited unprefixed `NNNN-*.md` (short-circuit, not union).
@@ -172,7 +174,7 @@ Say so in the final report and skip the batch-vs-release question.
 
 Then apply the decision recorded in step 2.
 The issue **always** closes in step 9, regardless of this decision — closing records that the work is on `main`; releasing is a separate, batched concern.
-If the decision was to defer/batch: continue to step 9, then skip steps 10 and 11 (the release lands later with the batch tail).
+If the decision was to defer/batch or no dispatch: continue to step 9, then skip steps 10 and 11.
 A release names its packages explicitly, so deferring one holds only that package — siblings keep releasing on their own ships.
 Note the deferral in the final report.
 
@@ -232,7 +234,7 @@ Close each with its own short summary — `refactor:` commits are omitted from t
 Releasing is the root's responsibility — peers never dispatch one.
 The release workflow carries a `release` concurrency group, so two runs cannot overlap even if one is dispatched by hand.
 
-Skip this step entirely if step 8 recorded a defer/batch decision — the release lands later with the batch tail.
+Skip this step entirely if step 8 recorded a defer/batch or no-dispatch decision.
 
 1. Derive candidate packages from the paths the range touched, not from commit types (re-derive `PLAN` — a fresh shell does not carry step 9's):
 
@@ -262,7 +264,7 @@ Skip this step entirely if step 8 recorded a defer/batch decision — the releas
 
 ## 11. Verify the release run
 
-Skip this step if step 10 was skipped (deferred/batch release, or nothing to release) — there is nothing to verify.
+Skip this step if step 10 was skipped (deferred/batch, no dispatch, or nothing to release) — there is nothing to verify.
 
 1. Use `ci_find` with workflow `release` and the SHA you passed as `-f sha`, then `ci_watch` the returned `run_id` with `timeout: 600`.
    A dispatched run's `head_sha` is `main`'s tip at dispatch time, so it matches the SHA you pinned.
