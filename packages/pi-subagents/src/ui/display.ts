@@ -117,6 +117,24 @@ export function formatDuration(startedAt: number, completedAt?: number): string 
   return `${formatMs(Date.now() - startedAt)} (running)`;
 }
 
+/**
+ * Tool-card short name for a spawn model.
+ * Sole implementation of the rule `resolveSpawnConfig` used to inline:
+ * omit when `model.id` equals the parent id, otherwise `model.name` with a
+ * leading "Claude " stripped and lowercased.
+ * `resolveSpawnConfig` and `overlaySpawnPresentation` both call this.
+ * Squash-sync: if `spawn-config.ts` conflicts on `modelName`, copy upstream's
+ * new formula into this function.
+ * Do not inline the formula back into `resolveSpawnConfig`.
+ */
+export function formatSpawnModelName(
+  model: { id: string; name: string } | undefined,
+  parentId: string | undefined,
+): string | undefined {
+  if (!model || model.id === parentId) return undefined;
+  return model.name.replace(/^Claude\s+/i, "").toLowerCase();
+}
+
 // ---- Display helpers ----
 
 /** Get display name for any agent type (built-in or custom). */

@@ -17,6 +17,7 @@ import type { AgentInvocation, SubagentType, ThinkingLevel } from "#src/types";
 import {
   type AgentDetails,
   buildInvocationTags,
+  formatSpawnModelName,
   getDisplayName,
   getPromptModeLabel,
 } from "#src/ui/display";
@@ -119,13 +120,7 @@ export function resolveSpawnConfig(
   const inheritContext = resolvedConfig.inheritContext;
   const runInBackground = resolvedConfig.runInBackground;
 
-  // Compute display model name (only shown when different from parent)
-  const parentModelId = modelInfo.parentModel?.id;
-  const effectiveModelId = model?.id;
-  const modelName =
-    effectiveModelId && effectiveModelId !== parentModelId
-      ? model.name.replace(/^Claude\s+/i, "").toLowerCase()
-      : undefined;
+  const modelName = formatSpawnModelName(model, modelInfo.parentModel?.id);
 
   const effectiveMaxTurns = normalizeMaxTurns(
     resolvedConfig.maxTurns ?? settings.defaultMaxTurns,
