@@ -49,7 +49,7 @@ export type SpawnPresentationSource = {
   };
 };
 
-type SpawnDetailBase = Pick<
+export type SpawnDetailBase = Pick<
   AgentDetails,
   "displayName" | "description" | "subagentType" | "modelName" | "tags"
 >;
@@ -61,6 +61,9 @@ export const ERROR_STATUSES = new Set(["error", "aborted", "steered", "stopped"]
 
 /** Private pending-selection activity shown while public status stays `running`. */
 export const PENDING_SELECTION_ACTIVITY = "Awaiting model/thinking selection";
+
+/** Shared by `thinkingTag` and `isThinkingTag` so the producer and matcher cannot drift. */
+const THINKING_TAG_PREFIX = "thinking: ";
 
 /** Tool name → human-readable action for activity descriptions. */
 const TOOL_DISPLAY: Record<string, string> = {
@@ -187,11 +190,11 @@ function overlaySelectedPresentation(
 }
 
 function thinkingTag(level: ThinkingLevel): string {
-  return `thinking: ${level}`;
+  return `${THINKING_TAG_PREFIX}${level}`;
 }
 
 function isThinkingTag(tag: string): boolean {
-  return tag.startsWith("thinking: ");
+  return tag.startsWith(THINKING_TAG_PREFIX);
 }
 
 // ---- Display helpers ----
