@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-model-selector-v1.0.0...pi-subagents-model-selector-v1.0.1) (2026-09-13)
+
+
+### Bug Fixes
+
+* **pi-subagents-model-selector:** match native /model fuzzyFilter ([5a8b92d](https://github.com/Jopqior/gotgenes-pi-packages/commit/5a8b92dc90b8ee19ce6deacea8d31725ac8f5ad3)), closes [#9](https://github.com/Jopqior/gotgenes-pi-packages/issues/9)
+
 ## [1.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-model-selector-v0.1.0...pi-subagents-model-selector-v1.0.0) (2026-09-13)
 
 
