@@ -31,3 +31,21 @@ Committed `docs/plans/f0010-tool-ui-shows-selected-model.md`.
 - `test/lifecycle/subagent.test.ts` — gated-selection `start` / `resolve` / `await promise` idiom stays inlined; no `settleGatedRun` helper.
 - `src/ui/display.ts` — `"twin"` mode-label literal stays in `getPromptModeLabel`; overlay matches a leading `"twin"` by string.
 - `test/helpers/make-spawn-config.ts` — no `tags` option; runner tests assign `detailBase.tags` in the test body.
+
+## Stage: Implementation — TDD (2026-09-13T15:31:49Z)
+
+### Session summary
+
+Six TDD cycles landed: extract `formatSpawnModelName`, overlay helper, stamp `selectedPair` on `Subagent`, wire the foreground card, strip pending model from background launch details, then docs.
+`pi-subagents` tests went 1855 → 1872 (+17).
+Pre-completion reviewer: WARN (non-blocking).
+
+### Observations
+
+- Commit types follow AGENTS.md rather than the plan's `feat:` labels: unwired extract/overlay/stamp are `refactor:`; the two runner wirings are `fix:` (the issue is a display bug).
+- Background `fix:` subject was reworded after the changelog preview from overlay-mechanism to the pending-strip symptom.
+- Cancellation and no-provider `selectedPair` pins were added onto existing gate tests rather than new siblings; they stayed green during Red as absence pins.
+- `thinkingTag` / `isThinkingTag` stayed unexported; overlay and `buildInvocationTags` are the only callers.
+- Pre-completion reviewer: WARN.
+  All deterministic checks passed.
+  Non-blocking: `thinkingTag` and `isThinkingTag` do not share a prefix constant; `SpawnDetailBase` is not folded into `spawn-config.ts` / `helpers.ts`; Mermaid was not machine-validated (`mmdc` Chromium sandbox).
