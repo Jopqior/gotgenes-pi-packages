@@ -151,6 +151,23 @@ describe("selection form", () => {
       );
       expect(view.models[0]).toBe(opus);
     });
+
+    it("keeps ordered-subsequence haystack hits", () => {
+      const view = run(makeInput(), [{ type: "filter", query: "clde" }]);
+      expect(view.models).toEqual([sonnet, haiku]);
+      expect(view.highlightedIndex).toBe(0);
+      expect(view.pendingModel).toBe(sonnet);
+    });
+
+    it("ranks an exact id match ahead of a longer haystack hit", () => {
+      const exactHaiku = makeModel({ id: "haiku", provider: "anthropic" });
+      const view = run(makeInput({ availableModels: [haiku, exactHaiku] }), [
+        { type: "filter", query: "haiku" },
+      ]);
+      expect(view.models).toEqual([exactHaiku, haiku]);
+      expect(view.highlightedIndex).toBe(0);
+      expect(view.pendingModel).toBe(exactHaiku);
+    });
   });
 
   describe("thinking", () => {
