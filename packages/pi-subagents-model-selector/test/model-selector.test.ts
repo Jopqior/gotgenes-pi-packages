@@ -1,38 +1,17 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
-import type {
-  SpawnSelection,
-  SpawnSelectionRequest,
-} from "@jopqior/pi-subagents";
+import type { SpawnSelection } from "@jopqior/pi-subagents";
 import { describe, expect, it, vi } from "vitest";
 import { ModelSelector } from "#src/model-selector";
-import { makeModel } from "#test/helpers/make-model";
-
-const sonnet = makeModel({ id: "claude-sonnet", name: "Claude Sonnet" });
-const haiku = makeModel({
-  id: "claude-haiku",
-  name: "Claude Sonnet",
-  provider: "anthropic",
-});
-const opus = makeModel({
-  id: "gpt-opus",
-  name: "Opus",
-  provider: "openai",
-});
+import {
+  haiku,
+  liveSignal,
+  makeRequest,
+  opus,
+  sonnet,
+} from "#test/helpers/selection-fixtures";
 
 function modelLabel(model: Model<Api>): string {
   return `${model.provider}/${model.id} — ${model.name}`;
-}
-
-function makeRequest(
-  overrides: Partial<SpawnSelectionRequest> = {},
-): SpawnSelectionRequest {
-  return {
-    agentId: "agent-1",
-    agentType: "Explore",
-    description: "find TODOs",
-    availableModels: [sonnet, haiku],
-    ...overrides,
-  };
 }
 
 /** A UI port that holds every dialog until the test resolves it. */
@@ -55,10 +34,6 @@ function makeHeldUI(hasUI = true) {
     },
   );
   return { hasUI, select, calls };
-}
-
-function liveSignal(): AbortSignal {
-  return new AbortController().signal;
 }
 
 function attachChooser(
