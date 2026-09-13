@@ -29,6 +29,7 @@
       "skills": []
     },
     { "source": "npm:@gotgenes/pi-subagents", "extensions": [], "skills": [] },
+    { "source": "npm:@jopqior/pi-subagents", "extensions": [], "skills": [] },
     {
       "source": "npm:@gotgenes/pi-session-tools",
       "extensions": [],
