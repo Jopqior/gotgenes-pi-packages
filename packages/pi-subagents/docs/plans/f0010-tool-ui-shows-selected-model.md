@@ -30,6 +30,7 @@ The inverse is also wrong: a call with no `model` leaves `modelName` unset, so a
 
 - Once spawn selection has chosen a pair, the in-progress card and the completed `subagent` tool result name the model and thinking that actually ran.
 - Keep the existing display rule: `modelName` is the model's display name with a leading `Claude` plus following whitespace stripped and lowercased, and is omitted when the effective model id equals the parent's.
+  One function owns that rule (`formatSpawnModelName`); `resolveSpawnConfig` and the overlay both call it.
 - During pending selection, stop claiming the call's model and thinking (activity already says `Awaiting model/thinking selection`).
 - Leave the no-provider path byte-identical: overlay is a no-op when the record has no selected pair and is not awaiting selection.
 - Non-breaking `fix(pi-subagents):`.
@@ -45,7 +46,9 @@ The inverse is also wrong: a call with no `model` leaves `modelName` unset, so a
   Overlay still runs on that result's `details` so the session JSONL is honest; the TUI line does not start showing stats.
 - `resumeExisting` (resume does not call the provider; its `detailBase` comes from the resume call).
 - The live widget (it does not show a model name).
-- Changing `resolveSpawnConfig`'s invocation presentation, except extracting the shared display-name helper.
+- Changing `resolveSpawnConfig`'s invocation presentation, except replacing the inline short-name ternary with a call to `formatSpawnModelName`.
+- Adding a `tags` option to `createResolvedSpawnConfig`.
+  Runner tests that need a call-time thinking tag assign `detailBase.tags` in the test body.
 
 No follow-up issue is filed.
 The items above are boundaries, not promises.
@@ -70,6 +73,7 @@ Selection is a local `selected` in `prepareSession`; nothing on `Subagent` curre
 `createResolvedSpawnConfig` puts `modelName` only on `presentation.detailBase` and leaves `execution.model` `undefined`.
 `STUB_SNAPSHOT.model` is `undefined`.
 Runner tests that exercise "selected id equals parent → omit `modelName`" must pass an explicit parent model on the snapshot.
+Runner tests that prove a pending overlay strips thinking tags assign `config.presentation.detailBase.tags` in the test body; they do not extend the shared fixture.
 
 Design principle 8 (no post-construction writes from *external* code): fixtures seed `selectedPair` through `SubagentInit`, not by poking a private field after `new`.
 `prepareSession` stamps via an instance method (the object mutating itself, like `markAwaitingSelection`).
@@ -142,6 +146,16 @@ A `thinkingTag(level)` / `isThinkingTag(tag)` helper in the same file owns the `
 Extract the untested inline rule at `spawn-config.ts` (the `model.name.replace(/^Claude\s+/i, "").toLowerCase()` ternary) to:
 
 ```typescript
+/**
+ * Tool-card short name for a spawn model.
+ * Sole implementation of the rule `resolveSpawnConfig` used to inline:
+ * omit when `model.id` equals the parent id, otherwise `model.name` with a
+ * leading "Claude " stripped and lowercased.
+ * `resolveSpawnConfig` and `overlaySpawnPresentation` both call this.
+ * Squash-sync: if `spawn-config.ts` conflicts on `modelName`, copy upstream's
+ * new formula into this function.
+ * Do not inline the formula back into `resolveSpawnConfig`.
+ */
 export function formatSpawnModelName(
   model: { id: string; name: string } | undefined,
   parentId: string | undefined,
@@ -151,6 +165,22 @@ export function formatSpawnModelName(
 Returns `undefined` when `model` is missing or `model.id === parentId`; otherwise the stripped, lowercased `model.name`.
 `resolveSpawnConfig` becomes a one-line call.
 The overlay uses the same helper.
+
+### Squash-sync follow-through
+
+After this extract, `spawn-config.ts` no longer holds the formula.
+Upstream `gotgenes/pi-packages` still inlines it.
+A later squash-sync that changes those lines will conflict at the call site.
+That conflict is the signal that the short-name rule moved on upstream.
+
+Resolution (also a recipe in `docs/upstream-sync.md`):
+
+1. Keep `const modelName = formatSpawnModelName(model, parentModelId)`.
+2. Put theirs' new formula into `formatSpawnModelName`.
+3. Do not paste the formula back into `resolveSpawnConfig`.
+
+Auto-merged both-sides probe, same handbook section: `rg formatSpawnModelName packages/pi-subagents/src/tools/spawn-config.ts` still hits, and that file must not regain `.replace(/^Claude`.
+If the extract was lost, restore the call and copy the formula back into the function.
 
 ### Runner call sites
 
@@ -185,28 +215,28 @@ Three emit sites, all already holding the snapshot:
 
 ## Module-Level Changes
 
-| File                                     | Change                                                                                                                                                                                                                   |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/ui/display.ts`                      | Add `formatSpawnModelName`, `overlaySpawnPresentation`, `SpawnPresentationSource`; `thinkingTag` / `isThinkingTag`; `buildInvocationTags` uses `thinkingTag`.                                                            |
-| `test/display.test.ts`                   | Characterization of `formatSpawnModelName` (4 cases) and overlay (pending strip, selected replace including parent-id omit and `off`, no-op when no pair, insert-after-twin, first-frame undefined source).              |
-| `src/tools/spawn-config.ts`              | Replace the inline Claude-strip ternary with `formatSpawnModelName`. No other behavior change.                                                                                                                           |
-| `test/tools/spawn-config.test.ts`        | Predicted unchanged. The same-as-parent pin stays green.                                                                                                                                                                 |
-| `test/helpers/make-spawn-config.ts`      | Optional `tags?: string[]` sets `presentation.detailBase.tags` (and `agentTags` when provided). Default remains `tags: undefined` / `agentTags: []`.                                                                     |
-| `test/helpers/make-spawn-config.test.ts` | Pin the new option; default-shape `toEqual` stays as it is.                                                                                                                                                              |
-| `src/lifecycle/subagent.ts`              | Optional `selectedPair` on `SubagentInit`; private field + getter; `applySelectedPair`; stamp in `prepareSession` after successful `obtainSelection`.                                                                    |
-| `test/lifecycle/subagent.test.ts`        | Sibling of "overrides an explicitly resolved model with the selected pair": after the gate resolves, `agent.selectedPair` equals the chosen pair. Cancellation leaves it `undefined`. No-provider leaves it `undefined`. |
-| `test/helpers/make-subagent.ts`          | Optional `selectedPair` on `TestSubagentOptions`, passed through `SubagentInit`.                                                                                                                                         |
-| `test/helpers/make-subagent.test.ts`     | Pin the seed.                                                                                                                                                                                                            |
-| `src/tools/foreground-runner.ts`         | Overlay in `streamUpdate` and at the completed `buildDetails` call.                                                                                                                                                      |
-| `test/tools/foreground-runner.test.ts`   | Pending strip of call `modelName` / thinking tag on streamed details; completed details name the selected pair; selected-equals-parent omits `modelName`.                                                                |
-| `src/tools/background-spawner.ts`        | Overlay the launch `details` literal.                                                                                                                                                                                    |
-| `test/tools/background-spawner.test.ts`  | Pending-selection case also asserts stripped `details.modelName` / thinking tags.                                                                                                                                        |
-| `docs/architecture/architecture.md`      | Module-tree current-behavior lines for `subagent.ts`, `display.ts`, `foreground-runner.ts`, `background-spawner.ts`. No `✅` step-mark (not a roadmap step).                                                             |
-| `README.md`                              | One sentence under "Per-spawn model and thinking selection": the `subagent` tool card names the selected pair.                                                                                                           |
+| File                                    | Change                                                                                                                                                                                                                   |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/ui/display.ts`                     | Add `formatSpawnModelName` (JSDoc is the sync contract), `overlaySpawnPresentation`, `SpawnPresentationSource`; `thinkingTag` / `isThinkingTag`; `buildInvocationTags` uses `thinkingTag`.                               |
+| `test/display.test.ts`                  | Characterization of `formatSpawnModelName` (4 cases) and overlay (pending strip, selected replace including parent-id omit and `off`, no-op when no pair, insert-after-twin, first-frame undefined source).              |
+| `src/tools/spawn-config.ts`             | Replace the inline Claude-strip ternary with `formatSpawnModelName`. No other behavior change.                                                                                                                           |
+| `test/tools/spawn-config.test.ts`       | Predicted unchanged. The same-as-parent pin stays green.                                                                                                                                                                 |
+| `src/lifecycle/subagent.ts`             | Optional `selectedPair` on `SubagentInit`; private field + getter; `applySelectedPair`; stamp in `prepareSession` after successful `obtainSelection`.                                                                    |
+| `test/lifecycle/subagent.test.ts`       | Sibling of "overrides an explicitly resolved model with the selected pair": after the gate resolves, `agent.selectedPair` equals the chosen pair. Cancellation leaves it `undefined`. No-provider leaves it `undefined`. |
+| `test/helpers/make-subagent.ts`         | Optional `selectedPair` on `TestSubagentOptions`, passed through `SubagentInit`.                                                                                                                                         |
+| `test/helpers/make-subagent.test.ts`    | Pin the seed.                                                                                                                                                                                                            |
+| `src/tools/foreground-runner.ts`        | Overlay in `streamUpdate` and at the completed `buildDetails` call.                                                                                                                                                      |
+| `test/tools/foreground-runner.test.ts`  | Pending strip of call `modelName` / thinking tag on streamed details (assign `detailBase.tags` in the test body); completed details name the selected pair; selected-equals-parent omits `modelName`.                    |
+| `src/tools/background-spawner.ts`       | Overlay the launch `details` literal.                                                                                                                                                                                    |
+| `test/tools/background-spawner.test.ts` | Pending-selection case also asserts stripped `details.modelName` / thinking tags.                                                                                                                                        |
+| `docs/architecture/architecture.md`     | Module-tree current-behavior lines for `subagent.ts`, `display.ts`, `foreground-runner.ts`, `background-spawner.ts`. No `✅` step-mark (not a roadmap step).                                                             |
+| `README.md`                             | One sentence under "Per-spawn model and thinking selection": the `subagent` tool card names the selected pair.                                                                                                           |
+| `docs/upstream-sync.md` (repo root)     | Conflict-handbook recipe for a `modelName` conflict in `spawn-config.ts`, plus the auto-merged both-sides probe.                                                                                                         |
 
 Predicted unchanged (claim: overlay is not wired here; `AgentDetails` shape is unchanged):
 
 - `src/tools/helpers.ts` (`buildDetails` still spreads `base`).
+- `test/helpers/make-spawn-config.ts` and its companion test (no `tags` option).
 - `src/tools/agent-tool.ts` (`resumeExisting` still uses the resume call's `detailBase`).
 - `src/tools/result-renderer.ts` (already prints whatever `details.modelName` / `tags` it is given).
 - `src/tools/get-result-*.ts`.
@@ -221,6 +251,7 @@ Predicted unchanged (claim: overlay is not wired here; `AgentDetails` shape is u
    Unit tests of `overlaySpawnPresentation` over the input domain (no record, pending, selected ≠ parent, selected = parent, selected thinking `off`, twin-leading tags, inherit-only tags, empty remainder).
    Lifecycle test that the record exposes the pair the factory already receives.
    Runner tests that the *emitted* `details` follow the overlay, which was previously impossible because the pair was a local in `prepareSession`.
+   Those runner tests assign `detailBase.tags` in the test body rather than extending `createResolvedSpawnConfig`.
 2. **Existing tests that stay.**
    `resolveSpawnConfig` presentation pins (invocation pair).
    `renderStats` pins (it already renders whatever `details` carry).
@@ -255,17 +286,11 @@ Predicted unchanged (claim: overlay is not wired here; `AgentDetails` shape is u
 ## TDD Order
 
 1. **`refactor(pi-subagents): extract formatSpawnModelName from resolveSpawnConfig`** Characterization tests in `test/display.test.ts`: different model strips a leading `Claude` and lowercases; `model.id === parentId` → `undefined`; `model` undefined → `undefined`; a non-`Claude` name passes through lowercased.
-   Then move the ternary out of `resolveSpawnConfig`.
+   Then move the ternary out of `resolveSpawnConfig`, including the JSDoc sync contract on the new function.
    Friction this prepares: the overlay would otherwise duplicate an untested display rule (only the same-as-parent case is pinned today).
    Killing mutation: make `formatSpawnModelName` return `model.name` with no strip/lowercase — the new Claude-strip test goes red; the same-as-parent `spawn-config` pin stays green.
 
-2. **`test(pi-subagents): add a tags option to createResolvedSpawnConfig`** Optional `tags?: string[]` sets `presentation.detailBase.tags` and `presentation.agentTags`.
-   Default shape `toEqual` in `make-spawn-config.test.ts` stays `tags: undefined` / `agentTags: []`.
-   One new pin that `tags: ["thinking: high", "twin"]` lands on `detailBase.tags`.
-   Friction this prepares: pending-selection runner tests need a call-time thinking tag to prove it is stripped; the fixture currently hard-codes `tags: undefined`.
-   Killing mutation: ignore the `tags` option (always `undefined`) — the new pin goes red; the default-shape test stays green.
-
-3. **`test:` then `feat(pi-subagents): overlay spawn presentation from the selected pair`** Red: overlay tests in `test/display.test.ts` (the table in Design Overview, including insert-after-twin and `thinking: off`).
+2. **`test:` then `feat(pi-subagents): overlay spawn presentation from the selected pair`** Red: overlay tests in `test/display.test.ts` (the table in Design Overview, including insert-after-twin and `thinking: off`).
    Switch `buildInvocationTags` to `thinkingTag` in the same green.
    Killing mutations (one per class):
    - pending path does not clear `modelName` — pending-strip test red.
@@ -273,7 +298,7 @@ Predicted unchanged (claim: overlay is not wired here; `AgentDetails` shape is u
    - thinking tag inserted at the front even when tags start with `"twin"` — insert-after-twin test red.
    - `off` is treated as "no thinking" (`if (thinkingLevel)` missing `off` is truthy, so the mutation is `if (thinkingLevel && thinkingLevel !== "off")`) — `off` test red.
 
-4. **`feat(pi-subagents): stamp the selected pair on the subagent record`** Optional `selectedPair` on `SubagentInit`; getter; private `applySelectedPair`.
+3. **`feat(pi-subagents): stamp the selected pair on the subagent record`** Optional `selectedPair` on `SubagentInit`; getter; private `applySelectedPair`.
    `prepareSession` stamps inside the gate try after `obtainSelection` succeeds.
    `createTestSubagent` passes the option through init.
    Tests: gated run exposes the chosen pair; cancellation / no-provider leave it `undefined`; factory seed round-trips.
@@ -281,17 +306,17 @@ Predicted unchanged (claim: overlay is not wired here; `AgentDetails` shape is u
    - delete the `applySelectedPair` call in `prepareSession` — gated exposure test red; factory-override test stays green (factory args are a different line).
    - ignore `SubagentInit.selectedPair` — factory-seed test red.
 
-5. **`feat(pi-subagents): show the selected model on the foreground tool card`** `streamUpdate` and the completed `buildDetails` call overlay with `recordRef` / `record` and `params.snapshot.model?.id`.
-   Tests beside the existing pending-activity pin: pending streamed `details.modelName` is unset and thinking tags are gone; after a seeded `selectedPair`, completed `details` name that model and `thinking: <level>`; selected id equal to `snapshot.model.id` omits `modelName` even when `detailBase.modelName` was the call's model.
+4. **`feat(pi-subagents): show the selected model on the foreground tool card`** `streamUpdate` and the completed `buildDetails` call overlay with `recordRef` / `record` and `params.snapshot.model?.id`.
+   Tests beside the existing pending-activity pin: pending streamed `details.modelName` is unset and thinking tags are gone (assign `detailBase.tags` in the test body); after a seeded `selectedPair`, completed `details` name that model and `thinking: <level>`; selected id equal to `snapshot.model.id` omits `modelName` even when `detailBase.modelName` was the call's model.
    Killing mutations:
    - delete the overlay at `streamUpdate` — pending-strip streaming test red; completed test stays green.
    - delete the overlay at `buildDetails` — completed selected-pair test red; streaming test stays green.
 
-6. **`feat(pi-subagents): overlay selected-pair details on background launch`** Same overlay on the launch `details` literal.
-   Extend the existing pending-selection background test to assert `details.modelName` is unset and thinking tags are gone.
+5. **`feat(pi-subagents): overlay selected-pair details on background launch`** Same overlay on the launch `details` literal.
+   Extend the existing pending-selection background test to assert `details.modelName` is unset and thinking tags are gone (assign `detailBase.tags` in the test body if the fixture has none).
    Killing mutation: delete the overlay at the new site — that assertion goes red; the "submitted" / "Awaiting model/thinking selection" text pins stay green.
 
-7. **`docs(pi-subagents): note that the tool card names the selected pair`** Architecture module-tree current-behavior lines and the README spawn-selection paragraph.
+6. **`docs:` note that the tool card names the selected pair, and how sync follows the short-name rule** Architecture module-tree current-behavior lines, the README spawn-selection paragraph, and the `docs/upstream-sync.md` recipe plus auto-merged probe.
    No roadmap `✅` (not a phase step).
 
 ## Risks and Mitigations
@@ -302,7 +327,7 @@ Predicted unchanged (claim: overlay is not wired here; `AgentDetails` shape is u
   Not the reported freeze (the freeze lasts the whole run).
 - **`createResolvedSpawnConfig` fixtures have `execution.model: undefined`.**
   Overlay must not treat "record exists, no `selectedPair`" as "clear `modelName`".
-  The "otherwise → `base`" arm is the mitigation; step 5's tests use that fixture on purpose.
+  The "otherwise → `base`" arm is the mitigation; step 4's tests use that fixture on purpose.
 - **Background launch returns before selection.**
   Overlay can strip while pending but cannot name a pair that does not exist yet.
   `renderBackground` does not show those fields anyway.
