@@ -49,3 +49,4 @@ Pre-completion reviewer: WARN (non-blocking).
 - Pre-completion reviewer: WARN.
   All deterministic checks passed.
   Non-blocking: `thinkingTag` and `isThinkingTag` do not share a prefix constant; `SpawnDetailBase` is not folded into `spawn-config.ts` / `helpers.ts`; Mermaid was not machine-validated (`mmdc` Chromium sandbox).
+- Round 2 (2026-09-13T15:39:56Z): `THINKING_TAG_PREFIX` and exported `SpawnDetailBase` landed in `b2282ded`; reviewer Overall: PASS.
