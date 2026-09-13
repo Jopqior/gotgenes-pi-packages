@@ -871,6 +871,8 @@ Steps 2, 6, and 8 have design-dependent shapes and are verified by their plans' 
   Narrowing `SubagentManagerLike.spawn`'s `unknown` options exposed a second hole the typing had hidden — neither door validates `thinking`, and Step 3 already rewrites the precedence for that exact field family on the exact line that holds the unchecked cast.
 - [#793], [#792], [#722], [#735] — pi-permission-system-primary; [#564] — pi-github-tools-primary; the `pkg:pi-subagents` labels are contextual and pull no work into this phase.
 - Scout inventory (all scattered, persisting from Phase 21) — remains on the `tidy-first` boy-scout path: `settings.ts` `sanitize()` range-check triplication, `mock.calls[N][idx]` indexing (17 sites, 9 files), `createManager()` observer-default merge density, `(manager as any).sweep()` private reach (7 sites, one file), and the `subagent-events-observer.ts` inline `{id, type, description}` payload triad.
+- [#10] — filed by operator request; out of scope for the roadmap.
+  Tool-door presentation is frozen at the call's model and thinking before spawn selection overrides the pair, which is unrelated to this phase's front-door contract and delivery-boundary spine.
 
 ### Steps
 
@@ -1559,6 +1561,7 @@ The upstream test suite is run periodically as a regression canary for the sessi
 [#913]: https://github.com/gotgenes/pi-packages/issues/913
 [#180]: https://github.com/gotgenes/pi-packages/issues/180
 [#400]: https://github.com/gotgenes/pi-packages/issues/400
+[#10]: https://github.com/Jopqior/gotgenes-pi-packages/issues/10
 [ADR-0002]: ../decisions/0002-extensions-on-a-minimal-core.md
 [ADR-0004]: ../decisions/0004-reconsider-ui-direction.md
 [ADR-0006]: ../decisions/0006-inherited-prompt-is-identity-only.md
