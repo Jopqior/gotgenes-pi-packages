@@ -6,7 +6,7 @@
  */
 
 import type { AgentConfigLookup } from "#src/config/agent-types";
-import type { AgentInvocation, SubagentType } from "#src/types";
+import type { AgentInvocation, SubagentType, ThinkingLevel } from "#src/types";
 import { GLYPHS } from "#src/ui/glyphs";
 
 // ---- Types ----
@@ -40,6 +40,19 @@ export interface AgentDetails {
   agentId?: string;
   error?: string;
 }
+
+export type SpawnPresentationSource = {
+  awaitingSelection: boolean;
+  selectedPair?: {
+    model: { id: string; name: string };
+    thinkingLevel: ThinkingLevel;
+  };
+};
+
+type SpawnDetailBase = Pick<
+  AgentDetails,
+  "displayName" | "description" | "subagentType" | "modelName" | "tags"
+>;
 
 // ---- Constants ----
 
@@ -135,6 +148,52 @@ export function formatSpawnModelName(
   return model.name.replace(/^Claude\s+/i, "").toLowerCase();
 }
 
+export function overlaySpawnPresentation(
+  base: SpawnDetailBase,
+  source: SpawnPresentationSource | undefined,
+  parentId: string | undefined,
+): SpawnDetailBase {
+  if (!source) return base;
+  if (source.awaitingSelection) return overlayPendingPresentation(base);
+  if (source.selectedPair) return overlaySelectedPresentation(base, source.selectedPair, parentId);
+  return base;
+}
+
+function overlayPendingPresentation(base: SpawnDetailBase): SpawnDetailBase {
+  const remaining = (base.tags ?? []).filter((tag) => !isThinkingTag(tag));
+  return {
+    ...base,
+    modelName: undefined,
+    tags: remaining.length > 0 ? remaining : undefined,
+  };
+}
+
+function overlaySelectedPresentation(
+  base: SpawnDetailBase,
+  pair: NonNullable<SpawnPresentationSource["selectedPair"]>,
+  parentId: string | undefined,
+): SpawnDetailBase {
+  const remaining = (base.tags ?? []).filter((tag) => !isThinkingTag(tag));
+  const nextThinking = thinkingTag(pair.thinkingLevel);
+  const tags =
+    remaining[0] === "twin"
+      ? ["twin", nextThinking, ...remaining.slice(1)]
+      : [nextThinking, ...remaining];
+  return {
+    ...base,
+    modelName: formatSpawnModelName(pair.model, parentId),
+    tags,
+  };
+}
+
+function thinkingTag(level: ThinkingLevel): string {
+  return `thinking: ${level}`;
+}
+
+function isThinkingTag(tag: string): boolean {
+  return tag.startsWith("thinking: ");
+}
+
 // ---- Display helpers ----
 
 /** Get display name for any agent type (built-in or custom). */
@@ -155,7 +214,7 @@ export function buildInvocationTags(
 ): { modelName?: string; tags: string[] } {
   const tags: string[] = [];
   if (!invocation) return { tags };
-  if (invocation.thinking) tags.push(`thinking: ${invocation.thinking}`);
+  if (invocation.thinking) tags.push(thinkingTag(invocation.thinking));
   if (invocation.inheritContext) tags.push("inherit context");
   if (invocation.runInBackground) tags.push("background");
   if (invocation.maxTurns != null) tags.push(`max turns: ${invocation.maxTurns}`);
