@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [32.0.3](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.2...pi-permission-system-v32.0.3) (2026-09-15)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** mask a value bound to a bare or suffixed key name ([f23b8b9](https://github.com/gotgenes/pi-packages/commit/f23b8b93ceafa732ffe9d5484e4a935094d06754)), closes [#920](https://github.com/gotgenes/pi-packages/issues/920)
+* **pi-permission-system:** stop writing a named secret into the permission logs ([cf4f370](https://github.com/gotgenes/pi-packages/commit/cf4f370d192d778e600a253331bbf6e42b3cd758)), closes [#920](https://github.com/gotgenes/pi-packages/issues/920)
+
+### Documentation
+
+* **pi-permission-system:** restate the log-redaction boundary as name-structural ([958cba1](https://github.com/gotgenes/pi-packages/commit/958cba124a1b799a7e6af959440a26d7cf722934)), closes [#920](https://github.com/gotgenes/pi-packages/issues/920)
+* **pi-permission-system:** correct the review-log knob's unredacted claim ([0664a6c](https://github.com/gotgenes/pi-packages/commit/0664a6cf6fbf3e75c4a6864cc582716dd6d15a26)), closes [#920](https://github.com/gotgenes/pi-packages/issues/920)
+
 ## [32.0.2](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.1...pi-permission-system-v32.0.2) (2026-09-11)
 
 
