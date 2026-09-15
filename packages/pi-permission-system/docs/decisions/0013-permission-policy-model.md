@@ -112,6 +112,12 @@ With it, both [#814] shapes and all four malformed families salvage nothing at a
 Measured over the local review log at implementation time — 9191 `bash` entries, **6911 distinct intact** after excluding 333 truncated by the field cap — **7** commands have a parse error, **all 7** salvage cleanly, each recovering exactly its real dropped command, and **0** salvaged unit is invented.
 No decision changes under the measured config, because every one of the 7 already prompted under the floor; what changes is that a `bash:` rule is now consulted for the command that runs.
 
+Salvaging is additive but not automatically monotonic, and one seam had to be moved to make it so.
+The [#452] branch that resolves the **whole command string** — the only surface an explicit `deny` can reach when the parse matched nothing — was keyed on the unit list being empty.
+A body-less leading redirect ahead of the gap (`> f <<'M' 2>&1 | rm -rf /tmp/x`, valid bash that really runs) yields **zero** primary units and one salvaged one, so keying on the combined list would have skipped that check and turned a `deny` on a context-naming rule such as `"* rm -rf *"` into an `ask`.
+The check is therefore keyed on the **primary** parse having matched nothing, which the `salvaged` marker on a recovered unit is what distinguishes; only the synthetic `<unparseable-bash-command>` ask is skipped when recovered units exist to carry the verdict.
+This was found by adversarial review rather than by the corpus, which holds no such command — the same lesson ADR 0009's 2026-08-29 amendment records: a measurement over real traffic prices a change and does not enumerate a mechanism's inputs.
+
 Two consequences for this record.
 
 The residual the paragraph above describes is discharged for the population that runs, and what remains is narrower: a region whose *own* re-parse also fails is still consulted against no rule, and that is the fail-closed direction rather than a gap — the floor prompts, naming the whole command line.
@@ -700,6 +706,7 @@ Issue [#620] carries the judgment slice the chain retains under §7.
 
 [#301]: https://github.com/gotgenes/pi-packages/issues/301
 [#306]: https://github.com/gotgenes/pi-packages/issues/306
+[#452]: https://github.com/gotgenes/pi-packages/issues/452
 [#472]: https://github.com/gotgenes/pi-packages/issues/472
 [#490]: https://github.com/gotgenes/pi-packages/issues/490
 [#575]: https://github.com/gotgenes/pi-packages/issues/575
