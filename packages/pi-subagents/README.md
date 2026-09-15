@@ -394,7 +394,7 @@ It never throws — all error conditions produce a `console.warn` and return `{}
 ### Extensions that append to the system prompt
 
 If your extension appends to the system prompt from a `before_agent_start` handler, your parent-session block does **not** ride into child sessions.
-A child inherits only the stable part of the parent's prompt — everything Pi assembled ahead of the skills catalogue — so anything appended after that is dropped.
+A child inherits only the stable part of the parent's prompt — everything Pi assembled ahead of the skills catalogue, and ahead of `<project_context>` too for a child running in its own workspace — so anything appended after that is dropped.
 See [What a child inherits from the parent's prompt](./docs/configuration.md#what-a-child-inherits-from-the-parents-prompt) for the full layer breakdown.
 
 This is usually invisible to you, because your handler runs in the child too: a child binds the parent's extension set, and its turn loop fires `before_agent_start` the same way the parent's does.
