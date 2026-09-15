@@ -16,12 +16,29 @@ import { createJsonSafeReplacer } from "./json-safe-stringify";
 
 export const REDACTED_PLACEHOLDER = "[redacted]";
 
+/**
+ * Names that bind a credential, matched case-insensitively.
+ *
+ * `api[-_]?keys?` and `private[-_]?keys?` are kept alongside the general
+ * name-boundary `key` rule rather than subsumed by it, so the whole predicate
+ * is a union with the pattern it replaced and can add a name but never drop
+ * one — the separator-less `apikey` matches only via the specific alternative.
+ */
 const SENSITIVE_NAME_PATTERN =
-  /authorization|api[-_]?key|secret|token|password|passwd|credential|cookie|private[-_]?key/i;
+  /authorization|api[-_]?keys?|private[-_]?keys?|secret|token|password|passwd|credential|cookie|(?:^|[-_])keys?(?:$|[-_])/i;
+
+/**
+ * A `key` bound as the tail of a camel-cased name (`apiKey`, `sortKeys`).
+ *
+ * Deliberately case-sensitive and separate from the pattern above: under `/i`
+ * the leading `[a-z0-9]` would match an uppercase letter and `Key` would match
+ * `key`, so `monkey` would read as sensitive.
+ */
+const CAMEL_KEY_PATTERN = /[a-z0-9](?:Key|Keys)(?:$|[A-Z_-])/;
 
 /** True when a name binds a credential-bearing value. */
 export function isSensitiveName(name: string): boolean {
-  return SENSITIVE_NAME_PATTERN.test(name);
+  return SENSITIVE_NAME_PATTERN.test(name) || CAMEL_KEY_PATTERN.test(name);
 }
 
 /**
