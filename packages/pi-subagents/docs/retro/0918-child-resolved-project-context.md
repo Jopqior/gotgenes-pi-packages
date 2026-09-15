@@ -46,3 +46,34 @@ The assessor's only rejection was `buildAgentPrompt`'s parameter shape, which it
 [#801]: https://github.com/gotgenes/pi-packages/issues/801
 [ADR 0006]: ../decisions/0006-inherited-prompt-is-identity-only.md
 [ADR 0009]: ../decisions/0009-portable-inheritance-is-provider-scoped.md
+
+## Stage: Implementation — TDD (2026-09-15T16:41:29Z)
+
+### Session summary
+
+All seven planned steps executed in order, one commit each: three preparatory (`refactor:` renderer extraction, `test:` renderer unit tests, `test:` fixture layer), three behavioral (`fix:` cut, `fix:` own-block placement, `fix:` portable), and one `docs:` carrying ADR 0010 plus the amendments.
+Tests went 1764 → 1791 (+27) in `pi-subagents`; `check`, root `lint`, full `test`, and `fallow dead-code` all green at the end, as at the baseline.
+Pre-completion reviewer: PASS.
+
+### Observations
+
+- **Two planned mutations survived, and both were real findings.**
+  Step 6's mutation collapsing `strategy !== "portable" && cwd === inherited.cwd` to `cwd === inherited.cwd` left the whole suite green: every portable fixture in `prompts.test.ts` also had a diverged cwd, so the divergence arm covered for the portable arm and nothing pinned it.
+  Added *resolves it even when the child shares the parent's directory*, which the mutation then killed in both prompt modes.
+  The second survivor was the snapshot half — re-adding the parent's block to `buildPortablePrompt` reddened nothing, because once `contextFiles` left `ParentPromptOptions` neither the unit test nor the composition-root test supplied one any more.
+  Pi passes its **whole** `systemPromptOptions` object at runtime, so the field is present whatever the declared type says; both pins now supply it (the unit test through a cast, the composition-root test through the real `before_agent_start` payload) and assert exact equality.
+- **The plan's "fewer reds than predicted is a finding" rule did the work here.**
+  Both survivors would have shipped as green, `tsc`-clean, lint-clean code with an unpinned arm.
+- **A pre-existing test turned out to be the guard's best witness.**
+  `leaves a quoted catalogue alone when the parent resolved no skills` builds an identity containing bare `<project_context>` / `</project_context>` lines for a relocated child — exactly the shape that defeats an unguarded `lastIndexOf` anchor.
+  The mutation dropping the lead-in-sentence check killed it along with the new quoted-opening test, which is why `projectContextStart` requires `Project-specific instructions and guidelines:` two lines below the opening.
+- **Lint constrains mutation style.**
+  The first attempt at step 4's "ignore the anchor" mutation was `if (true || …)`, which `biome`'s `noConstantCondition` rejected through the autoformat hook before the suite ran.
+  Passing `false`/`true` at the call site instead is lint-clean and produces the same signal — the skill's "change a compared literal, not control flow" rule, learned the hard way.
+- **Deviations from the plan, all minor.**
+  `src/runtime.ts` was listed as a touch point for its doc comment; it was read and left alone, because the comment describes the capture rather than its field set and stayed accurate.
+  Step 1 added a small `ContextFile` interface alongside the pure move, so the new loader seam had a name to state its contract with.
+  `test/composition-root.test.ts`'s existing portable-capture test was strengthened in place (exact equality, with `contextFiles` supplied) rather than replaced, which is what made it discriminating.
+- **Measured claims held.**
+  The plan's prediction that the equal-cwd child is untouched is structural, not statistical: `cutProjectContext` is false there, so `projectContextStart` is never called.
+  The new `keeps the parent's project context inside the shared prefix` test is what makes that visible to the suite — before it, the shared-prefix pins used a fixture with no project-context layer at all.
