@@ -1131,6 +1131,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#923] — filed by [#920]'s planning; out of scope for the roadmap.
   A secret inside an inline-shell payload (`bash -c '…'`) or a heredoc body escapes the grammar-anchored command redaction [#920] adds, so one review-log record can hold the same secret masked under `executedUnit` and unmasked under `command`.
   It reads `classifyWrapperWords` and `EXECUTION_HOST_TYPES` but changes nothing about token roles or declared effects — it is a `logging/` exposure residual, and no step in this phase produces or consumes what it needs.
+- [#925] — filed by [#920]'s implementation; out of scope for the roadmap.
+  `composition-root.test.ts`'s forwarding-liveness test waits out the ~2 s serving grace window with real timers and flakes against Vitest's default 5 s budget when the root run puts every package in parallel; it was reproduced at the pre-implementation baseline, so it predates that work.
+  Test-budget maintenance in an `authority/` integration test, which no step in this phase opens.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by Step 4 (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1440,4 +1443,5 @@ Each phase's findings, numbered plan, dependency diagram, and health metrics are
 [#915]: https://github.com/gotgenes/pi-packages/issues/915
 [#920]: https://github.com/gotgenes/pi-packages/issues/920
 [#923]: https://github.com/gotgenes/pi-packages/issues/923
+[#925]: https://github.com/gotgenes/pi-packages/issues/925
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
