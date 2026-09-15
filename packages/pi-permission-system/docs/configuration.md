@@ -432,8 +432,9 @@ The bash gate fails closed: when in doubt it blocks or prompts, never silently a
   An empty, whitespace-only, or comment-only command has nothing to gate and is resolved normally.
 - A command the parser could only *partly* resolve is floored the same way (the synthetic `<unparsed-bash-subtree>` pattern in the review log).
   Recovered structure is not evidence of what runs, so any command unit at or beneath the statement holding the unresolved region has its `allow` clamped up to `ask`; an explicit `deny` or `ask` on that unit still decides.
-  The prompt names the **whole** command rather than the unit, because a partial failure can drop a command from the parse entirely and the fragment that did parse is not what you need to see.
+  The prompt names the **whole** command rather than the unit, because the fragment that did parse is not what you need to see.
   A statement beside the failed one keeps its own rule.
+  Where the unresolved region's own text parses cleanly on its own, the commands and paths inside it are recovered and gated too, so a `deny` covering one of them still denies rather than prompting — a region whose own text does not re-parse is left to the floor, since error recovery invents the structure inside one and inventions do not re-parse.
   Most such commands are simply malformed, and the shell would refuse them too — but not all: `git commit -F - <<'MSG' 2>&1 | tail -4` is valid bash that `tree-sitter-bash` cannot parse, because a heredoc redirect combined with `2>&1` **and** a pipe defeats the grammar though each pairing alone is fine.
 - An opaque-payload wrapper — `bash`/`sh`/`dash`/`zsh`/`ksh` invoked with `-c`, or `eval` — carries its inner program in a quoted argument that is not re-parsed, so its decision is floored to at least **`ask`** (the synthetic `<opaque-bash-wrapper>` pattern in the review log).
   An `allow` (including a permissive top-level `*`) is clamped up to `ask`, while an explicit `deny` rule on the wrapper still denies.
