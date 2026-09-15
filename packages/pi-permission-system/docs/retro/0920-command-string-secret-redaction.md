@@ -51,5 +51,45 @@ The plan is `packages/pi-permission-system/docs/plans/0920-command-string-secret
 
 - `src/access-intent/bash/*.ts` — five modules hand-roll their own `for (i < childCount) child(i)` walk with different skip/collect rules; the assessor declined to unify them and the new masker's span-collecting walk is a sixth shape again.
 
+## Stage: Implementation — TDD (2026-09-15T16:03:55Z)
+
+### Session summary
+
+Nine commits over the plan's seven steps plus two review fixes: two Tidy-First preparations, the predicate widening, the `TSNode.endIndex` addition, the masker module, the writer wiring, the doc sweep, a stale-doc correction, and a quote-balance correction.
+The package suite went from 4191 to 4245 tests (+54).
+The pre-completion reviewer returned WARN on the first pass with two non-blocking findings, both fixed, and PASS on the scoped delta re-review.
+
+### Observations
+
+- **The plan's mutation predictions held for seven of eight and the eighth was a real finding.**
+  Every named killing mutation reddened exactly the equivalence class the plan said it would — the assignment class (8 tests), the `word` class (1), the camel guard (1), the span direction (1), the `maskCommandFields` call (4), the ordering (1), the review-only gate (1).
+  The exception was the cold-parser mutation: the plan said to make `getWarmBashParser()` returning `null` throw, and nothing reddened, because the function's outer `catch` returns the input too.
+  The mutation preserved the observable behavior by design, so it was never a killing mutation for the stated claim.
+  Replacing it with a **value** mutation (`return ""` instead of `return command`) reddened the cold-parser test, which is the pin that matters.
+  This is the `AGENTS.md` rule about preferring a changed literal over restructured control flow, arriving from the other direction: restructuring can also produce *too few* reds.
+- **The `catch` itself is unpinned, and that is a deliberate call.**
+  No input makes the warmed parser throw — the reviewer independently tried lone surrogates, NUL bytes, 20 000-deep nesting, and a 6 MB command and could not reach it.
+  It is defense in depth against a WASM-binding failure on a fail-closed path, where a raised mask costs the whole log line.
+  The reviewer agreed.
+- **`command-redaction.test.ts` was written and then implemented without an intervening Red run**, so its 27 cases all passed on their first execution.
+  That is precisely the case the template calls out as mandatory for mutation testing, and the mutations are what supplied the missing evidence.
+  Worth doing in the other order next time: the file's import would have failed loudly and cost nothing.
+- **The reviewer found a real defect the whole corpus could not.**
+  `openingQuoteOf` read the closing quote off the argument node's first character, which is wrong when the field name straddles a quote boundary (`-H Auth"orization: "$TOKEN`) — it left a dangling `"` in the logged line.
+  Zero occurrences in 7146 real commands, so measurement was never going to surface it; deriving adversarial inputs from the stated invariant was.
+  The fix reads the quote state at the colon instead, and gates backslash escaping to double-quoted regions, because bash does not honor `\` inside `'…'`.
+- **`isPlainRecord` moved to `value-guards.ts` against the Tidy-First assessor's advice.**
+  It rejected a recursive command-key walk as speculative generality; the walk went in anyway, because the writer's other two stages are both recursive and an asymmetric third one is what a later nested producer escapes.
+  Sharing the predicate is the consequence: two stages of one pipeline disagreeing about which records to descend into would be a silent hole.
+- **A pre-existing flake surfaced and was proven pre-existing rather than assumed.**
+  `composition-root.test.ts`'s forwarding-liveness test times out at Vitest's default 5 s under the root parallel run — it waits out the ~2 s serving grace window on real timers.
+  Checking out the pre-implementation commit and re-running the same root command reproduced it, which is what made it safe to file ([#925]) rather than chase.
+  The first baseline run of the session had passed, which is exactly how a flake hides.
+- **Two commits correct code that never shipped**, and both are typed by what a user observes once the batch lands: the quote fix is `refactor:` because the masker it corrects is introduced three commits earlier in the same unpushed batch.
+  Only the two `fix:` subjects reach the changelog, and both name an outcome rather than a seam.
+
+Pre-completion reviewer: WARN on the first pass (stale `permissionReviewLog` knob row; the quote-balance defect), then PASS on the delta re-review after both were fixed.
+
 [Radu0120]: https://github.com/Radu0120
 [#923]: https://github.com/gotgenes/pi-packages/issues/923
+[#925]: https://github.com/gotgenes/pi-packages/issues/925
