@@ -107,6 +107,14 @@ describe("redactCommandSecrets", () => {
         );
       });
 
+      it("closes the quote the mask swallowed, not the one the argument opens with", () => {
+        // The field name can straddle a quote boundary, so the argument's first
+        // character is not always the quote that is open where the mask begins.
+        expect(
+          redactCommandSecrets('curl -H Auth"orization: "$TOKEN https://x'),
+        ).toBe(`curl -H Auth"orization:${MASK}" https://x`);
+      });
+
       it("leaves a header field that binds no credential", () => {
         expect(
           redactCommandSecrets(

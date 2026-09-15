@@ -168,7 +168,7 @@ function headerValueSpan(node: TSNode): MaskSpan | null {
   return maskSpan(
     node.startIndex + colon + 1,
     node.endIndex,
-    REDACTED_PLACEHOLDER + openingQuoteOf(node.text),
+    REDACTED_PLACEHOLDER + openQuoteAt(node.text, colon),
   );
 }
 
@@ -183,9 +183,26 @@ function isCamelCased(field: string): boolean {
   return /[a-z][A-Z]/.test(field);
 }
 
-function openingQuoteOf(text: string): string {
-  const first = text[0];
-  return first === '"' || first === "'" ? first : "";
+/**
+ * The quote character still open at `index`, or the empty string.
+ *
+ * Read at the mask's own position rather than off the argument's first
+ * character: a field name can straddle a quote boundary (`Auth"orization: "$T`),
+ * and the quote the mask swallowed is the one open where it begins.
+ */
+function openQuoteAt(text: string, index: number): string {
+  let quote = "";
+  for (let i = 0; i < index; i++) {
+    const char = text[i];
+    if (quote === "") {
+      if (char === '"' || char === "'") quote = char;
+    } else if (quote === '"' && char === "\\") {
+      i += 1;
+    } else if (char === quote) {
+      quote = "";
+    }
+  }
+  return quote;
 }
 
 function maskSpan(
