@@ -177,7 +177,8 @@ Hardening the gates against bypass, fail-closed corrections (breaking ones inclu
 - _Permissive defaults, trust profiles, or workflow presets._
   Your risk profile is not knowable from here, so defaults are least-privilege and common policies ship as documented recipes rather than preset keywords.
 - _Guessing what is sensitive._
-  No built-in secret denylist, and log redaction is key-name-structural rather than predictive — a redactor that silently misses a key invites treating the log as safe to share.
+  No built-in secret denylist, and log redaction is name-structural rather than predictive: a value is masked because of the name that binds it — a log key, a shell variable, a request header field — never because of what it looks like.
+  A redactor that guesses invites treating the log as safe to share.
 - _Model judgment in the core._
   This package makes no LLM call and holds no model config; model-assisted judging attaches as a chain link over the authorizer seam instead.
   A link decides nothing until you name it in `authorizerChain`, and its `allow` on an excluded surface is downgraded to `defer`.

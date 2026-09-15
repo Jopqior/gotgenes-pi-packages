@@ -213,11 +213,17 @@ The forwarded `ForwardedPermissionResponse.decidedBy` is optional and read throu
 The `permissions:decision` bus event deliberately does **not** carry it — the channel's consumers are unknown and it is the narrowest renderer under ADR 0011 §6.
 That event is emitted by whichever session *decides*, so a serving session broadcasts one for every forwarded ask it escalates (`ForwardedRequestServer`, #610): the ask's own gate lives in the requesting session, on another bus entirely for an out-of-process child, so a parent-side consumer that marks an agent blocked on `permissions:ui_prompt` would otherwise never see it cleared.
 It is rendered from the same `PromptPermissionDetails` the prompt was, carries an optional `forwarding` context, and does **not** fire for a request the serving node's recorded authority resolves — silent there stays silent on both channels.
-Redaction is **structural, never value-shape**: `isSensitiveLogKey` (`src/logging/log-redaction.ts`) masks a value because of the key name it is bound to, and a provider-prefix/entropy list was measured against a real 6.7 MB log and declined (403 `sk-` hits, all false positives from `task-*`; zero true positives).
-The boundary to repeat verbatim in any doc or reply: a value bound to a sensitive key name is masked; a secret embedded in a bash command string is not.
-Redaction is applied at **two** points, and the second is not redundant — `getToolInputPreviewForLog` flattens tool input to a string before the writer sees it, so `serializeRedactedToolInputPreview` (`src/tool-input/tool-input-preview.ts`) is the only place its keys still exist.
-Never redact `formatToolInputForPrompt`: the user must see the real input to decide.
-Governing record: `docs/decisions/0010-permission-log-secret-exposure.md` (Refs #647).
+Redaction is **structural, never value-shape**: `isSensitiveName` (`src/logging/log-redaction.ts`) masks a value because of the name it is bound to, and a provider-prefix/entropy list was measured against a real 6.7 MB log and declined (403 `sk-` hits, all false positives from `task-*`; zero true positives).
+The boundary to repeat verbatim in any doc or reply: a value bound to a sensitive name is masked — whether the name is a log key, a shell variable, or a request header field — and a secret with no name bound to it, such as one typed as a `grep` pattern, is not.
+Since #920 that predicate reaches **inside** a bash command through `redactCommandSecrets` (`src/logging/command-redaction.ts`), which masks a `variable_assignment` value, a `word`-shaped assignment (`env MY_KEY=…`), and an argument of the form `<sensitive-name>: <value>`.
+Every rule matches a parse node, never a substring, and that is the whole safety argument: over 7146 real logged commands a raw-string scan matched ten and all ten were embedded Python (`key=lambda x: x[1]`) or a `sed` pattern, where the node-anchored rule matched none.
+The header rule additionally rejects a camel-cased field name, because an HTTP field name is hyphenated and `grep "legalDirectionalKeys: readonly"` is not a header.
+The predicate is a **union** with the pattern that predates it — it may gain a name but never lose one, which is why `api[-_]?keys?` survives beside the general name-boundary `key` rule (`apikey` has no separator to anchor on).
+Masking runs at `writeLine` ahead of `capLogFieldWidths` and for **both** streams: capping first hands the masker a command the agent never ran, and the debug stream carries the same payload.
+An inline-shell payload (`bash -c '…'`) and a heredoc body carry no assignment node and stay unmasked ([#923]); widening to them needs the wrapper analyzer, since blanket recursion into string nodes re-admits the false positives above.
+Name-keyed redaction is applied at **two** points, and the second is not redundant — `getToolInputPreviewForLog` flattens tool input to a string before the writer sees it, so `serializeRedactedToolInputPreview` (`src/tool-input/tool-input-preview.ts`) is the only place its keys still exist.
+Never redact `formatToolInputForPrompt` or the ask payload's command: the user must see the real input to decide, pinned by `carries the command unmasked` in `test/presentation/tool-ask-payload.test.ts`.
+Governing record: `docs/decisions/0010-permission-log-secret-exposure.md` (Refs #647, #920).
 
 The dialog's size bounds are not redaction and must not be conflated with it: `renderPromptDialog` (`src/presentation/dialog-renderer.ts`) applies a *quantity* cap uniformly, never reads a value to decide what to hide, and keeps the complete text one keystroke away (`Ctrl+O`).
 A proposed bound that inspects the value to choose what to shorten has become redaction by another name (Refs #710).
@@ -483,5 +489,6 @@ When a plan or test asserts a specific bash repro string, trace the token throug
 [#694]: https://github.com/gotgenes/pi-packages/issues/694
 [#915]: https://github.com/gotgenes/pi-packages/issues/915
 [#839]: https://github.com/gotgenes/pi-packages/issues/839
+[#923]: https://github.com/gotgenes/pi-packages/issues/923
 [earendil-works/pi#4731]: https://github.com/earendil-works/pi/issues/4731
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md

@@ -1197,19 +1197,30 @@ Both logs are created **owner-only** (`0600`, in a `0700` directory), and a log 
 The permission-forwarding request and response files are written the same way.
 This closes the shared-host case: another user on the same machine cannot read them.
 
-Values bound to a **sensitive key name** — `authorization`, `token`, `secret`, `password`, `credential`, `cookie`, `api_key`, `private_key`, matched case-insensitively — are masked as `[redacted]` before anything is written.
+Values bound to a **sensitive name** — `authorization`, `token`, `secret`, `password`, `credential`, `cookie`, and a bare or suffixed `key` (`api_key`, `private_key`, `OPENROUTER_KEY`, `apiKey`), matched case-insensitively — are masked as `[redacted]` before anything is written.
 So a tool called with `{"authorization": "Bearer …"}` records `{"authorization": "[redacted]"}`.
+
+A bash command binds values to names too, and the same predicate answers for those.
+The command is parsed, and a value is masked when it is bound to a sensitive name by a shell assignment or a request header field:
+
+```text
+KEY="sk-or-v1-…" curl https://x        →  KEY=[redacted] curl https://x
+env MY_KEY=… deploy                    →  env MY_KEY=[redacted] deploy
+curl -H "Authorization: Bearer sk-…"   →  curl -H "Authorization:[redacted]"
+```
 
 The boundary is worth stating exactly, because it is easy to over-read:
 
-> A value bound to a sensitive key name is masked; a secret embedded in a bash command string is not.
+> A value bound to a sensitive name is masked — whether the name is a log key, a shell variable, or a request header field.
+> A secret with no name bound to it, such as one typed as a `grep` pattern, is not.
 
-A command string has no keys, so `deploy --token abc123` is logged unredacted.
+So `grep -r "sk-ant-…" .` and `deploy --token abc123` are both logged unredacted: the first binds the secret to nothing, and the second binds it to a flag rather than a name.
 The extension deliberately does not try to guess which parts of a command look secret-shaped — see [ADR 0010] for the measured reasoning.
+A command the parser could not fully resolve, and a secret inside an inline-shell payload (`bash -c '…'`) or a heredoc body, are masked only as far as the parse reached.
 
 Every value the **review** log writes is narrowed to `reviewLogFieldMaxWidth` (1000 characters by default) and marked with an ellipsis, so a single pathological command cannot put tens of kilobytes in one entry.
 This is a length bound, not redaction: it never inspects a value to decide what to hide, and it applies to every field alike.
-The two compose — a sensitive-keyed value is masked whole however long it was.
+The two compose, and masking runs first — a sensitively-named value is masked whole however long it was, and the cap never shortens one.
 The debug log is left unbounded, since it is opt-in and exists to be read in full.
 
 Practical guidance:
