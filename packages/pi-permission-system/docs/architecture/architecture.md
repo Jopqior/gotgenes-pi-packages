@@ -1127,6 +1127,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   Two gates that each resolve to `ask` on one tool call raise one prompt each — measured as two `escalate` calls for `cat /etc/hosts` under `external_directory: {"*": "ask"}` plus `bash: {"*": "ask"}`.
   Coalescing them needs an ADR 0011 §2 payload that composes several gates' evidence and a `SessionApproval` recording a grant per asking surface, which is the prompt-presentation seam Phase 13 opened rather than this phase's role loss.
   Step 5 enriches the fields one ask carries; [#915] changes how many asks there are, so no step produces or consumes what it needs.
+- [#923] — filed by [#920]'s planning; out of scope for the roadmap.
+  A secret inside an inline-shell payload (`bash -c '…'`) or a heredoc body escapes the grammar-anchored command redaction [#920] adds, so one review-log record can hold the same secret masked under `executedUnit` and unmasked under `command`.
+  It reads `classifyWrapperWords` and `EXECUTION_HOST_TYPES` but changes nothing about token roles or declared effects — it is a `logging/` exposure residual, and no step in this phase produces or consumes what it needs.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by Step 4 (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1434,4 +1437,6 @@ Each phase's findings, numbered plan, dependency diagram, and health metrics are
 [#911]: https://github.com/gotgenes/pi-packages/pull/911
 [#914]: https://github.com/gotgenes/pi-packages/issues/914
 [#915]: https://github.com/gotgenes/pi-packages/issues/915
+[#920]: https://github.com/gotgenes/pi-packages/issues/920
+[#923]: https://github.com/gotgenes/pi-packages/issues/923
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
