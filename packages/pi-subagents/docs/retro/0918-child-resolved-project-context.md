@@ -77,3 +77,16 @@ Pre-completion reviewer: PASS.
 - **Measured claims held.**
   The plan's prediction that the equal-cwd child is untouched is structural, not statistical: `cutProjectContext` is false there, so `projectContextStart` is never called.
   The new `keeps the parent's project context inside the shared prefix` test is what makes that visible to the suite — before it, the shared-prefix pins used a fixture with no project-context layer at all.
+
+## Stage: Sync (worktree) (2026-09-15T16:46:56Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both passed with no fixes needed.
+Nothing deferred; the plan's Release Recommendation is `ship independently`, and no follow-up issues were named or filed during planning or implementation.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-918--/2026-09-15T03-40-31-258Z_01a0a326-e899-731f-8ed0-528addb4e2f8.jsonl` — read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time.
+
+### Observations
+
+Clean run — no lint or dead-code findings to fix, so no additional commits beyond the TDD stage notes already on the branch.
