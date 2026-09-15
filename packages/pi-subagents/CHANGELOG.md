@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [21.7.1](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.0...pi-subagents-v21.7.1) (2026-09-15)
+
+
+### Bug Fixes
+
+* **pi-subagents:** stop a relocated child inheriting its parent's project-context paths ([3deb50c](https://github.com/gotgenes/pi-packages/commit/3deb50c6dcef0b5fa84de7f955765baf92297921)), closes [#918](https://github.com/gotgenes/pi-packages/issues/918)
+* **pi-subagents:** give a relocated child its own project instructions ([c69f99a](https://github.com/gotgenes/pi-packages/commit/c69f99ad92db3f6449ebde1bc1c7ba1b298951d1)), closes [#918](https://github.com/gotgenes/pi-packages/issues/918)
+* **pi-subagents:** resolve a portable child's project context against its own directory ([7f8baaf](https://github.com/gotgenes/pi-packages/commit/7f8baaf061cad16d1820892a117960f08040408f)), closes [#918](https://github.com/gotgenes/pi-packages/issues/918)
+
+### Documentation
+
+* **pi-subagents:** record project context as a directory-resolved layer ([95aeb69](https://github.com/gotgenes/pi-packages/commit/95aeb695a1e04e1812f45821d377642795891438)), closes [#918](https://github.com/gotgenes/pi-packages/issues/918)
+
 ## [21.7.0](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.6.0...pi-subagents-v21.7.0) (2026-09-11)
 
 
