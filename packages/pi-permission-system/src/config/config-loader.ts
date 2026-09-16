@@ -16,6 +16,7 @@ import {
   type UnifiedPermissionConfig,
   unifiedConfigSchema,
 } from "./config-schema";
+import { type DialogKeysConfig, resolveDialogKeys } from "./dialog-keys";
 
 // The unified config shape is derived from the zod schema (config-schema.ts,
 // the single source of truth) and re-exported so existing importers keep their
@@ -389,6 +390,9 @@ export function loadAndMergeConfigs(
   const deprecatedCapsIssue = detectDeprecatedPreviewCaps(merged);
   if (deprecatedCapsIssue) allIssues.push(deprecatedCapsIssue);
 
+  const dialogKeysIssue = detectUnusableDialogKeys(merged);
+  if (dialogKeysIssue) allIssues.push(dialogKeysIssue);
+
   return {
     global: globalConfig,
     project: projectConfig,
@@ -454,6 +458,24 @@ export function detectDeprecatedPreviewCaps(
     "which is deprecated and ignored. The prompt is bounded by " +
     "'promptMaxRows' and 'promptFieldMaxWidth' instead; remove the setting."
   );
+}
+
+/**
+ * Detect a `permissionDialogKeys` entry the dialog cannot honor.
+ *
+ * Deliberately a warning rather than a fail-closed rejection: a mistyped hotkey
+ * is cosmetic, and clamping the session's `allow` rules to `ask` over one would
+ * make a display preference a policy event. The decision keeps its default
+ * letter and the user is told which entry was refused and why.
+ *
+ * Pure, following {@link detectPermissiveBashFallback}: it takes the merged
+ * config and returns a message; the caller owns pushing it onto the issue list.
+ */
+export function detectUnusableDialogKeys(
+  config: DialogKeysConfig,
+): string | undefined {
+  const { issues } = resolveDialogKeys(config);
+  return issues.length === 0 ? undefined : issues.join(" ");
 }
 
 /**

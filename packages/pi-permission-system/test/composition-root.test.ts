@@ -43,6 +43,7 @@ import {
 } from "#src/authority/subagent-lifecycle-events";
 import { getSubagentSessionRegistry } from "#src/authority/subagent-registry";
 import {
+  DEBUG_LOG_FILENAME,
   getGlobalConfigPath,
   getGlobalLogsDir,
   REVIEW_LOG_FILENAME,
@@ -208,6 +209,18 @@ function readReviewLog(): { event: string }[] {
     .split("\n")
     .filter((line) => line.trim())
     .map((line) => JSON.parse(line) as { event: string });
+}
+
+/** Read the debug-log entries written under the stubbed agent dir. */
+function readDebugLog(): Record<string, unknown>[] {
+  const path = join(getGlobalLogsDir(agentDir), DEBUG_LOG_FILENAME);
+  if (!existsSync(path)) {
+    return [];
+  }
+  return readFileSync(path, "utf8")
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
 /** Drive the registered `session_start` handler with a ctx. */
@@ -2204,6 +2217,53 @@ describe("configured permission-dialog hotkeys reach the inline dialog", () => {
     press("n");
     press("4");
     press("4");
+    expect((await decision).block).toBe(true);
+
+    rmSync(cwd, { recursive: true, force: true });
+  });
+
+  it("warns about a refused binding and leaves the policy alone", async () => {
+    writeGlobalConfig({
+      debugLog: true,
+      permission: { "*": "allow", demo: "ask" },
+      permissionDialogKeys: { deny: "j" },
+    });
+
+    const cwd = mkdtempSync(join(tmpdir(), "pi-perm-keys-bad-cwd-"));
+    const pi = makeFakePi({ toolNames: ["demo", "quiet"] });
+    piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+    const { ctx, render, press } = makeTuiCtx(cwd);
+    await fireSessionStart(pi, ctx);
+
+    expect(
+      readDebugLog().filter(
+        (entry) =>
+          entry.event === "config.loaded" &&
+          typeof entry.warning === "string" &&
+          entry.warning.includes('permissionDialogKeys.deny: "j"'),
+      ).length,
+    ).toBeGreaterThan(0);
+
+    // The scope was not rejected: `*: allow` still allows, so a tool the config
+    // does not name never prompts at all.
+    const allowed = (await pi.fire(
+      "tool_call",
+      { toolName: "quiet", toolCallId: "keys-allowed", input: {} },
+      ctx,
+    )) as { block?: true };
+    expect(allowed.block).toBeUndefined();
+
+    // And the refused decision kept its default letter.
+    const decision = pi.fire(
+      "tool_call",
+      { toolName: "demo", toolCallId: "keys-default", input: {} },
+      ctx,
+    ) as Promise<{ block?: true }>;
+    await sleep(0);
+    expect(optionKeys(render())).toEqual(["y", "s", "n", "r"]);
+    press("n");
+    press("n");
     expect((await decision).block).toBe(true);
 
     rmSync(cwd, { recursive: true, force: true });
