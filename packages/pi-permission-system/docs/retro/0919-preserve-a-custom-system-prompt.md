@@ -42,4 +42,35 @@ Plan committed at `packages/pi-permission-system/docs/plans/0919-preserve-a-cust
 - `src/exposure/tool-surface-prompt.ts` — the assessor declined splitting the module into a removal half and a render half: the render half is untouched, the split would not shrink the diff, and it would add cross-file imports for one cohesive concept.
 - `src/exposure/tool-surface-prompt.ts` — extracting the `CUSTOM_TOOLS_FILLER_PREFIX` filter into its own function was rated Optional only; `removeToolSurfaceSections` is rewritten in the same commit, so it buys no isolation and is folded into step 3.
 
+## Stage: Implementation — TDD (2026-09-16T21:00:19Z)
+
+### Session summary
+
+Executed all five planned TDD cycles plus a WARN-fix commit: the fixture rename, the body-only section boundary, the region/authorship split with its handler wiring, the scoped blank-line collapse, and the doc updates.
+`pi-permission-system` went from 4337 to 4350 tests (+13); `check`, root `lint`, and `fallow dead-code` are green.
+The pre-completion reviewer returned WARN on two documentation findings, both fixed, and PASS on the delta re-review.
+
+### Observations
+
+- **A killing mutation caught a non-discriminating test.**
+  The planned "anchors on Pi's footer" test put the decoy footer line *above* the real one with nothing beneath it, so `findIndex` and `findLastIndex` produced identical output and the mutation killed nothing.
+  Rewritten to put the operator's own `Guidelines:` section *between* the decoy and Pi's footer, which is the case the anchor actually protects; the mutation then reddened it.
+  This is the plan's own "count the reds against the prediction" rule paying for itself.
+- **One planned mutation could not kill its test alone.**
+  `keeps the project-context block Pi wrapped around its own layers` survives every single-change mutation, because destroying that tag needs *both* the greedy end boundary and the missing authorship gate — which is exactly the shipped behavior the two issues reported.
+  Verified by applying both mutations together: six tests go red, reproducing the measured #932 defect.
+- **Deviation: the byte-identical guarantee split across steps 3 and 4.**
+  The custom-head case falls out of `settleRegion`'s `!removalAllowed` early return, so it landed in step 3; step 4's own test moved to the **tail** region — another extension's appended prose, which is where the `kept.length === lines.length` guard does its real work.
+  The plan's step-4 test as written would have been vacuous.
+- **A parallel `cp`-restore and `Edit` on the same file raced.**
+  Issued in one tool block, the restore landed after the edit, so a mutation run reported "killed nothing" against an unmutated file.
+  Sequence a mutation's restore and its next edit; a no-kill result is worth re-checking for this before believing it.
+- **`pi-autoformat` fused two sentences in `docs/configuration.md`.**
+  A new bullet continuation ending without a period was joined to the pre-existing sentence after it.
+  The reviewer caught it (`rumdl` does not); fixed by reordering so the new sentence lands last, with both terminated.
+- **Reviewer verdict:** WARN → PASS.
+  Findings were the fused sentence above and a plan-promised docstring note plus test for the no-footer edge that had not landed; both fixed in `docs(pi-permission-system): record the footerless-prompt edge in the tool-surface pass`.
+  The re-review re-derived the new test's discrimination independently and confirmed the docstring's cross-package claim about `pi-subagents` reading the same footer line.
+- **Two `test/authority/` forwarding-liveness tests failed once at 101 s** in a full-workspace run and passed on a directory-scoped re-run — the host-load flakiness the package skill documents, not a regression.
+
 [#932]: https://github.com/gotgenes/pi-packages/issues/932
