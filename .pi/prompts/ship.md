@@ -192,6 +192,7 @@ The comment should include:
 
 Before calling `issue_close`, re-resolve every hex token in the finished draft (`git rev-parse <sha>^{commit}`) and confirm each is an ancestor of `main` (`git merge-base --is-ancestor <sha> main`).
 Verify the draft, not your intent to cite — a pre-draft resolve cannot cover a hash drafting itself introduced, and after the call it can no longer prevent publishing one (Refs #788, #814, #890).
+Compose the draft in the `issue_close` call itself, never in a scratch file — the tool takes a string, so a staged file is verified and then retyped, and the two copies are not the same artifact (Refs #861).
 
 Then use `issue_close` with issue number `$1` and the summary as the comment.
 
