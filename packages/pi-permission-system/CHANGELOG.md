@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [32.1.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.6...pi-permission-system-v32.1.0) (2026-09-16)
+
+
+### Features
+
+* **pi-permission-system:** let the permission dialog's hotkeys be remapped ([e8fa79b](https://github.com/gotgenes/pi-packages/commit/e8fa79b6a30b925441aa2afb21c13fb10ff0b133)), closes [#927](https://github.com/gotgenes/pi-packages/issues/927)
+* **pi-permission-system:** report a refused permission-dialog key binding ([6798c63](https://github.com/gotgenes/pi-packages/commit/6798c6359cee2abed5f3e1cf28f10002d22d765d)), closes [#927](https://github.com/gotgenes/pi-packages/issues/927)
+
+### Documentation
+
+* **pi-permission-system:** document permissionDialogKeys ([63d3221](https://github.com/gotgenes/pi-packages/commit/63d3221c5b3eac76843c63b4d1e81e8afde60c8f)), closes [#927](https://github.com/gotgenes/pi-packages/issues/927)
+
 ## [32.0.6](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.5...pi-permission-system-v32.0.6) (2026-09-16)
 
 
