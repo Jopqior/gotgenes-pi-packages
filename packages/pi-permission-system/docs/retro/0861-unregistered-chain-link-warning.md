@@ -63,4 +63,18 @@ Pre-completion reviewer returned WARN on one stale comment, which was fixed, and
   Worth remembering that a sweep's *output* and the plan's *list* are different artifacts.
 - Both invariants the reviewer was asked to re-derive held under independent derivation: `auditUnregisteredLink` has exactly one call site, reachable only through `linksFor`'s locally-adjudicating branch (including via `ForwardedRequestServer`, which escalates on a serving node), and the review record's event name, field set, field order, and per-ask cadence are identical to the pre-change inline write.
 
+## Stage: Sync (worktree) (2026-09-16T16:34:18Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both passed clean with no fixes needed.
+The plan's `**Release:** ship independently` marker stands — nothing to defer, no batch to join.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-861--/2026-09-16T04-47-38-631Z_01a0a88a-b887-7300-83e9-fe6b2eccb196.jsonl` — read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time.
+
+### Observations
+
+No deferred work.
+The TDD stage's one reviewer WARN was fixed and re-reviewed to PASS before this sync; nothing carries forward.
+
 [#792]: https://github.com/gotgenes/pi-packages/issues/792
