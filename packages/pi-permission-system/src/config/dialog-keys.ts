@@ -33,3 +33,33 @@ export const DEFAULT_DIALOG_KEYS: DialogKeyBindings = {
   deny: "n",
   denyWithReason: "r",
 };
+
+const LOWERCASE_LETTERS = "abcdefghijklmnopqrstuvwxyz";
+const DIGITS = "0123456789";
+
+/**
+ * pi-tui's symbol keys, minus `+`.
+ *
+ * `+` separates a modifier from its key in a key identifier, so pi-tui's
+ * parser splits `"+"` into two empty halves and the binding matches nothing.
+ * A parity test in `test/config/dialog-keys.test.ts` derives this roster from
+ * pi-tui's exported `Key` constant and fails if the two drift; keeping the
+ * literal here is what lets this module stay free of SDK imports.
+ */
+const SYMBOLS = "`-=[]\\;',./!@#$%^&*()_|~{}:<>?";
+
+/**
+ * Every character a decision may be bound to.
+ *
+ * Uppercase is excluded deliberately rather than normalized: pi-tui lowercases
+ * a key identifier, so a `"Y"` binding would answer to a lowercase `y` and
+ * never to the keystroke the user asked for.
+ */
+export const BINDABLE_DIALOG_KEY_CHARACTERS: ReadonlySet<string> = new Set(
+  Array.from(LOWERCASE_LETTERS + DIGITS + SYMBOLS),
+);
+
+/** Whether `value` is a single character the dialog can bind a decision to. */
+export function isBindableDialogKey(value: string): boolean {
+  return BINDABLE_DIALOG_KEY_CHARACTERS.has(value);
+}
