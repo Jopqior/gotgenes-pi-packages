@@ -90,3 +90,91 @@ Nothing deferred; the plan's Release Recommendation is `ship independently`, and
 ### Observations
 
 Clean run — no lint or dead-code findings to fix, so no additional commits beyond the TDD stage notes already on the branch.
+
+## Stage: Final Retrospective (2026-09-16T03:07:24Z)
+
+### Session summary
+
+Four stages across two sessions: planning, TDD, and sync ran in the `issue-918` peer worktree (opus-5 for planning and TDD, sonnet-5 for sync); ship and this retrospective ran at the root on `main`.
+The work landed as 11 commits fast-forwarded into `main` at `362d8f81`, CI green first try, and released as `pi-subagents-v21.7.1`.
+The dominant theme is that this issue's two hardest findings — an unpinned `portable` arm and a test that could not fail — were produced by the plan's killing-mutation protocol, not by any gate.
+
+### Observations
+
+#### What went well
+
+- **The mutation protocol found two tests that could not fail, and one of them was a pre-existing pin.**
+  Step 6's mutation collapsing `strategy !== "portable" && cwd === inherited.cwd` to `cwd === inherited.cwd` left the whole suite green, because every `portable` fixture in `prompts.test.ts` also had a diverged cwd — the divergence arm was silently covering for the portable arm.
+  The second survivor was sharper still: re-adding the parent's block to `buildPortablePrompt` reddened nothing, because once `contextFiles` left `ParentPromptOptions` neither the unit test nor the composition-root test supplied one any more.
+  Fixing that one required *adding* `contextFiles` back to two pins before the mutation could be detected at all.
+  Both would have shipped as green, `tsc`-clean, lint-clean code with an unpinned arm — this is the strongest evidence so far for the plan-level rule that fewer reds than predicted is a finding rather than a pass.
+- **Measuring instead of estimating collapsed the option space before the gate was written.**
+  Planning imported the pinned SDK 0.84.4's `buildSystemPrompt` and rendered this repo's own `AGENTS.md` through it, which showed that stripping the `path=` attribute, remapping it, and cutting the block all diverge the child at the same 2,151-char offset.
+  That turned "which edit is cheapest" into "annotate the false claim or remove it".
+  An estimate would have produced an option list comparing costs that are identical.
+- **An elegant generalization was rejected on a test-pinnability argument, not an aesthetic one.**
+  Making the relocation unconditional reads better (no `if`), but `buildSystemPrompt` is not exported, so no test can pin our byte-replica against the real renderer — and conditioning on divergence removes that risk entirely while costing a relocated child nothing.
+- **The ship ran clean end to end.**
+  Lane detection, ff-merge prediction, pre-push gates, CI, release dispatch, release verification, and worktree teardown all succeeded first try with no recovery step.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` (user-caught) — the planning gate took four `ask_user` rounds for one decision boundary, against the `ask-user` skill's budget of one to two.
+  Round 2 was the operator asking which package owns the fix; round 3 was the operator asking what `prompt_mode: replace` even is; round 4 followed the agent's own correction that it had mis-priced the `cut-inline` option (it had claimed a "second renderer" that already existed).
+  `AGENTS.md` already carries both governing rules — define a gate's terms of art before its substance, and price a candidate's cheapest viable form before rejecting it on cost (both Refs #786).
+  Impact: three extra gate rounds; no rework, and each round did improve the design — round 2 produced a fifth option nobody had named, round 3 produced the adopted `cut-inline` variant.
+- `instruction-violation` (user-caught) — the breaking-change classification was made only after the operator raised it.
+  The operator wrote "that last choice, no project context at all, may be a breaking change", and the agent then produced a well-grounded classification (two `fix:` precedents, an existing ADR 0006 consequence, a blast radius narrowed by reading `loadProjectContextFiles`).
+  `/plan-issue` already instructs classifying breaking-vs-non-breaking independently of whether the change is ambiguous.
+  Impact: one extra gate round; the outcome was correct and better documented for having been asked.
+- `instruction-violation` (self-identified) — two `bash` calls used a bare `echo ===` separator, which zsh's `equals` expansion aborts with `zsh:1: == not found`, discarding the rest of the `A; B; C` chain.
+  `AGENTS.md` names this exact failure and prescribes `echo ---`.
+  Impact: two wasted tool calls; the agent switched to `read` rather than retrying.
+- `other` (user-caught) — a commit message was passed as `git commit -F - <<'EOF'`, which trips an approval prompt the operator had to clear by hand.
+  The operator asked for a temp file instead, and every subsequent commit body used `Write` to `/tmp/msgN.txt` followed by `git commit -F`.
+  `AGENTS.md` says a commit body with quotes or backticks belongs in a file passed with `-F`, but says nothing about how to create that file, so `-F -` with a heredoc reads as compliant.
+  Impact: one interruption; no rework.
+- `other` (self-identified) — an `Edit` on the retro file failed to match after `pi-autoformat` reflowed the region, costing a `cat -A` probe and a re-read before the retry succeeded.
+  `AGENTS.md` documents this (re-read a region you just edited before matching against it again); the recovery followed the documented path.
+  Impact: three extra tool calls.
+
+#### What caused friction (user side)
+
+- The breaking-change concern arrived as a statement after the gate had already closed on that option ("I think it's the right choice, but it clearly changes behavior").
+  Raising it as a question one round earlier — while the option set was still open — would have folded the classification into the gate rather than appending a round to it.
+  This is a small timing point, not a substantive one: the intervention was correct and the outcome improved because of it.
+- Three of the four planning gate rounds were spent supplying context the agent should have led with (package ownership, `prompt_mode` semantics).
+  That is the agent's failure to ground its gate, not the operator's to answer — but it did turn strategic judgment into mechanical clarification for two of those rounds.
+
+#### Open item carried forward
+
+The plan's `## Open Questions` records one unresolved decision: whether #918 is adopted as a Phase 22 step, with #903 → Step 21 as the precedent for a third-party bug becoming a roadmap step.
+It was never answered, so #918 shipped with no entry in the roadmap's `#### Open-issue sweep dispositions` list.
+The issue was filed by a third party rather than spun off by one of our sessions, so no `roadmap-fit` dispatch point covered it.
+`/finish-phase` reconciles the phase window's issues against that list, so the miss will surface at phase close rather than vanishing — but the decision is still outstanding.
+
+### Diagnostic details
+
+- **Model-performance correlation** — planning and TDD ran on `anthropic/claude-opus-5`, appropriate for a change whose core difficulty was a prompt-assembly trade-off with an unpinnable replica risk.
+  Sync ran on `anthropic/claude-sonnet-5`, appropriate for its mechanical checklist.
+  Two subagents were dispatched, both during planning: `tidy-first-assessor` (three accepted preparatory commits, one useful rejection) and `pre-completion-reviewer` (PASS).
+  No mismatch found.
+- **Escalation-delay tracking** — no `rabbit-hole` friction points; no sequence exceeded five consecutive tool calls on the same error.
+  The longest repeated sequence was the step-4 mutation loop (four mutations, each a save/mutate/run/restore cycle), which is the protocol working as designed rather than a stall.
+- **Unused-tool detection** — nothing missed.
+  Planning read Pi's source at the tracking checkout for mechanism and confirmed the pinned 0.84.4 surface separately, which is the documented split.
+- **Feedback-loop gap analysis** — verification ran incrementally throughout: a green baseline before step 1 (`check`, root `lint`, `test`, `fallow dead-code`), then per-step file-scoped `vitest` runs plus `pnpm run check` at every step that touched a shared type, and the full four-gate sweep at the end.
+  No gap.
+
+### Changes made
+
+1. `AGENTS.md` — added one sentence under the commit-message rules: create the `-F` message file with `Write`, never a shell heredoc, because a heredoc trips an approval prompt the operator must clear by hand.
+   The existing rule required `-F` but said nothing about how to produce the file, so `git commit -F - <<'EOF'` read as compliant.
+2. `packages/pi-subagents/docs/retro/0918-child-resolved-project-context.md` — this Final Retrospective stage entry.
+
+#### Proposed and declined
+
+- A `.pi/prompts/ship.md` clarification that the `PRE_MERGE` range anchor needs a **strict** ancestor test, since `git merge-base --is-ancestor` is reflexive and the condition as written fires for every cleanly rebased branch.
+  Declined as a clarity-only fix; the two anchors coincide whenever the condition is vacuously true, so the range is correct either way.
+- Adopting #918 as a Phase 22 roadmap step, or recording a sweep disposition for it now.
+  Declined in favour of letting `/finish-phase` reconcile the phase window's issues at phase close.
