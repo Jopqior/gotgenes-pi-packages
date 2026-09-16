@@ -466,7 +466,13 @@ export function detectDeprecatedPreviewCaps(
  * Deliberately a warning rather than a fail-closed rejection: a mistyped hotkey
  * is cosmetic, and clamping the session's `allow` rules to `ask` over one would
  * make a display preference a policy event. The decision keeps its default
- * letter and the user is told which entry was refused and why.
+ * letter, and the message names the entry, the reason, and the letter kept.
+ *
+ * Where that message surfaces is the caller's problem and is currently a narrow
+ * one: `ConfigStore` dedupes against a warning recorded by a factory-time
+ * refresh with no ctx to notify, so an issue already on disk reaches the debug
+ * log alone. That predates this detector and swallows its two siblings the same
+ * way (#933).
  *
  * Pure, following {@link detectPermissiveBashFallback}: it takes the merged
  * config and returns a message; the caller owns pushing it onto the issue list.
