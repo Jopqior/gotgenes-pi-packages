@@ -42,3 +42,34 @@ Committed the plan at `packages/pi-permission-system/docs/plans/0875-salvage-a-d
 [#393]: https://github.com/gotgenes/pi-packages/issues/393
 [#840]: https://github.com/gotgenes/pi-packages/issues/840
 [#899]: https://github.com/gotgenes/pi-packages/issues/899
+
+## Stage: Implementation — TDD (2026-09-16T00:15:09Z)
+
+### Session summary
+
+Executed all five planned TDD cycles — the salvage walk, the command-surface wiring, the path-surface wiring, the property table, and the docs — then a sixth `fix:` commit closing a never-weaker violation the pre-completion reviewer found.
+Test count in `pi-permission-system` went 4245 → 4337 (+92) across 162 → 163 files.
+The pre-completion reviewer returned FAIL on the first round and PASS on the delta re-review.
+
+### Observations
+
+- **The reviewer's blocking finding was a genuine fail-open the plan had explicitly predicted could not exist.**
+  The plan's Invariants table said a salvage could not make `resolveBashCommandCheck`'s zero-unit branch unreachable, citing a corpus measurement.
+  It can: a body-less leading redirect ahead of the grammar gap (`> f <<'M' 2>&1 | rm -rf /tmp/x`, valid bash that really runs) yields **zero** primary units and one salvaged one, so the whole-command `deny` probe — the only surface a context-naming rule such as `"* rm -rf *"` can match — was skipped, and `deny` became `ask`.
+  The plan's claim rested on the corpus holding no such shape, which prices a change rather than enumerating a mechanism's inputs — the lesson ADR 0009's 2026-08-29 amendment already records, re-learned here.
+  Fixed by adding `BashCommand.salvaged` (narrower than `parseUnresolved`, which a primary unit also carries when its statement failed) and keying the branch on the **primary** parse having matched nothing.
+- **Two of the plan's named killing mutations did not kill what it predicted**, and both were findings rather than passes.
+  Unmarking `SALVAGED_SCOPE` was predicted to flip a metamorphic `ask` row to `allow`; it does not, because a command carrying a salvaged region normally has marked primary siblings — except in the zero-primary-unit case above, where the marker turns out to be load-bearing after all.
+  Restricting the candidate to `node.type === "file_redirect"` leaves the entire suite green: 25 probed spellings of the grammar gap all produce a `file_redirect` candidate, including the gap nested in a control-flow body, a subshell, and a substitution.
+  The rule stays keyed on the parse's health (ADR 0013's own framing), and a stub-node test pins the distinction the corpus cannot.
+- **One planned test was vacuous as written.**
+  `cd /outside && … cat rel.txt` does not discriminate the unknown base from the cwd base, because a *bare* token needs the existence probe under either and `/cwd/rel.txt` does not exist.
+  Replaced with `cat ../secret`, whose `..` shape passes the classifier and whose `matchValues()` differ between the two bases.
+  A probe's shape has to match the guard's own predicate, not merely the scenario's prose.
+- **The salvaged root is a re-parsed `program`, not the candidate node**, which invalidated the first draft of the salvage unit tests (they asserted `file_redirect`).
+  Caught at Red, but it is the kind of shape assumption worth writing down.
+- **Reviewer's non-blocking note, not filed as an issue.**
+  An all-salvaged unit list containing a nested execution context is unreachable for the one known grammar gap — the primary parse independently finds a nested substitution inside the dropped fragment, so a residual primary unit always survives.
+  No test pins that interaction; it becomes worth one only if a future grammar gap makes the combination reachable.
+  Recorded here rather than filed, since nothing concrete names it today.
+- **Baseline note for a future session**: the two `test/authority/approval-escalator.test.ts` / `test/composition-root.test.ts` failures in the first full-suite run were the documented host-load flake (900 s durations on sub-second tests) and passed on a re-run of those files alone.
