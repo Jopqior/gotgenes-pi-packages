@@ -73,4 +73,18 @@ The pre-completion reviewer returned WARN on two documentation findings, both fi
   The re-review re-derived the new test's discrimination independently and confirmed the docstring's cross-package claim about `pi-subagents` reading the same footer line.
 - **Two `test/authority/` forwarding-liveness tests failed once at 101 s** in a full-workspace run and passed on a directory-scoped re-run — the host-load flakiness the package skill documents, not a regression.
 
+## Stage: Sync (worktree) (2026-09-16T21:38:06Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) passed clean, no fixes needed.
+The plan's `**Release:** ship independently` marker stands — this issue is not in any roadmap batch, so `/ship` should release `pi-permission-system` now rather than deferring.
+No work was deferred from this stage.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-919--/2026-09-16T04-50-26-942Z_01a0a88d-49fe-7596-90f1-ffe48e5d1c60.jsonl` — read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time.
+
+### Observations
+
+No new observations beyond the Implementation stage above; this is a clean handoff to the root session's `/ship 919`.
+
 [#932]: https://github.com/gotgenes/pi-packages/issues/932
