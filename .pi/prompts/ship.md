@@ -109,6 +109,9 @@ Run from the **repo root** (not a package subdirectory), on the tree that is abo
 1. `pnpm run lint` — catches cross-package lint violations CI runs at root level; package-level `pnpm run lint` may miss sibling-package issues.
 2. `pnpm fallow dead-code` — CI runs this gate on every `main` push (not on PRs), so a pre-existing failure blocks your push regardless of whether this issue introduced it.
 
+Run each gate unpiped — a pipeline's exit status is the filter's, so `pnpm run lint | tail` reports success on a failure.
+Redirect instead: `pnpm run lint >/tmp/lint.log 2>&1 || tail -30 /tmp/lint.log`.
+
 If either fails, fix the issues and commit before pushing.
 
 Run these in **both** lanes, here rather than earlier.
@@ -174,6 +177,7 @@ git log --oneline "$PLAN"^..HEAD
 
 If no plan commit matches, anchor on the parent of the issue's first commit.
 In the worktree lane, use step 4's `PRE_MERGE` as the anchor instead when it is an ancestor of `"$PLAN"^` — the branch then carried pre-plan commits the plan range cannot see.
+That test is reflexive, so it also reports true when `PRE_MERGE` equals `"$PLAN"^`, where the two ranges are identical and either anchor works.
 
 The comment should include:
 
@@ -227,6 +231,7 @@ Skip this step entirely if step 8 recorded a defer/batch decision — the releas
    ```
 
    Use step 4's `PRE_MERGE` as the anchor instead when it is an ancestor of `"$PLAN"^`.
+   That test is reflexive, so it also reports true when `PRE_MERGE` equals `"$PLAN"^`, where the two ranges are identical and either anchor works.
    A pre-plan commit touching a sibling package is invisible to the plan range, and the dispatch would silently omit that package (Refs #899).
 
    Do not filter by commit type: `docs:` and `chore:` are visible changelog groups that cut a patch on their own, so a `feat|fix` scope grep silently drops a sibling bumped by a docs-only commit (Refs #857).
@@ -272,7 +277,8 @@ The branch deletes cleanly because its commits are now in `main`; the worktree i
 Print:
 
 - The new HEAD on `main` (`git log --oneline -1`); confirm `git status -sb` shows no unpushed commits before naming it.
-- The released version **per package** released, one line each (`git tag --points-at HEAD` or read `package.json`), or that the release was deferred and why.
+- The released version **per package** released, one line each — `git tag --points-at HEAD` (after step 11.3's pull the release commit is HEAD), or read `package.json` — or that the release was deferred and why.
+  Empty output from that command is a finding, not a cue to cite the other source silently.
   Name every package step 10.1 listed — a listed package with no released version is a miss, not an omission from the report.
 - Issue close confirmation(s), including any co-shipped issue and any third-party PR closed.
 - Worktree/branch teardown confirmation (worktree lane).
