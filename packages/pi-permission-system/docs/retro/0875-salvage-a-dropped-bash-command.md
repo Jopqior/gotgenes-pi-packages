@@ -73,3 +73,16 @@ The pre-completion reviewer returned FAIL on the first round and PASS on the del
   No test pins that interaction; it becomes worth one only if a future grammar gap makes the combination reachable.
   Recorded here rather than filed, since nothing concrete names it today.
 - **Baseline note for a future session**: the two `test/authority/approval-escalator.test.ts` / `test/composition-root.test.ts` failures in the first full-suite run were the documented host-load flake (900 s durations on sub-second tests) and passed on a re-run of those files alone.
+
+## Stage: Sync (worktree) (2026-09-16T02:45:36Z)
+
+### Session summary
+
+Pre-push checks pass clean from the worktree root: `pnpm run lint` (1168 files, no issues) and `pnpm fallow dead-code` (345 entry points, no issues).
+No deferred work rides this branch beyond what the TDD stage note already records; the plan's `**Release:** ship independently` marker stands — no roadmap batch to check at ship time.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-875--/2026-09-15T16-49-52-993Z_01a0a5f9-9761-76c3-a6dd-87e0fcf2b646.jsonl` — read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time.
+
+### Observations
+
+The pre-completion reviewer's round-1 FAIL and round-2 PASS, and the six-commit implementation history, are already fully recorded in this file's TDD stage entry above — nothing new to add here beyond confirming the tree is green and ready for `/ship 875`.
