@@ -1142,6 +1142,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#925] — filed by [#920]'s implementation; out of scope for the roadmap.
   `composition-root.test.ts`'s forwarding-liveness test waits out the ~2 s serving grace window with real timers and flakes against Vitest's default 5 s budget when the root run puts every package in parallel; it was reproduced at the pre-implementation baseline, so it predates that work.
   Test-budget maintenance in an `authority/` integration test, which no step in this phase opens.
+- [#933] — filed by [#927]'s implementation; out of scope for the roadmap.
+  `index.ts` primes the store with `configStore.refresh(undefined, false)`, which records `lastConfigWarning` while `ctx?.ui.notify(…)` is a no-op, so the identical warning at `session_start` is deduped away — every issue `loadAndMergeConfigs` produces reaches the debug log and never the user.
+  Its nearest neighbor is Step 5, but that threads gate provenance into the ask payload where this is a store-level dedupe against a ctx that did not exist yet; it is a `config/` notification-lifecycle defect sharing no step's mechanism.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by Step 4 (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1452,4 +1455,6 @@ Each phase's findings, numbered plan, dependency diagram, and health metrics are
 [#920]: https://github.com/gotgenes/pi-packages/issues/920
 [#923]: https://github.com/gotgenes/pi-packages/issues/923
 [#925]: https://github.com/gotgenes/pi-packages/issues/925
+[#927]: https://github.com/gotgenes/pi-packages/issues/927
+[#933]: https://github.com/gotgenes/pi-packages/issues/933
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
