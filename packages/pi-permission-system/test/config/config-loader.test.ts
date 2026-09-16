@@ -666,6 +666,30 @@ describe("mergeUnifiedConfigs", () => {
     expect(merged.authorizerChain).toEqual(["kept-judge"]);
   });
 
+  // Whole-object replacement rather than the shellTools shallow merge: a
+  // key map is validated as a unit, and merging two valid maps could produce
+  // a collision neither file's own validation could see.
+  it("override permissionDialogKeys replaces the base map entirely", () => {
+    const merged = mergeUnifiedConfigs(
+      { permissionDialogKeys: { approve: "1", deny: "4" } },
+      { permissionDialogKeys: { deny: "8" } },
+    );
+    expect(merged.permissionDialogKeys).toEqual({ deny: "8" });
+  });
+
+  it("base permissionDialogKeys survives when override omits it", () => {
+    const merged = mergeUnifiedConfigs(
+      { permissionDialogKeys: { approve: "1" } },
+      { debugLog: true },
+    );
+    expect(merged.permissionDialogKeys).toEqual({ approve: "1" });
+  });
+
+  it("permissionDialogKeys is absent when both base and override omit it", () => {
+    const merged = mergeUnifiedConfigs({ debugLog: true }, { yoloMode: false });
+    expect(merged).not.toHaveProperty("permissionDialogKeys");
+  });
+
   it("base shellTools survives when override omits it", () => {
     const merged = mergeUnifiedConfigs(
       { shellTools: { exec_command: { commandArgument: "cmd" } } },

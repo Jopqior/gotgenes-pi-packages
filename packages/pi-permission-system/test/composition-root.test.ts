@@ -2111,3 +2111,101 @@ describe("directional external-directory relief (#806)", () => {
     }
   });
 });
+
+describe("configured permission-dialog hotkeys reach the inline dialog", () => {
+  /**
+   * A TUI ctx whose `ui.custom` captures the dialog component.
+   *
+   * The composition root's other UI ctx drives the `select`/`input` fallback,
+   * which has no hotkeys at all — only `mode: "tui"` reaches the inline
+   * keybind dialog, which is where a configured binding is observable.
+   */
+  function makeTuiCtx(cwd: string): {
+    ctx: unknown;
+    render: () => string[];
+    press: (data: string) => void;
+  } {
+    let component:
+      | { render(width: number): string[]; handleInput(data: string): void }
+      | undefined;
+    const base = makeBaseCtx(cwd, "tui-session") as {
+      ui: Record<string, unknown>;
+    };
+    const ctx = {
+      ...base,
+      mode: "tui",
+      ui: {
+        ...base.ui,
+        getToolsExpanded: (): boolean => false,
+        setToolsExpanded: (): void => {},
+        custom: (
+          factory: (
+            tui: { requestRender: () => void },
+            theme: { fg(color: string, text: string): string },
+            keybindings: { matches(data: string, action: string): boolean },
+            done: (decision: unknown) => void,
+          ) => typeof component,
+        ): Promise<unknown> =>
+          new Promise((resolve) => {
+            component = factory(
+              { requestRender: (): void => {} },
+              { fg: (_color, text) => text },
+              { matches: () => false },
+              resolve,
+            );
+          }),
+      },
+    };
+    return {
+      ctx,
+      render: () => component?.render(80) ?? [],
+      press: (data) => {
+        component?.handleInput(data);
+      },
+    };
+  }
+
+  /** The hotkey each option row advertises, in rendered order. */
+  function optionKeys(lines: string[]): (string | undefined)[] {
+    return lines
+      .map((line) => /^[ \u25b6] \((\w)\) /.exec(line)?.[1])
+      .filter((key) => key !== undefined);
+  }
+
+  it("renders and honors the characters the config bound", async () => {
+    writeGlobalConfig({
+      permission: { "*": "allow", demo: "ask" },
+      permissionDialogKeys: {
+        approve: "1",
+        approveSession: "2",
+        deny: "4",
+        denyWithReason: "5",
+      },
+    });
+
+    const cwd = mkdtempSync(join(tmpdir(), "pi-perm-keys-cwd-"));
+    const pi = makeFakePi({ toolNames: ["demo"] });
+    piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+    const { ctx, render, press } = makeTuiCtx(cwd);
+    await fireSessionStart(pi, ctx);
+
+    const decision = pi.fire(
+      "tool_call",
+      { toolName: "demo", toolCallId: "keys-ask", input: {} },
+      ctx,
+    ) as Promise<{ block?: true }>;
+    await sleep(0);
+
+    expect(optionKeys(render())).toEqual(["1", "2", "4", "5"]);
+
+    // The default letter is no longer live; the configured one commits.
+    press("n");
+    press("n");
+    press("4");
+    press("4");
+    expect((await decision).block).toBe(true);
+
+    rmSync(cwd, { recursive: true, force: true });
+  });
+});

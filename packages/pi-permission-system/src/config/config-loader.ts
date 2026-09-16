@@ -196,6 +196,7 @@ function formatConfigIssues(error: ZodError): string[] {
  *   present in the override.
  * - Array fields (piInfrastructureReadPaths) replace the base when present in
  *   the override (override-wins, same as scalars).
+ * - `permissionDialogKeys` replaces the base map whole, unlike `shellTools`.
  */
 // Scalar knobs merged by override-replaces-base; keep in sync with
 // PermissionSystemExtensionConfig booleans (debugLog, permissionReviewLog,
@@ -240,6 +241,16 @@ export function mergeUnifiedConfigs(
     if (value !== undefined) {
       merged[key] = value;
     }
+  }
+
+  // permissionDialogKeys: whole-object replacement. A key map is validated as
+  // a unit, so merging two individually valid maps could bind one character to
+  // two decisions with neither file's own validation able to see it. Dropping a
+  // base entry only restores a default letter, which is why this does not need
+  // the shellTools rule below.
+  const dialogKeys = override.permissionDialogKeys ?? base.permissionDialogKeys;
+  if (dialogKeys !== undefined) {
+    merged.permissionDialogKeys = dialogKeys;
   }
 
   // shellTools: shallow-merge by tool name so a project entry overrides a
