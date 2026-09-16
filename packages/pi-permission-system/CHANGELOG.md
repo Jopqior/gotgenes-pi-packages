@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [32.0.5](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.4...pi-permission-system-v32.0.5) (2026-09-16)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** tell the operator when a configured chain link is missing ([3662541](https://github.com/gotgenes/pi-packages/commit/3662541d4ebc555d54faf2934085d22b36ee618e)), closes [#861](https://github.com/gotgenes/pi-packages/issues/861)
+
+### Documentation
+
+* **pi-permission-system:** record the unregistered-link warning ([f70b1e3](https://github.com/gotgenes/pi-packages/commit/f70b1e3ce52a38744da2a07880878efb61dfae00)), closes [#861](https://github.com/gotgenes/pi-packages/issues/861)
+* **pi-permission-system:** state the resolved skip in the boundary test comment ([9cd18f1](https://github.com/gotgenes/pi-packages/commit/9cd18f1ef6bd8f9dbabf6fc6ce6b9dfa58d64764)), closes [#861](https://github.com/gotgenes/pi-packages/issues/861)
+
 ## [32.0.4](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.3...pi-permission-system-v32.0.4) (2026-09-16)
 
 
