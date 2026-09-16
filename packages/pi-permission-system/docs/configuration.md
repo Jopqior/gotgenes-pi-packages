@@ -226,9 +226,11 @@ Three invariants govern the chain:
 
 1. **Config order wins, never registration order.**
    The order in `authorizerChain` — not the order extensions happen to register in — fixes the security-relevant chain order.
-2. **A missing link is skipped fail-safe.**
-   A name with no registered link is skipped with a logged warning; the `ask` still reaches the terminal.
+2. **A missing link is skipped fail-safe, and you are told.**
+   A name with no registered link is skipped; the `ask` still reaches the terminal.
    Absence of a judge means *more* prompting, never less.
+   Because you asked for that judge and did not get it, the skip also raises a warning naming the link — once per session per name, beside the per-ask review record.
+   Three things leave the identical absence, so the warning names the likeliest and admits the others: the extension providing the link is not loaded in this session (a subagent child's `excludedExtensionPackages` does this), it failed to load, or it declined to register because it has no configuration of its own.
 3. **Registration alone grants no authority.**
    Installing a judge extension gives it nothing; a link decides nothing until you name it here (opt-in activation).
 
@@ -244,12 +246,12 @@ The subagent itself resolves no links (an extension cannot register one in a chi
 
 Three review-log records make the chain observable, all keyed by the ask's `requestId`:
 
-| Record                               | Meaning                                                                                                  |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `authorizer_chain_resolved`          | the links consulted on this ask, recorded before they run — a link that defers otherwise leaves no trace |
-| `authorizer_chain_delegated`         | the ask came from a relaying subagent node; the named links were deliberately not run here               |
-| `authorizer_chain_unregistered_link` | a configured name had no registered link — a real misconfiguration; the ask still reaches the terminal   |
-| `authorizer_link_vacant`             | a link was registered on a relaying node, which runs no chain — accepted and recorded, never consulted   |
+| Record                               | Meaning                                                                                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `authorizer_chain_resolved`          | the links consulted on this ask, recorded before they run — a link that defers otherwise leaves no trace                                               |
+| `authorizer_chain_delegated`         | the ask came from a relaying subagent node; the named links were deliberately not run here                                                             |
+| `authorizer_chain_unregistered_link` | a configured name had no registered link — a real misconfiguration; the ask still reaches the terminal, and the first skip of that name also warns you |
+| `authorizer_link_vacant`             | a link was registered on a relaying node, which runs no chain — accepted and recorded, never consulted                                                 |
 
 Extension authors: register a link from a `permissions:ready` handler via `getPermissionsService(sessionId).registerAuthorizer(name, authorize)`, taking `sessionId` from that event's payload; the callback receives the ask details and a narrow, session-scoped `PermissionQuery` (`checkPermission` / `getToolPermission`) so it can consult the deterministic engine at gate parity.
 Registration returns a disposer, and only one link may hold a given name.
