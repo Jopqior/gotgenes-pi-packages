@@ -42,3 +42,40 @@ The plan is `packages/pi-permission-system/docs/plans/0927-configurable-permissi
 
 - `packages/pi-permission-system/src/authority/permission-prompt-decision.ts` — three parallel per-action tables (`OPTION_ORDER`, `NARROW_OPTION_ORDER`, `OPTION_VERBS`) plus `OPTION_LABELS` in the component could collapse into one record carrying order, verb, and label together.
   Rejected as scope creep: none of them gain a dimension from this change, so consolidating now is unrelated cleanup rather than preparation.
+
+## Stage: Implementation — TDD (2026-09-16T21:59:20Z)
+
+### Session summary
+
+Shipped `permissionDialogKeys` in seven planned TDD cycles plus one reviewer-driven follow-up, across eight commits (four `refactor:`, two `feat:`, one `docs:`, one `test:`).
+The `pi-permission-system` suite went from 4342 to 4391 tests (+49).
+Pre-completion reviewer: **PASS** on the delta round, after a **WARN** on the first round whose two findings were both fixed.
+
+### Observations
+
+- The Tidy-First sequencing paid off exactly as the assessor predicted.
+  Step 1's three-site `config.keys?.[key] ?? key` indirection changed no existing assertion — verified by stashing the source and watching precisely the four new tests go red — and that made Step 2's `PromptKey` → `PromptAction` rename a mechanical single-file test edit.
+  The assessor's measurement that `permission-prompt-component.test.ts` holds **zero** identity-typed occurrences held: all its single-letter literals are simulated keystrokes or rendered characters, which stay correct under the default bindings.
+- The rename was scripted with line-mode `perl -pi` per-symbol substitutions (safe: single-line, no backslashes), but the four roster/`seen` array assertions and one `.toBe("y")` had to be hand-edited — a scripted pass cannot tell a roster element from a rendered character.
+- Every planned killing mutation behaved as predicted, and the counts matched.
+  The one that earned its place is Step 4's `(b)`: replacing the collision loop's bound with a single pass reddened exactly the cascading case (`{ approve: "b", deny: "y" }`) and left the other eleven equivalence classes green — which is the whole argument for a fixed point rather than a check.
+- Three deviations from the plan, all noted in commit bodies:
+  1. Step 1 also threaded `PromptPreferences.dialogKeys`, because the plan's two component sites are unreachable from a test without a way in.
+  2. `test/composition-root.test.ts` was listed as predicted-unchanged and did change — it gained a `makeTuiCtx` harness (`mode: "tui"` plus a `ui.custom` that captures the component) and two end-to-end tests.
+     That harness is the only place the feature is observable as a user sees it, and the composition root previously drove only the `select`/`input` fallback, which has no hotkeys.
+  3. The plan named `loadUnifiedPermissionConfig` as the detector's caller; the real function is `loadAndMergeConfigs`.
+- The plan's step-6 design assumed the config issue would reach `ui.notify`.
+  It does not: `index.ts` primes the store with `configStore.refresh(undefined, false)`, which records `lastConfigWarning` while `ctx?.ui.notify(…)` is a no-op, so the identical warning at `session_start` is deduped away.
+  This swallows `detectPermissiveBashFallback` and `detectDeprecatedPreviewCaps` the same way and predates this change — filed as [#933], dispositioned out of scope against Phase 15, and the composition-root test asserts against the debug log's `config.loaded` entry as a result.
+  The reviewer independently confirmed the mechanism and traced the dedupe back to [#335].
+- Verifying pi-tui's matcher by execution rather than by reading was the right call and changed the design twice: `matchesKey("+", "+")` is `false` (the identifier is split on `+`), and `matchesKey("a", "A")` is `true` while `matchesKey("A", "a")` is `false` — so an uppercase binding would silently answer to the lowercase key and is rejected rather than normalized.
+  Both are pinned by test, the `+` exclusion against a live `matchesKey` call so it cannot rot into an unexplained special case.
+- Two ESLint rules shaped the implementation rather than merely annotating it: `@typescript-eslint/no-misused-spread` rejects `[...someString]` and `.split("")`, so the bindable set is built with `Array.from`; and the counted `for (let round = ACTION_ORDER.length; round > 0; round--)` form keeps `round` used, which a `for (const _ of …)` would not.
+- Reviewer round 1 returned WARN on two precision findings, both fixed in `0115d87f`: the `detectUnusableDialogKeys` docstring claimed the user is told (false given [#933]), and the schema half of the strict-shape/tolerant-semantics split had no test of its own, unlike the sibling `shellTools field` block.
+  Round 2 (delta-scoped) returned PASS, having named a distinct reddening mutation for each of the five new schema cases.
+- `test/composition-root.test.ts` flaked three times during the session on three *different* tests, each time green on re-run.
+  Already tracked as [#925]; no new issue filed.
+
+[#335]: https://github.com/gotgenes/pi-packages/issues/335
+[#925]: https://github.com/gotgenes/pi-packages/issues/925
+[#933]: https://github.com/gotgenes/pi-packages/issues/933
