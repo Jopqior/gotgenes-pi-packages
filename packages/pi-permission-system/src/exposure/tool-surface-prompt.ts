@@ -112,6 +112,13 @@ export function renderToolSurface(
  *
  * The last footer is Pi's own — it appends one after everything it assembled,
  * so a line of the same shape in a custom prompt is always above it.
+ *
+ * Accepted edge: a prompt carrying no footer at all is treated as all head, so
+ * a block appended to *that* prompt cannot be found and replaced, and a custom
+ * preamble would collect a second one. Pi writes the footer last and in both
+ * branches, so reaching this needs a downstream rewrite of Pi's whole output —
+ * which has already broken `@gotgenes/pi-subagents`' identity anchor, since it
+ * reads the same line.
  */
 function extensionTailStart(lines: readonly string[]): number {
   const footerAt = lines.findLastIndex((line) =>

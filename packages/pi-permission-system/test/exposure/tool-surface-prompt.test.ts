@@ -291,6 +291,23 @@ describe("renderToolSurface", () => {
       expect(result).toContain("Current working directory: /somewhere/else");
     });
 
+    it("collects a second block when nothing left a footer to anchor on", () => {
+      // Documents the accepted edge rather than endorsing it: with no footer
+      // there is no tail to replace a block in, so a custom preamble keeps the
+      // one it already carries. Pi writes the footer last in both branches, so
+      // reaching this needs a downstream rewrite of its whole output.
+      const prompt = [
+        "You are my personal coding assistant.",
+        "",
+        "Available tools:",
+        "- read: Read file contents",
+      ].join("\n");
+
+      const result = renderToolSurface(prompt, customInputs);
+
+      expect(result.split("Available tools:")).toHaveLength(3);
+    });
+
     it("leaves a region it removed nothing from byte for byte", () => {
       const prompt = [
         "You are my personal coding assistant.",
