@@ -224,6 +224,7 @@ Then an H1 title (e.g., `# <short descriptive title>`) — required by markdownl
   A later step must not regress an earlier step's outcome with a green suite.
   When an invariant is quantitative (a byte-identical prefix, a token budget, a cache or latency characteristic), measure the baseline and predict the post-change value at planning time.
   A prose argument that the change is "at the tail" or "negligible" is not evidence, and a test pinning adjacent content does not pin the number (Refs #640).
+  An invariant discharged by "no input of this shape exists" is unproven — a corpus bounds observed frequency, not reachability, so enumerate the mechanism's inputs instead (Refs #875).
   When the plan removes the mechanism an existing test's comment credits, spike the removal and run that test at planning time — that the test stays green is a measurement, not an argument (Refs #653).
   Name the constituency each invariant serves and confirm it still holds for them — an invariant can be dead for one consumer and load-bearing for another, and a design that improves the loudest one regresses the original (Refs #890).
 - **TDD Order** — numbered red→green→verify→commit cycles.

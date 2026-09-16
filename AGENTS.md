@@ -444,7 +444,8 @@ Each `bash` call runs in a fresh shell — a variable set in one call is unset i
 Chain producer and consumer in one call, or re-derive the value (Refs #772).
 A `gh issue comment` / `gh pr comment` body containing backticks or fences belongs in a file passed with `--body-file`, whatever the quoting (Refs #794, #636).
 Single quotes ship a `` \` `` literally, and double quotes need every `` ` `` escaped, where one miscount publishes mismatched code spans.
-A `git commit` body with quotes or backticks belongs in a file passed with `-F` — a `-m` string corrupted one, invisible until `git log -1 --format=%B` (Refs #898).
+A `git commit` body with quotes or backticks belongs in a file passed with `-F <file>`, never `-F -` from a heredoc.
+A `-m` string corrupted one, invisible until `git log -1 --format=%B` (Refs #898, #875).
 Create that file with `Write`, never a shell heredoc (`git commit -F - <<'EOF'`) — a heredoc trips an approval prompt the operator must clear by hand (Refs #918).
 A shell snippet quoted inside a `/* */` block comment must not contain `*/` — a `sed 's/,.*//'` closes the comment and breaks the file's parse.
 Use `cut -d, -f1`.
