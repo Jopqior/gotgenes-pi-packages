@@ -62,6 +62,26 @@ export interface AdjudicationRole {
 }
 
 /**
+ * Everything {@link AuthorizerSelection} is constructed with: the
+ * {@link AuthorizerSelectionDeps} `selectAuthorizer` itself needs, plus the
+ * collaborators only the class uses to resolve and run the chain.
+ *
+ * Named rather than left anonymous on the constructor because the test
+ * fixtures mirror it: an addition here is otherwise an addition in two places.
+ * `selectAuthorizer` keeps the narrower parameter type (ISP) — it resolves no
+ * links and must not see the chain collaborators.
+ */
+export type AuthorizerSelectionConstructorDeps = AuthorizerSelectionDeps & {
+  prompter: PermissionPrompterApi;
+  /** The session-scoped query injected into each chain link (ADR 0007 §3). */
+  getPermissionQuery: () => PermissionQuery;
+  /** Read-only lookup of registered links by name. */
+  authorizerRegistry: AuthorizerLookup;
+  /** The operator's configured link names, read live per ask. */
+  getAuthorizerChain: () => string[];
+};
+
+/**
  * Context-owning selection root for the Authorizer spine.
  *
  * The rewrite of `PromptingGateway`: owns the stored `ExtensionContext`, runs
@@ -79,17 +99,7 @@ export class AuthorizerSelection
   private authority: SelectedAuthority | null = null;
   private relayTarget: PermissionForwardingTarget | null = null;
 
-  constructor(
-    private readonly deps: AuthorizerSelectionDeps & {
-      prompter: PermissionPrompterApi;
-      /** The session-scoped query injected into each chain link (ADR 0007 §3). */
-      getPermissionQuery: () => PermissionQuery;
-      /** Read-only lookup of registered links by name. */
-      authorizerRegistry: AuthorizerLookup;
-      /** The operator's configured link names, read live per ask. */
-      getAuthorizerChain: () => string[];
-    },
-  ) {}
+  constructor(private readonly deps: AuthorizerSelectionConstructorDeps) {}
 
   /**
    * Select the live authority for `ctx` and store it. The non-terminal

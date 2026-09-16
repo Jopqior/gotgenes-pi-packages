@@ -9,11 +9,9 @@
  */
 
 import { afterEach, beforeEach, type Mock, vi } from "vitest";
-import type {
-  AuthorizerVerdict,
-  AuthorizerSelectionDeps as SelectionCtorDeps,
-} from "#src/authority/authorizer";
+import type { AuthorizerVerdict } from "#src/authority/authorizer";
 import { AuthorizerRegistry } from "#src/authority/authorizer-registry";
+import type { AuthorizerSelectionConstructorDeps } from "#src/authority/authorizer-selection";
 import { ForwardingLivenessJudge } from "#src/authority/forwarding-liveness";
 import { SUBAGENT_ENV_HINT_KEYS } from "#src/authority/permission-forwarding";
 import type { PermissionPrompterApi } from "#src/authority/permission-prompter";
@@ -24,12 +22,16 @@ import { makeAuthorizerLog } from "./authorizer-log-fixtures";
 import { DECIDED_BY_HUMAN } from "./decision-fixtures";
 import { makePromptPreferences } from "./prompt-view-fixtures";
 
-/** The full constructor bag `AuthorizerSelection` takes (the ctor intersection). */
-export type AuthorizerSelectionTestDeps = SelectionCtorDeps & {
-  prompter: PermissionPrompterApi;
-  getPermissionQuery: () => PermissionQuery;
+/**
+ * The full constructor bag `AuthorizerSelection` takes, narrowed to the
+ * concrete `AuthorizerRegistry` so a test can register links into the same
+ * instance it hands the selection.
+ */
+export type AuthorizerSelectionTestDeps = Omit<
+  AuthorizerSelectionConstructorDeps,
+  "authorizerRegistry"
+> & {
   authorizerRegistry: AuthorizerRegistry;
-  getAuthorizerChain: () => string[];
 };
 
 /**
