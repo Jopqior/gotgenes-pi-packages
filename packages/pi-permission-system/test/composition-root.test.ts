@@ -989,8 +989,8 @@ describe("fact-shaping inheritance stops at live authority", () => {
   // A link returns a verdict, so live authority converges at the adjudicating
   // node (ADR 0007 §7) and inheriting one would run authority the operator's
   // own exclusion removed. That a configured-but-absent link is skipped here
-  // rather than borrowed is deliberate; whether the skip should be louder is
-  // its own question, tracked as #861.
+  // rather than borrowed is deliberate — and since #861 the skip is no longer
+  // silent: the operator answering the ask is told once per configured name.
   it("does not resolve an authorizer registered only in the parent", async () => {
     writeGlobalConfig({
       permission: { "*": "ask" },
