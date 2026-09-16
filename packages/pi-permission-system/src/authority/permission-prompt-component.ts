@@ -9,6 +9,7 @@ import {
   type KeyId,
   matchesKey,
 } from "@earendil-works/pi-tui";
+import type { DialogKeyBindings, PromptAction } from "#src/config/dialog-keys";
 import {
   completeViewBudget,
   type DialogView,
@@ -26,14 +27,12 @@ import {
   type UnattributedDecision,
 } from "./permission-dialog";
 import {
-  boundKey,
   initialPromptState,
   type PromptEvent,
-  type PromptKey,
   type PromptModelConfig,
   type PromptViewState,
   reducePrompt,
-  visibleOptionKeys,
+  visibleActions,
 } from "./permission-prompt-decision";
 
 /**
@@ -66,8 +65,8 @@ export interface PromptPreferences {
   doublePressToConfirm: boolean;
   /** How much room a render has; the terminal width is added per frame. */
   budget: RenderBudget;
-  /** The character bound to each decision; absent means the default letters. */
-  dialogKeys?: Readonly<Record<PromptKey, string>>;
+  /** The character bound to each decision. */
+  dialogKeys: DialogKeyBindings;
 }
 
 /**
@@ -130,12 +129,12 @@ interface PromptTheme {
 
 const DEFAULT_SESSION_LABEL = "Yes, for this session";
 
-const OPTION_LABELS: Record<PromptKey, string> = {
-  y: "Yes",
-  s: DEFAULT_SESSION_LABEL,
-  b: "Yes, for this session in both directions",
-  n: "No",
-  r: "No, provide reason",
+const OPTION_LABELS: Record<PromptAction, string> = {
+  approve: "Yes",
+  approveSession: DEFAULT_SESSION_LABEL,
+  approveSessionBoth: "Yes, for this session in both directions",
+  deny: "No",
+  denyWithReason: "No, provide reason",
 };
 
 export function presentInlinePermissionPrompt(
@@ -337,11 +336,11 @@ class PermissionPromptComponent implements Component {
       return { type: "cancel" };
     }
     if (this.state.step === "decision") {
-      const key = visibleOptionKeys(this.config).find((option) =>
+      const action = visibleActions(this.config).find((option) =>
         matchesKey(data, this.boundKey(option)),
       );
-      if (key) {
-        return { type: "hotkey", key };
+      if (action) {
+        return { type: "hotkey", action };
       }
     }
     return undefined;
@@ -363,11 +362,11 @@ class PermissionPromptComponent implements Component {
   private renderDecision(width: number): string[] {
     const ask = this.renderAsk(width);
     const lines = [this.theme.fg("accent", this.title), ...ask.lines, ""];
-    for (const key of visibleOptionKeys(this.config)) {
-      const label = this.labelFor(key);
-      const selected = this.state.highlightedKey === key;
+    for (const action of visibleActions(this.config)) {
+      const label = this.labelFor(action);
+      const selected = this.state.highlightedAction === action;
       const marker = selected ? "▶" : " ";
-      const row = `${marker} (${this.boundKey(key)}) ${label}`;
+      const row = `${marker} (${this.boundKey(action)}) ${label}`;
       lines.push(selected ? this.theme.fg("accent", row) : row);
     }
     lines.push("");
@@ -381,18 +380,20 @@ class PermissionPromptComponent implements Component {
    * The cast is total by construction: a binding is one printable character,
    * which is exactly what pi-tui's matcher accepts as a `KeyId`.
    */
-  private boundKey(key: PromptKey): KeyId {
-    return boundKey(this.config, key) as KeyId;
+  private boundKey(action: PromptAction): KeyId {
+    return this.config.keys[action] as KeyId;
   }
 
   /**
    * The row label for a key: the two session options carry ask-supplied text
    * naming what they grant, and the rest are fixed.
    */
-  private labelFor(key: PromptKey): string {
-    if (key === "s") return this.config.sessionLabel;
-    if (key === "b") return this.config.widthLabel ?? OPTION_LABELS.b;
-    return OPTION_LABELS[key];
+  private labelFor(action: PromptAction): string {
+    if (action === "approveSession") return this.config.sessionLabel;
+    if (action === "approveSessionBoth") {
+      return this.config.widthLabel ?? OPTION_LABELS.approveSessionBoth;
+    }
+    return OPTION_LABELS[action];
   }
 
   private renderReason(width: number): string[] {

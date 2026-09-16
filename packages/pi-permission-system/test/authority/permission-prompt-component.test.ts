@@ -10,6 +10,7 @@ import {
   presentInlinePermissionPrompt,
   requestPermissionDecision,
 } from "#src/authority/permission-prompt-component";
+import { DEFAULT_DIALOG_KEYS } from "#src/config/dialog-keys";
 import { DEFAULT_RENDER_BUDGET } from "#src/presentation/dialog-renderer";
 import type { PromptPayload } from "#src/presentation/prompt-payload";
 import { makePromptPayload } from "#test/helpers/prompt-details-fixtures";
@@ -47,7 +48,7 @@ function makeFakeView(
   doublePressToConfirm: boolean,
   expandKey = CTRL_O,
   budget = DEFAULT_RENDER_BUDGET,
-  dialogKeys?: PermissionPromptView["dialogKeys"],
+  dialogKeys = DEFAULT_DIALOG_KEYS,
 ) {
   const captured: {
     component?: CapturedComponent;
@@ -103,7 +104,7 @@ function makeView(
   doublePressToConfirm: boolean,
   ui: unknown,
   budget = DEFAULT_RENDER_BUDGET,
-  dialogKeys?: PermissionPromptView["dialogKeys"],
+  dialogKeys = DEFAULT_DIALOG_KEYS,
 ): PermissionPromptView {
   return {
     mode,
@@ -237,9 +238,19 @@ describe("presentInlinePermissionPrompt", () => {
   });
 
   describe("configured hotkey bindings", () => {
-    const DIGITS = { y: "1", s: "2", b: "3", n: "4", r: "5" } as const;
+    const DIGITS = {
+      approve: "1",
+      approveSession: "2",
+      approveSessionBoth: "3",
+      deny: "4",
+      denyWithReason: "5",
+    } as const;
     /** Approve and deny traded, so a character alone cannot predict the outcome. */
-    const SWAPPED = { y: "n", s: "s", b: "b", n: "y", r: "r" } as const;
+    const SWAPPED = {
+      ...DEFAULT_DIALOG_KEYS,
+      approve: "n",
+      deny: "y",
+    } as const;
 
     it("renders each decision row with its configured binding", () => {
       const { view, captured } = makeFakeView(
