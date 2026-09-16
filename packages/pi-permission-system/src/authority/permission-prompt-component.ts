@@ -3,7 +3,12 @@ import type {
   ExtensionUIContext,
   KeybindingsManager,
 } from "@earendil-works/pi-coding-agent";
-import { type Component, Input, matchesKey } from "@earendil-works/pi-tui";
+import {
+  type Component,
+  Input,
+  type KeyId,
+  matchesKey,
+} from "@earendil-works/pi-tui";
 import {
   completeViewBudget,
   type DialogView,
@@ -21,6 +26,7 @@ import {
   type UnattributedDecision,
 } from "./permission-dialog";
 import {
+  boundKey,
   initialPromptState,
   type PromptEvent,
   type PromptKey,
@@ -60,6 +66,8 @@ export interface PromptPreferences {
   doublePressToConfirm: boolean;
   /** How much room a render has; the terminal width is added per frame. */
   budget: RenderBudget;
+  /** The character bound to each decision; absent means the default letters. */
+  dialogKeys?: Readonly<Record<PromptKey, string>>;
 }
 
 /**
@@ -141,6 +149,7 @@ export function presentInlinePermissionPrompt(
     sessionLabel: options?.sessionLabel ?? DEFAULT_SESSION_LABEL,
     widthLabel: options?.sessionWidth?.label,
     sessionScope: options?.sessionScope,
+    keys: view.dialogKeys,
   };
   return view.ui.custom<UnattributedDecision>(
     (tui, theme, keybindings, done) =>
@@ -329,7 +338,7 @@ class PermissionPromptComponent implements Component {
     }
     if (this.state.step === "decision") {
       const key = visibleOptionKeys(this.config).find((option) =>
-        matchesKey(data, option),
+        matchesKey(data, this.boundKey(option)),
       );
       if (key) {
         return { type: "hotkey", key };
@@ -358,12 +367,22 @@ class PermissionPromptComponent implements Component {
       const label = this.labelFor(key);
       const selected = this.state.highlightedKey === key;
       const marker = selected ? "▶" : " ";
-      const row = `${marker} (${key}) ${label}`;
+      const row = `${marker} (${this.boundKey(key)}) ${label}`;
       lines.push(selected ? this.theme.fg("accent", row) : row);
     }
     lines.push("");
     lines.push(this.state.hint || this.hint(ask));
     return lines;
+  }
+
+  /**
+   * The character that selects an option, as a key identifier.
+   *
+   * The cast is total by construction: a binding is one printable character,
+   * which is exactly what pi-tui's matcher accepts as a `KeyId`.
+   */
+  private boundKey(key: PromptKey): KeyId {
+    return boundKey(this.config, key) as KeyId;
   }
 
   /**

@@ -603,4 +603,28 @@ describe("reducePrompt", () => {
       });
     });
   });
+
+  describe("bound characters", () => {
+    const REMAPPED = { y: "1", s: "2", b: "3", n: "4", r: "5" } as const;
+
+    it("names the bound character in the arming hint", () => {
+      const config = makeConfig({ keys: REMAPPED });
+      const outcome = reducePrompt(config, initialPromptState(config), {
+        type: "hotkey",
+        key: "y",
+      });
+      assertRender(outcome);
+      expect(outcome.state.hint).toBe("Press 1 again to approve.");
+    });
+
+    it("falls back to the option's own letter when no binding is supplied", () => {
+      const config = makeConfig();
+      const outcome = reducePrompt(config, initialPromptState(config), {
+        type: "hotkey",
+        key: "n",
+      });
+      assertRender(outcome);
+      expect(outcome.state.hint).toBe("Press n again to deny.");
+    });
+  });
 });

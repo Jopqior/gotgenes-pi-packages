@@ -61,8 +61,17 @@ const OPTION_VERBS: Record<PromptKey, string> = {
 
 /** Static configuration for a single prompt presentation. */
 export interface PromptModelConfig {
-  /** When true, a letter hotkey arms first and commits only on a second press. */
+  /** When true, a hotkey arms first and commits only on a second press. */
   doublePressToConfirm: boolean;
+  /**
+   * The character bound to each decision.
+   *
+   * Absent means every decision answers to the letter its own id spells, which
+   * is the shipped default. Present, it is what the dialog matches keystrokes
+   * against and what it renders — so an option's identity and the key that
+   * selects it stop being the same value.
+   */
+  keys?: Readonly<Record<PromptKey, string>>;
   /** Label shown beside the approve-for-session option. */
   sessionLabel: string;
   /**
@@ -191,8 +200,18 @@ function pressHotkey(
     ...state,
     highlightedKey: key,
     armedKey: key,
-    hint: `Press ${key} again to ${OPTION_VERBS[key]}.`,
+    hint: `Press ${boundKey(config, key)} again to ${OPTION_VERBS[key]}.`,
   });
+}
+
+/**
+ * The character that selects `key`, defaulting to the option's own letter.
+ *
+ * One reader for the whole model, so the hint the dialog shows and the key it
+ * matches cannot disagree about what the user is being asked to press.
+ */
+export function boundKey(config: PromptModelConfig, key: PromptKey): string {
+  return config.keys?.[key] ?? key;
 }
 
 function commit(
