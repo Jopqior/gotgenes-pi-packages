@@ -87,4 +87,83 @@ No work was deferred from this stage.
 
 No new observations beyond the Implementation stage above; this is a clean handoff to the root session's `/ship 919`.
 
+## Stage: Final Retrospective (2026-09-16T22:34:14Z)
+
+### Session summary
+
+Shipped the region-scoped `renderToolSurface` fix through the worktree lane: ff-merged the peer branch, pushed, verified CI, closed [#919] and its duplicate [#932] with contributor credit, and released `pi-permission-system` 32.0.6 to npm.
+The release was blocked for three consecutive `prepare` failures by a **pre-existing, unrelated** SIGPIPE race in `scripts/release/lib.sh`, diagnosed and fixed in `acc05e72` before the release could proceed.
+That diagnosis, not the shipped change, consumed the bulk of the session.
+
+### Observations
+
+#### What went well
+
+- **A timing delta localized a failure inside an untraced script.**
+  The failing runs died 10 ms after `SHA guard passed`; the last successful run took 13.5 s to reach the very next log line.
+  That single comparison proved `git-cliff` was never reached and collapsed the search space to the handful of statements in between — with no tracing available in the step and no ability to add `set -x` to a CI-only reproduction.
+  This is a reusable diagnostic for any opaque CI step failure, and it is what turned `exit code 141` into a located defect.
+- **A per-package measurement turned "one package is broken" into a mechanism.**
+  Tabulating each package's tag-listing size showed `pi-permission-system` at 4180 bytes as the only package over one 4096-byte stdio buffer, against 45–3634 for the other eight.
+  Without that table the fix would have rested on a plausible story; with it, the "only this package, only now" shape was explained rather than assumed.
+- **The Docker container earned its keep by exonerating the script, not by finding the bug.**
+  Running the real script end to end on `ubuntu:24.04` with the real `git-cliff` 2.14.1 binary established that the logic was sound on Linux, which is what redirected attention to the race rather than to the code.
+- **The mid-ship clarification gate prevented over-fixing.**
+  Changing release tooling during a ship is preference-sensitive, and the gate surfaced it.
+  The operator declined both an issue and the defensive hardening of two adjacent pipes, trimming the change to the one proven defect.
+- **The peer session's dangling-SHA check fired for real.**
+  `/sync-worktree` found `d906f9a1` cited in the TDD stage note and invalidated by the rebase, then rebuilt both retro commits via `git reset --soft` to remove it — the `AGENTS.md` rule about SHAs written before a rebase (Refs #814) catching its own case.
+
+#### What caused friction (agent side)
+
+- `rabbit-hole` — built a local-clone reproduction of the release script before comparing the failing run against the last successful run's log.
+  The scratch clone introduced a `mise` trust failure that surfaced as `git-cliff` exiting 1, which read as a finding rather than an artifact of the throwaway environment.
+  Impact: about 7 consecutive tool calls on the repro path plus one false lead; no rework to shipped code.
+- `rabbit-hole` — cycled through several hypotheses (shallow clone, `git-cliff` version drift, `PATH` for `/home/runner/.cargo/bin`, a git pager, the checkout token) before reading the passing run's log.
+  Each was cheap individually, but the decisive comparison was available from the moment the first failing log was fetched.
+  Impact: roughly 20 tool calls before the timing comparison; no rework.
+- `other` — nearly discarded the correct signal after finding it.
+  Having measured the 8.5 ms gap, the reasoning wavered ("maybe the log line was buffered and flushed at exit") and briefly set the timing aside before returning to it.
+  Impact: no rework, but the wavering is what let the hypothesis cycle above continue longer than it needed to.
+- `other` — the shipped fix carries no automated test.
+  `scripts/release/` has no test harness, so `latest_tag` was verified by 10 functional trials, `verify-cliff-parity.sh`, `shellcheck`, and a byte-for-byte equivalence check across all 9 packages — thorough, but nothing in CI would catch a reintroduction.
+  Impact: none this session; a standing gap noted rather than a friction cost.
+
+#### What caused friction (user side)
+
+- Nothing blocking.
+  One opportunity: the failure was diagnosed to completion before the operator was consulted at all.
+  Surfacing it after the **second** identical `prepare` failure — "this looks pre-existing and unrelated to #919; dig now, or defer the release?"
+  — would have offered the choice while the cost was still small.
+  The gate that did fire came only once the answer was already known, so it settled scope rather than direction.
+
+### Diagnostic details
+
+- **Model-performance correlation** — the peer implementation session ran 176 turns on `claude-opus-5` (planning and TDD) and its final 26 on `claude-sonnet-5` (the `/sync-worktree` stage, from entry 391).
+  That split is well matched: judgment-heavy planning and TDD on the stronger model, the mechanical sync stage on the cheaper one — and `sonnet-5` still handled the non-mechanical part of that stage correctly, detecting the rebase-invalidated SHA and rebuilding two commits with `git reset --soft`.
+  Three subagents were dispatched, all from their own frontmatter models with no override: one `tidy-first-assessor` and two `pre-completion-reviewer` runs (the WARN and the delta re-review).
+  This ship session ran entirely on `claude-opus-5`; given that it turned into an undiagnosed-CI-failure investigation rather than the mechanical land it was planned as, that was the right model to be on.
+- **Escalation-delay tracking** — the local-repro path ran about 7 consecutive tool calls on the same failing approach, past the 5-call flag threshold.
+  No subagent was dispatched, and none was the right answer here: the evidence lived in CI logs rather than in the codebase, so neither `Explore` nor `colgrep` would have reached it.
+  The correct escalation was cheaper than a subagent — one `ci_list` plus one `gh run view --log` on the last **successful** run, which is where the 13.5 s baseline came from and which was eventually the decisive call.
+- **Unused-tool detection** — `ci_list` was available from the start and used late.
+  Its output (the last green run's id) is the precondition for the timing comparison, so calling it second rather than twentieth would have short-circuited the whole hypothesis cycle.
+- **Feedback-loop gap analysis** — no gap.
+  `/ship`'s step-5 gates (`pnpm run lint`, `pnpm fallow dead-code`) ran on the merged tree before the push as specified.
+  After the `lib.sh` edit, verification ran incrementally and before the commit: `shellcheck`, `bash -n`, a 10-trial functional check of `next-version.sh`, `verify-cliff-parity.sh` across all 9 packages, then root `lint` and `fallow dead-code`.
+  CI was re-verified on the new HEAD before the release was re-dispatched.
+
+### Changes made
+
+1. `scripts/release/lib.sh` — replaced `latest_tag`'s `git tag --list | head -1` with `git for-each-ref --count=1`, removing the pipe and with it the SIGPIPE race (landed during the ship as `acc05e72`, ahead of this retro).
+2. `AGENTS.md` — added the early-exiting-reader SIGPIPE trap to § Shell and search, beside the existing `rg -r`, glob-quoting, and `sed` line-mode traps.
+3. `.pi/prompts/ship.md` — step 11.2 now caps a `prepare` re-dispatch at once, names a second identical failure a defect rather than flake, and records the failing-versus-passing log-timestamp comparison as the first diagnostic for an opaque exit code.
+
+### Follow-ups not implemented
+
+- **No test harness covers `scripts/release/`.**
+  The SIGPIPE fix was verified by 10 functional trials, `verify-cliff-parity.sh`, `shellcheck`, and a byte-for-byte equivalence check across all 9 packages, but nothing in CI would catch a reintroduced pipe.
+  `lib.sh` carries a "keep this pipe-free" comment as the only guard.
+  A harness is past this retro's scope — file an issue and run `/plan-issue` if it is worth building.
+
 [#932]: https://github.com/gotgenes/pi-packages/issues/932

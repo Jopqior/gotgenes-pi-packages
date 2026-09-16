@@ -253,7 +253,10 @@ Skip this step if step 10 was skipped (deferred/batch release, or nothing to rel
    A dispatched run's `head_sha` is `main`'s tip at dispatch time, so it matches the SHA you pinned.
    If `ci_find` times out, the dispatch's SHA guard most likely failed because `main` moved — check the run list before re-dispatching.
 2. If the `prepare`, `publish`, or `github-release` job failed, stop — do not proceed.
-   `prepare` failing means nothing was tagged and the release can simply be re-dispatched.
+   `prepare` failing means nothing was tagged and the release can simply be re-dispatched — **once**.
+   A second identical failure is a defect, not flake; diagnose before a third.
+   For an opaque exit code with no diagnostic, diff the failing run's log timestamps against the last successful run's (`ci_list`, then `gh run view <id> --log`) before building a local reproduction.
+   A step that dies in 10 ms where the green run took 13.5 s to reach the next line localizes the failure without tracing (Refs #919).
    `publish` or `github-release` failing means the tags are already pushed: fix the cause and re-run those jobs rather than re-dispatching, which would refuse on the existing tag.
 3. After the run succeeds, `git pull --ff-only` to bring the release commit and tags down.
 

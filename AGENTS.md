@@ -449,6 +449,9 @@ A `-m` string corrupted one, invisible until `git log -1 --format=%B` (Refs #898
 Create that file with `Write`, never a shell heredoc (`git commit -F - <<'EOF'`) — a heredoc trips an approval prompt the operator must clear by hand (Refs #918).
 A shell snippet quoted inside a `/* */` block comment must not contain `*/` — a `sed 's/,.*//'` closes the comment and breaks the file's parse.
 Use `cut -d, -f1`.
+Do not pipe a long-output command into an early-exiting reader (`head -1`, `sed -n '1p;q'`) under `set -euo pipefail` — the reader closes the pipe, the writer dies of SIGPIPE, and `pipefail` promotes the 141 into a script abort.
+It is a race that fires only once output exceeds one 4096-byte stdio buffer, so it survives for months and then fails always.
+Let the command do its own limiting: `git for-each-ref --count=1`, not `git tag --list | head -1` (Refs #919).
 Pass file tool paths repo-relative (`packages/<pkg>/src/x.ts`), not hand-built absolute ones — a mistyped absolute path trips the `external_directory` gate instead of failing fast (Refs #726).
 Before making an existing prose convention machine-read (a grep-able heading, tag, or marker), enumerate its existing spellings first.
 A hand-written convention drifts — `Open-issue sweep dispositions` had three spellings across two packages' archives (Refs #767).
