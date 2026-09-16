@@ -38,4 +38,29 @@ The plan is `packages/pi-permission-system/docs/plans/0861-unregistered-chain-li
 - `packages/pi-permission-system/test/authority/authorizer-selection.test.ts` — the flat `describe("chain resolution")` block holds ~10 sibling `it`s; a nested `describe("unregistered configured links")` would group the ones this change touches.
   Cosmetic rather than change-shrinking, so left out.
 
+## Stage: Implementation — TDD (2026-09-16T16:09:39Z)
+
+### Session summary
+
+Four TDD cycles, all as planned: the Tidy-First extraction of `AuthorizerSelectionConstructorDeps`, the unwired `AuthorizerChainAudit` module, the wiring `fix:`, and the docs commit.
+The `pi-permission-system` suite went from 4337 to 4346 tests (+9: 8 in the new `test/authority/authorizer-chain-audit.test.ts`, 1 new selection test; two existing selection tests and one composition-root block migrated their assertions rather than being added).
+Pre-completion reviewer returned WARN on one stale comment, which was fixed, and PASS on the delta re-review.
+
+### Observations
+
+- No deviations from the plan's design or module list.
+  Every file the plan named was touched, and every file it predicted unchanged (`README.md`, ADR 0007, `config-schema.ts`, `schemas/permissions.schema.json`) stayed unchanged.
+- The plan named three killing mutations for the audit module and three for the wiring step, and every one killed exactly the predicted equivalence class and no more — 1, 1, 1 for the audit (latch guarding the review write, guard never firing, boolean latch in place of the per-name `Set`) and 3, 1, 2 for the wiring.
+- The wiring step's relaying-node test (`does not report an unregistrable link as an unregistered one`) **stayed green through Red**, which is the case the template flags: a deliberate regression pin and a vacuous probe look identical there.
+  Its mutation — hoisting the audit call above `linksFor`'s `adjudicatesLocally` early return — reddened it alone, so it discriminates.
+- One planned mutation was substituted.
+  "Construct the audit inside the constructor instead of injecting it" does not compile (`deps.logger` is a `DebugReviewLogger` with no `warn`) and at run time would crash on an undefined method, which the template warns is not a discrimination signal.
+  Replaced with a payload mutation (a constant `requestId` in the relayed `UnregisteredLink`), which reddened the two assertions that pin the payload.
+- The `Edit` tool's first attempt used a hand-built absolute path missing the worktree prefix, and `pi-permission-model-judge` denied it with the corrected location — the `external_directory` gate catching exactly the typo class ADR 0007 use case 1 describes.
+  Repo-relative paths avoid it, as `AGENTS.md` says.
+- Reviewer WARN: the `fact-shaping inheritance stops at live authority` block in `test/composition-root.test.ts` still called the skip's loudness an open question, in the very block the change modified to pin the warning.
+  The plan's grep sweep covered `src/`, `test/`, docs, and `.pi/skills/` for `authorizer_chain_unregistered_link` and `861`, and this line matches the second pattern — it was in the sweep's output at planning time and did not make it into the plan's file list.
+  Worth remembering that a sweep's *output* and the plan's *list* are different artifacts.
+- Both invariants the reviewer was asked to re-derive held under independent derivation: `auditUnregisteredLink` has exactly one call site, reachable only through `linksFor`'s locally-adjudicating branch (including via `ForwardedRequestServer`, which escalates on a serving node), and the review record's event name, field set, field order, and per-ask cadence are identical to the pre-change inline write.
+
 [#792]: https://github.com/gotgenes/pi-packages/issues/792
