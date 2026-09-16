@@ -29,6 +29,7 @@ import {
   type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { unregisteredLinkMessage } from "#src/authority/authorizer-chain-audit";
 import { childNodeAbsentMessage } from "#src/authority/child-node-audit";
 import {
   createPermissionForwardingLocation,
@@ -1026,11 +1027,13 @@ describe("fact-shaping inheritance stops at live authority", () => {
     // The child has UI and no serving parent, so it adjudicates locally and its
     // own chain runs — the one shape in which a missing link changes the verdict.
     const capturedTitles: string[] = [];
+    const notified: string[] = [];
     const childCtx = makeBaseCtx(childCwd, childSessionId, {
       select: async (title: string): Promise<string | undefined> => {
         capturedTitles.push(title);
         return "Yes";
       },
+      notify: (message: string) => notified.push(message),
     });
     await fireSessionStart(childPi, childCtx);
 
@@ -1056,6 +1059,9 @@ describe("fact-shaping inheritance stops at live authority", () => {
     expect(readReviewLog().map((entry) => entry.event)).toContain(
       "authorizer_chain_unregistered_link",
     );
+    // And the operator answering that prompt is told why no judge answered it:
+    // the review log alone left the skip invisible (#861).
+    expect(notified).toEqual([unregisteredLinkMessage("parent-only-judge")]);
 
     rmSync(parentCwd, { recursive: true, force: true });
     rmSync(childCwd, { recursive: true, force: true });

@@ -7,6 +7,7 @@ import {
   selectAuthorizer,
 } from "./authorizer";
 import { composeAuthorizerChain } from "./authorizer-chain";
+import type { UnregisteredLinkAuditor } from "./authorizer-chain-audit";
 import type { AuthorizerLookup } from "./authorizer-registry";
 import { encloseInDelegationEnvelope } from "./delegation-envelope";
 import type { PermissionPromptDecision } from "./permission-dialog";
@@ -79,6 +80,8 @@ export type AuthorizerSelectionConstructorDeps = AuthorizerSelectionDeps & {
   authorizerRegistry: AuthorizerLookup;
   /** The operator's configured link names, read live per ask. */
   getAuthorizerChain: () => string[];
+  /** Told about each configured name the registry could not resolve. */
+  chainAudit: UnregisteredLinkAuditor;
 };
 
 /**
@@ -175,10 +178,11 @@ export class AuthorizerSelection
 
   /**
    * Resolve the operator's `authorizerChain` names to registered links, in
-   * config order (ADR 0007 invariant 1). An unregistered name is skipped with a
-   * warning (invariant 2 — more prompting, never less); each resolved link is
-   * wrapped in the bounded-delegation envelope so an `allow` on an excluded
-   * surface cannot exceed the operator's policy.
+   * config order (ADR 0007 invariant 1). An unregistered name is skipped
+   * fail-safe (invariant 2 — more prompting, never less) and handed to the
+   * chain audit, which records it and tells the operator once per name; each
+   * resolved link is wrapped in the bounded-delegation envelope so an `allow`
+   * on an excluded surface cannot exceed the operator's policy.
    *
    * The resolved names are recorded against the ask before any link runs — a
    * link that defers decides nothing and would otherwise leave no evidence it
@@ -194,10 +198,7 @@ export class AuthorizerSelection
     for (const name of configured) {
       const authorize = this.deps.authorizerRegistry.get(name);
       if (authorize === undefined) {
-        this.deps.logger.review("authorizer_chain_unregistered_link", {
-          requestId,
-          name,
-        });
+        this.deps.chainAudit.auditUnregisteredLink({ requestId, name });
         continue;
       }
       resolved.push(name);

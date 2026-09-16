@@ -10,6 +10,7 @@
 
 import { afterEach, beforeEach, type Mock, vi } from "vitest";
 import type { AuthorizerVerdict } from "#src/authority/authorizer";
+import type { UnregisteredLinkAuditor } from "#src/authority/authorizer-chain-audit";
 import { AuthorizerRegistry } from "#src/authority/authorizer-registry";
 import type { AuthorizerSelectionConstructorDeps } from "#src/authority/authorizer-selection";
 import { ForwardingLivenessJudge } from "#src/authority/forwarding-liveness";
@@ -103,6 +104,16 @@ function makeQuery(): PermissionQuery {
   return { checkPermission: vi.fn(), getToolPermission: vi.fn() };
 }
 
+/** A recording `UnregisteredLinkAuditor` double. */
+export function makeChainAudit(): {
+  auditUnregisteredLink: Mock<UnregisteredLinkAuditor["auditUnregisteredLink"]>;
+} {
+  return {
+    auditUnregisteredLink:
+      vi.fn<UnregisteredLinkAuditor["auditUnregisteredLink"]>(),
+  };
+}
+
 /** The `AuthorizerSelection` constructor bag, override-driven. */
 export function makeAuthorizerSelectionDeps(
   overrides: Partial<AuthorizerSelectionTestDeps> = {},
@@ -137,5 +148,6 @@ export function makeAuthorizerSelectionDeps(
     authorizerRegistry:
       overrides.authorizerRegistry ?? new AuthorizerRegistry(),
     getAuthorizerChain: overrides.getAuthorizerChain ?? (() => []),
+    chainAudit: overrides.chainAudit ?? makeChainAudit(),
   };
 }
