@@ -71,10 +71,24 @@ Pre-completion reviewer: **PASS** on the delta round, after a **WARN** on the fi
 - Verifying pi-tui's matcher by execution rather than by reading was the right call and changed the design twice: `matchesKey("+", "+")` is `false` (the identifier is split on `+`), and `matchesKey("a", "A")` is `true` while `matchesKey("A", "a")` is `false` — so an uppercase binding would silently answer to the lowercase key and is rejected rather than normalized.
   Both are pinned by test, the `+` exclusion against a live `matchesKey` call so it cannot rot into an unexplained special case.
 - Two ESLint rules shaped the implementation rather than merely annotating it: `@typescript-eslint/no-misused-spread` rejects `[...someString]` and `.split("")`, so the bindable set is built with `Array.from`; and the counted `for (let round = ACTION_ORDER.length; round > 0; round--)` form keeps `round` used, which a `for (const _ of …)` would not.
-- Reviewer round 1 returned WARN on two precision findings, both fixed in `0115d87f`: the `detectUnusableDialogKeys` docstring claimed the user is told (false given [#933]), and the schema half of the strict-shape/tolerant-semantics split had no test of its own, unlike the sibling `shellTools field` block.
+- Reviewer round 1 returned WARN on two precision findings, both fixed in `test(pi-permission-system): pin permissionDialogKeys' strict-shape rejection`: the `detectUnusableDialogKeys` docstring claimed the user is told (false given [#933]), and the schema half of the strict-shape/tolerant-semantics split had no test of its own, unlike the sibling `shellTools field` block.
   Round 2 (delta-scoped) returned PASS, having named a distinct reddening mutation for each of the five new schema cases.
 - `test/composition-root.test.ts` flaked three times during the session on three *different* tests, each time green on re-run.
   Already tracked as [#925]; no new issue filed.
+
+## Stage: Sync (worktree) (2026-09-16T22:41:26Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both pass with no changes needed.
+The plan's `**Release:**` marker is `ship independently`, so the root may release `pi-permission-system` without waiting on any batch.
+No deferred work or follow-ups beyond [#933], already filed and dispositioned against Phase 15 as out of scope.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-927--/2026-09-16T04-49-39-500Z_01a0a88c-90ab-72d8-9833-1352768b615f.jsonl` — read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time.
+
+### Observations
+
+Straightforward sync; nothing to flag beyond what the TDD stage note already records.
 
 [#335]: https://github.com/gotgenes/pi-packages/issues/335
 [#925]: https://github.com/gotgenes/pi-packages/issues/925
