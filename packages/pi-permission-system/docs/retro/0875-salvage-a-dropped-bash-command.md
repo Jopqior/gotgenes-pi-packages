@@ -86,3 +86,17 @@ No deferred work rides this branch beyond what the TDD stage note already record
 ### Observations
 
 The pre-completion reviewer's round-1 FAIL and round-2 PASS, and the six-commit implementation history, are already fully recorded in this file's TDD stage entry above — nothing new to add here beyond confirming the tree is green and ready for `/ship 875`.
+
+## Stage: Sync (worktree) (2026-09-16T03:33:00Z)
+
+### Session summary
+
+Re-ran `/sync-worktree 875`: local `main` had advanced by one commit (a `pi-subagents` release, unrelated to this issue) since the prior sync entry above, which is why the earlier ff-merge prediction no longer held.
+`pnpm run lint` and `pnpm fallow dead-code` both re-verified clean, then the branch rebased onto the new local `main` with no conflicts.
+
+**Peer session transcript:** unchanged from the entry above.
+
+### Observations
+
+No new observations — this is the "whoever lands second rebases first" case AGENTS.md documents, triggered by an unrelated sibling package's release landing on `main` between sync attempts, not by any conflicting work on this issue.
+Ready for `/ship 875`.
