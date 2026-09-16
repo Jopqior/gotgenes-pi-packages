@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [32.0.4](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.3...pi-permission-system-v32.0.4) (2026-09-16)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** evaluate bash rules against a command a partial parse dropped ([28cedc4](https://github.com/gotgenes/pi-packages/commit/28cedc45dd4a11ee9189f41ee661a051d2b13936)), closes [#875](https://github.com/gotgenes/pi-packages/issues/875)
+* **pi-permission-system:** gate the paths a command dropped by a partial parse reads ([6f1d032](https://github.com/gotgenes/pi-packages/commit/6f1d0328f8151da8716641f0ee0c25341699cd75)), closes [#875](https://github.com/gotgenes/pi-packages/issues/875)
+* **pi-permission-system:** keep the whole-command deny reachable when a salvage recovers the only units ([ab91a66](https://github.com/gotgenes/pi-packages/commit/ab91a660eafb879a3370104cb6f68353041a7cbb)), closes [#875](https://github.com/gotgenes/pi-packages/issues/875)
+
+### Documentation
+
+* **pi-permission-system:** record the salvage of a bash command a partial parse dropped ([17a3684](https://github.com/gotgenes/pi-packages/commit/17a3684f182467c19e1ca56664e1adf900980f11))
+
 ## [32.0.3](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.2...pi-permission-system-v32.0.3) (2026-09-15)
 
 
