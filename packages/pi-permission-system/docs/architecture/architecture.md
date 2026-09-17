@@ -1146,6 +1146,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#933] — filed by [#927]'s implementation; out of scope for the roadmap.
   `index.ts` primes the store with `configStore.refresh(undefined, false)`, which records `lastConfigWarning` while `ctx?.ui.notify(…)` is a no-op, so the identical warning at `session_start` is deduped away — every issue `loadAndMergeConfigs` produces reaches the debug log and never the user.
   Its nearest neighbor is Step 5, but that threads gate provenance into the ask payload where this is a store-level dedupe against a ctx that did not exist yet; it is a `config/` notification-lifecycle defect sharing no step's mechanism.
+- [#941] — filed by the repo-level [#938] planning; out of scope for the roadmap.
+  A heredoc absorbs the operand preceding it, so `git commit -F - <<'EOF'` enumerates as the unit `git commit -F` — an enumeration fact nothing asserts, which this repo's own project-scope permission config now depends on.
+  It is a test-only regression pin over `command-enumeration.ts`'s output, not the role a collector attaches to a token, so no step in this phase produces or consumes what it needs; it is a boy-scout candidate for whichever step next edits `program.test.ts`.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by Step 4 (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1458,4 +1461,6 @@ Each phase's findings, numbered plan, dependency diagram, and health metrics are
 [#925]: https://github.com/gotgenes/pi-packages/issues/925
 [#927]: https://github.com/gotgenes/pi-packages/issues/927
 [#933]: https://github.com/gotgenes/pi-packages/issues/933
+[#938]: https://github.com/gotgenes/pi-packages/issues/938
+[#941]: https://github.com/gotgenes/pi-packages/issues/941
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
