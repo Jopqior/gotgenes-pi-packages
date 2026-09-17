@@ -380,7 +380,10 @@ week,model,thinking_level,stage,sessions,messages,tokens,cost_usd
 2026-09-07,claude-sonnet-5,high,Ship (worktree),10,314,16933984,4.42
 2026-09-07,claude-sonnet-5,high,Sync (worktree),10,148,44684497,10.19
 2026-09-07,claude-sonnet-5,high,TDD,14,39,12135358,12.32
-2026-09-14,claude-opus-5,high,(unnamed),9,115,11144701,12.57
+2026-09-14,claude-fable-5-1,high,(unnamed),1,2,261901,1.69
+2026-09-14,claude-fable-5-1,high,Planning,1,38,6725421,8.41
+2026-09-14,claude-fable-5-1,high,TDD,1,101,23685772,15.40
+2026-09-14,claude-opus-5,high,(unnamed),10,147,14551163,15.84
 2026-09-14,claude-opus-5,high,Planning,6,378,59191101,68.90
 2026-09-14,claude-opus-5,high,Retrospective,6,167,33276038,27.29
 2026-09-14,claude-opus-5,high,Ship,1,2,714461,2.42
