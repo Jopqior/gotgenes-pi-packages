@@ -13,8 +13,10 @@
 // Usage: node scripts/agent-docs/doc-growth.mjs [--since YYYY-MM-DD] [--every-days N]
 
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 const DAY_MS = 86_400_000;
+const COLUMNS = ["agents_md", "skills", "prompts", "subagent_defs"];
 
 function git(args, { allowFailure = false } = {}) {
   try {
@@ -39,7 +41,7 @@ function parseArgs(argv) {
   return options;
 }
 
-function classify(path) {
+export function classify(path) {
   if (path.includes("node_modules/")) return null;
   if (path === "AGENTS.md" || path.endsWith("/AGENTS.md")) return "agents_md";
   if (/(^|\/)skills\/[^/]+\/SKILL\.md$/.test(path)) return "skills";
@@ -48,14 +50,14 @@ function classify(path) {
   return null;
 }
 
-function countWords(text) {
+export function countWords(text) {
   const trimmed = text.trim();
   return trimmed === "" ? 0 : trimmed.split(/\s+/).length;
 }
 
-function snapshotDates(since, everyDays) {
+export function snapshotDates(since, everyDays, now) {
   const dates = [];
-  const end = Date.now();
+  const end = now;
   for (
     let t = Date.parse(`${since}T00:00:00Z`);
     t <= end;
@@ -66,32 +68,40 @@ function snapshotDates(since, everyDays) {
   return dates;
 }
 
-function measure(sha) {
+/**
+ * Word count per bucket at one commit.
+ *
+ * @param {string} sha
+ * @param {(args: string[], options?: { allowFailure?: boolean }) => string} run
+ *   a git runner, so a test can supply canned `ls-tree` and `show` output
+ */
+export function measure(sha, run) {
   const totals = { agents_md: 0, skills: 0, prompts: 0, subagent_defs: 0 };
-  for (const path of git(["ls-tree", "-r", "--name-only", sha]).split("\n")) {
+  for (const path of run(["ls-tree", "-r", "--name-only", sha]).split("\n")) {
     const bucket = classify(path);
     if (!bucket) continue;
     totals[bucket] += countWords(
-      git(["show", `${sha}:./${path}`], { allowFailure: true }),
+      run(["show", `${sha}:./${path}`], { allowFailure: true }),
     );
   }
   return totals;
 }
 
-const { since, everyDays } = parseArgs(process.argv.slice(2));
-const columns = ["agents_md", "skills", "prompts", "subagent_defs"];
-process.stdout.write(`date,sha,${columns.join(",")},total\n`);
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const { since, everyDays } = parseArgs(process.argv.slice(2));
+  process.stdout.write(`date,sha,${COLUMNS.join(",")},total\n`);
 
-for (const date of snapshotDates(since, everyDays)) {
-  const sha = git([
-    "rev-list",
-    "-1",
-    `--before=${date}T23:59:59Z`,
-    "HEAD",
-  ]).trim();
-  if (!sha) continue;
-  const totals = measure(sha);
-  const total = columns.reduce((sum, key) => sum + totals[key], 0);
-  const cells = columns.map((key) => totals[key]).join(",");
-  process.stdout.write(`${date},${sha.slice(0, 12)},${cells},${total}\n`);
+  for (const date of snapshotDates(since, everyDays, Date.now())) {
+    const sha = git([
+      "rev-list",
+      "-1",
+      `--before=${date}T23:59:59Z`,
+      "HEAD",
+    ]).trim();
+    if (!sha) continue;
+    const totals = measure(sha, git);
+    const total = COLUMNS.reduce((sum, key) => sum + totals[key], 0);
+    const cells = COLUMNS.map((key) => totals[key]).join(",");
+    process.stdout.write(`${date},${sha.slice(0, 12)},${cells},${total}\n`);
+  }
 }
