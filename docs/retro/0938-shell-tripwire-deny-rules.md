@@ -49,5 +49,40 @@ Recorded as out of scope for pi-permission-system Phase 15 (operator decision): 
 
 None — the Tidy-First assessor rejected only two candidates as scope creep, and both were "do not restructure `AGENTS.md` beyond the two named passages" and "do not build schema-driven validation instead of hand-asserting the limits", neither of which is latent debt in a file.
 
+## Stage: Implementation — TDD (2026-09-17T22:52:49Z)
+
+### Session summary
+
+Four TDD cycles: the pure validator and its fixtures, the config file plus the integration case over the real file, the `AGENTS.md` compression, and a fourth cycle added after the pre-completion review closed a gap where the validator was looser than the schema it backstops.
+Root test suite went 107 → 130 tests; nothing under `packages/` changed, so no package version is cut.
+Every predicted killing mutation landed its predicted red count (8/3/2/4 in cycle 1, 1/1/1 in cycle 2, 1/1/2/1 in cycle 4).
+
+### Observations
+
+**The plan's measurements reproduced exactly.**
+Re-running the corpus spike against the committed patterns gave `rg -r*` → 9, `git commit -F` → 14, `git commit -F *` → 85, `git rev-parse * | wc -c` → 0 over the same 7,578 commands.
+The live check was the better evidence though: `rg -rn 'x' /dev/null` came back denied, naming `rule 'rg -r*'`, carrying the full reason, with exactly one terminating full stop — and `rg --replace 'GAMMA' 'alpha' /tmp/rg938.txt` ran normally, so the escape hatch the reason names really is unmatched.
+Config is re-read every turn, so the rule was live on the turn after the commit without a restart.
+
+**The reviewer found a real hole, and it was in the guardrail rather than the feature.**
+`findConfigProblems` reported no problems for `permission.bash: "alow"` — the realistic typo — and for `[]`, `null`, and a deny object with an unknown key, all four of which `unifiedConfigSchema` rejects.
+A validator whose entire job is catching a typo before it floors the repo's policy `allow`→`ask` was looser than the schema on the most likely typo of all.
+Cycle 4 closed it and the parity was then verified by parsing all six shapes through the real schema rather than reasoning about it.
+
+**Two residual disagreements are known and accepted**, both pre-dating cycle 4 and both outside the properties the validator claims: an empty-string pattern key (`{"": "allow"}`) and `permission` itself typed as a non-object both pass the validator and fail the schema.
+Neither is reachable from a plausible hand-edit of a two-rule file, and the Tidy-First disposition already recorded "do not build schema-driven validation" as rejected scope creep.
+Also noted: `{"bash": undefined}` is flagged by the validator and accepted by the schema, which JSON cannot express, so `loadProjectPermissionConfig` can never produce it.
+
+**One file outside the plan's table was touched**, under the plan's own step-3 instruction to grep the prompts and skills.
+`.pi/prompts/audit-agent-docs.md` used the `rg -r` passage as a worked `delete` example with the rationale "no retro since 07-20", while the real 2026-09-17 inventory records that exact passage as `keep`, "recurred in 0914 with the rule loaded".
+The example contradicted the audit it illustrates and the fact this issue opens with, so it was swapped for a real `delete` row from that audit.
+The first review round flagged the missing rationale, which is now in the commit body.
+
+**The package skill already documents the heredoc-absorption fact in prose** (`package-pi-permission-system` SKILL.md, the `floorUnparsedUnit` passage cites `git add`/`git commit -F` as the enumeration of a heredoc command).
+That does not weaken [#941] — nothing *asserts* it — but it is worth knowing the fact was written down and still had no test.
+
+**Pre-completion reviewer: WARN, then PASS on re-review.**
+Round 1's two findings (the schema-looseness gap, and the missing commit-body rationale for the `audit-agent-docs.md` swap) were both fixed before round 2, which returned PASS with the two residuals above recorded as informational.
+
 [#934]: https://github.com/gotgenes/pi-packages/issues/934
 [#941]: https://github.com/gotgenes/pi-packages/issues/941
