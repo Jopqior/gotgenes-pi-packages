@@ -361,6 +361,7 @@ Each prompt template calls `set_session_name` (from `pi-session-tools`) to label
 | Worktree sync (peer)     | `#N Sync (worktree) — <title>` |
 | Shipping (worktree lane) | `#N Ship (worktree) — <title>` |
 | Retrospective            | `#N Retrospective — <title>`   |
+| Agent-doc audit          | `Agent-doc audit — <date>`     |
 
 Each prompt template sets the appropriate name automatically via `set_session_name`.
 Both `Shipping` rows come from `/ship`, which picks between them once it has detected its lane.

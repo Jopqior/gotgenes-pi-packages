@@ -1,0 +1,168 @@
+---
+description: Measure the agent documentation, classify every passage against the admission test, gate the inventory, and apply the approved cuts
+model: anthropic/claude-opus-5
+---
+
+# Audit the agent documentation
+
+No arguments.
+
+Your job is to hold `AGENTS.md` and every `.pi/skills/*/SKILL.md` to the `### Admission test` in `AGENTS.md`, and to land the cuts it justifies.
+The test is short; read it now, before anything else.
+This template is periodic and manually triggered — nothing runs it on a schedule — and it is the counterweight to `/retro`, which is where those files grow.
+
+You will produce two commits: a dated inventory and its measurements, then the prune the inventory authorized.
+The inventory is the record; the prune is reviewable against it.
+
+## Sync with remote (do this first)
+
+1. Run `git pull --ff-only`.
+2. If it fails for **any** reason — uncommitted changes, divergent history, merge conflict, network error, detached HEAD — stop immediately and report the failure.
+   Do not stash, rebase, force, or otherwise resolve.
+3. Only proceed on a clean fast-forward (or `Already up to date.`).
+4. Refuse to run on any branch but `main`.
+   The prune is applied on the current branch, and the current branch is meant to be trunk.
+
+Call `set_session_name` with `Agent-doc audit — <YYYY-MM-DD>`.
+
+## Load skills
+
+- `markdown-conventions` — for the inventory and for every edit you will make to a skill.
+- `github-voice` is **not** needed; this template writes no GitHub-facing text.
+
+## Step 1: Measure
+
+Create `docs/agent-docs-audit/<YYYY-MM-DD>/` and write the three measurements into it:
+
+```bash
+D=docs/agent-docs-audit/$(date -u +%F)
+mkdir -p "$D"
+node scripts/agent-docs/doc-growth.mjs > "$D/doc-growth.csv"
+node scripts/agent-docs/model-usage.mjs > "$D/model-usage.csv"
+node scripts/agent-docs/always-loaded.mjs | tee "$D/always-loaded-before.txt"
+```
+
+`doc-growth.csv` reproduces from git at any later date; `model-usage.csv` reads a machine-local, prunable session store and is committed precisely because it cannot be re-derived.
+The `always-loaded` line is the number this audit is measured against: write it into the inventory header in Step 3 as the **before**.
+
+Then read the prior audit, if any: `ls -1d docs/agent-docs-audit/*/ | tail -2` and open the previous directory's `inventory.md`.
+Carry forward every row it marked `offload` or `keep (revisit)` — those are the verdicts it deferred, and this audit answers for them.
+
+## Step 2: Classify
+
+Walk `AGENTS.md` section by section, then each `.pi/skills/*/SKILL.md`.
+A passage is a sentence or a tightly bound group of sentences making one claim; in these files a sentence is a line.
+
+Give every passage exactly one verdict:
+
+| Verdict             | Meaning                                                          | Applied by this command                      |
+| ------------------- | ---------------------------------------------------------------- | -------------------------------------------- |
+| `keep`              | Passes all three admission questions                             | No edit                                      |
+| `offload → <skill>` | Real but not needed before the agent could know to load a skill  | No edit; the inventory names the destination |
+| `compress`          | The rule stands; the incident attached to it does not            | Yes — rewrite the line to the rule alone     |
+| `delete`            | Fails the first question, or is superseded, duplicated, or stale | Yes — remove the line                        |
+
+Read the admission test's recurrence heuristic as it is written: a rule with no retro recurrence since 2026-07-20 is a *candidate*, and survivorship is the confound.
+When you mark such a rule `delete`, the rationale column says the rule was checked against the retros (`grep -rln '<distinctive phrase>' docs/retro packages/*/docs/retro`) and names the last one that mentions it.
+
+Two shapes deserve a stated rule rather than case-by-case judgment:
+
+- **A `(Refs #N)` on a `compress` line.**
+  It survives only when the issue encodes a constraint a reader may need to trace — a lint-guarded boundary, an ADR, a structural invariant.
+  Provenance alone is dropped; git log has it.
+- **A section that is retro spillover.**
+  A skill section that reads as a session's debugging narrative rather than as package context (`package-pi-permission-system`'s `## Debugging`, 2,571 words at the first audit) is one `offload → docs/retro` row for the whole section, not a row per line.
+
+`package-pi-permission-system` is a third of the skill corpus.
+Walk it like the rest, and give it its own summary line in the inventory so its share of the cuts is visible.
+
+## Step 3: Write the inventory
+
+Write `docs/agent-docs-audit/<date>/inventory.md`:
+
+````markdown
+---
+audit: <YYYY-MM-DD>
+---
+
+# Agent-doc audit — <YYYY-MM-DD>
+
+Always loaded before: <total> words (AGENTS.md <n> + skill descriptions <n>).
+Always loaded after: _filled in Step 6_.
+
+## Summary
+
+| File | Passages | keep | offload | compress | delete |
+| --- | --- | --- | --- | --- | --- |
+| AGENTS.md | … | … | … | … | … |
+| .pi/skills/package-pi-permission-system/SKILL.md | … | … | … | … | … |
+| all other skills | … | … | … | … | … |
+
+## Inventory
+
+| File | Section | Passage | Verdict | Rationale |
+| --- | --- | --- | --- | --- |
+| AGENTS.md | Commits | "Do not gate a commit…" | compress | rule stands; drop the #885 story |
+| AGENTS.md | Shell and search | "`rg -r` is `--replace`…" | delete | no retro since 07-20 (last: 0725); model reads `--help` |
+| .pi/skills/package-pi-permission-system/SKILL.md | Debugging | whole section | offload → docs/retro | retro spillover, not package context |
+````
+
+The `Passage` cell is the first few words, enough to find the line with `grep -n`; the `Rationale` is one clause.
+A `keep` row still gets a rationale when the passage looked cuttable — that is the record of why it stayed.
+
+Lint it before the gate: `pnpm exec rumdl check docs/agent-docs-audit/<date>/inventory.md`.
+
+## Step 4: Gate (hard)
+
+Put the **whole inventory** to the operator in one `ask_user` pass, with the summary table in the message and the file path for the full list.
+Offer exactly two options: apply the inventory as written, or stop so the operator edits `inventory.md` by hand — after which you re-read it and re-gate.
+No per-passage round trips.
+
+Do not edit `AGENTS.md` or any skill before this gate returns "apply".
+
+## Step 5: Apply
+
+For every `delete` and `compress` row, in file order:
+
+1. `grep -n` the passage to find its current line — line numbers move as you cut, so never carry one forward.
+2. Re-read the surrounding region before each `Edit`.
+   `pi-autoformat` reflows the file after every edit, so an `oldText` built from what you wrote a moment ago can fail to match.
+3. `delete`: remove the line.
+   If it was the only sentence in a paragraph, remove the now-empty paragraph too; if it was the only content under a heading, remove the heading.
+4. `compress`: replace the line with the rule alone, keeping a `(Refs #N)` only where the inventory's rationale says the citation encodes a constraint.
+
+`offload` and `keep` rows are not applied.
+An `offload` is a move into a skill whose shape is a design choice; the inventory has named the destination, and the move is a separate, manual change.
+
+## Step 6: Verify and commit
+
+1. Clear the markdown-lint cache and lint from the root — a deleted heading can orphan a cross-file link that the cache would hide:
+
+   ```bash
+   find .rumdl_cache -type f -delete
+   pnpm run lint
+   ```
+
+2. Re-measure and write the number into the inventory header's **after** line:
+
+   ```bash
+   node scripts/agent-docs/always-loaded.mjs | tee "$D/always-loaded-after.txt"
+   ```
+
+3. Confirm every applied row landed: for each `delete`, `grep -c '<passage>'` on its file returns 0; for each `compress`, the rule's distinctive phrase is still present and the incident's is not.
+4. Commit twice:
+
+   ```bash
+   git add docs/agent-docs-audit/<date>/
+   git commit -m "docs(agent-docs): audit <date>"
+   git add AGENTS.md .pi/skills/
+   git commit -m "docs: prune agent docs per <date> audit"
+   git push
+   ```
+
+   The second commit's body names the always-loaded before and after, and the count of `delete` and `compress` rows applied.
+
+## Finally
+
+Report the before and after always-loaded numbers, the row counts by verdict, and the `offload` rows still open — those are the manual follow-through this audit hands to whoever picks them up.
+If the after number is not below the before, say so plainly; an audit that cut nothing is a finding about the admission test, not a success.

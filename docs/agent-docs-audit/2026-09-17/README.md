@@ -17,6 +17,7 @@ Each audit commits its own dated directory; the CSVs here are the record, not a 
 ```bash
 node scripts/agent-docs/doc-growth.mjs > docs/agent-docs-audit/<date>/doc-growth.csv
 node scripts/agent-docs/model-usage.mjs > docs/agent-docs-audit/<date>/model-usage.csv
+node scripts/agent-docs/always-loaded.mjs
 cd docs/agent-docs-audit/<date> && uv run plot.py
 ```
 
@@ -37,6 +38,10 @@ No message content, no file contents, no session IDs.
 
 Word counts are matched repo-wide, so the pre-consolidation layout (a per-package `AGENTS.md` and `.pi/` directory, before mid-May 2026) is included.
 Snapshots landing mid-migration read low for a week.
+
+The `agents_md` column also counts the nine `packages/*/AGENTS.md` files that survive today as ~45-word sentinels, which fire only when Pi is launched from a package subdirectory.
+That is right for the history and about 400 words high as an always-loaded figure, which is why `always-loaded.mjs` reads the root file alone.
+On the 2026-09-17 tree it reports `agentsMd=8760 descriptions=454 total=9214`.
 
 Stage attribution walks entries in order, assigning each message to the session name in effect at that moment.
 Taking the last name in a transcript instead credits a renamed or resumed session's whole history to whatever stage it ended as, which inflates `Retrospective` roughly fivefold.
