@@ -42,4 +42,36 @@ Filed [#935] for the prompt-template and subagent-definition pass the operator s
 - `scripts/agent-docs/model-usage.mjs` — `DEFAULT_PREFIX` hardcodes this checkout's session-store directory name.
   `transcriptPaths` already takes `prefix`, so it is not a testability blocker; making the default portable is a separate decision.
 
+## Stage: Implementation — TDD (2026-09-17T14:36:26Z)
+
+### Session summary
+
+Nine of the plan's ten steps landed in nine commits plus one baseline fix: three preparatory refactors, three test commits (41 new tests, 7,049 → 7,090), the `always-loaded.mjs` script, the admission test in `AGENTS.md` (138 words), the `/retro` Step 7 gate, and the `/audit-agent-docs` template.
+Step 10 — the first audit — runs in a fresh session by design, since a new template is not registered in the session that creates it.
+Pre-completion reviewer: PASS.
+
+### Observations
+
+- **The baseline was red on this issue's own evidence commit.**
+  `fallow dead-code` reported both `scripts/agent-docs/*.mjs` unreachable, and CI had failed on the 8c9bb3c6 push.
+  `roadmap-check.mjs` passed only because its test imports it.
+  Fixed by declaring `scripts/**/*.mjs` as entry points (`build:` d8446477) — a CLI script is an entry by nature, and the gate should not depend on whether a script has a test yet.
+- **A parallel `cp`-then-`Edit` block raced.**
+  Saving the green file and applying the first mutation in one tool block let the `Edit` land before the `cp`, so `/tmp/green-*.mjs` captured the mutant and the second mutation ran on top of the first.
+  Caught because M2's red count included M1's tests.
+  Recovered from HEAD (safe there: the step's own uncommitted edit was in the test file, not the script).
+  Save the green copy in its own tool call, then mutate.
+- **A test-first `Red` on an already-exported module is a bulk red.**
+  Steps 2 and 5 went green on first run because steps 1, 3, and 4 had landed the exports; every mutation was therefore mandatory, and every one killed exactly its predicted class.
+- **One mutation prediction was host-dependent.**
+  `getUTCDay` → `getDay` on `weekOf` kills the Monday pin under PDT and the two Sunday pins under Asia/Tokyo; on a UTC host (CI) the mutant is behaviorally identical to the original.
+  The three pins together cover every non-UTC host; recorded in the commit body rather than forcing `TZ` in the test.
+- **MD029 reshaped the `/retro` edit.**
+  The plan's "question 0" cannot be a list item (ordered lists start at 1) and renumbering would have touched the four existing questions, so the gate is a lead-in paragraph and the diff is insertions only.
+- **`AGENTS.md` has no home for a periodic command in its workflow prose.**
+  `/triage-backlog` is absent by the same convention; the admission-test subsection introduces `/audit-agent-docs`, and only the session-naming table gained a row.
+- Every prescribed shell block in the new template was dry-run against a scratch directory before commit.
+- Always-loaded words: 9,214 on the 2026-09-17 tree → 9,364 on HEAD (+141 admission test, +9 table row).
+  The first audit's job is to make that number go down.
+
 [#935]: https://github.com/gotgenes/pi-packages/issues/935
