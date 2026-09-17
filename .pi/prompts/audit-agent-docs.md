@@ -98,6 +98,10 @@ Always loaded after: _filled in Step 6_.
 | .pi/skills/package-pi-permission-system/SKILL.md | … | … | … | … | … |
 | all other skills | … | … | … | … | … |
 
+## Assessment
+
+_Filled in Step 6._
+
 ## Inventory
 
 | File | Section | Passage | Verdict | Rationale |
@@ -150,7 +154,12 @@ An `offload` is a move into a skill whose shape is a design choice; the inventor
    ```
 
 3. Confirm every applied row landed: for each `delete`, `grep -c '<passage>'` on its file returns 0; for each `compress`, the rule's distinctive phrase is still present and the incident's is not.
-4. Commit twice:
+4. Write the inventory's `## Assessment` — the audit's verdict on the admission test, not on the corpus:
+   - Which verdict dominated, and what that says about where the growth is.
+   - Which admission question did the cutting, and which never fired.
+     A question that never fires is disconnected, not satisfied.
+   - Any passage kept only because it had nowhere to go; name the destination that does not exist.
+5. Commit twice:
 
    ```bash
    git add docs/agent-docs-audit/<date>/
@@ -166,3 +175,4 @@ An `offload` is a move into a skill whose shape is a design choice; the inventor
 
 Report the before and after always-loaded numbers, the row counts by verdict, and the `offload` rows still open — those are the manual follow-through this audit hands to whoever picks them up.
 If the after number is not below the before, say so plainly; an audit that cut nothing is a finding about the admission test, not a success.
+Report the `## Assessment` too: a cut composed almost entirely of provenance is the same kind of finding, whatever the word count says.

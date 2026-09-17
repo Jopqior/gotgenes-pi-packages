@@ -36,6 +36,19 @@ Line numbers are from the pre-prune tree and locate the passage for `grep -n`; t
 A `compress` row that names several refs in one cell counts once here and lands as one edit per ref.
 `package-pi-permission-system` share: 18 of 21 `offload` rows; roughly 9,400 of its 12,907 words are named for a move out of the skill.
 
+## Assessment
+
+The verdict that dominated is `compress`, at 125 of 201 rows, and 108 of the 109 `AGENTS.md` edits removed a `(Refs #N)` or an incident sentence.
+The growth is therefore not in the rules but in how each rule arrived: `/retro` has been appending provenance and narrative beside rules that stand without them.
+
+Question 3 (does the rule stand without its incident?) did all the cutting.
+Question 1 fired exactly once — the `*/`-in-a-block-comment rule — and three further question-1 candidates were kept because they had recurred in retros with the rule already loaded.
+**Question 2 never fired outside two rows**, and not because the rules belong up front: `Commits`, `Shell and search`, `Edit tool batches`, `Clarification gates`, `Reading this repo's own artifacts`, and `Background agent guardrails` all fire at a recognizable moment, and all were kept because no destination skill exists to name.
+
+Passages kept only for want of a destination: the six sections above, plus the two `releasing` rows recorded as `offload` against a skill that does not exist yet.
+That missing destination is the single largest constraint on this audit — it is worth roughly 5,000 words that question 2 would otherwise have moved.
+Filed as #937 (split `AGENTS.md`, create the topic skills), with #938 (mechanical tripwires) and #939 (a retro lens for rules that applied but sat in an unloaded skill) as its siblings.
+
 ## Inventory
 
 ### AGENTS.md
