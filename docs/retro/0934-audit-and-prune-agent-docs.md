@@ -73,5 +73,14 @@ Pre-completion reviewer: PASS.
 - Every prescribed shell block in the new template was dry-run against a scratch directory before commit.
 - Always-loaded words: 9,214 on the 2026-09-17 tree → 9,364 on HEAD (+141 admission test, +9 table row).
   The first audit's job is to make that number go down.
+- **The summary read as "done" when the deliverable was not.**
+  The operator's planning answer was "through applying the reviewed inventory", and the summary presented steps 1–9 with `/ship 934` as the next step — which would have closed the issue with the prune unstarted.
+  The plan's own step 10 and its acceptance line ("both audit commits on `main`") were right there; the summary should have led with "next: fresh session, `/audit-agent-docs`, then ship", not with `/ship`.
+  A stage summary's "next step" must be checked against the plan's acceptance criterion, not against the last step this session could execute.
+- **Overcorrected before re-reading the plan.**
+  When the operator flagged the gap, the first reaction was to hand-execute the template in this session — measuring, then dispatching two classifier subagents — rather than re-reading step 10, which already said a fresh session runs the command.
+  The operator's "was that the plan?"
+  caught it; the classifiers were stopped and the working-tree residue (a refreshed `model-usage.csv`, an `always-loaded-before.txt`) reverted so the fresh session's `git pull --ff-only` would not refuse.
+  Hand-executing would also have skipped the one real test of the deliverable: the command running as a command.
 
 [#935]: https://github.com/gotgenes/pi-packages/issues/935
