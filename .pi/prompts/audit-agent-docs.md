@@ -107,7 +107,7 @@ _Filled in Step 6._
 | File | Section | Passage | Verdict | Rationale |
 | --- | --- | --- | --- | --- |
 | AGENTS.md | Commits | "Do not gate a commit…" | compress | rule stands; drop the #885 story |
-| AGENTS.md | Shell and search | "`rg -r` is `--replace`…" | delete | no retro since 07-20 (last: 0725); model reads `--help` |
+| AGENTS.md | Architecture-doc conventions | "The residual recorded for #821…" | delete | story; the preceding lines are the rule |
 | .pi/skills/package-pi-permission-system/SKILL.md | Debugging | whole section | offload → docs/retro | retro spillover, not package context |
 ````
 
