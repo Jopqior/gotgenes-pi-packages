@@ -19,6 +19,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // Pi encodes a session store's directory name from the cwd it was launched in.
 const DEFAULT_SESSIONS_DIR = join(homedir(), ".pi", "agent", "sessions");
@@ -28,7 +29,7 @@ const STAGE_PATTERN = /^#(\d+)\s+([^—]+?)\s+—/;
 const UNNAMED = "(unnamed)";
 const DEFAULT_THINKING = "(default)";
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const options = { sessionsDir: DEFAULT_SESSIONS_DIR, prefix: DEFAULT_PREFIX };
   for (let i = 0; i < argv.length; i += 2) {
     const value = argv[i + 1];
@@ -39,7 +40,7 @@ function parseArgs(argv) {
   return options;
 }
 
-function transcriptPaths({ sessionsDir, prefix }) {
+export function transcriptPaths({ sessionsDir, prefix }) {
   return readdirSync(sessionsDir)
     .filter((name) => name.startsWith(prefix))
     .flatMap((name) => {
@@ -51,7 +52,7 @@ function transcriptPaths({ sessionsDir, prefix }) {
     .sort();
 }
 
-function weekOf(timestamp) {
+export function weekOf(timestamp) {
   const date = new Date(timestamp);
   const monday = new Date(date);
   monday.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
@@ -114,17 +115,19 @@ function accumulate(rows, path) {
   }
 }
 
-const options = parseArgs(process.argv.slice(2));
-const rows = new Map();
-for (const path of transcriptPaths(options)) accumulate(rows, path);
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const options = parseArgs(process.argv.slice(2));
+  const rows = new Map();
+  for (const path of transcriptPaths(options)) accumulate(rows, path);
 
-process.stdout.write(
-  "week,model,thinking_level,stage,sessions,messages,tokens,cost_usd\n",
-);
-for (const key of [...rows.keys()].sort()) {
-  const row = rows.get(key);
-  const cells = key.split("\u0000").join(",");
   process.stdout.write(
-    `${cells},${row.sessions.size},${row.messages},${row.tokens},${row.cost.toFixed(2)}\n`,
+    "week,model,thinking_level,stage,sessions,messages,tokens,cost_usd\n",
   );
+  for (const key of [...rows.keys()].sort()) {
+    const row = rows.get(key);
+    const cells = key.split("\u0000").join(",");
+    process.stdout.write(
+      `${cells},${row.sessions.size},${row.messages},${row.tokens},${row.cost.toFixed(2)}\n`,
+    );
+  }
 }
