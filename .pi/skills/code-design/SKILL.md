@@ -156,12 +156,12 @@ A classifier answering "what is this?"
 may return "not X" for anything it does not recognize; a guard answering "is it safe to proceed?"
 must return "not safe" for the same input.
 Reusing the first as the second turns every unrecognized shape into a silent pass.
-Name the two apart — `provesX` versus `mayX` — so each call site reads its own burden (Refs #803).
+Name the two apart — `provesX` versus `mayX` — so each call site reads its own burden.
 
 ### Decision provenance
 
 When a system decides on the user's behalf, record what decided and on what basis — not only the outcome.
-A log showing `approved` without _approved by whom_ cannot distinguish a human approval from an auto-approval, which is the distinction an audit needs (Refs #726).
+A log showing `approved` without _approved by whom_ cannot distinguish a human approval from an auto-approval, which is the distinction an audit needs.
 
 ### Preparatory refactoring (tidy first)
 
@@ -198,7 +198,7 @@ When a new capability is needed in a library module, accept it as a parameter or
 Before redeclaring a Pi SDK type locally, check whether it's already exported from `@earendil-works/pi-ai` or `@earendil-works/pi-coding-agent`.
 Import directly when the exported type matches; redeclare only when narrowing is intentional (ISP).
 
-When a design or an `ask_user` option hinges on calling an SDK method, confirm it on the exact type the code holds (e.g. `pi: ExtensionAPI`), not an analogous adjacent type — the per-event `ctx` or internal runtime may bind a getter the public surface omits (e.g. `getSystemPrompt`, #437).
+When a design or an `ask_user` option hinges on calling an SDK method, confirm it on the exact type the code holds (e.g. `pi: ExtensionAPI`), not an analogous adjacent type — the per-event `ctx` or internal runtime may bind a getter the public surface omits (e.g. `getSystemPrompt`).
 
 When writing event handlers that consume Pi SDK types, prefer lean local payload interfaces over full SDK event types.
 The SDK may not export all event interfaces, and exported types often require fields the handler does not read.
@@ -208,7 +208,7 @@ When a shared function parameter must accept SDK content types (e.g., `TextConte
 SDK interfaces lack index signatures; index-signature parameters force `as unknown as` double-casts at call sites.
 
 When writing `promptGuidelines` for a tool registration, name the tool in every bullet — Pi flattens all tools' guidelines into one `Guidelines:` block without per-tool attribution ([earendil-works/pi#4879](https://github.com/earendil-works/pi/issues/4879)).
-Reserve `promptGuidelines` for guidance an agent needs _before_ choosing the tool — the block sits in every session's system prompt, so post-result guidance ("do not retry on X") belongs in the tool's `description` or its result text (Refs #764).
+Reserve `promptGuidelines` for guidance an agent needs _before_ choosing the tool — the block sits in every session's system prompt, so post-result guidance ("do not retry on X") belongs in the tool's `description` or its result text.
 
 When a tool's `execute` returns a discriminated-union `details` (e.g. `{ kind: "transcript" } | { kind: "status" }`), `defineTool` infers its `TDetails` generic from the first narrowed return and rejects the other branch.
 Cast each return's `details` `as <Union>` so the full union flows into the generic — `satisfies <Union>` keeps the narrowed branch type and does not fix the inference.
@@ -258,9 +258,9 @@ Fix: use a `for...of` loop instead of `.forEach()` when a callback mutates a var
 ### Speculative eslint-disable directives
 
 Add an `eslint-disable` directive only after the linter reports the rule, never preemptively — the pre-commit auto-fix strips an unused directive and leaves a stray blank line (an inline disable above an object-literal property).
-A `||`-for-defaulting on a non-nullable primitive (e.g. `string`) does not trip `prefer-nullish-coalescing`, so no disable is needed (Refs #596).
+A `||`-for-defaulting on a non-nullable primitive (e.g. `string`) does not trip `prefer-nullish-coalescing`, so no disable is needed.
 
 ### no-deprecated on a deliberate deprecation
 
 Tagging an exported symbol `@deprecated` makes `@typescript-eslint/no-deprecated` an error at every internal call site — including the tests that pin the deprecated path's preserved behavior.
-Add a file-level `eslint-disable` with a reason to those tests; do not drop the tag or migrate them to the replacement (Refs #699).
+Add a file-level `eslint-disable` with a reason to those tests; do not drop the tag or migrate them to the replacement.

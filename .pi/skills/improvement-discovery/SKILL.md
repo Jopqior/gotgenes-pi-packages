@@ -290,7 +290,7 @@ The plan should produce:
    `./scripts/roadmap-check.mjs <pkg>` validates the published inputs above against each other, so four structural anchors are load-bearing: the `### Steps` subsection steps are taken from, the single ```mermaid fence, `### Parallel tracks`, and `### Release batches`.
    It verifies that `Priority` equals `Impact × (6 − Risk)` rather than taking the published product on trust, that every step carries exactly one recognized `Release:` tag whose batch resolves to a bullet, that steps and diagram nodes correspond, and that the hard-dependency graph is acyclic.
    It also holds each `**Hard dependency:**` bullet to the diagram's solid edges in both directions — the diagram is the dependency authority and the bullet is the explanation — and reports a step named in no track or no release batch.
-   Run it before committing a roadmap (Refs #894).
+   Run it before committing a roadmap.
 7. **Open-issue sweep dispositions** — the Step 2 verdicts, under a `#### Open-issue sweep dispositions` heading inside the roadmap's `### Findings (planned YYYY-MM-DD)` section.
    Use that exact spelling: the `roadmap-fit` skill appends a bullet to it whenever an issue is spun off mid-phase, and `/finish-phase` greps it to reconcile phase-born issues before archiving.
    A bold prose lead-in or a per-phase variant (`Deferred work (explicit dispositions, …)`) breaks both.

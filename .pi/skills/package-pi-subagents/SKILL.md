@@ -19,8 +19,7 @@ The fork carries two original patches from the thin-patch era, still present in 
 2. **Patch 3 (active_agent tag)** - `buildAgentPrompt` includes `<active_agent name="${agentConfig.name}"/>` in every assembled child system prompt (both `replace` and `append` modes); the tag follows the cacheable parent-prompt prefix so `@gotgenes/pi-permission-system` can resolve per-agent `permission:` frontmatter inside the child.
    Since #890 the two modes differ only in the `<agent_instructions>` wrapper: the hard-coded `<sub_agent_context>` bridge append mode carried was removed, because its tool bullets duplicated the `promptGuidelines` pi's own tools contribute and named `edit`/`write` to children that have neither.
 
-Note: Patch 2 (post-bind active-tool re-filter) was simplified in Phase 14 (#239) and retired in #725.
-The filter dance is gone: `EXCLUDED_TOOL_NAMES` reaches the SDK as the `excludeTools` denylist at session creation, which it reapplies on every tool-registry rebuild.
+There is no post-bind active-tool re-filter: `EXCLUDED_TOOL_NAMES` reaches the SDK as the `excludeTools` denylist at session creation, which it reapplies on every tool-registry rebuild.
 
 A child's **capability** tool set is exactly its agent's `tools:` frontmatter list.
 Pi treats the `tools` option to `createAgentSession` as an allowlist and applies it *before* building the session's tool registry, so an extension that calls `registerTool` inside a child succeeds and is then filtered out unless the agent names that tool.
@@ -30,7 +29,7 @@ The core installs two child-facing tools of its own on top of that list, in ever
 Every update joins the run's ledger on `SubagentState`, each entry remembering whether the announcement channel delivered it, so `runUpdates` renders what the run still **owes** a carrier.
 `NotificationManager` announces one only while nothing has claimed the outcome and the child is still running (`canAnnounceUpdate`), re-read at emit rather than replayed from enqueue — a message parked for the parent's turn can be claimed or outlived by its child in between.
 Every other update rides that run's outcome through the shared addenda tail (`renderRunUpdates`), including the completion nudge, so it reaches the parent exactly once and never as a prompt to steer a finished child.
-The lifecycle event fires either way (Refs #872, #903).
+The lifecycle event fires either way.
 The boundary the `tools:` allowlist draws is **capability**, not provenance — neither tool reaches the filesystem, the shell, or the network, so a read-only agent that gains them stays read-only, and #612's and #768's refusals still hold.
 They are appended to the allowlist at `createSubagentSession` and passed as SDK `customTools`; both halves are needed, because Pi filters `customTools` through the allowlist and drops an unlisted one with no error.
 This replaced the `<question-for-parent>` text marker and its 222-line fence-aware parser (#858) — do not reintroduce a marker protocol.
@@ -39,12 +38,12 @@ Upstream PRs for these patches ([#71](https://github.com/tintinweb/pi-subagents/
 
 `buildAgentPrompt` embeds only the **identity** region of the inherited parent prompt, per `docs/decisions/0006-inherited-prompt-is-identity-only.md`.
 Pi's `buildSystemPrompt` ends every prompt with layers it resolves per session — the `<available_skills>` catalogue, then a `Current working directory:` footer — and extensions append further blocks after those from `before_agent_start`, rebuilt from the base prompt every turn.
-The child's own session rebuilds all of them, so `inheritedIdentity` cuts the inherited prompt at the first such layer and keeps what precedes it (Refs #640, #801).
+The child's own session rebuilds all of them, so `inheritedIdentity` cuts the inherited prompt at the first such layer and keeps what precedes it.
 The catalogue is identified by position rather than document order: `buildSystemPrompt` writes the cwd footer immediately after it, unconditionally, so Pi's own catalogue is the one whose `</available_skills>` sits on the line before the footer — which keeps a catalogue quoted in a project-context file or in an appended block from being taken for the section, in either direction.
 The heading is then found by searching back from that tag; the footer is the cut when the parent resolved no skills, and both anchors match whole lines.
 Do not re-add the equal-cwd exception #640 originally carried: the catalogue precedes the footer, so once the catalogue is cut the footer is already past the divergence point and the exception preserves no shared prefix.
 
-What that placement guarantees is **shared parts, not shared bytes** (`docs/decisions/0008-inherited-region-is-shared-parts.md`, amending ADR 0006, Refs #890).
+What that placement guarantees is **shared parts, not shared bytes** (`docs/decisions/0008-inherited-region-is-shared-parts.md`, amending ADR 0006).
 The benefit is host-dependent and the package must not claim otherwise: Anthropic builds its cache prefix as `tools` → `system` → `messages`, so a child — whose tool array always differs from its parent's, if only by `ask_parent`/`notify_parent` — gets no hit from a byte-identical system prompt.
 It pays on hosts that render tool definitions after the system text, which is #180's own local-model constituency.
 Per-session prose about the tool surface therefore does not belong in the inherited region: `@gotgenes/pi-permission-system` states each session's tools *after* the layers a child inherits rather than editing them in place.
@@ -60,7 +59,7 @@ There is no global default arm by design: one would silently cost #180's local-i
 It names each context file by absolute path, so a child a `WorkspaceProvider` relocated cuts at that block instead of at the catalogue, and a `portable` child never inherits it at all.
 Such a child's block is rendered from Pi's own `loadProjectContextFiles` pointed at the child's directory, into the assembled override — not left to Pi, which appends context files after `systemPromptOverride` and would move a `prompt_mode: replace` child's body off the end.
 A child at the parent's directory under `full` is untouched, byte for byte, which is what keeps the replica of Pi's block off the shared prefix's critical path (`buildSystemPrompt` is not exported, so no test can pin it against the real one).
-A relocated workspace that resolves no context file receives none, reported under `PI_SUBAGENTS_DEBUG=1` (Refs #918).
+A relocated workspace that resolves no context file receives none, reported under `PI_SUBAGENTS_DEBUG=1`.
 An absent or whitespace-only capture falls back to `genericBase`, never to the full prompt.
 The capture comes from this package's only `before_agent_start` handler: `getSystemPromptOptions()` is attached to a command context, not to the session context the runtime holds.
 
@@ -133,8 +132,8 @@ The key phases are:
 
 Every semantic display glyph (status icons, turn/compaction indicators, spinner frames, sub-line prefixes) lives in `src/ui/glyphs.ts` — never spelled at a render site.
 Before changing or adding one, measure its monospace coverage with the `fc-list` command in that module's doc comment.
-Pi's TUI sizes every cell with `get-east-asian-width`, so a glyph that no monospace font covers is drawn by a proportional fallback that overruns its cell and collides with the next column (Refs #669).
-East Asian Width does not detect this — the glyph #669 replaced and its replacement are both width 1.
+Pi's TUI sizes every cell with `get-east-asian-width`, so a glyph that no monospace font covers is drawn by a proportional fallback that overruns its cell and collides with the next column.
+East Asian Width does not detect this — an offending glyph and its replacement can both be width 1.
 Box-drawing characters are deliberately excluded: they are layout, not vocabulary.
 
 ## Code Style

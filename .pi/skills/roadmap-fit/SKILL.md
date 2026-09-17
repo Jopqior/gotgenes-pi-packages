@@ -46,7 +46,7 @@ The decision is purely **where in the section order** the step goes — name the
 
 Put the proposal to the operator with `ask_user`: all four as options, yours marked `recommended: true` with the rationale in its description.
 The sweep list is user-decided by convention, and two of the four change the phase's scope.
-Do not skip the gate because "defer" looks obvious — a self-recorded defer is the failure this skill exists to prevent (Refs #753).
+Do not skip the gate because "defer" looks obvious — a self-recorded defer is the failure this skill exists to prevent.
 
 Recording a fold-in is not authorization to implement it now.
 The work still happens under the filed issue, on its own schedule.

@@ -19,13 +19,13 @@ Pre-monorepo plans from the upstream fork live in `docs/plans/archive/` — issu
 `docs/architecture/architecture.md` tracks the improvement phases as a flat numbered step list plus a Mermaid graph — one issue per step, never a chain inside a single node label.
 When a plan touches that roadmap, enumerate the whole phase: search dependents too (`gh issue list --search "#N"`), not just the issues the current one references.
 When the implementation completes a numbered roadmap step, mark it complete in `docs/architecture/architecture.md` in the implementation doc-update commit (`/tdd-plan` step 7 / `/build-plan`), not a deferred `/ship` commit — `✅` on both the step heading and its Mermaid diagram node, plus any stale health-metric/target rows in the same commit.
-Deferring the marker to ship splits it from the work and risks it falling through entirely (Refs #479, #480).
-A dated `Baseline (<date>)` column is a fixed phase-open snapshot recomputed at phase close, not a per-step value — do not edit it as work lands (Refs #573).
+Deferring the marker to ship splits it from the work and risks it falling through entirely.
+A dated `Baseline (<date>)` column is a fixed phase-open snapshot recomputed at phase close, not a per-step value — do not edit it as work lands.
 
 ## Where a module goes
 
 `src/` is partitioned by domain, and the partition is a rule rather than a description — `docs/architecture/architecture.md` § Directory vocabulary is the canonical table.
-A new module goes to its named directory when it is written, not when a later phase happens to rewrite it; the earlier convention (grow a directory only in the phase that rewrites its files) was superseded in #837 precisely because it let cold modules pile up at the root.
+A new module goes to its named directory when it is written, not when a later phase happens to rewrite it — growing a directory only in the phase that rewrites its files lets cold modules pile up at the root.
 The directories are `config/` (read and hold configuration), `policy/` (turn it into a decision), `session/` (state scoped to one session), `access-intent/` (+ `bash/`) (what is being accessed, policy-free), `path/` (the platform's path language), `handlers/` (+ `gates/`) (Pi event handlers and the gate descriptors), `authority/` (subagent detection, the `Authorizer` spine, forwarding), `exposure/` (the `before_agent_start` pass), `tool-input/` (shaping tool input into a fact), `presentation/` (the ask payload and its renders), `logging/` (the writer and its bounds), and `service/` (this node's outward face).
 Only five files sit at the root — `index.ts`, `service.ts`, `types.ts`, `value-guards.ts`, `permission-request-id.ts` — and that list grows only by editing the vocabulary table.
 
@@ -126,7 +126,7 @@ The warn-once latch is per audit instance with no re-arm, because the factory is
 The dependency direction is inverted — pi-subagents has zero knowledge of pi-permission-system.
 The `session-created` handler MUST stay synchronous: the core emits it on the same call stack right before `bindExtensions()`, and the event bus dispatches listeners synchronously, so a synchronous handler lands the registry entry before binding proceeds.
 The contract is named the **subagent adapter convention**, and `docs/subagent-integration.md` is its canonical spec (ADR 0012 decisions 5–6): cite that section rather than restating channel names, payload shapes, or the pre-bind ordering in another doc.
-An implementation owes only the announcement — the two events in-process, `PI_SUBAGENT_PARENT_SESSION` out-of-process — and `SUBAGENT_ENV_HINT_KEYS` is composed from `SUBAGENT_PARENT_SESSION_ENV_CANDIDATES` so naming a parent session is itself a detection hint, which is what makes that single obligation sufficient (Refs #789).
+An implementation owes only the announcement — the two events in-process, `PI_SUBAGENT_PARENT_SESSION` out-of-process — and `SUBAGENT_ENV_HINT_KEYS` is composed from `SUBAGENT_PARENT_SESSION_ENV_CANDIDATES` so naming a parent session is itself a detection hint, which is what makes that single obligation sufficient.
 Do not split the two lists back apart by adding a parent-session name to only one of them.
 
 A serving session announces that it is draining a forwarded-permission inbox on **two** channels, and `ForwardingManager` publishes to both through one `ServingAnnouncer` (`composeServingAnnouncers`), so adding or removing a channel never reaches the poll loop.
@@ -167,7 +167,6 @@ Access it via `getSubagentSessionRegistry()` (`src/authority/subagent-registry.t
 This is necessary because each session's `ResourceLoader` creates its own `pi.events` bus: the parent emits `subagents:child:session-created` on its bus and only the parent's instance receives it.
 The child's separate jiti instance runs on a different bus and never receives the event — but `getSubagentSessionRegistry()` returns the same global store, so the parent's registration is visible to the child when it checks `isSubagentExecutionContext()`.
 Do not instantiate `new SubagentSessionRegistry()` in production code; use the accessor.
-This lesson comes from issue [#296]: the regression where `permission-bridge.ts` was retired in favour of `pi.events` registration but the per-session bus split meant the child never saw the registration.
 
 ## Configuration
 
@@ -187,8 +186,8 @@ The `permission` object uses deep-shallow merge; scalar fields use simple replac
 - Keep `config-schema.ts`, example config, `docs/configuration.md`, and `README.md` aligned when the config shape changes — the schema and the config types are both derived from `config-schema.ts`, so it is the one edit point.
 - `docs/architecture/architecture.md` inline-copies the core `rule.ts` types (`Rule`, `RuleOrigin`, `Ruleset`).
   Adding or removing a field on one of these must update that listing too — a module-move check misses it, and only the pre-completion reviewer catches it otherwise.
-- Config **files** are validated strictly against `unifiedConfigSchema` (`config-schema.ts`) and rejected **fail-closed** on any invalid field (empty scope → universal `ask`), with a clear per-issue message (Refs #547).
-  A rejected **non-global** scope (project / agent / project-agent) additionally floors the composed policy `allow`→`ask` (origin `fail-closed`) at composition, so a lower scope's `allow` cannot be silently inherited behind an invalid higher scope; `deny` is preserved, global is excluded, and `yoloMode` re-permits the floored `ask` (Refs #646).
+- Config **files** are validated strictly against `unifiedConfigSchema` (`config-schema.ts`) and rejected **fail-closed** on any invalid field (empty scope → universal `ask`), with a clear per-issue message.
+  A rejected **non-global** scope (project / agent / project-agent) additionally floors the composed policy `allow`→`ask` (origin `fail-closed`) at composition, so a lower scope's `allow` cannot be silently inherited behind an invalid higher scope; `deny` is preserved, global is excluded, and `yoloMode` re-permits the floored `ask`.
   The loader marks such a scope `ScopeConfig.invalid` (a present-but-unloadable file; an absent file stays a plain empty scope); the manager reads the flags in `resolvePermissions` and appends a fail-closed notice to `getConfigIssues`.
   Per-agent frontmatter stays tolerant — `policy-loader.ts` extracts only its `permission` block via `normalizeFlatPermissionValue`, since frontmatter carries non-config keys; only a whole-file read/parse failure of an existing agent file marks the scope invalid, not a tolerantly-dropped per-key entry.
 - When removing a config field, drop it from `unifiedConfigSchema`; configs that still set it are then rejected.
@@ -196,8 +195,8 @@ The `permission` object uses deep-shallow merge; scalar fields use simple replac
 - When adding an optional field to `PermissionSystemExtensionConfig`, do not include it in `DEFAULT_EXTENSION_CONFIG` with an explicit `undefined` value — tests use `deepEqual` and it breaks equality.
 - When adding a field, define it in `unifiedConfigSchema` (`config-schema.ts`, with `.meta({ description, markdownDescription })`) and regenerate the schema (`pnpm run gen:schema`); `UnifiedPermissionConfig` is inferred from it.
   Then carry it through `PermissionSystemExtensionConfig` (`extension-config.ts`) and merge it in `mergeUnifiedConfigs()` (`config-loader.ts` — a number goes in its "Number scalars" loop).
-  A field on the runtime type but not the merge intermediate is silently dropped before runtime (the #332 / #347 bug class).
-  After #356, omitting a field from `UnifiedPermissionConfig` that `normalizePermissionSystemConfig` reads is a **compile error** — `normalizePermissionSystemConfig` reads fields directly from the typed `UnifiedPermissionConfig` parameter, so `tsc` catches the gap immediately.
+  A field on the runtime type but not the merge intermediate is silently dropped before runtime.
+  Omitting a field from `UnifiedPermissionConfig` that `normalizePermissionSystemConfig` reads is a **compile error** — `normalizePermissionSystemConfig` reads fields directly from the typed `UnifiedPermissionConfig` parameter, so `tsc` catches the gap immediately.
 - When a config example sets a policy for `write`, include the same policy for `edit` — both tools modify files and users expect them gated together.
 - `promptMaxRows` (24) and `promptFieldMaxWidth` (400) bound what an ask prompt renders; `resolveRenderBudget` (`src/presentation/dialog-renderer.ts`) owns their defaults, so neither belongs in `DEFAULT_EXTENSION_CONFIG`.
   `reviewLogFieldMaxWidth` (1000) bounds what the review log persists, with its default in `resolveReviewLogFieldWidth` (`src/logging/log-field-cap.ts`), for the same reason.
@@ -265,9 +264,9 @@ The deprecated event-bus RPC channel (`permissions:rpc:check` / `permissions:rpc
 **Registrations are node-local** (ADR 0012, `docs/decisions/0012-cross-node-extension-contract.md`, Refs #699, #786).
 One process hosts several **nodes** — one session runtime each, with its own gates, registries, and chain — and every node publishes its own service into a session-keyed process-global map, read with `getPermissionsService(sessionId)`.
 The key travels as data on the `permissions:ready` payload, which also carries `adjudicatesLocally`; the bus announces, the locator provides, so never put a live capability on a bus payload.
-That keyed map is the **only** service slot: the legacy process-root slot, its deprecated `getRootPermissionsService()` reader, its publish/unpublish pair, and the `PI_PERMISSION_SYSTEM_DEP0001` warning were removed in #796 once the last downstream migrated, and the #302 child guard went with them — keyed publication already makes clobbering impossible, so `RegisteredChildDetector` and `SubagentDetection.isRegisteredChild` are gone too (the pure `isRegisteredSubagentChild` stays, called by `isSubagentExecutionContext`).
+That keyed map is the **only** service slot; there is no process-root slot and no child guard against clobbering, because keyed publication makes clobbering impossible (the pure `isRegisteredSubagentChild` stays, called by `isSubagentExecutionContext`).
 Do not reintroduce a process-root accessor: it answers "the process root's service", which is the wrong node in every node but the root.
-The locator's `sessionId` is required, and a no-argument call answers `undefined` with a once-guarded `PI_PERMISSION_SYSTEM_WARN0001` warning rather than guessing a node — the names were reclaimed from the `*ForSession` spelling in #794, so a consumer built against the pre-rename major reaches that path.
+The locator's `sessionId` is required, and a no-argument call answers `undefined` with a once-guarded `PI_PERMISSION_SYSTEM_WARN0001` warning rather than guessing a node — a consumer built against the pre-rename `*ForSession` major reaches that path.
 That warning is deliberately not a `DeprecationWarning`, so `--no-deprecation` cannot silence a registration that never landed.
 A link registered on a relaying node is **accepted and observed**, never refused: `ObservedAuthorizerRegistrar` (`src/authority/authorizer-registry.ts`) records `authorizer_link_vacant`, so registering everywhere stays the correct default for a sibling author and nothing is silent (ADR 0012 decision 4).
 `permissions:ready` is broadcast **twice** per session generation — at `session_start` after publication, and again at the node's first `before_agent_start`, which runs after every extension's `session_start` and before any ask (ADR 0012 decision 3, the ready latch, #787).
@@ -343,7 +342,7 @@ This resolver-internal boundary is a deliberate, formalized seam, not transition
 - Test config loading, validation issues, and tolerance of deprecated keys.
 - When a change reads a **new** `ExtensionContext` field/method (e.g. `ctx.isProjectTrusted()`), update `makeCtx` **and** grep every hand-built ctx literal — `grep -rln "hasUI:" test/` (18 files cast `as unknown as ExtensionContext` / `as never`).
   These casts bypass `tsc`, so a missing field fails only at the full-suite run, not `check` or the cycle-scoped file (#644: `permission-events.test.ts` surfaced `ctx.isProjectTrusted is not a function` at runtime).
-  The same applies to a hand-built **event payload**: `composition-root.test.ts` fires `before_agent_start` through an untyped fake, so a handler reading a new payload field compiles clean and throws at run time (Refs #890).
+  The same applies to a hand-built **event payload**: `composition-root.test.ts` fires `before_agent_start` through an untyped fake, so a handler reading a new payload field compiles clean and throws at run time.
 - To test the file-based permission-forwarding round-trip (a subagent's `ask` reaching the parent), do not `await` the child's `pi.fire("tool_call", …)` directly — `ParentAuthorizer.authorize` (`src/authority/approval-escalator.ts`) polls for a response until `getTimeoutMs()` elapses (the `forwardingTimeoutMs` config default is ten minutes).
   Instead: fire without awaiting, poll the parent's `requests/` dir (`createPermissionForwardingLocation(forwardingDir, parentSessionId)`) for the child's request file, write an approval JSON to `responses/<id>.json`, then await the fire.
   Such a test must also announce that the parent is serving — it answers by hand instead of running the parent's poll timer, and without the announcement the child correctly abandons the request as unserved after ~2 s.
@@ -352,7 +351,7 @@ This resolver-internal boundary is a deliberate, formalized seam, not transition
   A `ParentAuthorizer` unit test builds its deps with `makeParentAuthorizerDeps` (`test/helpers/forwarding-fixtures.ts`), whose `serving` default reports every target as serving and whose `getTimeoutMs` override makes the timeout path testable without waiting it out.
   A test that targets a liveness path passes `makeLivenessJudge({ forwardingDir, registry?, isProcessAlive? })` instead — the real judge over real records, so a double cannot drift from the routing under test.
 - A `test/authority/` forwarding-liveness failure reporting an absurd duration (minutes for a sub-second test) is host load, not a regression — the poll loops are wall-clock.
-  A different pair fails on each run and all pass in isolation; re-run the file alone before investigating (Refs #803).
+  A different pair fails on each run and all pass in isolation; re-run the file alone before investigating.
 
 ## Debugging
 
@@ -494,7 +493,6 @@ A `case` *pattern*, a loop variable, and a function's own name are deliberately 
 When a plan or test asserts a specific bash repro string, trace the token through the classifier first — an issue's headline repro can describe a symptom whose literal input never reaches the gate being changed.
 
 [#261]: https://github.com/gotgenes/pi-packages/issues/261
-[#296]: https://github.com/gotgenes/pi-packages/issues/296
 [#393]: https://github.com/gotgenes/pi-packages/issues/393
 [#509]: https://github.com/gotgenes/pi-packages/issues/509
 [#645]: https://github.com/gotgenes/pi-packages/issues/645

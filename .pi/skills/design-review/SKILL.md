@@ -40,7 +40,7 @@ Ask:
   Those are missing intermediate abstractions (value objects or collaborator interfaces).
 
 Also flag **projection parameters**: when a function receives both `X` and `Y` and `X` is derivable from `Y` (a field or parse-product of it), drop `X` and read it from `Y` — the object that owns the data.
-Example: passing `command` alongside a `bashProgram` parsed *from* that command; give `BashProgram` a `commandText()` accessor instead (Refs #574).
+Example: passing `command` alongside a `bashProgram` parsed *from* that command; give `BashProgram` a `commandText()` accessor instead.
 
 ### 2. Law of Demeter violations
 

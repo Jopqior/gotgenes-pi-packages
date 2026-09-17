@@ -26,7 +26,7 @@ Note the skip and proceed to writing the plan.
 
 From the settled design, list the `src/`/`test/` files the change will modify or create — the same list you are about to write into the plan's "Module-Level Changes".
 The plan does not exist on disk yet, so this list is the assessor's primary input, not a file path.
-Add every test that drives the seam the change rewires, even when the design edits none of them — a composition-root or entry-point test breaks on a wiring change that never touches its file (Refs #827).
+Add every test that drives the seam the change rewires, even when the design edits none of them — a composition-root or entry-point test breaks on a wiring change that never touches its file.
 
 ## Step 2: Dispatch the assessor
 
@@ -50,15 +50,15 @@ The report is advisory — you decide what the plan says.
 - **Optional** tidyings: fold them in only if they genuinely shrink the change; drop them otherwise.
 - **Rejected** items: do not fold them in.
   If one looks worth doing, it is separate-concern cleanup — do not scope-creep the plan.
-  Record it in the Planning stage note under a `#### Deferred tidyings` heading, one line naming the file and the friction, so `/plan-improvements` can find it (Refs #787).
+  Record it in the Planning stage note under a `#### Deferred tidyings` heading, one line naming the file and the friction, so `/plan-improvements` can find it.
 
-Read a rejection's reasoning, not just its verdict — one that contradicts the design is a signal to re-examine the design, which is cheap here and expensive later (Refs #726).
-A contradiction that names a test the change will break is a **sequencing** constraint, not only a note: the repair belongs in the step whose commit breaks it, never a later one (Refs #909).
-Read a "no preparatory tidying warranted" verdict the same way: what it verified on the way past — interface fit, call-site counts, fixture assumptions — routinely confirms or refutes the design's structural claims (Refs #787).
+Read a rejection's reasoning, not just its verdict — one that contradicts the design is a signal to re-examine the design, which is cheap here and expensive later.
+A contradiction that names a test the change will break is a **sequencing** constraint, not only a note: the repair belongs in the step whose commit breaks it, never a later one.
+Read a "no preparatory tidying warranted" verdict the same way: what it verified on the way past — interface fit, call-site counts, fixture assumptions — routinely confirms or refutes the design's structural claims.
 If a recommendation would **reshape** the design rather than prepare it, surface it to the operator before writing the plan instead of absorbing it silently.
 
 Do not plan tidying of code the change will not touch — that is scope creep, not Tidy First.
-An extraction is a copy, so it carries the source's rule violations into a file that is now shared — the plan must say to re-read moved code against the governing skill before committing it (Refs #727).
+An extraction is a copy, so it carries the source's rule violations into a file that is now shared — the plan must say to re-read moved code against the governing skill before committing it.
 
 ## Step 4: Write the plan
 

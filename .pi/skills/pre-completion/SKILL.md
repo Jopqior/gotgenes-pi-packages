@@ -51,7 +51,7 @@ Modified files since last tag:
   AGENTS.md
 ```
 
-When the change removes or narrows a guard, add a re-derivation mandate to the prompt: name the invariants to verify, and require the reviewer to enumerate its own candidate inputs rather than check the ones the tests already cover (Refs #803).
+When the change removes or narrows a guard, add a re-derivation mandate to the prompt: name the invariants to verify, and require the reviewer to enumerate its own candidate inputs rather than check the ones the tests already cover.
 
 Wait for the reviewer to complete and return its report before continuing.
 
@@ -66,7 +66,7 @@ Proceed to the "Summarize" step in the template.
 Include the one-line verdict in the stage notes ("Pre-completion reviewer: PASS").
 
 A PASS is scoped to the commit it reviewed.
-If substantive commits land afterward — not just the stage-notes commit — re-dispatch before recommending `/ship` (Refs #775).
+If substantive commits land afterward — not just the stage-notes commit — re-dispatch before recommending `/ship`.
 
 ### Overall: WARN
 
@@ -74,8 +74,8 @@ Proceed to "Summarize."
 Include the verdict and WARN findings in the stage notes under a "Reviewer warnings" line.
 The user can decide whether to address warnings before running `/ship`.
 
-When a WARN names stale references to a deleted symbol or module, grep the flagged file (and its sibling docs) exhaustively for every instance of that symbol before fixing — fixing only the named instances invites a second WARN round (Refs #441).
-After fixing WARN findings, re-dispatch scoped to the **delta** — name the new commits and the rounds already reviewed, as the FAIL path does (Refs #920).
+When a WARN names stale references to a deleted symbol or module, grep the flagged file (and its sibling docs) exhaustively for every instance of that symbol before fixing — fixing only the named instances invites a second WARN round.
+After fixing WARN findings, re-dispatch scoped to the **delta** — name the new commits and the rounds already reviewed, as the FAIL path does.
 
 ### Overall: FAIL
 
@@ -88,4 +88,4 @@ Report the reviewer's "Fix required" block to the user and ask how to proceed:
 Do not proceed automatically — let the user decide.
 
 A finding in code the change never touched is a defect in the **record**, not a regression: correct the ADR or issue text, file or widen the follow-up, and offer that as the fix option.
-Scope the next dispatch to the delta — name the new commit and the rounds already reviewed (Refs #821).
+Scope the next dispatch to the delta — name the new commit and the rounds already reviewed.

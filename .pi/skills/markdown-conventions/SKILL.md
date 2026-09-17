@@ -14,14 +14,14 @@ Load this skill when writing or editing markdown files.
 
 The enforcer is `rumdl` (runs as part of `pnpm run lint`; also the pre-commit `rumdl fmt` hook), not `markdownlint-cli2` — there is no markdownlint binary in this repo.
 Rules below are named by their markdownlint `MDxxx` IDs because `rumdl` implements the same rule family; use the IDs for reference, not the tool.
-Checking a file outside the repository (a scratch sample in `/tmp`) needs `--config .rumdl.toml` — `rumdl` does not discover repo config for it, so MD013 fires against the default 80-character limit (Refs #893).
+Checking a file outside the repository (a scratch sample in `/tmp`) needs `--config .rumdl.toml` — `rumdl` does not discover repo config for it, so MD013 fires against the default 80-character limit.
 
 ### Lines and sentences
 
 - Use one sentence per line (unbroken) for better diffs.
   Each sentence occupies exactly one line; never wrap a sentence across lines or place two sentences on the same line.
   This applies to all prose, including list-item continuations.
-- `rumdl`'s `MD057` can report an existing relative link as missing when its sentence runs long; split the sentence per the rule above rather than hunting the path (Refs #635).
+- `rumdl`'s `MD057` can report an existing relative link as missing when its sentence runs long; split the sentence per the rule above rather than hunting the path.
 - Author and append markdown with the `Write`/`Edit` tools, not shell heredocs (`cat <<EOF`) — heredocs don't interpolate `\uXXXX` escapes and make one-sentence-per-line slips easy, both of which trip markdownlint.
 
 ### Code fences
@@ -52,12 +52,12 @@ An insertion point that reads correctly at the seam can reparent what follows it
   Bare `#42` auto-links on GitHub but not in other renderers.
   Every `[#N]:` definition must have a matching `[#N]` reference in the body (markdownlint MD053 rejects unused definitions).
   A `[#N]` wrapped in backticks is a code span, not a link reference — it does not count toward the matching-reference requirement, so the `[#N]:` definition still trips MD053.
-  Likewise, a `[#N]` inside a fenced code block (e.g. the `architecture.md` module-layout tree) is not a live reference — cite issues there as bare `#N` with no `[#N]:` definition (matching the block's existing entries), or MD053 rejects the orphaned definition (Refs #507).
+  Likewise, a `[#N]` inside a fenced code block (e.g. the `architecture.md` module-layout tree) is not a live reference — cite issues there as bare `#N` with no `[#N]:` definition (matching the block's existing entries), or MD053 rejects the orphaned definition.
   Write `[#N]` as plain text, including inside other formatting (`**[#N] label:**`).
   Do not add a definition for the doc's own issue number — it lives in frontmatter, not as a body link.
   Link reference definitions are file-scoped: when appending a stage entry to a retro that already defines `[#N]:`, reference it without re-adding the definition — a duplicate trips MD053.
 - ADR numbering is per-package, but `[ADR-NNNN]` reference-link definitions are file-scoped and may already point to another package's ADR (e.g. pi-subagents' `[ADR-0002]`).
-  When citing this package's own ADR in such a doc, reference it by path (`docs/decisions/NNNN-<slug>.md`), not a bare `ADR-NNNN` token (Refs #506).
+  When citing this package's own ADR in such a doc, reference it by path (`docs/decisions/NNNN-<slug>.md`), not a bare `ADR-NNNN` token.
 
 ## Documentation frontmatter
 
