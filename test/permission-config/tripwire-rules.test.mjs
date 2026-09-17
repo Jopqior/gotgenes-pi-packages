@@ -1,10 +1,20 @@
+import { existsSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
   findConfigProblems,
+  loadProjectPermissionConfig,
   MAX_REASON_LENGTH,
   schemaRepoPath,
 } from "../../scripts/permission-config/tripwire-rules.mjs";
+
+const REPO_ROOT = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+);
 
 /** A config carrying exactly the given `bash` surface. */
 function config(bash) {
@@ -158,5 +168,19 @@ describe("schemaRepoPath", () => {
 
   it("returns null when there is no $schema at all", () => {
     expect(schemaRepoPath(undefined)).toBeNull();
+  });
+});
+
+describe("this repository's own project-scope config", () => {
+  const config = loadProjectPermissionConfig(REPO_ROOT);
+
+  it("has no problems", () => {
+    expect(findConfigProblems(config)).toEqual([]);
+  });
+
+  it("names a $schema that exists in this repository", () => {
+    const schemaPath = schemaRepoPath(config.$schema);
+    expect(schemaPath).not.toBeNull();
+    expect(existsSync(path.join(REPO_ROOT, schemaPath))).toBe(true);
   });
 });
