@@ -59,15 +59,23 @@ export function weekOf(timestamp) {
   return monday.toISOString().slice(0, 10);
 }
 
-function accumulate(rows, path) {
-  const sessionId = basename(path)
-    .split("_")
-    .pop()
-    .replace(/\.jsonl$/, "");
+/**
+ * Fold one transcript's entries into the aggregate, in order.
+ *
+ * The stage and thinking level in effect when a message arrives are the ones
+ * it is attributed to, so a rename or level change mid-transcript splits the
+ * transcript's messages across rows rather than crediting them all to the
+ * final state.
+ *
+ * @param {Map<string, {messages: number, tokens: number, cost: number, sessions: Set<string>}>} rows
+ * @param {string} sessionId
+ * @param {Iterable<string>} lines JSONL entries, one per line
+ */
+export function accumulateLines(rows, sessionId, lines) {
   let thinking = DEFAULT_THINKING;
   let stage = UNNAMED;
 
-  for (const line of readFileSync(path, "utf8").split("\n")) {
+  for (const line of lines) {
     // Cheap pre-filter: transcripts are large and mostly tool payloads.
     if (
       !line.includes('"assistant"') &&
@@ -118,7 +126,13 @@ function accumulate(rows, path) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const options = parseArgs(process.argv.slice(2));
   const rows = new Map();
-  for (const path of transcriptPaths(options)) accumulate(rows, path);
+  for (const path of transcriptPaths(options)) {
+    const sessionId = basename(path)
+      .split("_")
+      .pop()
+      .replace(/\.jsonl$/, "");
+    accumulateLines(rows, sessionId, readFileSync(path, "utf8").split("\n"));
+  }
 
   process.stdout.write(
     "week,model,thinking_level,stage,sessions,messages,tokens,cost_usd\n",
