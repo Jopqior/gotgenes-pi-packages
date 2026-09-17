@@ -26,6 +26,21 @@ That scope is always asserted (the forms' repo-wide option, or `gh issue create 
 A multi-line `run:` block in `.github/workflows/` belongs in `scripts/`, with the workflow keeping a one-line invocation.
 Split a script that pushes from the read-only derivation it calls, and refuse the pushing half outside CI — `scripts/release/prepare-release.sh` guards on `CI`, `scripts/release/next-version.sh` only prints (Refs #816, #865).
 
+### Admission test
+
+This file is loaded into every session; a skill's body is loaded only when read.
+Before adding a passage here, answer three questions in order:
+
+1. Could a current model act correctly without it?
+   If yes, it belongs nowhere.
+2. Is it needed before the agent could know to load a skill?
+   If no, it belongs in that skill's body.
+3. Does the rule stand without its incident?
+   If yes, keep the rule and drop the story; a `(Refs #N)` stays only when the issue encodes a constraint a reader may need to trace.
+
+A rule whose incident has not recurred in any retro since 2026-07-20 is a delete candidate — guidance, not a verdict, since the rule may be why it has not recurred.
+`/audit-agent-docs` applies this test to the whole file and the skills on demand.
+
 ### Releasing
 
 Releases are **dispatched, never automatic**.
