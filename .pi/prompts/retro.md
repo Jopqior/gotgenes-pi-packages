@@ -188,7 +188,11 @@ The skill exits at its first step when no phase is open.
 Retro-driven additions to `AGENTS.md` and prompt bodies should land as **rule + tight example**, not **rule + rationale + worked example**.
 The retro file is the right home for rationale and worked examples.
 
-Before landing any change, ask:
+First, put each proposed `AGENTS.md` addition through the `### Admission test` in `AGENTS.md`.
+A passage that fails its first question is not landed anywhere; one that fails its second is landed in the named skill's body instead.
+This retro is where `AGENTS.md` grows — 44 of its last 60 commits were `docs(retro):` — so this is the gate that decides whether the file re-grows.
+
+Then, for what passes, ask:
 
 1. **Rationale placement** — is the *why* in the retro file, or has it leaked into `AGENTS.md`/prompt?
    If the latter, move it back and leave a one-clause justification (or a `Refs #N` pointer).
@@ -229,5 +233,5 @@ If neither the roadmap nor the triage queues anything, say so explicitly.
 - Be conservative — only propose changes clearly justified by evidence in this session.
 - Be specific — provide exact proposed text, not vague suggestions.
 - Look for removals alongside additions.
-- Don't duplicate — check whether a rule already exists in `AGENTS.md` or a prompt before adding.
+- Don't duplicate — check whether a rule already exists in `AGENTS.md`, a skill, or a prompt before adding, and apply the `AGENTS.md` admission test to decide which of those it belongs in.
 - Do not edit `CHANGELOG.md` — the release workflow owns it.
