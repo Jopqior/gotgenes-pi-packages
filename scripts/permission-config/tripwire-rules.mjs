@@ -17,6 +17,10 @@
 //    unit and a pipeline enumerates into several, so such a pattern is a
 //    silent no-op.
 //
+// The rest hold the schema's own line rather than exceeding it: a surface
+// value is a state or a pattern map, and a deny rule's keys are exactly the
+// two the schema's strict object defines.
+//
 // Usage: node scripts/permission-config/tripwire-rules.mjs [--root DIR]
 
 import { existsSync, readFileSync } from "node:fs";
@@ -28,6 +32,9 @@ export const MAX_REASON_LENGTH = 500;
 
 /** The permission states a surface value may name directly. */
 const PERMISSION_STATES = ["allow", "deny", "ask"];
+
+/** The keys the schema's strict deny object defines. */
+const DENY_RULE_KEYS = ["action", "reason"];
 
 /** Where a project scope's config lives, relative to the repo root. */
 const PROJECT_CONFIG_PATH = path.join(
@@ -74,8 +81,17 @@ export function schemaRepoPath(schemaUrl) {
  * @returns {string[]}
  */
 export function findConfigProblems(config) {
-  const bash = config?.permission?.bash;
-  if (typeof bash !== "object" || bash === null) return [];
+  const permission = config?.permission;
+  if (typeof permission !== "object" || permission === null) return [];
+  if (!Object.hasOwn(permission, "bash")) return [];
+
+  const bash = permission.bash;
+  if (typeof bash === "string") {
+    return PERMISSION_STATES.includes(bash) ? [] : [malformedSurface()];
+  }
+  if (typeof bash !== "object" || bash === null || Array.isArray(bash)) {
+    return [malformedSurface()];
+  }
 
   const problems = [];
   for (const [pattern, value] of Object.entries(bash)) {
@@ -100,9 +116,16 @@ function ruleValueProblems(label, value) {
   if (typeof value === "string") {
     return PERMISSION_STATES.includes(value) ? [] : [malformedValue(label)];
   }
-  if (typeof value !== "object" || value === null)
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return [malformedValue(label)];
+  }
   if (value.action !== "deny") return [malformedValue(label)];
+  const unknown = Object.keys(value).find(
+    (key) => !DENY_RULE_KEYS.includes(key),
+  );
+  if (unknown !== undefined) {
+    return [`${label}: unknown key '${unknown}' on a deny rule`];
+  }
   return reasonProblems(label, value.reason);
 }
 
@@ -131,6 +154,10 @@ function reasonProblems(label, reason) {
  */
 function malformedValue(label) {
   return `${label}: value must be "allow", "deny", "ask", or { action: "deny", reason }`;
+}
+
+function malformedSurface() {
+  return 'bash: surface value must be "allow", "deny", "ask", or a map of patterns';
 }
 
 function parseArgs(argv) {

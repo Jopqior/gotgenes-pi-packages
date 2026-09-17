@@ -44,11 +44,45 @@ describe("findConfigProblems", () => {
     });
   });
 
+  describe("the surface value", () => {
+    it("rejects a misspelled permission state on the surface itself", () => {
+      expect(findConfigProblems({ permission: { bash: "alow" } })).toEqual([
+        'bash: surface value must be "allow", "deny", "ask", or a map of patterns',
+      ]);
+    });
+
+    it("rejects an array, which carries no patterns", () => {
+      expect(findConfigProblems({ permission: { bash: [] } })).toEqual([
+        'bash: surface value must be "allow", "deny", "ask", or a map of patterns',
+      ]);
+    });
+
+    it("rejects null", () => {
+      expect(findConfigProblems({ permission: { bash: null } })).toEqual([
+        'bash: surface value must be "allow", "deny", "ask", or a map of patterns',
+      ]);
+    });
+
+    it("reports nothing for a bare permission state on the surface", () => {
+      expect(findConfigProblems({ permission: { bash: "ask" } })).toEqual([]);
+    });
+  });
+
   describe("the value shape", () => {
     it("rejects a state string that is not allow, deny, or ask", () => {
       expect(findConfigProblems(config({ "rm *": "prompt" }))).toEqual([
         'bash \'rm *\': value must be "allow", "deny", "ask", or { action: "deny", reason }',
       ]);
+    });
+
+    it("rejects a deny object carrying a key the schema does not define", () => {
+      expect(
+        findConfigProblems(
+          config({
+            "rm *": { action: "deny", reason: VALID_REASON, retry: false },
+          }),
+        ),
+      ).toEqual(["bash 'rm *': unknown key 'retry' on a deny rule"]);
     });
 
     it("rejects an object whose action is not deny", () => {
