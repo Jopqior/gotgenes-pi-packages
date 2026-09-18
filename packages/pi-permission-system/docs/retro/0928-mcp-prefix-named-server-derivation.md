@@ -187,4 +187,48 @@ The assessor also corrected the design summary: `addDerivedMcpServerTargets` has
 The current defect is unbounded fan-out, not merely a fragile dependence on the caller's longest-first sort.
 That correction is folded into the plan's Design Overview.
 
+## Stage: Implementation — TDD (2026-09-18T18:05:11Z)
+
+### Session summary
+
+All five TDD steps landed as planned, in order, each green before commit: `58019772` (single-candidate pin), `c5736964` (`fix!` last-match-wins), `1994b322` (`feat!` prefix derivation), `72b3b0b6` (`fix` re-prefix removal), `49484a63` (docs).
+Test count went 4413 → 4435 (+22) with 165 files unchanged.
+The pre-completion reviewer returned **PASS**, including an independent re-derivation of the four invariants the guard removal rests on.
+
+### Observations
+
+- **Every predicted killing mutation behaved exactly as the plan said**, which is the whole evidence base here given that the pre-change suite pinned none of this.
+  Step 2's mutation (restoring the ternary so `mcp` routes to `evaluateFirst`) turned 12 red: the 7 new mcp cases plus the 5 path-alias tests the plan named as the regression net, with the 3 control cases and the baseline pin correctly surviving.
+  Step 3's three mutations each killed exactly one equivalence class and no more.
+  Step 4's killed its own case while its sibling stayed green.
+- **The mutation for step 2 needed a real second evaluator**, not a one-line literal swap, so it was applied as a temporary `MUTANT_evaluateFirst` export plus its call site and reverted from a saved copy.
+  Worth noting for a future guard-removal step: `git checkout --` would have discarded the step's own uncommitted green edit.
+
+#### Deviations from the plan
+
+- **The baseline-attribution pin asserted the wrong field.**
+  The plan said to assert `matchedPattern`, but `buildCheckResult` sets it only for a `config` or `session` layer rule — a `baseline` rule reports `undefined`, and the attribution lives in `target`.
+  Caught by the test failing during step 2's red for the wrong reason.
+- **That pin then split into two cases in step 3**, as the Invariants section predicted it would move.
+  Once derivation supplies a `github` candidate, `mcp: {"github": "allow"}` attributes a describe to the `github` rule rather than the `mcp_describe` baseline.
+  Rather than just editing the expectation, a second case was added pinning the baseline's own constituency — a describe of a tool belonging to an *unconfigured* server, which no config rule can name — so the auto-allow still has a test that fails if it is ever dropped.
+- **Step 4 needed an ordering change the plan did not name.**
+  Removing the re-prefixed candidates was not enough to make `targets[0]` the tool name: the explicit-`server` branch adds the bare server before the caller adds the tool name.
+  The prefixed case now adds the tool name itself in that branch, matching what prefix derivation produces for the same name without an explicit server.
+  Folded into the same commit.
+- **An existing test encoded the old behavior in its fixture.**
+  `derives server targets from configured server names when tool name ends with _<server>` used `{ tool: "exa_search" }` with `["exa"]` and a comment explaining that this does *not* derive a server.
+  That name is a prefix hit after this change, so the case was rewritten onto a genuine suffix name (`search_code_exa`) with full assertions on all four derived candidates — it had only ever asserted `toContain("exa_search")`, which would have stayed green either way.
+- **Added an executable pin for the published docs table.**
+  The plan asked for the documented example's calls to be re-run as a test; the four-row derivation table in `docs/configuration.md` got the same treatment, asserted with `toEqual` on the full candidate array so a derivation change that does not update the doc fails.
+- **`architecture.md`'s Mermaid diagram was a plan miss.**
+  The plan named only line 481, but the MCP pre-processing section carried a flowchart modelling the per-candidate loop with an `Explicit match?` decision node.
+  Rewritten to the single `evaluateAnyValue` call; the reviewer rendered all four charts in the file with `mmdc` and found no parse errors.
+
+#### Reviewer verdict
+
+**PASS**, no warnings.
+The re-derivation mandate was worth issuing: the reviewer closed the single-candidate claim algebraically rather than by coverage (both evaluators reduce to plain `evaluate()` on a one-element array for *any* rule layer, so the layer enumeration is unnecessary), and traced every producer of a `path-values` intent to confirm none can reach `buildCheckResult` with a surface outside `PATH_SURFACES`.
+It also found one unflagged edge in `findLongestPrefixServer` — a tool name of exactly `<server>_` derives that server — and judged it not fail-open, since the bare tool-name candidate is still present and correct.
+
 [#946]: https://github.com/gotgenes/pi-packages/issues/946
