@@ -1035,12 +1035,12 @@ This supersedes the earlier convention that a domain directory grows only in the
 That rule was recorded as a Phase 8 non-goal and re-applied through Phase 14, and it is the reason the layout lapsed: issue-by-issue work only ever moves the files issues happen to touch, so cold modules accumulate at the root indefinitely.
 Writing the target layout down is what replaces it — a module's home is now answerable without re-deriving it, and the same-directory import convention is lint-enforced for this package so the two cannot drift silently ([#837]).
 
-## Improvement roadmap — Phase 15: Token roles, declared effects, and the sandbox seam
+## Improvement roadmap — Phase 15: Token roles and declared effects
 
 ### Findings (planned 2026-09-05)
 
 The declared candidate is [ADR-0013](../decisions/0013-permission-policy-model.md)'s Staging section, whose slices 4–7 Phase 14 assigned to this phase, and its unfiled remainder of slice 2 — the user-declaration half of §7, `commandEffects`, which Phase 14 split off so wrapper transparency could depend on the audited core alone.
-That half is described as shipped in `docs/configuration.md` ("A user `commandEffects` declaration participates in effect classification") while no such key exists in `config-schema.ts`; the drift is corrected by Step 4.
+That half is described as shipped in `docs/configuration.md` ("A user `commandEffects` declaration participates in effect classification") while no such key exists in `config-schema.ts`; the drift is corrected by Step 6.
 
 The cause is that **a bash token's role is established at collection and discarded before projection**.
 The collectors know whether a token is a redirect destination, an inline script, a pattern, or an operand — that is how they attribute a `TokenEffect` — but `PathToken` carries only the effect, so `BashPathResolver` re-judges every token by shape and existence as if it were roleless.
@@ -1048,16 +1048,16 @@ Two open defects are that one loss seen from both sides.
 A redirect destination arrives at `projectRuleCandidates` tagged `{ effect: "write", source: "syntax" }` and is dropped, because `newfile` is bare and does not exist yet ([#609]'s residual; ADR 0013 measured it as "collection is real; classification then drops the token").
 An interpreter's inline script (`node -e "// comment…"`) is projected, because after quote removal the token starts with `/` ([#863]).
 ADR 0013 §10 says effects attach per path token, and the collector already tags them there; threading the role the same way is the decide-once fix.
-The symptom fallow sees is the `child.type === "command_name" || child.type === "variable_assignment"` disjunction spelled literally at three sites while `COMMAND_PREFIX_TYPES` exists for it — cited as a symptom, and paid down as Step 3's tidy-first prep.
+The symptom fallow sees is the `child.type === "command_name" || child.type === "variable_assignment"` disjunction spelled literally at three sites while `COMMAND_PREFIX_TYPES` exists for it — cited as a symptom, and paid down as Step 4's tidy-first prep.
 
 A second cause surfaced while measuring: **blame never reaches the entries a human decides**.
 Each bash gate stamps `effect`/`effectSource` and the flagged paths on its `logContext`, and the runner spreads that context into the entries it writes — but on `ask` the gate writes nothing, and `PermissionPrompter` brackets the ask (`waiting`/`approved`/`denied`) from `PromptPermissionDetails`, a second projection that never sees the context.
 The local review log has **zero** entries carrying an `effect` key, and every one of the 134 bash `external_directory` asks since [#807] shipped records `path: null` and no `externalPaths`.
-ADR 0013 §7's "provenance is logged" and the package skill's claim that the stamped context makes a retraction readable both describe a path no ask takes; Step 5 dissolves it by making the deciding path and its effect provenance **request facts**, which every writer renders.
+ADR 0013 §7's "provenance is logged" and the package skill's claim that the stamped context makes a retraction readable both describe a path no ask takes; Step 7 dissolves it by making the deciding path and its effect provenance **request facts**, which every writer renders.
 
 Measured against the local review log (`scripts/measure-path-false-positives.mjs`, 2026-09-05): of 617 bash `external_directory` asks carrying paths, 28 (4.5%) flagged a token with a shape no path has, and the count is 12 → 6 → 4 → 6 by month with no revision-range ask at all (55 commands carry one, all under a known base).
 The other ~95% flag real paths outside the tree, where the question is direction rather than candidacy.
-`scripts/measure-core-coverage.mjs` (same date) says `external_directory_read: {"*": "allow"}` would relieve 98 of 388 recent bash asks today, and the remaining head words are led by `git` (92) and `sed` (24) — exactly the subcommand- and option-dependent readers §7's `commandEffects` was written for — then wrappers and interpreters (`xargs` 61, `timeout` 30, `env` 22, `pnpm` 20, `bash` 19, `python3` 15), band C, whose only belief-free relief is §8's sandbox tier.
+`scripts/measure-core-coverage.mjs` (same date) says `external_directory_read: {"*": "allow"}` would relieve 98 of 388 recent bash asks today, and the remaining head words are led by `git` (92) and `sed` (24) — exactly the subcommand- and option-dependent readers §7's `commandEffects` was written for, though Step 5 since claims the read-only share of the `sed` count for the core so that no declaration is needed for it — then wrappers and interpreters (`xargs` 61, `timeout` 30, `env` 22, `pnpm` 20, `bash` 19, `python3` 15), band C, whose only belief-free relief is §8's sandbox tier.
 
 Corroboration (fallow, 2026-09-05): health 78 (B), dead code 0, duplication 1.3% — up from 0.1%, entirely the five `scripts/measure-*.mjs` instruments cloning one review-log-reading prelude (production `src/` still holds the same two small clone groups).
 The hotspot list is led by `test/access-intent/bash/program.test.ts` (43 commits), `src/index.ts` (cooling), the two gate fixtures, and `token-collection.ts` / `command-enumeration.ts` (accelerating) — the files this phase's spine rewrites.
@@ -1065,41 +1065,60 @@ The repeated-discriminator sweep found one new family, the `COMMAND_PREFIX_TYPES
 
 The craftsmanship scout **refuted all six** fallow large-function flags on test files (each a nested tree of behavior-named `it`s with `it.each` collapsing near-duplicates) and refuted the planner's first reading that the generic and pattern-first token walkers, or `readCommandWords` and `commandArgumentWords`, are one state machine spelled twice — their filters and outputs differ.
 It found one concentrated test-design cluster: `test/handlers/gates/bash-path-extractor.test.ts` re-tests ~300 lines of `BashProgram` coverage through the facade (`/etc/[p]asswd`, the `for` word list, `$(cat /etc/hosts)`, redirect targets), so [#821] and [#839] each landed in two files.
-That rides Step 3 as a `test:` prep commit — Step 3 would otherwise land in both files a third time.
+That rides Step 4 as a `test:` prep commit — Step 4 would otherwise land in both files a third time.
 `collectPatternCommandTokens` (cognitive 45) is adjudicated a justified state machine, `runDescriptor` stays whole (Phase 14's call holds), and `src/index.ts` is unchanged since Phase 14's clearance.
 The `scripts/` prelude duplication is scattered and rides whichever step next adds an instrument.
 
-Directory check: skipped — `src/` holds five root files and every module this phase touches has a home in the directory vocabulary; Step 6's new types go to `service.ts` (the public entry point) and its launcher to `scripts/`.
+Directory check: skipped — `src/` holds five root files and every module this phase touches has a home in the directory vocabulary; Steps 5 and 6 both land in `access-intent/bash/`, where effect classification already sits.
 
-Trajectory: Phase 12's maximum step priority was 20, Phase 13's 20, Phase 14's 20; this phase's is 20 (Step 4).
+Trajectory: Phase 12's maximum step priority was 20, Phase 13's 20, Phase 14's 20; this phase's is 20 (Step 6).
 No decline, so the regular improvement rotation continues.
 
 The operator's clarification shaped the composition: the friction that matters is the **false positive** — a token that is not a path at all — not the ask about a real external file.
-After Steps 1 and 2 close the cases syntax or a known table decides, what remains is the shape-indistinguishable class ([#797]'s `/Sheet1/B1`, which no rule separates from `/etc/passwd`), and it has two complementary levers on opposite sides of `evaluate()`: a declaration that withdraws a *named* tool's operands (Step 4's `effects: []`, the ask-producing side, zero tokens, permanent) and judgment that dismisses an ask for a token naming nothing on disk (Step 7, the ask-consuming side, for the tool nobody declared).
+After Steps 2 and 3 close the cases syntax or a known table decides, what remains is the shape-indistinguishable class ([#797]'s `/Sheet1/B1`, which no rule separates from `/etc/passwd`), and it has two complementary levers on opposite sides of `evaluate()`: a declaration that withdraws a *named* tool's operands (Step 6's `effects: []`, the ask-producing side, zero tokens, permanent) and judgment that dismisses an ask for a token naming nothing on disk (Step 8, the ask-consuming side, for the tool nobody declared).
 That is ADR 0013 §7's own core-versus-chain layering applied to candidacy, and neither lever makes the other redundant.
-Step 7 exists because ADR 0007 §5 and ADR 0013 §7 contradict each other on this population — §7 says the judge absorbs the surplus, §5 excludes `external_directory` from a link's `allow`, so the judge can only defer it back to the human ([#859]'s reporter noticed; [#684] presses for a blanket opt-out this phase does not adopt).
+Step 8 exists because ADR 0007 §5 and ADR 0013 §7 contradict each other on this population — §7 says the judge absorbs the surplus, §5 excludes `external_directory` from a link's `allow`, so the judge can only defer it back to the human ([#859]'s reporter noticed; [#684] presses for a blanket opt-out this phase does not adopt).
 
-Deferred by composition, with the reason each carries: [#804] (staging slice 7, structured bash rules) is the largest slice and depends on Step 4's config shape as its precedent, so it opens Phase 16 with that shape settled; [#799] (channels) and [#780] compete with Step 7 for one ADR budget, and Step 7 won it because it is the one the false-positive population needs.
+Deferred by composition, with the reason each carries: [#804] (staging slice 7, structured bash rules) is the largest slice and depends on Step 6's config shape as its precedent, so it waits for Phase 17 with that shape settled, Phase 16 having been given to the sandbox record ([#892]) whole; [#799] (channels) and [#780] compete with Step 8 for one ADR budget, and Step 8 won it because it is the one the false-positive population needs.
 
 #### Open-issue sweep dispositions
 
-- [#609] — adopted as Step 3 (staging slice 4), carrying the phase's breaking change.
-- [#863] and [#859] — adopted as Steps 1 and 2 (2nd consecutive sweep, scheduled).
+- [#609] — adopted as Step 4 (staging slice 4), carrying the phase's breaking change.
+- [#863] and [#859] — adopted as Steps 2 and 3 (2nd consecutive sweep, scheduled).
+  [#863] was closed `NOT_PLANNED` on 2026-09-07 against the sandbox-first re-sequencing and reopened on 2026-09-18 when that re-sequencing was revised; its committed plan stands as written.
   Both are shape decisions the classifier makes on tokens whose role the collector already knew, and each fix is fail-closed: a script string was never a path, and the [#645] existence probe still admits a real file named `a..b`.
-- [#802] — adopted as Step 6 (staging slice 6, first two of its three parts).
-- [#880] — filed for Step 4 (`commandEffects`); the unfiled remainder of staging slice 2 (ADR 0013 §7).
-- [#881] — filed for Step 5 (blame threading, staging slice 5), recast from a UX slice into a `fix:` by the measurement above.
-- [#800] — **close as completed** with the config recipe: `external_directory_read: {"*": "allow"}` plus the pure-reader core delivers what it asks for `cat`/`ls`/`find`/`grep`, and Step 4 covers the non-core readers it names (`strings`, `file`) by declaration.
-- [#804] — deferred to Phase 16 with recorded rationale (operator composition decision; 2nd consecutive sweep): it mirrors the `commandEffects` shape Step 4 creates, and landing it in the same phase would have both steps deciding one shape.
-- [#822] — deferred behind Step 6 with recorded rationale (operator decision; 2nd consecutive sweep): a sandbox subsumes static glob expansion, so the mechanism waits for the seam that would replace it.
+- [#802] — **moved whole to Phase 16** (operator decision, 2026-09-18), where it joins [#892].
+  It was adopted here as Step 6 under the phase's previous seven-step numbering (staging slice 6, first two of its three parts), then scoped up by [#892] and finally moved out with it — that slot is unrelated to the Step 6 of the current order, which is [#880].
+  Two reasons: the step publishes `PolicyScope` / `ScopeGrant` / `getPolicyScope` in `dist/public.d.ts`, and a public surface shipped before the record that decides the manifest shape is a surface the record may have to break; and its own recorded design question — how a rule pattern becomes a root, and what happens to a pattern naming no directory — is the manifest compiler's question, which should be answered once rather than twice.
+- [#945] — filed by this session, split out of [#863]'s committed plan; adopted as Step 1, ahead of [#863].
+  A command hosted in a consumed flag argument has its operands dropped, which ADR 0009 names a positional-invariance **guarantee** rather than a residual.
+  It is a separate step rather than [#863]'s prep commit because the two failure directions are opposite — this one is an under-reach that drops a real operand, the unrecoverable direction, where [#863] is an over-reach that invents one — and it stands on its own merits under every future the roadmap is weighing.
+- [#924] — adopted as Step 5, ahead of [#880].
+  `sed` and `awk` are excluded from the pure-reader core outright, so `sed -n '1,80p' file` consults `external_directory_write` for a read — `sed` is 24 of the 388 recent asks this phase's findings already measure.
+  It is the core side of the same boundary [#880] approaches from the declaration side, and it needs no configuration from the user to deliver relief, so it lands first and shrinks the population the declared layer must cover.
+  Both edit `command-effects.ts`, so they sequence rather than parallelize.
+- [#880] — filed for Step 6 (`commandEffects`); the unfiled remainder of staging slice 2 (ADR 0013 §7).
+- [#881] — filed for Step 7 (blame threading, staging slice 5), recast from a UX slice into a `fix:` by the measurement above.
+- [#800] — **close as completed** with the config recipe: `external_directory_read: {"*": "allow"}` plus the pure-reader core delivers what it asks for `cat`/`ls`/`find`/`grep`, and Step 6 covers the non-core readers it names (`strings`, `file`) by declaration.
+- [#804] — deferred to **Phase 17** with recorded rationale (operator composition decision; 3rd consecutive sweep): it mirrors the `commandEffects` shape Step 6 creates, and landing it in the same phase would have both steps deciding one shape.
+  It was deferred to Phase 16 by the previous two sweeps; Phase 16 is now the sandbox record's alone, so the same rationale moves it one phase further rather than changing.
+- [#822] — deferred to Phase 16 with recorded rationale (operator decision; 3rd consecutive sweep): a sandbox subsumes static glob expansion, so the mechanism waits for the seam that would replace it — which is now Phase 16's subject rather than a step of this phase.
+- [#926] — deferred with recorded rationale (operator decision): transparent wrapper commands (`rtk ls` needing rules separately from `ls`) want a user-declared alias table, which mirrors the config shape Step 6 creates.
+  This is the same rationale [#804] carries, and it applies for the same reason: two steps deciding one config shape in one phase is the outcome to avoid.
+- [#931] — out of scope for the roadmap.
+  Automatic rejection when a prompt's delay is exceeded is prompt-lifecycle behavior in the presentation seam Phase 13 opened, not this phase's role loss; it also composes with [#799]'s channels, which this phase deferred.
+- [#936] — out of scope for the roadmap.
+  The Pi Session Inspector maintainer asks this package to confirm that `permissions:ready` / `permissions:ui_prompt` / `permissions:decision` remain a supported cross-extension contract; it wants an answer on the issue, not a step.
+- [#906] — out of scope for the roadmap.
+  A terminal attention signal (BEL/OSC) when a prompt opens is a presentation-layer addition sharing no step's mechanism; small and self-contained, so a cheap independent candidate for any phase.
 - [#620] — deferred with recorded rationale (explicit operator decision; **4th consecutive sweep**, not a silent re-defer).
-  Step 4 narrows its charter again — a declared `git log` needs no judge — and Step 6 answers band C without belief, so what remains for the chain is genuinely judgment; it is re-evaluated when Phase 16 opens with both landed.
+  Step 6 narrows its charter again — a declared `git log` needs no judge — and Phase 16's sandbox record answers band C without belief, so what remains for the chain is genuinely judgment; it is re-evaluated once both have landed.
   [#698] and [#706] fold into it when it is scheduled.
 - [#751] — deferred with recorded rationale (explicit operator decision; 3rd consecutive sweep): still small, self-contained, and the last ADR 0011 §4 residual; a cheap independent candidate for any phase.
 - [#519] — deferred with recorded rationale (explicit operator decision): externally blocked on Pi SDK `UIContext` evolution, with no in-repo lever.
 - [#799] — deferred with recorded rationale (operator composition decision; 2nd consecutive sweep): the strongest non-code candidate, blocking PRs [#675], [#692], and [#638]; [#671]'s launcher env contract and [#720]'s `--yolo` flag are channels too and join its inventory.
 - [#780] — deferred with recorded rationale (2nd consecutive sweep): the outbound-bridge ADR is what PR [#693] waits on; it joins [#799] in the next ADR budget.
-- [#861], [#868], [#875] — deferred with recorded rationale (2nd consecutive sweep each): the same dispositions as Phase 14's, unchanged by this phase's cause — [#861] is the ADR 0007 §5 deliberation's neighbor, [#868] reopens `config-schema.ts` and may ride Step 4's schema edit as a boy-scout tidy, and [#875] is an enumeration residual with no verdict-fold lever.
+- [#861], [#868], [#875] — deferred with recorded rationale (2nd consecutive sweep each): the same dispositions as Phase 14's, unchanged by this phase's cause — [#861] is the ADR 0007 §5 deliberation's neighbor, [#868] reopens `config-schema.ts` and may ride Step 6's schema edit as a boy-scout tidy, and [#875] is an enumeration residual with no verdict-fold lever.
   [#861] and [#875] were then pulled forward by operator decision and shipped outside this phase, as [#899] was.
   The 2026-09-15 triage ranked [#861] 3 in Band 1, promoting it over this second deferral: an operator names a chain link, does not get it, and learns so only from the review log — measured at 48 silent skips across 13 days in one log.
   The deferral's reading held and was beside the point: the issue *is* the ADR 0007 §5 deliberation's neighbor, and it needed none of that deliberation, because the resolution was never in question and only its silence was.
@@ -1107,17 +1126,22 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   The 2026-09-15 triage ranked it 2 in Band 1 after reading it end to end — a configured `deny` silently not firing on a script `bash -n` accepts is a bypass — and planning then measured the wider half the issue does not state: the dropped region's **path** operands reached neither `path` nor `external_directory` either, an ADR 0009 completeness-contract violation.
   The remedy is a fourth direction neither the issue nor ADR 0013's amendment listed, recorded in both records.
 - [#874] — out of scope for the roadmap; PR [#757] moves the settings dialog off the overlay path and is its candidate close target.
-- [#688] ↔ PR [#703], [#658] ↔ PR [#693], [#736] ↔ PR [#749], [#686] ↔ Step 6 — each open PR is recorded against the issue it serves; none is merged, per the repo's reimplement-through-TDD practice.
-- [#797] — adopted as Step 4's named acceptance case (`commandEffects: { officecli: { effects: [] } }` produces no ask) and as the example population of Step 7; Phase 14's config-recipe answer (`external_directory: {"/Sheet1/*": "allow"}`) stands as the interim workaround.
-- [#882] — filed for Step 7 (the ADR 0007 §5 deliberation); PR [#684] is its close target either way.
-- [#886] — filed by Step 1's planning; deferred to a later phase.
+- [#688] ↔ PR [#703], [#658] ↔ PR [#693], [#736] ↔ PR [#749], [#686] ↔ [#802] (now Phase 16) — each open PR is recorded against the issue it serves; none is merged, per the repo's reimplement-through-TDD practice.
+- [#797] — adopted as Step 6's named acceptance case (`commandEffects: { officecli: { effects: [] } }` produces no ask) and as the example population of Step 8; Phase 14's config-recipe answer (`external_directory: {"/Sheet1/*": "allow"}`) stands as the interim workaround.
+- [#882] — filed for Step 8 (the ADR 0007 §5 deliberation); PR [#684] is its close target either way.
+- [#886] — filed by Step 2's planning; deferred to a later phase.
   It is real roadmap work, but it is not this phase's cause: the phase is about a lost role producing false positives, and [#886] adds prompts in the opposite direction — 270 of 5918 corpus commands carry an interpreter inline script.
-  Step 4's `commandEffects` deliberately does not lift the wrapper floor (ADR 0013 §11) and Step 6's sandbox seam answers band C without belief, so both change its calculus before it is worth scheduling.
-- [#892] — filed by Step 1's planning; folds into Step 6, which it scopes up and moves first.
-  The sandbox is the enforcement boundary for bash and the projection becomes a hint, so Steps 1–5 and 7 are re-evaluated after the record lands rather than before; [#863]'s plan is committed but not implemented for that reason.
-- [#891] — filed by Step 1's planning; deferred to a later phase.
+  Step 6's `commandEffects` deliberately does not lift the wrapper floor (ADR 0013 §11) and Phase 16's sandbox record answers band C without belief, so both change its calculus before it is worth scheduling.
+- [#892] — filed by Step 2's planning; **deferred to Phase 16, which it opens** (operator decision, 2026-09-18), taking [#802] with it.
+  It was briefly folded into [#802]'s step — Step 6 under the previous numbering, not the current one — and moved ahead of every other step, on the reading that a sandbox demotes the projection to a hint and so every projection fix should wait for the record.
+  That was revised for three reasons.
+  The scope the fold produced — decision record, manifest compiler, `bash` tool override, a Linux seccomp-notify backend, a macOS backend, and a fallback prompt — is a phase's worth of work wearing a step's number.
+  The blocking was wider than the finding supported: Steps 6, 7, and 8 are the decision layer, which the review itself called "the product", and no sandbox delivers `commandEffects`, blame on an ask, or the ADR 0007 §5 answer.
+  And the two upstream reports the review filed are both still open, including [nono#1797](https://github.com/nolabs-ai/nono/issues/1797), where capability elevation never traps `O_CREAT` or `mkdir` — so the enforcement backend cannot yet see file creation.
+  The review's measurements stand and are recorded in [#863]'s retro; what changed is the sequencing built on them.
+- [#891] — filed by Step 2's planning; deferred to Phase 16, behind [#892]'s record.
   Pi's built-in `powershell` tool (v0.84.3, recommended on Windows) reaches only the `tools:` surface today.
-  The issue asks for a Codex-shaped static layer — a small literal subset lowered to argv, fail closed on the rest, and deliberately **no** path projection — which is a new shell surface rather than this phase's role-loss cause, and it is sequenced behind the sandbox re-planning that Step 6 opens.
+  The issue asks for a Codex-shaped static layer — a small literal subset lowered to argv, fail closed on the rest, and deliberately **no** path projection — which is a new shell surface rather than this phase's role-loss cause, and it is sequenced behind the sandbox re-planning Phase 16 opens.
 - [#735] scenario 2 / [#722], [#762], [#860], [#856] — unchanged from Phase 14.
 - [#890] — filed by the `pi-subagents` [#884] PR review; resolved outside this phase as `pi-subagents` Phase 22 Step 18, whose cross-package plan is [`docs/plans/0890-inherited-region-tool-surface-relocation.md`](https://github.com/gotgenes/pi-packages/blob/main/docs/plans/0890-inherited-region-tool-surface-relocation.md).
   `AgentPrepHandler`'s in-place rewrite of the child's `Available tools:` list landed inside the region `pi-subagents` keeps byte-identical with the parent's, collapsing the shared prefix for any child with a narrowed tool set.
@@ -1136,7 +1160,7 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#915] — filed by [#899]'s planning; deferred to a later phase with rationale.
   Two gates that each resolve to `ask` on one tool call raise one prompt each — measured as two `escalate` calls for `cat /etc/hosts` under `external_directory: {"*": "ask"}` plus `bash: {"*": "ask"}`.
   Coalescing them needs an ADR 0011 §2 payload that composes several gates' evidence and a `SessionApproval` recording a grant per asking surface, which is the prompt-presentation seam Phase 13 opened rather than this phase's role loss.
-  Step 5 enriches the fields one ask carries; [#915] changes how many asks there are, so no step produces or consumes what it needs.
+  Step 7 enriches the fields one ask carries; [#915] changes how many asks there are, so no step produces or consumes what it needs.
 - [#923] — filed by [#920]'s planning; out of scope for the roadmap.
   A secret inside an inline-shell payload (`bash -c '…'`) or a heredoc body escapes the grammar-anchored command redaction [#920] adds, so one review-log record can hold the same secret masked under `executedUnit` and unmasked under `command`.
   It reads `classifyWrapperWords` and `EXECUTION_HOST_TYPES` but changes nothing about token roles or declared effects — it is a `logging/` exposure residual, and no step in this phase produces or consumes what it needs.
@@ -1145,17 +1169,17 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   Test-budget maintenance in an `authority/` integration test, which no step in this phase opens.
 - [#933] — filed by [#927]'s implementation; out of scope for the roadmap.
   `index.ts` primes the store with `configStore.refresh(undefined, false)`, which records `lastConfigWarning` while `ctx?.ui.notify(…)` is a no-op, so the identical warning at `session_start` is deduped away — every issue `loadAndMergeConfigs` produces reaches the debug log and never the user.
-  Its nearest neighbor is Step 5, but that threads gate provenance into the ask payload where this is a store-level dedupe against a ctx that did not exist yet; it is a `config/` notification-lifecycle defect sharing no step's mechanism.
+  Its nearest neighbor is Step 7, but that threads gate provenance into the ask payload where this is a store-level dedupe against a ctx that did not exist yet; it is a `config/` notification-lifecycle defect sharing no step's mechanism.
 - [#941] — filed by the repo-level [#938] planning; out of scope for the roadmap.
   A heredoc absorbs the operand preceding it, so `git commit -F - <<'EOF'` enumerates as the unit `git commit -F` — an enumeration fact nothing asserts, which this repo's own project-scope permission config now depends on.
   It is a test-only regression pin over `command-enumeration.ts`'s output, not the role a collector attaches to a token, so no step in this phase produces or consumes what it needs; it is a boy-scout candidate for whichever step next edits `program.test.ts`.
 - [#942] — filed by [#937]'s planning; out of scope for the roadmap.
   It applies the 18 `package-pi-permission-system` `offload` rows from the 2026-09-17 agent-doc audit — skill prose relocated into this architecture doc, ADRs, and `docs/subagent-integration.md` — and touches no `src/`, so it is doc restructuring beside the phase rather than roadmap work.
-- Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by Step 4 (a declared reader needs no floor override), and [#604] by [#813].
+- Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by Step 6 (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
 
-`token-collection.ts`'s three near-identical prefix-skip loops and its hand-rolled child loop (recorded under [#839] and [#823]) are Step 3's tidy-first prep; `runner.ts`'s `runDescriptor` split stays deferred on the scout's re-adjudication; the twin registries, `agent-renderer.test.ts`'s flat describes, and `service.test.ts`'s repeated `afterEach` stay scattered.
+`token-collection.ts`'s three near-identical prefix-skip loops and its hand-rolled child loop (recorded under [#839] and [#823]) are Step 4's tidy-first prep; `runner.ts`'s `runDescriptor` split stays deferred on the scout's re-adjudication; the twin registries, `agent-renderer.test.ts`'s flat describes, and `service.test.ts`'s repeated `afterEach` stay scattered.
 
 ### Health metrics
 
@@ -1168,7 +1192,7 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 | Literal `COMMAND_PREFIX_TYPES` re-spellings in `access-intent/bash/`          | 3                     | 0               |
 | `commandEffects` in `config-schema.ts`                                        | 0                     | ≥ 1             |
 | Effect provenance in the ask payload (`effectSource`, `path-ask-payload.ts`)  | 0                     | ≥ 1             |
-| `getPolicyScope` on the public service (`service.ts`)                         | 0                     | ≥ 1             |
+| Pure-reader core rows for `sed` / `awk` (`command-effects.ts`)                | 0                     | ≥ 2             |
 | ADR 0007 amendments (`#### Amendment` headings)                               | 0                     | ≥ 1             |
 | Non-path tokens flagged per month (`measure-path-false-positives.mjs`)        | 6 (2026-08)           | 0               |
 | fallow health score                                                           | 78 (B)                | ≥ 78            |
@@ -1183,8 +1207,8 @@ Recompute commands (run from the repo root):
 - Role-bypass site: `grep -c 'redirect-destination' packages/pi-permission-system/src/access-intent/bash/bash-path-resolver.ts`
 - `commandEffects` schema key: `grep -c 'commandEffects' packages/pi-permission-system/src/config/config-schema.ts`
 - Effect provenance in the payload: `grep -c 'effectSource' packages/pi-permission-system/src/presentation/path-ask-payload.ts`
-- Policy-scope export: `grep -c 'getPolicyScope' packages/pi-permission-system/src/service.ts`
-- ADR 0007 amendments: `grep -c '#### Amendment' packages/pi-permission-system/docs/decisions/0007-model-judge-authorizer-chain-adr.md` (Step 7 records its answer as an amendment whether accepted or rejected, so the row reads ≥ 1 either way)
+- Pure-reader core rows for `sed`/`awk`: `grep -cE '"(sed|awk)"' packages/pi-permission-system/src/access-intent/bash/command-effects.ts`
+- ADR 0007 amendments: `grep -c '#### Amendment' packages/pi-permission-system/docs/decisions/0007-model-judge-authorizer-chain-adr.md` (Step 8 records its answer as an amendment whether accepted or rejected, so the row reads ≥ 1 either way)
 - Non-path tokens per month: `node packages/pi-permission-system/scripts/measure-path-false-positives.mjs` (read the latest month's `non-path` column; the log grows with use, so re-run rather than trusting the figure)
 - Health / clone groups / dead exports: `pnpm fallow health --score --hotspots --targets --workspace @gotgenes/pi-permission-system` / `pnpm fallow dupes --workspace @gotgenes/pi-permission-system` (count the groups whose paths are under `src/`) / `pnpm fallow dead-code --workspace @gotgenes/pi-permission-system`
 
@@ -1194,14 +1218,30 @@ The prefix re-spelling count needs a pipeline, so it lives here rather than in t
 grep -rn 'child.type === "command_name" || child.type === "variable_assignment"' packages/pi-permission-system/src/access-intent/bash | wc -l
 ```
 
-Five rows grep for a name the phase has not created when it opens — `TokenRole`, `redirect-destination`, `commandEffects`, `effectSource` in the payload module, and `getPolicyScope`.
-The step that creates each (Steps 3, 3, 4, 5, 6) must either use the roadmap's name or update the metric row in the same commit, or the rename silently breaks the delivered-vs-predicted verification at phase close.
-`commandEffects` and `getPolicyScope` are ADR 0013's own spellings (§7, §8), so a rename there is an ADR amendment too.
+Five rows grep for a name the phase has not created when it opens — `TokenRole`, `redirect-destination`, the `sed`/`awk` core rows, `commandEffects`, and `effectSource` in the payload module.
+The step that creates each (Steps 4, 4, 5, 6, 7) must either use the roadmap's name or update the metric row in the same commit, or the rename silently breaks the delivered-vs-predicted verification at phase close.
+`commandEffects` is ADR 0013's own spelling (§7), so a rename there is an ADR amendment too.
 The fallow health score is carried as a floor: it is blind to the type-level wins a cause-driven phase produces.
 
 ### Steps
 
-#### Step 1: An interpreter's inline script is a script, not an operand ([#863])
+#### Step 1: A command hosted in a consumed flag argument keeps its operands ([#945])
+
+**Cause:** `collectPatternCommandTokens` discharges a pattern-first command's consumed flag argument and `continue`s without searching it for hosted executions, so `sed -e "$(cat /etc/shadow)" f.txt` projects only `f.txt`.
+The sibling `!isArgNode` branch eight lines above already recurses, and four other sites in the same file call `collectHostedExecutionTokens` for exactly this reason.
+ADR 0009 calls positional invariance "a guarantee, not a residual", so this is inside the contract rather than a residual of it.
+
+- **Smell:** Category C (one branch of a two-branch discharge omits the recursion its sibling performs).
+- **Target:** `src/access-intent/bash/token-collection.ts` — the consumed-argument branch collects `collectHostedExecutionTokens(child)` before it continues; `test/access-intent/bash/token-collection.test.ts` — the case belongs in the existing `"a consumed flag argument, whatever node type it is (#823)"` describe block.
+- **Constraint:** the discharged argument's own text stays unprojected — it is the flag's operand, not a path — so this adds the *nested command's* operands and nothing else.
+- **Outcome:** `sed -e "$(cat /etc/shadow)" f.txt` projects `/etc/shadow`; the guarantee holds in the one position where it did not.
+- **Commit type:** `fix:`.
+- **Impact 2 / Risk 1 / Priority 10.**
+  Measured population is 0 of 5922 corpus commands, so the impact is contract correctness rather than observed traffic — but the failure direction is the unrecoverable one.
+
+Release: independent
+
+#### Step 2: An interpreter's inline script is a script, not an operand ([#863])
 
 **Cause:** the same role loss from the other side — `node -e "…"`, `python -c "…"`, `perl -e`, `ruby -e` hand the collector a program text in a flag's argument slot, and with no role recorded the shape classifier reads its first character.
 The `script` role already exists in `PATTERN_FIRST_COMMANDS` (that is how `sed -e` and `awk -f` are read since [#823]); these commands are simply absent from the table.
@@ -1216,7 +1256,7 @@ The `script` role already exists in `PATTERN_FIRST_COMMANDS` (that is how `sed -
 
 Release: independent
 
-#### Step 2: `..` is a path signal only as a whole segment ([#859])
+#### Step 3: `..` is a path signal only as a whole segment ([#859])
 
 **Cause:** `classifyTokenAsPathCandidate` and `classifyTokenAsRuleCandidate` test `token.includes("..")`, a substring rule, so a git revision range (`HEAD..origin/main`, `a...b`) is a parent-traversal candidate, and under an unknown base ([#393]'s conservatism after `cd ~/x`) it is flagged external.
 
@@ -1228,13 +1268,13 @@ Release: independent
 
 Release: independent
 
-#### Step 3: A redirect destination is projected by its role, not its shape ([#609])
+#### Step 4: A redirect destination is projected by its role, not its shape ([#609])
 
 **Cause:** the collector proves a redirect destination names a file — that is what `redirectDestinationEffect` attributes a `syntax` write from — and then hands the projection a `PathToken` carrying only the effect, so `projectRuleCandidates` re-asks the shape classifier and the existence probe, both written for operands of unknown role, and a bare creating redirect (`> newfile`) is dropped.
 ADR 0013 measured the drop and ADR 0009 lists redirect targets among the projection's guarantees, so this is inside the contract, not a residual.
 
 - **Smell:** Category C (decided once at collection, re-decided at projection; the `COMMAND_PREFIX_TYPES` clone at three sites is the same fact fallow can see).
-- **Target:** `src/access-intent/bash/token-collection.ts` — `PathToken` gains a `role` (`redirect-destination` | `operand`, and the `script` value Step 1's table entries become if the plan folds them in), stamped where the effect is; `src/access-intent/bash/bash-path-resolver.ts` — `projectRuleCandidates` and `projectExternalPaths` admit a `redirect-destination` token without the shape gate or the existence probe, resolving it against the effective base like any operand (an unknown base still flags conservatively, per [#393]); `docs/decisions/0009-bash-path-projection-completeness-contract.md` — the wording ADR 0013 flagged.
+- **Target:** `src/access-intent/bash/token-collection.ts` — `PathToken` gains a `role` (`redirect-destination` | `operand`, and the `script` value Step 2's table entries become if the plan folds them in), stamped where the effect is; `src/access-intent/bash/bash-path-resolver.ts` — `projectRuleCandidates` and `projectExternalPaths` admit a `redirect-destination` token without the shape gate or the existence probe, resolving it against the effective base like any operand (an unknown base still flags conservatively, per [#393]); `docs/decisions/0009-bash-path-projection-completeness-contract.md` — the wording ADR 0013 flagged.
   Tidy-first prep, as separate commits ahead of the change: export `COMMAND_PREFIX_TYPES` and replace its three literal re-spellings (`refactor:`), and settle which layer owns generic bash-path coverage by removing `bash-path-extractor.test.ts`'s duplication of `program.test.ts` (`test:`), so this step lands its cases once.
 - **Constraint:** the role decides candidacy only; the direction still comes from the effect, and an unresolvable redirect ([#814]) still proves nothing and projects nothing.
   A descriptor duplication (`2>&1`) collects no token at all and is unaffected.
@@ -1246,24 +1286,41 @@ ADR 0013 measured the drop and ADR 0009 lists redirect targets among the project
 
 Release: independent
 
-#### Step 4: `commandEffects` — the user declares what their own tools do ([#880])
+#### Step 5: `sed` and `awk` are read-only until an argument withdraws the claim ([#924])
 
-**Cause:** ADR 0013 §7 gives the deterministic layer three effect sources and the package ships two; without the third, every subcommand- or option-dependent reader (`git log`, `sed -n`, `strings`) is unproven, consults both directional surfaces, and asks on `_write` for a read — the largest measured population left after the core (`git` 92 and `sed` 24 of 388 recent asks).
+**Cause:** the pure-reader core excludes `sed` and `awk` outright — their program text and `-i` flag *can* write — so a plainly read-only `sed -n '1,80p' file` attributes its operand to both directional surfaces and takes the more restrictive answer.
+It prompts under the very `external_directory_read: {"*": "allow"}` recipe [#800] recommends, where `cat` on the same file is silent.
+`sed` is 24 of the 388 recent asks this phase measured, second only to `git`.
+
+- **Smell:** Category C (a presumption-with-withdrawal pattern the core already implements for `find`, `fd`, and `sort` is not applied to the two commands whose exclusion costs the most).
+- **Target:** `src/access-intent/bash/command-effects.ts` — `sed` and `awk` join the core as presumed readers whose claim a specific argument withdraws: `-i`/`--in-place` and a `w`/`W` command in the script for `sed`; `-i inplace` and a `print >` / `>>` / `|` redirect in the program text for `awk`; `docs/configuration.md` — the § pure-reader core table and the sentence documenting the exclusion.
+- **Constraint:** fail closed on ambiguity, exactly as an unclassified command does today — a script read from `-f scriptfile`, a program text from a variable, or a `w` match the parser cannot place keeps consulting both surfaces.
+  The bare-basename rule stands: `./sed` and `/bin/sed` prove nothing.
+  `awk`'s program-text case is soundly harder than `sed`'s flag case, and the issue accepts a partial landing — `sed` alone, with `awk` restricted to its flag-based withdrawal — as real relief.
+- **Outcome:** under `external_directory_read: {"*": "allow"}` with `_write` at `ask`, `sed -n '1,80p' ~/other/file` is silent while `sed -i 's/a/b/' ~/other/file` still prompts; the core table names `sed` and `awk`.
+- **Commit type:** `fix:`.
+- **Impact 4 / Risk 2 / Priority 16.**
+
+Release: independent
+
+#### Step 6: `commandEffects` — the user declares what their own tools do ([#880])
+
+**Cause:** ADR 0013 §7 gives the deterministic layer three effect sources and the package ships two; without the third, every subcommand- or option-dependent reader (`git log`, `sed -n`, `strings`) is unproven, consults both directional surfaces, and asks on `_write` for a read — the largest measured population left after the core (`git` 92 and `sed` 24 of 388 recent asks, the latter net of the read-only share Step 5 moves into the core — what remains for a declaration is `sed -i` and the scripts the parser cannot classify).
 The long tail has nowhere to live but the package's own frozen core, which is the pressure ADR 0009 refused.
 
 - **Smell:** Category A (a declared design with no implementation, and a shipped doc describing it as present) over the Category C cause above.
-- **Target:** `src/config/config-schema.ts` — top-level `commandEffects` per §7's shape (exact command basenames, `effects`, `unlessOption`, recursive `subcommands`; no patterns), with `.meta` descriptions and `pnpm run gen:schema`; `src/config/extension-config.ts` and `src/config/config-loader.ts` — carried through the runtime type and shallow-merged by command key across global and project scopes on the `shellTools` precedent, never agent frontmatter (§7, §9); `src/access-intent/bash/command-effects.ts` — `proveCommandEffect` consults declarations after syntax and core, with `unlessOption` stems matched fail-closed over attached, clustered, and `=`-embedded forms; `src/access-intent/effect.ts` — `EffectSource` gains a declared value carrying the scope; `BashProgram.parse` threads the declarations to the collectors; `docs/configuration.md` — the line describing it as shipped becomes true, with a `git`/`sed`/`curl` recipe and the `external_directory_read` adoption recipe beside it.
+- **Target:** `src/config/config-schema.ts` — top-level `commandEffects` per §7's shape (exact command basenames, `effects`, `unlessOption`, recursive `subcommands`; no patterns), with `.meta` descriptions and `pnpm run gen:schema`; `src/config/extension-config.ts` and `src/config/config-loader.ts` — carried through the runtime type and shallow-merged by command key across global and project scopes on the `shellTools` precedent, never agent frontmatter (§7, §9); `src/access-intent/bash/command-effects.ts` — `proveCommandEffect` consults declarations after syntax and core, with `unlessOption` stems matched fail-closed over attached, clustered, and `=`-embedded forms; `src/access-intent/effect.ts` — `EffectSource` gains a declared value carrying the scope; `BashProgram.parse` threads the declarations to the collectors; `docs/configuration.md` — the line describing it as shipped becomes true, with a `git`/`curl` recipe (`sed`'s read-only case having moved to the core in Step 5) and the `external_directory_read` adoption recipe beside it.
 - **Constraint:** a declaration narrows uncertainty toward fewer effects and never lifts the wrapper floor (§11: `xargs sed -n` keeps its floor); undeclared is unknown; a guard retracts and never substitutes.
   The pipe-safety argument is the same as the core's: a wrong declaration is the user's own allow, at finer grain than the standing grants the record already accepts.
-- **Design question the plan must settle:** whether subcommand descent is exact-word (§7) or routes through `bash-arity.ts`'s meaningful-prefix machinery so `git -C ~/other log` resolves as `git log`; §7 says exact, §10 says structural, and Phase 16's [#804] will need the same answer.
-- **Acceptance case:** [#797] — `commandEffects: { officecli: { effects: [] } }` withdraws the tool's operands from the path surfaces, so `officecli set data.xlsx /Sheet1/B1` raises no `external_directory` ask while `bash: {"officecli *": …}` still governs the command; `[]` is the enforcement-relevant value §7 names beside `"read"`, and it is the ask-producing-side lever for the shape-indistinguishable class (Step 7 is the ask-consuming one).
+- **Design question the plan must settle:** whether subcommand descent is exact-word (§7) or routes through `bash-arity.ts`'s meaningful-prefix machinery so `git -C ~/other log` resolves as `git log`; §7 says exact, §10 says structural, and Phase 17's [#804] will need the same answer.
+- **Acceptance case:** [#797] — `commandEffects: { officecli: { effects: [] } }` withdraws the tool's operands from the path surfaces, so `officecli set data.xlsx /Sheet1/B1` raises no `external_directory` ask while `bash: {"officecli *": …}` still governs the command; `[]` is the enforcement-relevant value §7 names beside `"read"`, and it is the ask-producing-side lever for the shape-indistinguishable class (Step 8 is the ask-consuming one).
 - **Outcome:** `git: { subcommands: { log: "read" } }` plus `external_directory_read: {"*": "allow"}` silences `git log ~/other`; the [#797] acceptance case passes; `scripts/measure-core-coverage.mjs` accepts a declarations file and reports the relieved share; the review log's `effectSource` can read `declared`.
 - **Commit type:** `feat:`.
 - **Impact 5 / Risk 2 / Priority 20.**
 
 Release: batch "declared-effects"
 
-#### Step 5: Blame reaches the ask it explains ([#881])
+#### Step 7: Blame reaches the ask it explains ([#881])
 
 **Cause:** the gate's blame facts — the deciding path, its `effect`, its `effectSource` — live on the gate's `logContext`, which the runner spreads into the entries *it* writes, but on `ask` the gate writes nothing and `PermissionPrompter` brackets the request from `PromptPermissionDetails`, which carries the payload and not the context.
 So the blame reaches the review log on every path except the one a human decides — zero `effect` keys in the local log, and every bash `external_directory` ask since [#807] recorded with `path: null` — and it reaches the dialog on no path at all, so the user asked about `git log ~/x` on `external_directory_write` cannot see that the effect was unproven or what would prove it.
@@ -1271,43 +1328,25 @@ So the blame reaches the review log on every path except the one a human decides
 - **Smell:** Category C (two projections of one request, one of which omits the facts the other was designed to carry).
 - **Target:** `src/presentation/prompt-payload.ts` — the `request` core gains the deciding path with its effect and source as **request facts** (bounded: one path, two enums), so `renderReviewLogFacts` renders them for every writer and ADR 0011 §6's evidence exclusion is untouched; `src/presentation/path-ask-payload.ts` — the three path payload builders stamp them from the gate's `worstEntry`; `src/handlers/gates/bash-path.ts` and `bash-external-directory.ts` — the `logContext` copies go, since the payload now carries them; `src/presentation/dialog-renderer.ts` and `fact-vocabulary.ts` — a blame line (`~/b: write (redirect) → external_directory_write asks`; `unproven — declare git log in commandEffects to classify it`) in the bounded render; `asPromptPayload` and the forwarded reader's allowlist admit the new facts so a serving node renders the child's blame.
 - **Constraint:** the fact set is the *deciding* path only; the full escaping-path list stays evidence and stays out of the log.
-  The teaching sentence names `commandEffects`, so it lands after Step 4.
+  The teaching sentence names `commandEffects`, so it lands after Step 6.
 - **Outcome:** a bash `external_directory` ask's `waiting` entry names the path and its provenance; the dialog states why the direction was chosen; the package skill's claim about the stamped context becomes true; `effectSource` appears in the payload module.
 - **Commit type:** `fix:`.
 - **Impact 4 / Risk 2 / Priority 16.**
 
 Release: batch "declared-effects"
 
-#### Step 6: The policy-scope export and a launcher that consumes it ([#802], with [#892])
-
-**Re-sequenced first (2026-09-07):** [#892] folds in and scopes this step up from "export + launcher" to the decision record that makes the OS sandbox the enforcement boundary for bash — the manifest compiler, a `bash` tool override, a Linux backend (seccomp-notify `capability_elevation` answered by a webhook this package serves) and a macOS backend (fresh child per command, `--rollback`), and a fallback prompt for the cases the kernel cannot name.
-It lands ahead of Steps 1–5 and 7, each of which polishes the projection the record demotes to a hint, and each is re-evaluated once it is recorded.
-The measurements and upstream references are in [#892]'s body.
-
-**Cause:** ADR 0013 §8 revised this package's boundary to "does not implement isolation, and exports its scope decisions to something that does", and nothing exports them — the seam its flagship decision rests on is vacant, and band C (interpreters and build tools, 54 of 388 recent asks) has no relief that does not require believing a classifier.
-
-- **Smell:** Category A (a decided seam with no implementation) over Category F (the isolation question answered by no package).
-- **Target:** `src/service.ts` — `PolicyScope` / `ScopeGrant` and `getPolicyScope(agentName?)` on `PermissionsService`, published in `dist/public.d.ts`; `src/service/permissions-service.ts` — derives the scope from `getComposedConfigRules` for the active agent: the working directory read-write, `piInfrastructureReadPaths` read, `external_directory_read` / `external_directory_write` allow patterns as roots, `path_*` denies as exclusions; `scripts/pi-sandboxed.sh` (repo `scripts/`, not the tarball) — renders it into `nono run --read … --write … --allow … -- pi`, verified against `nono`'s real flag surface (`--read`/`-r`, `--write`/`-w`, `--allow`, `--read-file`/`--write-file`; Landlock on Linux, Seatbelt on macOS).
-- **Design question the plan must settle:** how a rule pattern becomes a root — `~/dev/*` is the root `~/dev`, a file-naming pattern is a `--read-file`, and a pattern naming no directory root is **reported unexpressible and not granted**, since for a sandbox the fail-closed direction is a narrower profile, never a wider one.
-- **Constraint:** the reciprocal enforced-scope declaration (§8's three constraints) stays out, per the issue; the export is read via the session-keyed locator (ADR 0012) and this package learns no sandbox's vocabulary.
-- **Outcome:** `getPolicyScope` exists on the public service; launching through the wrapper, a write outside the declared scope fails at the OS level while in-scope work proceeds; the profile is derived, not hand-maintained.
-- **Commit type:** `feat:`.
-- **Impact 4 / Risk 3 / Priority 12.**
-
-Release: independent
-
-#### Step 7: May a link dismiss an `external_directory` ask for a token that names nothing on disk? ([#882])
+#### Step 8: May a link dismiss an `external_directory` ask for a token that names nothing on disk? ([#882])
 
 **Cause:** two decision records promise opposite things about the shape-indistinguishable false positive.
 ADR 0013 §7 layers the projection over judgment ("the judge absorbs the surplus"); ADR 0007 §5 excludes the whole `external_directory` family from a link's `allow`, so on the one surface where the projection's false positives land, `model-judge` can only defer them to the human.
-Step 4 answers this for a tool the user has declared; the undeclared tool has no lever at all.
+Step 6 answers this for a tool the user has declared; the undeclared tool has no lever at all.
 
 - **Smell:** Category F (two records, one population, contradictory boundaries) over Category C (a checkpoint that reads the surface but not the fact that would license the verdict).
 - **Target:** `docs/decisions/0007-model-judge-authorizer-chain-adr.md` — an amendment, settled interactively in the pattern of ADR 0007 / 0011 / 0012, deciding the bound: nothing exists at the path, no ancestor exists short of the root, or the effect is proven `read` and the path is absent (the `_read` half of a nonexistent path is vacuous; the `_write` half is where `mkdir -p` / `install -D` / `git clone` create parents).
   If accepted, the same issue lands the narrow change: an existence fact fixed at the child on `ForwardedAccessFacts` and the payload request core (never re-derived at the serving node, ADR 0008), read by `encloseInDelegationEnvelope` beside the surface, and carried onto the `authorizer` decider's review entry so the licensing fact is auditable.
-  If rejected, the amendment records why, PR [#684] closes with that reasoning, and the class stays on Step 4 and the human.
+  If rejected, the amendment records why, PR [#684] closes with that reasoning, and the class stays on Step 6 and the human.
 - **Constraint:** this is not [#684]'s blanket flag — a link never gains `allow` over the outside-the-tree boundary for a path that exists; `path` stays excluded regardless.
-- **Soft dependency:** Step 5, whose request-core addition is the vehicle the existence fact rides.
+- **Soft dependency:** Step 7, whose request-core addition is the vehicle the existence fact rides.
 - **Outcome:** ADR 0007 carries its first amendment; `officecli set data.xlsx /Sheet1/B1` with no declaration and `model-judge` in the chain either raises no prompt or the record says why it must.
 - **Commit type:** `docs:` for the amendment; `feat:` if the checkpoint change lands under it.
 - **Impact 4 / Risk 3 / Priority 12.**
@@ -1318,36 +1357,38 @@ Release: independent
 
 ```mermaid
 flowchart TD
-    S1["Step 1 (#863): inline scripts are scripts"] -.-> S3["Step 3 (#609): redirect destinations by role"]
-    S2["Step 2 (#859): .. as a whole segment"] -.-> S3
-    S4["Step 4 (#880): commandEffects"] --> S5["Step 5 (#881): blame reaches the ask"]
-    S3 -.-> S5
-    S6["Step 6 (#802): policy-scope export + launcher"]
-    S5 -.-> S7["Step 7 (#882): may a link dismiss a nonexistent-path ask?"]
+    S1["Step 1 (#945): hosted commands keep their operands"] -.-> S2["Step 2 (#863): inline scripts are scripts"]
+    S2 -.-> S4["Step 4 (#609): redirect destinations by role"]
+    S3["Step 3 (#859): .. as a whole segment"] -.-> S4
+    S5["Step 5 (#924): sed/awk presumed readers"] -.-> S6["Step 6 (#880): commandEffects"]
+    S6 --> S7["Step 7 (#881): blame reaches the ask"]
+    S4 -.-> S7
+    S7 -.-> S8["Step 8 (#882): may a link dismiss a nonexistent-path ask?"]
 ```
 
 The steps are numbered in the order they are meant to land, and the dashed edges are sequencing preferences, not dependencies.
-Steps 1 and 2 are one-file fixes in `token-collection.ts` and `token-classification.ts`; landing them before Step 3 keeps the role thread's diff about the role, and Step 3's `TokenRole` then has a `script` value to absorb Step 1's table entries into if the plan chooses.
-Step 5 stamps the deciding token's provenance onto the payload from the same `worstEntry` Step 3 gives a role, so landing Step 3 first means Step 5 reads one shape rather than two.
-Step 5 hard-depends on Step 4 only for its teaching sentence, which names the config key.
-Step 7's deliberation can start any time; only its code half, if any, waits on Step 5's request-core vehicle.
+Steps 1, 2, and 3 are one-file fixes in `token-collection.ts` and `token-classification.ts`; landing them before Step 4 keeps the role thread's diff about the role, and Step 4's `TokenRole` then has a `script` value to absorb Step 2's table entries into if the plan chooses.
+Steps 5 and 6 both edit `command-effects.ts`, so they sequence rather than parallelize — Step 5 first, because core relief needs no configuration from the user and narrows the population a declaration has to cover.
+Step 7 stamps the deciding token's provenance onto the payload from the same `worstEntry` Step 4 gives a role, so landing Step 4 first means Step 7 reads one shape rather than two.
+Step 7 hard-depends on Step 6 only for its teaching sentence, which names the config key.
+Step 8's deliberation can start any time; only its code half, if any, waits on Step 7's request-core vehicle.
 
 ### Parallel tracks
 
-- **Track A — role-carrying projection:** Steps 1 → 2 → 3.
+- **Track A — role-carrying projection:** Steps 1 → 2 → 3 → 4.
   Owns `src/access-intent/bash/token-collection.ts`, `token-classification.ts`, `bash-path-resolver.ts`, and the bash-path tests.
-- **Track B — declared effects and blame:** Steps 4 → 5.
-  Step 4 owns `src/config/` and `command-effects.ts`; Step 5 owns `src/presentation/` and the two bash path gates.
-  Step 5 touches `bash-path.ts` / `bash-external-directory.ts`, which Track A's Step 3 also edits — sequence Step 5 after Step 3, not concurrently.
-- **Track C — the sandbox seam:** Step 6, now first; it opens with the [#892] decision record, and its code adds a `sandbox/` directory (a vocabulary-table edit), a `bash` tool override, and the Linux webhook listener beside the `service.ts` / `service/permissions-service.ts` / `scripts/` surface it already owned.
-  Tracks A, B, and D wait on the record, since each polishes the layer it demotes.
-- **Track D — the judgment lane:** Step 7, a deliberation first; its code half touches `authority/delegation-envelope.ts`, `authority/permission-forwarding.ts`, and the payload core Step 5 owns, so it lands after Step 5.
+- **Track B — proven and declared effects, and blame:** Steps 5 → 6 → 7.
+  Step 5 owns `command-effects.ts` and the pure-reader core section of `docs/configuration.md`; Step 6 owns `src/config/` and re-enters `command-effects.ts`; Step 7 owns `src/presentation/` and the two bash path gates.
+  Step 7 touches `bash-path.ts` / `bash-external-directory.ts`, which Track A's Step 4 also edits — sequence Step 7 after Step 4, not concurrently.
+- **Track C — the judgment lane:** Step 8, a deliberation first; its code half touches `authority/delegation-envelope.ts`, `authority/permission-forwarding.ts`, and the payload core Step 7 owns, so it lands after Step 7.
+
+The sandbox seam that Phase 15 briefly carried as a fourth track is now Phase 16's subject in full ([#892], with [#802]).
 
 ### Release batches
 
-- **Batch "declared-effects":** Steps 4, 5 (ship together; tail = Step 5; release vehicle = Step 4's `feat:` with Step 5's `fix:` riding the same release).
-  They ship together because Step 5's blame line names the config key Step 4 creates, and a prompt telling the user to declare an effect they cannot declare is worse than the prompt it replaces.
-- Independently releasable: Step 1 (`fix:`), Step 2 (`fix:`), Step 3 (`fix!:` — newly prompts on a bare creating redirect under an unconfigured `path_write`), Step 6 (`feat:` — a new public service method ships in the declaration bundle), Step 7 (`feat:` if the checkpoint changes; a `docs:` amendment alone cuts no release).
+- **Batch "declared-effects":** Steps 6, 7 (ship together; tail = Step 7; release vehicle = Step 6's `feat:` with Step 7's `fix:` riding the same release).
+  They ship together because Step 7's blame line names the config key Step 6 creates, and a prompt telling the user to declare an effect they cannot declare is worse than the prompt it replaces.
+- Independently releasable: Step 1 (`fix:`), Step 2 (`fix:`), Step 3 (`fix:`), Step 4 (`fix!:` — newly prompts on a bare creating redirect under an unconfigured `path_write`), Step 5 (`fix:`), Step 8 (`feat:` if the checkpoint changes; a `docs:` amendment alone cuts no release).
 
 ## Refactoring history
 
@@ -1453,6 +1494,7 @@ Each phase's findings, numbered plan, dependency diagram, and health metrics are
 [#891]: https://github.com/gotgenes/pi-packages/issues/891
 [#892]: https://github.com/gotgenes/pi-packages/issues/892
 [#899]: https://github.com/gotgenes/pi-packages/issues/899
+[#906]: https://github.com/gotgenes/pi-packages/issues/906
 [#907]: https://github.com/gotgenes/pi-packages/issues/907
 [#909]: https://github.com/gotgenes/pi-packages/issues/909
 [#911]: https://github.com/gotgenes/pi-packages/pull/911
@@ -1460,11 +1502,16 @@ Each phase's findings, numbered plan, dependency diagram, and health metrics are
 [#915]: https://github.com/gotgenes/pi-packages/issues/915
 [#920]: https://github.com/gotgenes/pi-packages/issues/920
 [#923]: https://github.com/gotgenes/pi-packages/issues/923
+[#924]: https://github.com/gotgenes/pi-packages/issues/924
 [#925]: https://github.com/gotgenes/pi-packages/issues/925
+[#926]: https://github.com/gotgenes/pi-packages/issues/926
 [#927]: https://github.com/gotgenes/pi-packages/issues/927
+[#931]: https://github.com/gotgenes/pi-packages/issues/931
 [#933]: https://github.com/gotgenes/pi-packages/issues/933
+[#936]: https://github.com/gotgenes/pi-packages/issues/936
 [#938]: https://github.com/gotgenes/pi-packages/issues/938
 [#937]: https://github.com/gotgenes/pi-packages/issues/937
 [#941]: https://github.com/gotgenes/pi-packages/issues/941
 [#942]: https://github.com/gotgenes/pi-packages/issues/942
+[#945]: https://github.com/gotgenes/pi-packages/issues/945
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md

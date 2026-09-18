@@ -90,5 +90,34 @@ The full account, measurements, and the `#### Phase handoff` note live in `0863-
   `/finish-phase` should reconcile Steps 1–5 and 7 against the record's dispositions in [#892] rather than against their original `Outcome:` lines.
 - Two upstream dependencies were filed with instrumented evidence: nolabs-ai/nono#1796 (macOS denial reporting below the direct child) and nolabs-ai/nono#1797 (Linux elevation does not trap creation).
 
+## Stage: Re-sequencing revised — the sandbox becomes Phase 16 (2026-09-18)
+
+### Session summary
+
+The re-sequencing recorded in the stage above was revised by operator decision.
+[#892] and [#802] move out of Phase 15 together and become Phase 16 in full; Phase 15 returns to the projection and decision-layer work, re-numbered to eight steps with [#945] first and [#924] added as Step 5.
+[#863] was reopened, and [#804] moves from Phase 16 to Phase 17 to make room.
+The previous stage's entry is left standing as written — it is what was decided on 2026-09-07, and the measurements behind it are unchanged.
+
+### Observations
+
+- **The review's findings held; the sequencing built on them did not.**
+  The corpus diff, the nono timings, the Codex reading, and "the decision layer is the product" are all still true.
+  What overshot was inferring from them that every step should wait: Steps 6, 7, and 8 ([#880], [#881], [#882]) *are* the decision layer, and no sandbox delivers `commandEffects`, blame on an ask, or the ADR 0007 §5 answer.
+  Blocking them was the tell that this was a stop-everything move rather than a scoped one.
+- **The "polishing a demoted layer" reading does not apply uniformly.**
+  It bites hardest on Step 4 ([#609]), which projects a redirect destination that does not exist yet and is marked `fix!:` for the prompts it adds.
+  Steps 2 and 3 ([#863], [#859]) move the other way — [#863] is measured at 105 tokens lost, 0 gained, 0 real paths over 5918 commands, which is the *recognize less* direction Codex's design argues for.
+  Lumping a retreat in with an advance is what made the blanket stop look justified.
+- **The fold sized a phase as a step.**
+  Step 6 grew from "export + launcher" to a decision record plus a manifest compiler, a `bash` override, two OS backends, and a fallback prompt.
+  Given its own phase it needs no ordering argument against anything.
+- **The upstream dependency argues for the delay.**
+  Both nono reports are still open as of 2026-09-18, including #1797 — capability elevation never traps `O_CREAT` or `mkdir`, so the enforcement backend cannot yet see file creation.
+- `/finish-phase` reconciles Steps 1–8 against their own `Outcome:` lines again, not against [#892]'s dispositions; the note in the stage above is superseded.
+
 [#797]: https://github.com/gotgenes/pi-packages/issues/797
+[#802]: https://github.com/gotgenes/pi-packages/issues/802
 [#892]: https://github.com/gotgenes/pi-packages/issues/892
+[#924]: https://github.com/gotgenes/pi-packages/issues/924
+[#945]: https://github.com/gotgenes/pi-packages/issues/945
