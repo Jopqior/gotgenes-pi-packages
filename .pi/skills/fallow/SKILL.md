@@ -1,8 +1,7 @@
 ---
 name: fallow
 description: |
-  Codebase intelligence via fallow CLI — dead code, duplication, complexity, refactoring targets.
-  Load when investigating unused code, planning refactors, or reviewing fallow output.
+  Load before running `fallow` or reading its output: dead code, duplication, complexity, refactoring targets.
 ---
 
 # Fallow

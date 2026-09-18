@@ -1,10 +1,8 @@
 ---
 name: improvement-discovery
 description: |
-  Heuristics and process for discovering structural improvements in a package.
-  Load when planning a new improvement round — contains the smell taxonomy,
-  analysis workflow, and prioritization framework distilled from 10 phases of
-  pi-subagents refactoring.
+  Load before `/plan-improvements` discovery or editing an improvement roadmap:
+  smell taxonomy, analysis workflow, prioritization, and the `Release:` tag convention.
 ---
 
 # Improvement Discovery

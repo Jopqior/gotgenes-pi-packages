@@ -1,8 +1,8 @@
 ---
 name: testing
 description: |
-  Vitest mock patterns (vi.mock, vi.hoisted, vi.fn reset), TDD planning rules,
-  and general test strategy. Load when writing or debugging tests.
+  Load before writing or debugging a Vitest test, or sequencing TDD steps in a plan:
+  mock patterns (`vi.mock`, `vi.hoisted`, `vi.fn` reset) and test strategy.
 ---
 
 # Testing

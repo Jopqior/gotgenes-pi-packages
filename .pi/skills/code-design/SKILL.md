@@ -1,10 +1,8 @@
 ---
 name: code-design
 description: |
-  TypeScript conventions, code design principles (SOLID, self-documenting code, file organization),
-  structural design heuristics (dependency width, LoD, output arguments),
-  pnpm rules, ES2024 target, Pi SDK patterns, and Biome/ESLint conflict workarounds.
-  Load during implementation, refactoring, or code review.
+  Load before writing, refactoring, or reviewing TypeScript, and before designing around a Pi SDK internal:
+  naming, SOLID and structural heuristics, pnpm/ES2024 rules, Pi SDK boundaries, reading Pi's source, Biome/ESLint workarounds.
 ---
 
 # Code Design

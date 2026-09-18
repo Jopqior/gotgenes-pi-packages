@@ -1,10 +1,8 @@
 ---
 name: tidy-first
 description: |
-  Tidy-First protocol for the planning agent — dispatch the tidy-first-assessor
-  subagent over the files the planned change will touch, then fold its preparatory-refactor
-  suggestions into the plan's TDD Order as `refactor:`/`test:` steps.
-  Load during /plan-issue, after the design is settled and before writing the plan.
+  Load during `/plan-issue` once the design is settled and before writing the plan:
+  dispatch the `tidy-first-assessor` and fold its preparatory refactors into the TDD Order.
 ---
 
 # Skill: tidy-first

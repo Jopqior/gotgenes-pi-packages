@@ -1,10 +1,8 @@
 ---
 name: pre-completion
 description: |
-  Pre-completion protocol for implementation agents — gather context, dispatch the
-  pre-completion-reviewer subagent, and handle its report before writing stage notes
-  and recommending /ship.
-  Load at the end of /tdd-plan and /build-plan after all implementation steps are complete.
+  Load at the end of `/tdd-plan` or `/build-plan`, after the last implementation step:
+  how to dispatch the `pre-completion-reviewer` and act on its PASS / WARN / FAIL.
 ---
 
 # Skill: pre-completion

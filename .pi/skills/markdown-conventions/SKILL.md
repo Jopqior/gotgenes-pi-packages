@@ -1,9 +1,8 @@
 ---
 name: markdown-conventions
 description: |
-  Project-specific markdown rules (one-sentence-per-line, compact tables, sequential numbering)
-  and YAML frontmatter schema for plans/retros.
-  Load when writing or editing markdown — contains rules that differ from standard markdownlint defaults.
+  Load before writing or editing any markdown, an architecture-doc module tree, or a plan/retro:
+  one-sentence-per-line, tables, issue links, frontmatter, retro stage format, `pi-autoformat` reflow quirks.
 ---
 
 # Markdown Conventions

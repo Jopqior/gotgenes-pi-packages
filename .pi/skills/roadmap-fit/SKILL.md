@@ -1,9 +1,8 @@
 ---
 name: roadmap-fit
 description: |
-  Evaluate a newly filed issue for fit with its package's open improvement phase
-  and record the operator's disposition in the roadmap's sweep list.
-  Load at the moment a session files a GitHub issue — during planning, implementation, or a retrospective.
+  Load at the moment a session files a GitHub issue: evaluate it against the package's open
+  improvement phase and record the operator's disposition in the roadmap's sweep list.
 ---
 
 # Skill: roadmap-fit
