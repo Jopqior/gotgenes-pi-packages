@@ -238,6 +238,7 @@ Then an H1 title (e.g., `# <short descriptive title>`) — required by markdownl
 - **TDD Order** — numbered red→green→verify→commit cycles.
   Each item names the test surface, what's covered, and the suggested commit message (`test:`, `feat:`, `feat!:`, `fix:`, `docs:`).
   A suggested `feat:`/`fix:` subject names the observable outcome, not the seam it edits — it ships to the changelog verbatim (Refs #724).
+  Type each step by what a user can observe once it lands (see the `git-workflow` skill): a step that adds a module no consumer references yet is `refactor:`, not `feat:`, so `cliff.toml` skips it and the change reaches the changelog once, on the step that wires it up.
   Each item that adds tests also names its **killing mutation**: the one-line change to the code under test that must turn the step's new tests red.
   Write it as an edit a reader could apply ("make `resolveBackgroundMode` return `request.isBackground` unconditionally"), not as a description of intent.
   This is where a test's discriminating power is cheapest to specify — stating it forces you to name the signal that distinguishes the step's two outcomes, which is the check that catches an assertion passing under both (Refs #724).
