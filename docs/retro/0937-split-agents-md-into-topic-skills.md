@@ -31,3 +31,32 @@ Filed #942 for the 19 package-skill `offload` rows and recorded it out of scope 
 #### Deferred tidyings
 
 None — the assessor was not dispatched (docs-only change).
+
+## Stage: Implementation — Build (2026-09-18T04:34:13Z)
+
+### Session summary
+
+Executed all 13 plan steps as 13 `docs:` commits (`b649d3ea`..
+`b4a96011`): eight new topic skills, two existing-skill absorptions, the `AGENTS.md` rewrite, 11 description rewrites, the template load lists, and the `/audit-agent-docs` `offload`/`moved` verdicts.
+Always-loaded went from `agentsMd=8045 descriptions=454 total=8499` to `agentsMd=1848 descriptions=536 total=2384` (measured with `scripts/agent-docs/always-loaded.mjs`), a 72% cut.
+Pre-completion reviewer: WARN (two non-blocking findings, below).
+
+### Observations
+
+- **The moved-line check earned its place.**
+  Run after every move against the pre-split SHA, it caught nothing lost in eight moves; at the rewrite step it printed exactly the plan's deliberately-dropped list (23 lines: the old admission-test question 2, the four Workflow bullets folded into principle 6, the session-naming table, the four index stubs) plus three label lines (`Key properties:`, `Convergence…:`, `Guardrails:`) that became headings in `worktrees` and one reflow.
+  The reviewer re-derived it with its own script and reached the same set.
+- **One anticipated reflow happened.**
+  `pi-autoformat` rewrote `*around*` as `_around_` when the Pi-source paragraph landed in `code-design`, whose emphasis style is underscores.
+  Accepted as a formatter-owned rewrite; the plan's risk list named this class.
+- **Cutting moved lines from `AGENTS.md` by exact-line match was safe only for unindented prose.**
+  Lines that the destination re-shaped — bulletized autoformat quirks in `markdown-conventions`, fenced retro-format example lines — had to be removed by hand; a match-and-delete script that ignored fences would have half-deleted the example block.
+- **Reviewer WARN 1 — `agentsMd` is 1,848, above the plan's 1,500–1,700 estimate.**
+  The plan declared this a finding to report, not a target to cut to; the reviewer's per-section count puts the overrun in `## Working an issue` (375 words, lifecycle kept verbatim) and the index table (292), offset by principles coming in under.
+  Left as is; the next `/audit-agent-docs` run holds the lifecycle section to the sharpened question 2.
+- **Reviewer WARN 2 — one sentence in `clarification-gates` is new, not moved**: "Label every number in an option as measured or estimated; measure when the command runs in under a minute."
+  Added because the skill's `description:` promises it and the moved body did not carry it; `plan-issue.md` line ~134 states the same rule for its own predicted-effect table.
+  Left both: the template's is step-specific, the skill's is the general rule.
+- **Deviation from the plan's roster**: the four `### Workflow` bullets became principle 6 rather than moving to a skill, and the `delegation` skill carries the pre-completion-reviewer and craftsmanship paragraphs verbatim (the plan had them collapsing to index rows) — moving them whole was cheaper than proving a summary lossless, and they are loaded only on demand now.
+- The `Retro file format` example block now lives in `markdown-conventions`; each template still carries its own stage-entry skeleton, so nothing reads the block at run time.
+- Operator follow-through: a fresh `pi` session is needed to see the eight new skills in `<available_skills>`; this session cannot.
