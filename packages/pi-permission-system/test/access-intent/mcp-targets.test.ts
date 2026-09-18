@@ -248,6 +248,58 @@ describe("createMcpPermissionTargets", () => {
     });
   });
 
+  describe("the derivation table published in docs/configuration.md", () => {
+    // `docs/configuration.md` § `mcp` Surface prints these rows so a rule author
+    // can see what their rule has to match. Asserting the full array keeps the
+    // doc honest -- a derivation change that does not update it fails here.
+    it.each([
+      [
+        "a prefix-named tool",
+        { tool: "github_search_code" },
+        ["github"],
+        ["github_search_code", "github", "mcp_call"],
+      ],
+      [
+        "a suffix-named tool",
+        { tool: "search_code_github" },
+        ["github"],
+        [
+          "github_search_code_github",
+          "github:search_code_github",
+          "github",
+          "search_code_github",
+          "mcp_call",
+        ],
+      ],
+      [
+        "a qualified tool name",
+        { tool: "github:search_code" },
+        [],
+        [
+          "github_search_code",
+          "github:search_code",
+          "github",
+          "search_code",
+          "mcp_call",
+        ],
+      ],
+      [
+        "an explicit server argument",
+        { tool: "search_code", server: "github" },
+        [],
+        [
+          "github_search_code",
+          "github:search_code",
+          "github",
+          "search_code",
+          "mcp_call",
+        ],
+      ],
+    ])("%s", (_label, input, servers, expected) => {
+      expect(createMcpPermissionTargets(input, servers)).toEqual(expected);
+    });
+  });
+
   describe("priority ordering", () => {
     it("tool targets appear before mcp_call", () => {
       const targets = createMcpPermissionTargets({ tool: "exa:search" }, []);

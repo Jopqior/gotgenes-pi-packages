@@ -523,6 +523,46 @@ MCP permissions match against derived targets from tool input:
 
 > **Note:** Baseline discovery targets auto-allow when any explicit `mcp: allow` rule exists.
 
+In that example `mcp_status` and `mcp_list` allow discovery, `myServer:*` prompts for each of that server's tools, and `dangerousServer` denies every call to it — including `dangerousServer_wipe` and a `{"tool": "wipe", "server": "dangerousServer"}` call — because each rule is written **after** the `"*"` catch-all.
+
+#### How a call becomes targets
+
+One MCP call is looked up under several names, and a rule may name any of them.
+When the call carries no explicit `server`, the server is derived from the tool name against the servers in your MCP config, in this order — the first convention that matches settles the name:
+
+1. **Qualified** — `server:tool` splits directly.
+2. **Prefix** — the **longest** configured server that is the leading segment of `<server>_<tool>`.
+   This is the common case: the `mcp()` proxy carries names like `chrome_devtools_take_screenshot`, and aggregators expose `<server>_<tool>`.
+   `foo_bar_baz` belongs to `foo_bar`, never also to `foo`, and a prefix match settles the name — so `foo_bar_baz_github` derives `foo_bar` and not `github`.
+3. **Suffix** — a legacy name like `search_code_github`, which also derives the qualified forms.
+
+An explicit `server` argument skips derivation entirely.
+
+| Call                                                  | Targets                                                                                              |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `{"tool": "github_search_code"}`, `github` configured | `github_search_code`, `github`, `mcp_call`                                                           |
+| `{"tool": "search_code_github"}`, `github` configured | `github_search_code_github`, `github:search_code_github`, `github`, `search_code_github`, `mcp_call` |
+| `{"tool": "github:search_code"}`                      | `github_search_code`, `github:search_code`, `github`, `search_code`, `mcp_call`                      |
+| `{"tool": "search_code", "server": "github"}`         | `github_search_code`, `github:search_code`, `github`, `search_code`, `mcp_call`                      |
+
+Deriving a server from a name is a heuristic, and it can attach the wrong rule: with `git` configured, a `git_lab_issues` tool from a different server derives `git`.
+Longest-match only helps when both servers are configured.
+Where the distinction matters, pass an explicit `server` argument or use a qualified `server:tool` name.
+
+#### Which rule shape to write
+
+| Rule shape     | Matches                | Use it for                                                                                                                            |
+| -------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `"myServer"`   | the bare-server target | **Server-level policy — the recommended form.** Fires for any call belonging to that server, whichever naming convention produced it. |
+| `"myServer_*"` | the tool-name target   | Tool-level policy for prefix-named tools.                                                                                             |
+| `"myServer:*"` | the qualified target   | Tool-level policy for qualified names and explicit-`server` calls.                                                                    |
+| `"*_myServer"` | the suffix targets     | Only when you have suffix-named tools.                                                                                                |
+
+**Rule position decides, not target order.**
+The last rule matching *any* of a call's targets wins, exactly as on every other surface — so put broad catch-alls first and specific overrides after.
+A `{"*": "allow", "github": "deny"}` config denies github calls; reversing the two lines makes the catch-all win instead.
+The target order above decides only which name the decision is reported under in the prompt and the review log, where the most specific matching name is shown.
+
 String shorthand grants broad MCP access — useful for per-agent overrides:
 
 ```yaml

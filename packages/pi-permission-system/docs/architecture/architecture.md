@@ -306,24 +306,22 @@ After expansion no rule lives on a bare family surface; `PermissionResolver.reso
 
 ## MCP pre-processing
 
-MCP is the one surface that requires pre-processing **before** evaluation.
-The multi-name target derivation stays, but it feeds candidate values into `evaluate()` rather than a separate code path:
+MCP is the one surface that requires pre-processing **before** evaluation, and the one surface whose candidate list holds more than a single value.
+The multi-name target derivation stays, but it feeds candidate values into the shared `evaluateAnyValue()` rather than a separate code path:
 
 ```mermaid
 flowchart LR
-    Input["MCP tool call input"] --> Derive["createMcpTargets(input)"]
+    Input["MCP tool call input"] --> Derive["createMcpPermissionTargets(input)"]
     Derive --> Candidates["[exa_search, exa:search, exa, search, mcp_call]"]
-    Candidates --> Loop{"For each candidate"}
-    Loop --> Eval["evaluate('mcp', candidate, rules)"]
-    Eval --> Found{"Explicit match?"}
-    Found -->|Yes| Return["Return rule"]
-    Found -->|No| Next["Next candidate"]
-    Next --> Loop
-    Loop -->|Exhausted| Fallback["evaluate('mcp', '*', rules)<br/>(hits synthesized default)"]
+    Candidates --> Eval["evaluateAnyValue('mcp', candidates, rules)"]
+    Eval --> Scan["Last rule matching any candidate"]
+    Scan --> Found{"Matched?"}
+    Found -->|Yes| Return["Return rule + the first candidate it matches"]
+    Found -->|No| Fallback["evaluate('mcp', candidates[0], rules)<br/>(hits synthesized default)"]
 ```
 
-The priority ordering of candidates is preserved.
-The evaluation function is unchanged - MCP just calls it multiple times with different values.
+Rule position decides which rule wins — last-match-wins, as on every other surface.
+The candidate ordering decides only which name the decision is reported under, so the most specific matching name reaches the prompt and the review log.
 MCP target derivation helpers live in `src/access-intent/mcp-targets.ts`.
 Input normalization for all surfaces lives in `src/access-intent/input-normalizer.ts`.
 
@@ -478,7 +476,7 @@ The gate pipeline (`src/handlers/gates/`) normalizes the input to `(surface, val
 Same `evaluate()`, same ruleset.
 The only surface-specific logic is input normalization (what `surface` and `value` to look up) and pattern suggestion (what glob to offer for "session" approval).
 
-`checkPermission()` uses a single evaluate path: `normalizeInput()` → `evaluateFirst()` → `deriveSource()` → single result object.
+`checkPermission()` uses a single evaluate path: `normalizeInput()` → `evaluateAnyValue()` → `deriveSource()` → single result object.
 
 ## Subagent detection and permission forwarding
 
