@@ -38,9 +38,7 @@ const PARENT_CWD = "/parent";
  * each used to spell a different fragment of the wording, so a change to the
  * constant meant improvising a new fragment at every site.
  */
-const GENERIC_BASE = `# Role
-You are a general-purpose coding agent for complex, multi-step tasks.
-You have full access to read, write, edit files, and execute commands.
+const GENERIC_BASE = `# Instructions
 Do what has been asked; nothing more, nothing less.`;
 
 function getDefaultConfig(name: string): AgentConfig {
@@ -1132,6 +1130,25 @@ describe("buildAgentPrompt", () => {
         expect(prompt.startsWith(GENERIC_BASE)).toBe(true);
         expect(prompt).toContain('<project_instructions path="/workspace/AGENTS.md">');
         expect(prompt).not.toContain("pi packages (docs/packages.md)");
+      });
+
+      // #904: the fallback is the identity of every agent type, so it cannot
+      // know which tools the child holds. Explore holds neither `edit` nor
+      // `write`, and says so itself twelve lines further down the prompt.
+      it("asserts no capability the child may not hold", () => {
+        const prompt = buildAgentPrompt(
+          getDefaultConfig("Explore"),
+          "/workspace",
+          env,
+          { systemPrompt: PI_BASE, cwd: PARENT_CWD, strategy: "portable" },
+        );
+
+        // Scoped to the adopted identity, which ends at the per-call header:
+        // Explore's own prompt names writing legitimately, to prohibit it.
+        const identity = prompt.slice(0, prompt.indexOf("<active_agent"));
+        expect(identity).not.toMatch(/\bwrite\b/i);
+        expect(identity).not.toMatch(/\bedit\b/i);
+        expect(identity).not.toMatch(/execute commands/i);
       });
     });
 
