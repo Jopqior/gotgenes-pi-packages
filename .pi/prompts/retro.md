@@ -188,7 +188,7 @@ The skill exits at its first step when no phase is open.
 Retro-driven additions to `AGENTS.md` and prompt bodies should land as **rule + tight example**, not **rule + rationale + worked example**.
 The retro file is the right home for rationale and worked examples.
 
-First, put each proposed `AGENTS.md` addition through the `### Admission test` in `AGENTS.md`.
+First, put each proposed `AGENTS.md` addition through the `## Admission test` in `AGENTS.md`.
 A passage that fails its first question is not landed anywhere; one that fails its second is landed in the named skill's body instead.
 This retro is where `AGENTS.md` grows — 44 of its last 60 commits were `docs(retro):` — so this is the gate that decides whether the file re-grows.
 

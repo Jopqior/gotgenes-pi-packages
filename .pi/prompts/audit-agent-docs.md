@@ -7,7 +7,7 @@ model: anthropic/claude-opus-5
 
 No arguments.
 
-Your job is to hold `AGENTS.md` and every `.pi/skills/*/SKILL.md` to the `### Admission test` in `AGENTS.md`, and to land the cuts it justifies.
+Your job is to hold `AGENTS.md` and every `.pi/skills/*/SKILL.md` to the `## Admission test` in `AGENTS.md`, and to land the cuts it justifies.
 The test is short; read it now, before anything else.
 This template is periodic and manually triggered — nothing runs it on a schedule — and it is the counterweight to `/retro`, which is where those files grow.
 
