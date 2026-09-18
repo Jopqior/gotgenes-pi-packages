@@ -1149,6 +1149,8 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#941] — filed by the repo-level [#938] planning; out of scope for the roadmap.
   A heredoc absorbs the operand preceding it, so `git commit -F - <<'EOF'` enumerates as the unit `git commit -F` — an enumeration fact nothing asserts, which this repo's own project-scope permission config now depends on.
   It is a test-only regression pin over `command-enumeration.ts`'s output, not the role a collector attaches to a token, so no step in this phase produces or consumes what it needs; it is a boy-scout candidate for whichever step next edits `program.test.ts`.
+- [#942] — filed by [#937]'s planning; out of scope for the roadmap.
+  It applies the 18 `package-pi-permission-system` `offload` rows from the 2026-09-17 agent-doc audit — skill prose relocated into this architecture doc, ADRs, and `docs/subagent-integration.md` — and touches no `src/`, so it is doc restructuring beside the phase rather than roadmap work.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by Step 4 (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1462,5 +1464,7 @@ Each phase's findings, numbered plan, dependency diagram, and health metrics are
 [#927]: https://github.com/gotgenes/pi-packages/issues/927
 [#933]: https://github.com/gotgenes/pi-packages/issues/933
 [#938]: https://github.com/gotgenes/pi-packages/issues/938
+[#937]: https://github.com/gotgenes/pi-packages/issues/937
 [#941]: https://github.com/gotgenes/pi-packages/issues/941
+[#942]: https://github.com/gotgenes/pi-packages/issues/942
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
