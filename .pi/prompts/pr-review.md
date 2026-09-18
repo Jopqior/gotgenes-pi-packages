@@ -139,7 +139,7 @@ Whichever direction is chosen, the contributor gets explicit, durable credit:
   ```
 
 - The PR close comment (ship stage) thanks `@<login>` by name and links the implementing SHA(s).
-- Never use `Closes #$1` in a commit (it pre-empts the curated close comment, per AGENTS.md); reference the PR as `Refs #$1` / `(#$1)`.
+- Never use `Closes #$1` in a commit (it pre-empts the curated close comment, per the `git-workflow` skill); reference the PR as `Refs #$1` / `(#$1)`.
 
 ## Record the decision and hand off
 
