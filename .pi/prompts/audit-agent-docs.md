@@ -48,6 +48,7 @@ The `always-loaded` line is the number this audit is measured against: write it 
 
 Then read the prior audit, if any: `ls -1d docs/agent-docs-audit/*/ | tail -2` and open the previous directory's `inventory.md`.
 Carry forward every row it marked `offload` or `keep (revisit)` — those are the verdicts it deferred, and this audit answers for them.
+A carried-forward `offload` row is re-verdicted this run: `offload → <dest>` again (and applied in Step 5 when the destination file now exists), or `moved (<sha>)` when a change since the prior audit already relocated the passage — `git log -S'<distinctive phrase>'` names the commit.
 
 ## Step 2: Classify
 
@@ -56,12 +57,13 @@ A passage is a sentence or a tightly bound group of sentences making one claim; 
 
 Give every passage exactly one verdict:
 
-| Verdict             | Meaning                                                          | Applied by this command                      |
-| ------------------- | ---------------------------------------------------------------- | -------------------------------------------- |
-| `keep`              | Passes all three admission questions                             | No edit                                      |
-| `offload → <skill>` | Real but not needed before the agent could know to load a skill  | No edit; the inventory names the destination |
-| `compress`          | The rule stands; the incident attached to it does not            | Yes — rewrite the line to the rule alone     |
-| `delete`            | Fails the first question, or is superseded, duplicated, or stale | Yes — remove the line                        |
+| Verdict            | Meaning                                                                                    | Applied by this command                                                                                                                                                                             |
+| ------------------ | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keep`             | Passes all three admission questions                                                       | No edit                                                                                                                                                                                             |
+| `offload → <dest>` | Real, but fails the second question: it fires at a trigger a skill's description names     | Yes when `<dest>` exists — cut the passage from the source and append it to the destination under a fitting heading; otherwise no edit, and the inventory names the destination that needs creating |
+| `moved (<sha>)`    | A carried-forward `offload` whose passage a change since the prior audit already relocated | No edit; closes the row                                                                                                                                                                             |
+| `compress`         | The rule stands; the incident attached to it does not                                      | Yes — rewrite the line to the rule alone                                                                                                                                                            |
+| `delete`           | Fails the first question, or is superseded, duplicated, or stale                           | Yes — remove the line                                                                                                                                                                               |
 
 Read the admission test's recurrence heuristic as it is written: a rule with no retro recurrence since 2026-07-20 is a *candidate*, and survivorship is the confound.
 When you mark such a rule `delete`, the rationale column says the rule was checked against the retros (`grep -rln '<distinctive phrase>' docs/retro packages/*/docs/retro`) and names the last one that mentions it.
@@ -127,7 +129,7 @@ Do not edit `AGENTS.md` or any skill before this gate returns "apply".
 
 ## Step 5: Apply
 
-For every `delete` and `compress` row, in file order:
+For every `delete`, `compress`, and destination-exists `offload` row, in file order:
 
 1. `grep -n` the passage to find its current line — line numbers move as you cut, so never carry one forward.
 2. Re-read the surrounding region before each `Edit`.
@@ -135,9 +137,11 @@ For every `delete` and `compress` row, in file order:
 3. `delete`: remove the line.
    If it was the only sentence in a paragraph, remove the now-empty paragraph too; if it was the only content under a heading, remove the heading.
 4. `compress`: replace the line with the rule alone, keeping a `(Refs #N)` only where the inventory's rationale says the citation encodes a constraint.
+5. `offload` with an existing destination: cut the passage from the source and append it verbatim to the destination under the heading that fits (or a new one); a `(Refs #N)` moves with it under the same rule as `compress`.
+   A passage that reads oddly out of its old context gets a heading, not a rewrite — the verification in Step 6 greps for the moved text.
 
-`offload` and `keep` rows are not applied.
-An `offload` is a move into a skill whose shape is a design choice; the inventory has named the destination, and the move is a separate, manual change.
+`keep`, `moved`, and destination-missing `offload` rows are not applied.
+A destination that does not exist is a design choice for a separate change; the inventory has named it, and the next audit closes the row as `moved` once that change lands.
 
 ## Step 6: Verify and commit
 
@@ -154,12 +158,12 @@ An `offload` is a move into a skill whose shape is a design choice; the inventor
    node scripts/agent-docs/always-loaded.mjs | tee "$D/always-loaded-after.txt"
    ```
 
-3. Confirm every applied row landed: for each `delete`, `grep -c '<passage>'` on its file returns 0; for each `compress`, the rule's distinctive phrase is still present and the incident's is not.
+3. Confirm every applied row landed: for each `delete`, `grep -c '<passage>'` on its file returns 0; for each `compress`, the rule's distinctive phrase is still present and the incident's is not; for each applied `offload`, the distinctive phrase is absent from the source and present in the destination.
 4. Write the inventory's `## Assessment` — the audit's verdict on the admission test, not on the corpus:
    - Which verdict dominated, and what that says about where the growth is.
    - Which admission question did the cutting, and which never fired.
      A question that never fires is disconnected, not satisfied.
-   - Any passage kept only because it had nowhere to go; name the destination that does not exist.
+   - Any passage kept only because it had nowhere to go; name the destination that does not exist and needs creating.
 5. Commit twice:
 
    ```bash
@@ -170,10 +174,10 @@ An `offload` is a move into a skill whose shape is a design choice; the inventor
    git push
    ```
 
-   The second commit's body names the always-loaded before and after, and the count of `delete` and `compress` rows applied.
+   The second commit's body names the always-loaded before and after, and the count of `delete`, `compress`, and `offload` rows applied.
 
 ## Finally
 
-Report the before and after always-loaded numbers, the row counts by verdict, and the `offload` rows still open — those are the manual follow-through this audit hands to whoever picks them up.
+Report the before and after always-loaded numbers, the row counts by verdict, and the `offload` rows still open (destination missing) — those are the manual follow-through this audit hands to whoever picks them up.
 If the after number is not below the before, say so plainly; an audit that cut nothing is a finding about the admission test, not a success.
 Report the `## Assessment` too: a cut composed almost entirely of provenance is the same kind of finding, whatever the word count says.
