@@ -9,6 +9,12 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 > Originally forked from [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb), now an independently maintained hard fork.
 > See [Comparison with upstream](./docs/comparison-with-upstream.md) for a feature-by-feature comparison and guidance on which to choose.
 
+<!-- -->
+
+> **Source history:** the repository's git history was restored to the original upstream merge graph.
+> Already-published npm artifacts are unchanged, and artifacts published after that restoration are built from the restored history.
+> See [History restoration](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/history-restoration.md) for what this means for old commit links and existing clones.
+
 <img width="600" alt="pi-subagents screenshot" src="https://github.com/gotgenes/pi-subagents/raw/main/media/screenshot.png" />
 
 <https://github.com/user-attachments/assets/8685261b-9338-4fea-8dfe-1c590d5df543>

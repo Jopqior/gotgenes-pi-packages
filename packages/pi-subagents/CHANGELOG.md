@@ -10,12 +10,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-* **pi-subagents:** show the selected model on the foreground tool card ([ba3cdbd](https://github.com/Jopqior/gotgenes-pi-packages/commit/ba3cdbdb8465625347631e92cf2db42cb03ef9aa)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)
-* **pi-subagents:** strip pending model from background launch details ([bc318e2](https://github.com/Jopqior/gotgenes-pi-packages/commit/bc318e28a0297f178f6df65c660c46407cb0965f)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)
+* **pi-subagents:** show the selected model on the foreground tool card ([2af893e](https://github.com/Jopqior/gotgenes-pi-packages/commit/2af893e0a1f97e6fc4dfad874f0b5d5af5a7a8f5)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)
+* **pi-subagents:** strip pending model from background launch details ([b97c4bd](https://github.com/Jopqior/gotgenes-pi-packages/commit/b97c4bdb4002ace1348e1fa2296328ca3afad2f1)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)
 
 ### Documentation
 
-* note that the tool card names the selected pair ([30d95be](https://github.com/Jopqior/gotgenes-pi-packages/commit/30d95bef32978dfce03e120574e9ffaa892ffc02)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)
+* note that the tool card names the selected pair ([49b3a66](https://github.com/Jopqior/gotgenes-pi-packages/commit/49b3a66e743d0094e61cd43059ef70c0ba1e4214)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)
 
 ## [1.0.0] (2026-09-12)
 
