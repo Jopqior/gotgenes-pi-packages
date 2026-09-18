@@ -9,16 +9,16 @@ issue_title: "pi-permission-system: a `node -e` script whose first line is a `//
 
 **Release:** ship independently
 
-This issue is Phase 15 Step 2 in the package's architecture roadmap, tagged `Release: independent` there.
-It belongs to no release batch — the `declared-effects` batch is Steps 6 and 7, and this step's relief is immediate and unconditional the moment it lands.
+This issue is a Phase 15 step in the package's architecture roadmap, tagged `Release: independent` there.
+It belongs to no release batch — the `declared-effects` batch is [#880] and [#881], and this step's relief is immediate and unconditional the moment it lands.
 Both commits are `fix:`, so the release is a patch.
 
 **Re-scoped 2026-09-18.**
-This plan was written when the issue was Phase 15 Step 1, then shelved when [#892]'s sandbox record was re-sequenced ahead of the whole phase; that re-sequencing has since been revised, the record moved to Phase 16, and this issue reopened.
+This plan was written when the issue opened Phase 15, then shelved when [#892]'s sandbox record was re-sequenced ahead of the whole phase; that re-sequencing has since been revised, the record moved to Phase 16, and this issue reopened.
 Two changes to the plan as written.
-Change A — searching a consumed flag argument for hosted executions — is now its own issue and its own roadmap step ([#945], Step 1), landing immediately ahead of this one.
+Change A — searching a consumed flag argument for hosted executions — is now its own issue and its own roadmap step ([#945]), landing immediately ahead of this one.
 It stays written up here as TDD Order item 2, which is the specification [#945] implements; this issue's own work begins at item 3.
-Roadmap step numbers throughout this document have been updated to the phase's current eight-step order.
+Roadmap steps are identified by issue number throughout, matching the roadmap's own heading shape; the phase's eight steps are [#945], [#863], [#859], [#609], [#924], [#880], [#881], and [#882], in that working order.
 Everything else in this plan, including the corpus measurements and the ADR 0009 amendment, stands as written.
 
 ## Problem Statement
@@ -71,11 +71,11 @@ This matters because it rules out the obvious alternative lever — "a token con
   Measured: 12 of 270 interpreter inline invocations (~4.4%) — 10 `perl`, 1 `node`, 1 `python3`.
   Recorded as an ADR 0009 residual beside the existing `grep -ie pattern` one it matches exactly.
 - **`deno eval`** — `eval` is a subcommand, not a flag, and `PATTERN_FIRST_COMMANDS` keys on a command basename with no subcommand vocabulary.
-  Expressing it needs the recursive `subcommands` shape Step 6 ([#880]) creates.
-- **`..` as a whole segment** ([#859]) — the sibling false positive, Phase 15 Step 3, its own issue.
-- **A `TokenRole` on `PathToken`** — Step 4 ([#609]) owns it, and its plan may absorb these rows' `script` role into that vocabulary.
+  Expressing it needs the recursive `subcommands` shape [#880] creates.
+- **`..` as a whole segment** ([#859]) — the sibling false positive, its own Phase 15 step.
+- **A `TokenRole` on `PathToken`** — [#609] owns it, and its plan may absorb these rows' `script` role into that vocabulary.
   Nothing here should anticipate its shape.
-- **The `COMMAND_PREFIX_TYPES` re-spelling tidy and `bash-path-extractor.test.ts`'s duplication of `program.test.ts`** — both are Step 4's own recorded tidy-first prep.
+- **The `COMMAND_PREFIX_TYPES` re-spelling tidy and `bash-path-extractor.test.ts`'s duplication of `program.test.ts`** — both are [#609]'s own recorded tidy-first prep.
 
 ## Background
 
@@ -270,7 +270,7 @@ No other `src/` file changes.
 - `test/access-intent/bash/program.test.ts` — a `#863` block carrying the issue's literal repro end to end through `BashProgram`, asserting on both `externalAccesses` and `ruleCandidates`.
   This is the layer the issue reports at, and `program.test.ts` is where per-issue facade cases live.
 
-`test/handlers/gates/bash-path-extractor.test.ts` is deliberately not extended — its duplication of `program.test.ts` is Step 4's recorded tidy, and adding a third copy of this class is what that tidy exists to stop.
+`test/handlers/gates/bash-path-extractor.test.ts` is deliberately not extended — its duplication of `program.test.ts` is [#609]'s recorded tidy, and adding a third copy of this class is what that tidy exists to stop.
 
 ### Instrument
 
@@ -287,7 +287,7 @@ No other `src/` file changes.
 - `docs/architecture/architecture.md`
   - The `token-collection.ts` module-tree entry: the `PATTERN_FIRST_COMMANDS` sentence gains the interpreter class and the per-parser split for `node`/`bun`; the consumed-argument constraint sentence gains the hosted-execution search.
     Both are active constraints, so they belong in the tree under the repo's citation rule.
-  - Step 2's heading gains `✅`, its Mermaid node gains `✅`, and a `Landed:` bullet is added.
+  - This step's `#### [#863]` heading gains `✅`, its `S863` Mermaid node label gains `✅`, and a `Landed:` bullet is added.
   - Health metrics: "Interpreter script-role commands in `token-collection.ts`" moves off its `0` baseline, and its recompute command gains `bun` — `grep -cE '"(node|bun|python|python3|perl|ruby)"'`.
 - `.pi/skills/package-pi-permission-system/SKILL.md` — the sentence beginning "That split is blind for a generic command… and **role-aware** for a pattern-first one" gains the interpreter case; the surrounding paragraph is the one that states the table's rule.
 - `docs/opencode-compatibility.md` line 120 — "understands flag arity for `sed`, `awk`, `grep`, `rg`, and similar tools" gains the interpreter inline-script case, since a reader comparing coverage would otherwise miss it.
@@ -377,7 +377,7 @@ Re-run it after implementation rather than citing this table — it is a measure
    Commit: `docs(pi-permission-system): amend ADR 0009 to admit an interpreter's inline script`.
 
 5. **Land the roadmap and reference-doc updates.**
-   Step 2's `✅` heading mark, its Mermaid node, its `Landed:` bullet, the interpreter health-metric row and its `bun`-inclusive recompute command, the `token-collection.ts` module-tree entry, the package skill's pattern-first paragraph, and `docs/opencode-compatibility.md` line 120.
+   This step's `✅` heading mark, its `S863` Mermaid node, its `Landed:` bullet, the interpreter health-metric row and its `bun`-inclusive recompute command, the `token-collection.ts` module-tree entry, the package skill's pattern-first paragraph, and `docs/opencode-compatibility.md` line 120.
    Verified by running each edited recompute command and by `pnpm run lint`.
    Commit: `docs(pi-permission-system): record the interpreter script role in the roadmap and module tree`.
 
@@ -397,7 +397,7 @@ Re-run it after implementation rather than citing this table — it is a measure
 
 - Whether `python` should ship a row without an execution check on some host.
   Resolved by the implementing session if a `python` is available; otherwise the row ships on the CPython-front-end basis stated in the ADR amendment, and the question is closed either way rather than left standing.
-- Whether Step 4 ([#609]) folds these rows' `script` role into its `TokenRole` vocabulary or leaves them in the flag table.
+- Whether [#609] folds these rows' `script` role into its `TokenRole` vocabulary or leaves them in the flag table.
   Deliberately left to that step's plan; nothing here anticipates the shape.
 
 [#609]: https://github.com/gotgenes/pi-packages/issues/609
@@ -406,7 +406,11 @@ Re-run it after implementation rather than citing this table — it is a measure
 [#807]: https://github.com/gotgenes/pi-packages/issues/807
 [#823]: https://github.com/gotgenes/pi-packages/issues/823
 [#859]: https://github.com/gotgenes/pi-packages/issues/859
+[#863]: https://github.com/gotgenes/pi-packages/issues/863
 [#880]: https://github.com/gotgenes/pi-packages/issues/880
+[#881]: https://github.com/gotgenes/pi-packages/issues/881
+[#882]: https://github.com/gotgenes/pi-packages/issues/882
 [#886]: https://github.com/gotgenes/pi-packages/issues/886
 [#892]: https://github.com/gotgenes/pi-packages/issues/892
+[#924]: https://github.com/gotgenes/pi-packages/issues/924
 [#945]: https://github.com/gotgenes/pi-packages/issues/945
