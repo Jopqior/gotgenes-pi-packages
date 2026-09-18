@@ -138,3 +138,53 @@ Co-authored-by: George Harker <george@georgeharker.com>
 
 The PR close comment at ship stage thanks `@georgeharker` by name, links the implementing SHAs, and explains that we took the capability with a simplified derivation plus the underlying `evaluateFirst` fix his report exposed.
 Reference the PR as `Refs #929`, never `Closes #929`.
+
+## Stage: Planning (2026-09-18T17:13:46Z)
+
+### Session summary
+
+Wrote `docs/plans/0928-mcp-prefix-named-server-derivation.md` as five TDD steps under one breaking release.
+The PR-review stage had already settled the direction, so this session's work was measuring the change rather than deciding it: a spike in a throwaway worktree ran a 12-config × 11-input matrix through the real `PermissionManager` before and after both changes, which shifted the plan's center of gravity from the derivation fix to the matcher underneath it.
+The operator widened step 1 from the recorded "route `mcp` through `evaluateAnyValue`" to deleting `evaluateFirst` outright, and asked that #687 be told now rather than at ship.
+
+### Observations
+
+- **The spike changed the framing.**
+  37 of 132 matrix rows move, and **0 of 4413 existing tests** move with them — `main` and the patched tree are both 165 files / 4413 passing.
+  Nothing in the suite pins the `mcp` matcher, so the plan treats the green suite as evidence of a coverage gap rather than of safety, and every step names a killing mutation.
+- **The package's own documented example is broken on `main`.**
+  The `docs/configuration.md:510` config silently drops `mcp_list: "allow"` and `dangerousServer: "deny"`, the latter even with an explicit `server` argument that already derives the right candidate.
+  That row needs no prefix derivation at all, which is what established the matcher as the primary defect and the derivation as a second, independent gap.
+  `README.md:134` has claimed last-match-wins for the `mcp` surface all along.
+- **Deleting `evaluateFirst` rather than widening its discriminator.**
+  `normalizeInput`'s `switch` is exhaustive over `ToolKind` and gives every non-`mcp` arm a single-element `values`, where the two evaluators provably agree; the `path-values` branch already routes to `evaluateAnyValue`.
+  Measured green with an unconditional `evaluateAnyValue`.
+  Rejected the narrower `PATH_SURFACES.has(surface) || surface === "mcp"` because it leaves a second evaluator alive with only degenerate callers — an ad-hoc disjunction where removing the decision is available.
+- **The path-alias tests are the regression net.**
+  Forcing path surfaces onto `evaluateFirst` turns five red across `permission-manager-unified.test.ts` and `external-directory-symlink-acceptance.test.ts`, measured.
+  They already prove `evaluateAnyValue` is correct for a multi-candidate surface, which is most of the argument for the deletion.
+- **#687 was not referenced by #928 and is materially affected.**
+  Its problem 1 is this exact masking, in its own words, and it proposes an operation-scoped `mcp` config schema partly to route around it.
+  Commented on #687 with the measurement and asked its reporter whether the schema is still wanted for problem 2 (discoverability of the synthetic `mcp_*` names) alone.
+- **Ordering demoted from a security decision to a display decision.**
+  Under one evaluator, candidate order no longer affects any outcome — it selects only the reported `target`.
+  So tool-name-first was chosen on prompt and review-log fidelity, not on precedence, and it happens to reproduce the candidate table `main` already produces for qualified and explicit-`server` names.
+- **Alternative rejected:** `evaluateMostRestrictive` for the `mcp` surface, so a `deny` on any candidate wins regardless of position.
+  That is a different policy from last-match-wins and would contradict `README.md:134`; recorded as an Open Question rather than planned.
+- **Two attribution changes are preserved-but-visible**, and both are pinned rather than accepted silently: the baseline auto-allow keeps its action but loses `mcp_describe` as its `matchedPattern` once derivation supplies a server candidate, and a session grant matching a late candidate now wins where it previously lost to a config rule on an earlier one.
+- **Scope split:** gap 2 of #928 (routing registered proxy tool names to the `mcp` surface, PR #930's `registerMcpProxy`) filed as [#946] so #928 closes on gap 1 alone.
+  Roadmap-fit recorded it out of scope for Phase 15 — it edits `classifyToolKind` and adds a cross-extension registry, sharing no mechanism with that phase's bash token-role loss.
+
+#### Deferred tidyings
+
+The Tidy-First assessor recommended no preparatory commits and its three rejections are recorded here rather than lost:
+
+- `src/policy/permission-manager.ts` — `buildCheckResult` carries 7 positional parameters including both `normalizedToolName` and `toolName`, a genuine ISP-flavored bag; declined because this change edits one line inside the body and touches no parameter.
+- `src/access-intent/mcp-targets.ts` — both helpers mutate a `McpTargetList` passed as a parameter rather than returning candidates; declined as the file's existing consistent idiom, which the change fits without friction.
+- `test/policy/rule.test.ts` — each `describe` block builds its own local `Rule` fixtures; declined as not worth a commit for the handful of cases this plan adds.
+
+The assessor also corrected the design summary: `addDerivedMcpServerTargets` has **no** early exit today, so a suffix match against several configured servers adds three candidates for each of them.
+The current defect is unbounded fan-out, not merely a fragile dependence on the caller's longest-first sort.
+That correction is folded into the plan's Design Overview.
+
+[#946]: https://github.com/gotgenes/pi-packages/issues/946
