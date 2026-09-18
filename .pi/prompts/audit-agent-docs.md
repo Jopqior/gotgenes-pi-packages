@@ -159,12 +159,24 @@ A destination that does not exist is a design choice for a separate change; the 
    ```
 
 3. Confirm every applied row landed: for each `delete`, `grep -c '<passage>'` on its file returns 0; for each `compress`, the rule's distinctive phrase is still present and the incident's is not; for each applied `offload`, the distinctive phrase is absent from the source and present in the destination.
-4. Write the inventory's `## Assessment` — the audit's verdict on the admission test, not on the corpus:
+4. When the run applied any `offload` row, verify the **corpus** as well — a per-row grep cannot see a line dropped rather than mis-moved:
+
+   ````bash
+   # Step 5's edits are still uncommitted here, so HEAD is the pre-prune tree.
+   git show "HEAD:<source>" \
+     | awk 'BEGIN{f=0} /^```/{f=!f; next} f{next} /^\s*$/{next} /^#/{next} {print}' \
+     | while IFS= read -r l; do
+         grep -qF -- "$l" <destination-files> || printf 'MISSING: %s\n' "$l"
+       done
+   ````
+
+   Every line it prints must be a recorded `delete`/`compress` target, a heading the destination re-shaped, or a `pi-autoformat` reflow; anything else is a lost line (Refs #937).
+5. Write the inventory's `## Assessment` — the audit's verdict on the admission test, not on the corpus:
    - Which verdict dominated, and what that says about where the growth is.
    - Which admission question did the cutting, and which never fired.
      A question that never fires is disconnected, not satisfied.
    - Any passage kept only because it had nowhere to go; name the destination that does not exist and needs creating.
-5. Commit twice:
+6. Commit twice:
 
    ```bash
    git add docs/agent-docs-audit/<date>/
