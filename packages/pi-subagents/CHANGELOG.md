@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [21.7.3](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.2...pi-subagents-v21.7.3) (2026-09-18)
+
+
+### Bug Fixes
+
+* **pi-subagents:** cancel an in-flight resume when the agent is aborted ([acd83b0](https://github.com/gotgenes/pi-packages/commit/acd83b0059e3f196ebd4b0664dae9614b20dfbed)), closes [#913](https://github.com/gotgenes/pi-packages/issues/913)
+
+### Documentation
+
+* **pi-subagents:** record the resume abort lever in the README and roadmap ([5b942e9](https://github.com/gotgenes/pi-packages/commit/5b942e94fed972d3403ca0dabb856866d4a1b667)), closes [#913](https://github.com/gotgenes/pi-packages/issues/913)
+
 ## [21.7.2](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.1...pi-subagents-v21.7.2) (2026-09-18)
 
 
