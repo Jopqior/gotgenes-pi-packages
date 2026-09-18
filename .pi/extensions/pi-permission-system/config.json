@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/gotgenes/pi-packages/main/packages/pi-permission-system/schemas/permissions.schema.json",
   "permission": {
     "bash": {
+      "pnpm add*": "ask",
       "rg -r*": {
         "action": "deny",
         "reason": "`-r` is `--replace`, not `--recursive`: it rewrites every match and drops the line numbers. `rg` recurses by default, so drop the `-r`. If you do mean a replacement, spell it `--replace` — this rule does not match that"

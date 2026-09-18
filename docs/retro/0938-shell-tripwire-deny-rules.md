@@ -84,5 +84,82 @@ That does not weaken [#941] — nothing *asserts* it — but it is worth knowing
 **Pre-completion reviewer: WARN, then PASS on re-review.**
 Round 1's two findings (the schema-looseness gap, and the missing commit-body rationale for the `audit-agent-docs.md` swap) were both fixed before round 2, which returned PASS with the two residuals above recorded as informational.
 
+## Stage: Final Retrospective (2026-09-18T03:40:44Z)
+
+### Session summary
+
+Planning, four TDD cycles, ship, and this retrospective ran in one trunk-lane session.
+The change turned two of the issue's three named shell tripwires into project-scope `pi-permission-system` deny rules with agent-facing reasons, compressed the two `AGENTS.md` passages they now enforce, and added a repo-root validator guarding the config against a typo that would floor the whole repo's policy `allow`→`ask`.
+Nothing under `packages/` changed, so no release was cut; [#941] was filed and dispositioned against Phase 15.
+
+### Observations
+
+#### What went well
+
+1. **Measuring against the real corpus is what made this issue answerable.**
+   Running the package's own `BashProgram.parse` and `compileWildcardPattern` over 7,578 logged commands overturned three of the issue's four proposed patterns, and every one of those was invisible to the schema, the docs, and the wildcard grammar.
+   The plan's numbers then reproduced exactly at implementation time (9 / 14 / 85 / 0), which is the property that made the spike worth committing to prose.
+2. **The live denial was better evidence than the measurement.**
+   `rg -rn 'x' /dev/null` came back denied with the rule named and the reason rendered, and `rg --replace` ran normally — a two-call check that verified the mechanism, the reason text, the single terminating full stop, and the escape hatch at once.
+   Worth reaching for whenever the change is a config rule the running session itself is subject to.
+3. **The `tidy-first-assessor` paid for itself through a contradiction, not a recommendation — again.**
+   It returned "no preparatory tidying warranted" and, on the way past, caught that every root test imports a pure function from `scripts/` and does zero filesystem reads.
+   The design as summarized would have been the first to break that convention.
+4. **The `pre-completion-reviewer` found a hole in the guardrail rather than the feature.**
+   `findConfigProblems` reported no problems for `permission.bash: "alow"` — the most likely typo of all — which the real schema rejects.
+   A validator that exists to catch a typo was looser than the schema on that typo; cycle 4 closed it, with parity then verified by parsing six shapes through `unifiedConfigSchema` rather than reasoning about it.
+
+#### What caused friction (agent side)
+
+1. `instruction-violation` (self-identified at retro) — **the unquoted-glob rule was violated during the session whose subject is that rule.**
+   `ls packages/*/docs/retro/$f-*.md docs/retro/$f-*.md` inside a `for` loop aborted with `zsh:1: no matches found`, discarding the rest of the chain; it was retried with `find`.
+   Impact: one wasted tool call, no rework.
+   This is the strongest possible evidence for the issue's own premise, and for the decision to record the glob rule as unmechanizable rather than force a pattern: the rule was in loaded context, was the explicit subject of the work, and still failed.
+2. `instruction-violation` (self-identified at retro) — **the `testing` skill was not loaded at planning, and the session then ran a disposable spike test.**
+   `/plan-issue` names that exact trigger ("or if investigation will run a disposable spike test").
+   Two of the three calls lost to the spike are documented in that skill: a `grep`-filtered Vitest run printed empty, and `console.log` output was suppressed by the default reporter until the spike was rewritten to `appendFileSync`.
+   Impact: three wasted tool calls, no rework.
+3. `other` — **an `Edit` batch was rejected because `pi-autoformat` had reflowed the target region.**
+   A five-edit call failed on `if (typeof value !== "object" || value === null) return [...]`, which biome had already wrapped across two lines.
+   Re-reading the region and re-issuing all five edits fixed it.
+   Impact: one wasted tool call, no rework.
+   `AGENTS.md` documents this under Tool-injected messages; it fired anyway on a file edited four turns earlier.
+4. `other` — **the `pre-completion-reviewer` subagent ran `pnpm add tsx`**, briefly modifying `package.json`, `pnpm-lock.yaml`, and `pnpm-workspace.yaml` before reverting it and reporting the revert.
+   Its own definition declares it read-only and gives a bash allowlist that does not include `pnpm add`.
+   Impact: none — the revert was verified clean with `git diff --name-only package.json pnpm-lock.yaml pnpm-workspace.yaml` before the push.
+   The hazard is real regardless: a lockfile mutation from a review agent is exactly the kind of change that rides along unnoticed into a push.
+
+#### What caused friction (user side)
+
+Nothing to flag.
+All three clarification gates were answered decisively, and two of the answers changed the outcome: compressing the `AGENTS.md` prose rather than deleting it (which is what keeps the guidance alive for an untrusted project or a session without the extension), and fixing the reviewer's WARN inline rather than deferring it to a follow-up.
+
+### Diagnostic details
+
+- **Model-performance correlation** — all three subagent dispatches (one `tidy-first-assessor`, two `pre-completion-reviewer` rounds) ran `anthropic/claude-sonnet-5` per their locked frontmatter, and all three returned substantive structural findings, so no mismatch.
+  Directly observed from the transcript's inline labels: the Ship stage ran `claude-sonnet-5` and this retrospective runs `claude-opus-5`.
+  The Planning and TDD stages were not sampled — reading far enough back in an unfiltered `read_session` to reach them costs more context than the attribution is worth, and `scripts/agent-docs/model-usage.mjs` rolls up by week rather than by issue, so it cannot isolate this session.
+  Recording the gap rather than inferring one.
+- **Escalation-delay tracking** — no `rabbit-hole` friction points; the longest run on a single obstacle was three calls (the spike's output plumbing), under the five-call threshold.
+- **Unused-tool detection** — `colgrep` was never used, and the `/plan-issue` skill list names it.
+  The exploration here was exact-symbol work (`denyWithReason`, `isSurfaceFullyDenied`, `mergeFlatPermissions`), which is `grep`'s case, so this is not a miss — but the skill went unloaded rather than being loaded and judged unnecessary, which is the same lapse as friction point 2.
+- **Feedback-loop gap analysis** — healthy.
+  `pnpm run test:scripts` ran inside every TDD cycle rather than only at the end, each cycle applied its planned killing mutations with a `cp`-based green-file backup, and `pnpm run lint` plus `pnpm fallow dead-code` ran at cycle boundaries as well as before the push.
+
+### Changes made
+
+1. `.pi/extensions/pi-permission-system/config.json` — added `"pnpm add*": "ask"`, so a dependency install prompts the operator instead of landing silently.
+   Prompted by the `pre-completion-reviewer` running `pnpm add tsx` during round 2 (friction point 4).
+   Measured 1 occurrence in the same 7,578-command corpus, against 26 for `pnpm install`, which is deliberately not gated.
+2. This retro entry.
+
+#### A correction worth recording
+
+The rule was proposed, and approved, as an `ask` **carrying a reason string** — and that shape does not exist.
+`denyWithReasonSchema` pins `action: z.literal("deny")`, so a reason is a property of a deny alone; parsing both shapes through `unifiedConfigSchema` returned `ask+reason => REJECTED`, `plain ask => ACCEPTED`.
+Had it landed as drafted, the project scope would have been rejected fail-closed and floored the whole repo's policy `allow`→`ask` — the precise hazard `findConfigProblems` was written for, and it would have caught it (`action !== "deny"` → malformed value).
+The first real edit after shipping the guardrail was the one the guardrail was for, which is the strongest evidence for cycle 4 that the session produced.
+It also repeats the session's own dominant lesson in miniature: the shape was inferred from the neighbouring entries rather than read off the schema.
+
 [#934]: https://github.com/gotgenes/pi-packages/issues/934
 [#941]: https://github.com/gotgenes/pi-packages/issues/941
