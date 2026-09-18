@@ -28,6 +28,7 @@ Call `set_session_name` with `Agent-doc audit — <YYYY-MM-DD>`.
 ## Load skills
 
 - `markdown-conventions` — for the inventory and for every edit you will make to a skill.
+- `clarification-gates` — for the Step 4 gate.
 - `github-voice` is **not** needed; this template writes no GitHub-facing text.
 
 ## Step 1: Measure

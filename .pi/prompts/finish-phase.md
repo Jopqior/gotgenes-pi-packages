@@ -26,6 +26,7 @@ Load these skills before starting:
 - `markdown-conventions` — formatting rules for the architecture and history documents.
 - `mermaid` — for any diagrams moved or updated.
 - `code-design` — to judge whether the delivered code matches the phase's documented outcomes.
+- `reading-artifacts` — before reading a step's `Outcome:` or `Landed:` line as a claim about the code.
 
 ## Step 1: Identify the current phase
 

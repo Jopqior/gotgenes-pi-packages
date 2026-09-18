@@ -32,6 +32,9 @@ Before investigating the issue, load skills relevant to the change:
 - Load the `markdown-conventions` skill — it contains project-specific rules (one-sentence-per-line, frontmatter schema) that differ from standard markdown conventions.
 - Load the `design-review` skill and run its checklist before finalizing the design for any refactor, extraction, or change to shared interfaces or layer wiring — judge this from the issue, not from a plan that already shows wiring changes.
 - Load the `tidy-first` skill if the change will create or modify `src/`/`test/` files — you will use it after the design is settled to dispatch the Tidy-First assessor, whose recommendations become preparatory steps in the plan's TDD Order (a docs-only or config-only change skips it).
+- Load the `reading-artifacts` skill before citing a plan, ADR, roadmap step, triage verdict, PR status, or third-party report as evidence.
+- Load the `clarification-gates` skill before the `Decide` step's `ask_user` call.
+- Load the `delegation` skill before dispatching `Explore` or the Tidy-First assessor, and before reading what they return.
 
 ## Gather context
 

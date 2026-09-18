@@ -25,6 +25,8 @@ Load these skills before starting analysis:
 - `package-<PKG>` — package-specific context (replace `<PKG>` with `$1`).
 - `code-design` — design principles and structural heuristics.
 - `markdown-conventions` — for the output document.
+- `delegation` — before dispatching the craftsmanship scout and before reading its inventory.
+- `clarification-gates` — before the phase-composition `ask_user` gates.
 
 ## Analysis (follow the improvement-discovery workflow)
 

@@ -53,6 +53,7 @@ Skip any already in this session's context — the trunk flow runs planning, imp
 - Load the `code-design` skill for design principles, TypeScript conventions, and structural heuristics.
 - Load the `testing` skill for Vitest mock patterns and TDD planning rules.
 - Load the `pre-completion` skill — you will use it after the final TDD step to dispatch the quality reviewer.
+- Load the `git-workflow` skill before the first commit, and the `edit-tool` skill before a multi-entry `Edit`, a scripted substitution, or a block insertion.
 
 ## Verify green baseline
 

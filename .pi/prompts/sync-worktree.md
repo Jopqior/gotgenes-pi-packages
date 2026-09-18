@@ -13,6 +13,7 @@ It prepares the branch for landing but does **not** touch `main`, close the issu
 For trunk work (committing directly on `main`), run `/ship $1` from the root instead; it detects the trunk lane and skips the fast-forward merge.
 
 Fetch the issue title via `gh issue view $1 --json title -q .title`, then call `set_session_name` with name `#$1 Sync (worktree) — <issue title>`.
+Load the `worktrees` and `git-workflow` skills before step 1 — the rebase rules live there.
 
 ## 1. Confirm this is a worktree branch
 

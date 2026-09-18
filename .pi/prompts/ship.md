@@ -38,6 +38,7 @@ Do this before anything else, so a mis-invocation costs nothing.
    - More than one match → stop and report; the ambiguity is a branch-naming collision the operator must resolve.
 2. Fetch the issue title: `gh issue view $1 --json title -q .title`.
 3. Call `set_session_name` — trunk lane: `#$1 Ship — <issue title>`; worktree lane: `#$1 Ship (worktree) — <issue title>`.
+4. Load the `git-workflow` and `releasing` skills now, and the `worktrees` skill in the worktree lane — the merge, the close comment, and the dispatch all sit on rules those carry.
 
 ## 2. Release coordination and close targets (decide before step 3)
 

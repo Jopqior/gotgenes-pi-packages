@@ -29,6 +29,7 @@ Skip any already in this session's context — the trunk flow runs planning, imp
 - Load the `package-<PKG>` skill (e.g., `package-pi-permission-system`) for package-specific architecture, priorities, and testing context.
 - Load the `markdown-conventions` skill for writing the retro file.
 - Load the `code-design` skill if proposing code-related adjustments to prompts or `AGENTS.md`.
+- Load the `clarification-gates` skill before the `ask_user` gate on proposed changes, and the `git-workflow` skill before the retro commit.
 
 ## Session naming
 

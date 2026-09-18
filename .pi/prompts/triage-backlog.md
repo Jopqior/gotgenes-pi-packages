@@ -39,6 +39,7 @@ Call `set_session_name` with `Backlog triage — <YYYY-MM-DD>` (append `(<pkg>)`
 - `github-voice` — required before drafting any contributor-facing text.
 - `markdown-conventions` — for the output document.
 - `package-<PKG>` — for each package with items in scope; load the one for `$1` when filtered.
+- `reading-artifacts` — before citing a plan, ADR, PR status, or third-party report in a verdict.
 
 ## Step 1: Read the prior triage and decision artifacts
 
