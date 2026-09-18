@@ -119,9 +119,6 @@ A collision found after the design settles can only be argued around; found befo
 Before writing the plan, identify any genuinely ambiguous design choices.
 If there are 1–2 such choices (breaking-vs-non-breaking, result-shape change, fallback semantics, etc.), use the `ask-user` skill once to surface them with a short context summary and concrete options.
 Skip this step if the issue's "Proposed change" section is unambiguous.
-When the package squash-syncs from `gotgenes/pi-packages`, list each production file the design would edit.
-For each path, run `git log --oneline refs/sync/upstream-main..HEAD -- <path>`; empty means no fork patch.
-If any currently upstream-clean file would change, offer a gate option that lands the same behavior on an already-forked file or a new file — even when the issue's behavior is otherwise unambiguous (Refs #10).
 
 For a bug report, the gate's substance leads with the **observed scenario in the affected party's terms** — what the user or parent agent saw, in order — before the code trace that explains it.
 A mechanism-first gate gets bounced for it (Refs #903).

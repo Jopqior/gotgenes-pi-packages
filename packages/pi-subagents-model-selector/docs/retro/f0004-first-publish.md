@@ -48,7 +48,7 @@ Steps 3–4 (manual first publish, tag, Trusted Publisher, disable entry, root R
 
 ### Session summary
 
-Shipped fork issue 4 on trunk: `@jopqior/pi-subagents-model-selector` 0.1.0 is on npmjs.org, tagged `pi-subagents-model-selector-v0.1.0` at `957ece11ecbbeb0523584d2d808ed433feb430ca`, with Trusted Publisher on `Jopqior/gotgenes-pi-packages`.
+Shipped fork issue 4 on trunk: `@jopqior/pi-subagents-model-selector` 0.1.0 is on npmjs.org, tagged `pi-subagents-model-selector-v0.1.0` at `cdf4d579a382928d1fc5470697a85e6dbd97b637`, with Trusted Publisher on `Jopqior/gotgenes-pi-packages`.
 `release.yml` was not dispatched.
 Four sessions ran on `xai/grok-4.6` (plan, build, ship, this retro) plus `pre-completion-reviewer` whose agent frontmatter requests `anthropic/claude-sonnet-5`; Tidy-First was skipped (no `src/` / `test/` change).
 

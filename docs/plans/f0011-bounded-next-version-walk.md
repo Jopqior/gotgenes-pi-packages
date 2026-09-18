@@ -18,8 +18,8 @@ No package roadmap references this issue.
 The two `fix:` commits from [#10] are still unreleased because of it: #10's ship correctly refused to dispatch a release against the phantom major.
 
 git-cliff's `--bumped-version` walk splits releases only when it *encounters the tagged commit during the walk*, and `--include-path` filters commits *before* release splitting.
-`pi-subagents-v1.0.0` is a hand-cut tag (the manual first publish, per AGENTS.md) sitting on `2c6dcd38`, whose only file change is the repo-root `docs/retro/f0003-jopqior-pi-subagents-first-publish.md` — outside `--include-path packages/pi-subagents/**`.
-The release boundary never forms, pre-tag breaking commits (`01bc18fd` `feat!:`, `51bbd743` `feat(pi-subagents)!:`) spill into the unreleased section, and `breaking_always_bump_major` bumps 1.0.0 → 2.0.0.
+`pi-subagents-v1.0.0` is a hand-cut tag (the manual first publish, per AGENTS.md) sitting on `8d7bcf2c`, whose only file change is the repo-root `docs/retro/f0003-jopqior-pi-subagents-first-publish.md` — outside `--include-path packages/pi-subagents/**`.
+The release boundary never forms, the pre-tag breaking commit (`1f613f20` `feat(pi-subagents)!:`) spills into the unreleased section, and `breaking_always_bump_major` bumps 1.0.0 → 2.0.0.
 
 Measured live on current `main` (git-cliff 2.14.1):
 
@@ -45,7 +45,7 @@ The rendered `--unreleased`/`--tag` output is range-correct (it bounds by the ta
 - Moving or rewriting `pi-subagents-v1.0.0` onto an in-scope commit — rejected in the issue: it rewrites an already-pushed tag and falsifies which commit the release was cut from.
 - Reporting the path-filtering behavior upstream to git-cliff — the issue leaves that to the operator; the explicit range makes this repo independent of the outcome.
 - Extending the test harness to the other three release scripts (`prepare-release.sh`, `publish-released.sh`, `create-github-releases.sh`) — the missing shell harness is already recorded as an open consequence in the upstream ADR `docs/decisions/0002-git-cliff-release-automation.md`; this plan narrows that residual, it does not close it.
-- Editing ADR 0002's decision sketch — the sketch is illustrative and already elides the exclude paths, and the ADR is content-identical to upstream (measured: `git diff refs/sync/upstream-main..HEAD -- docs/decisions/0002-git-cliff-release-automation.md` is empty); diverging a synced decision record is a recurring sync cost for an abbreviation-level fidelity gain.
+- Editing ADR 0002's decision sketch — the sketch is illustrative and already elides the exclude paths, and the ADR is content-identical to the integrated upstream commit `045213317de608c04a7b6052b2b843e3a0f2176f` (measured: `git diff 045213317de608c04a7b6052b2b843e3a0f2176f..HEAD -- docs/decisions/0002-git-cliff-release-automation.md` is empty); diverging a synced decision record is a recurring sync cost for an abbreviation-level fidelity gain.
   The authoritative explanation lives in the `lib.sh` comment this plan adds.
 - Repairing `next-version.sh`'s "git-cliff produced no version" branch, which a failing `git-cliff` cannot reach because `set -e` exits on the failing assignment first — an error-handling change in a region this plan keeps; recorded as a deferred tidying in the retro.
 
@@ -60,8 +60,8 @@ The rendered `--unreleased`/`--tag` output is range-correct (it bounds by the ta
   The helper must preserve both contracts (stdout, and exit-status propagation through command substitution — verified with a bash probe: a failing function inside `x=$(f)` still aborts under `set -e`).
 - Root-level testing has an established precedent: `vitest.config.mjs` includes `test/**/*.test.mjs`, and `test/roadmap/*.test.mjs` exercises `scripts/roadmap-check.mjs` against temp workspaces.
   No test spawns a process or touches git today, and `git-cliff` is not a managed dependency (absent from every `package.json`; `mise.toml` sets only `_.path`) — the plan settles what the test does when the binary is missing (see Design Overview).
-- Fork-sync posture, measured with `git diff refs/sync/upstream-main..HEAD -- <path>`: `lib.sh`, `next-version.sh`, `verify-cliff-parity.sh`, and ADR 0002 are content-identical to upstream; `ci.yml` and `cliff.toml` already carry fork patches.
-  Editing the three scripts therefore creates *new* divergence, sanctioned by the issue itself (the operator's proposed fix names these files and `lib.sh` as the helper's home); the residual sync-conflict cost is recorded under Risks.
+- Fork-sync posture, measured at planning time against the integrated upstream commit `045213317de608c04a7b6052b2b843e3a0f2176f` at fork baseline `ca6db428d491e9c82e3cb73c70b5a32081058a73`: `lib.sh`, `next-version.sh`, `verify-cliff-parity.sh`, and ADR 0002 were content-identical to that baseline; `ci.yml` and `cliff.toml` already carried fork patches.
+  Editing the three scripts therefore created *new* divergence — the fork patches now present in the tree — sanctioned by the issue itself (the operator's proposed fix names these files and `lib.sh` as the helper's home); the residual sync-conflict cost is recorded under Risks.
 - AGENTS.md constraints that apply: conventional commits with no `Closes #N` keyword; a `fix:` commit at repo scope (unscooped, matching the fork's existing script commits) cuts no package release because `scripts/` is outside every package's path scope; do not name an unreleased version except as the measured output of `next-version.sh` (the Goals bullet phrases it that way).
 
 ## Design Overview
@@ -206,7 +206,7 @@ No step after 2; the plan's docs (this file and the retro) are committed by the 
 
 ## Risks and Mitigations
 
-- **Upstream-sync divergence:** `lib.sh` and the two scripts are content-identical to upstream today, so this fix creates fork patches where none existed; a future upstream change to the same hunks conflicts at `--sync` time.
+- **Upstream-sync divergence:** at planning time `lib.sh` and the two scripts were content-identical to the integrated upstream commit `045213317de608c04a7b6052b2b843e3a0f2176f`, so this fix created fork patches where none existed; a future upstream change to the same hunks conflicts at `--merge` time.
   Mitigation: the edit is sanctioned by the issue (the operator's proposed fix names these files), it is small and localized, and `docs/upstream-sync.md`'s conflict handbook covers exactly this case; the alternative (landing the behavior in an already-forked file) does not exist — the range is a CLI positional that only these scripts pass.
 - **git-cliff version drift:** CI installs the latest git-cliff, so an upstream behavior change could turn the new test red.
   That is a feature: the same drift today surfaces as a fake major in an actual release dispatch, which is the bug this plan fixes.

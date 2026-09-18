@@ -15,10 +15,10 @@ Dispatched the Tidy-First assessor; its recommended preparation (extract the unc
 
 ### Observations
 
-- Root cause verified against the real repo: `pi-subagents-v1.0.0` sits on `2c6dcd38` (retro-only, repo-root path), and the walk-based `--bumped-version` loses the release boundary while the rendered `--unreleased`/`--tag` output stays range-correct — the asymmetry that misled #10's ship.
+- Root cause verified against the real repo: `pi-subagents-v1.0.0` sits on `8d7bcf2c` (retro-only, repo-root path), and the walk-based `--bumped-version` loses the release boundary while the rendered `--unreleased`/`--tag` output stays range-correct — the asymmetry that misled #10's ship.
 - The issue's two call sites are the only live `--bumped-version` invocations; `prepare-release.sh` delegates to `next-version.sh` and its own mention is a comment.
 - Design choice settled in-plan rather than gated: the new root-suite test fails loudly when `git-cliff` is absent (no skip guard) — CI gets the binary via a `ci.yml` install step, and a skip guard would let a broken local environment report green without the pin.
-- Fork-sync posture measured: `lib.sh` and both scripts are content-identical to `refs/sync/upstream-main`, so the fix creates new divergence — sanctioned by the operator's own issue, recorded in Risks.
+- Fork-sync posture measured at planning time: `lib.sh` and both scripts were content-identical to the integrated upstream commit `045213317de608c04a7b6052b2b843e3a0f2176f` at fork baseline `ca6db428d491e9c82e3cb73c70b5a32081058a73`, so the fix created new divergence — sanctioned by the operator's own issue, recorded in Risks.
   `ci.yml` and `cliff.toml` are already forked; new files are conflict-free.
 - ADR 0002 deliberately left untouched (sync-divergence trade for an illustrative sketch); the hazard explanation lives in the `lib.sh` comment instead — recorded in Non-Goals.
 - Test classes classified up front: class 1 (out-of-scope tag + pre-tag breaking commit) is the only red test; classes 2–3 (nothing-to-release, minor bump) are invariant pins that are green pre-fix by design, each with a named killing mutation in the opposite direction.
@@ -62,7 +62,7 @@ AC 1's concrete version number must be re-read at `/ship` time — it moves with
 
 ### Session summary
 
-Issue #11 closed across three clean trunk sessions — planning (`glm-5.3`), TDD (`glm-5.3-flash`), ship (`glm-5.3-flash`) — landing `a9c3cb46` (extraction) and `c3792f79` (bounded walk) plus the repo's first shell-harness test, with CI green and the release correctly skipped (`scope:repo`, no package paths).
+Issue #11 closed across three clean trunk sessions — planning (`glm-5.3`), TDD (`glm-5.3-flash`), ship (`glm-5.3-flash`) — landing `cc80edb2` (extraction) and `a727b823` (bounded walk) plus the repo's first shell-harness test, with CI green and the release correctly skipped (`scope:repo`, no package paths).
 The fake `pi-subagents-v2.0.0` is gone: `next-version.sh` now derives from a walk bounded at the tag's commit, pinned by three equivalence classes in `test/release/bumped-version.test.mjs`.
 
 ### Observations

@@ -139,8 +139,6 @@ export function formatDuration(startedAt: number, completedAt?: number): string 
  * omit when `model.id` equals the parent id, otherwise `model.name` with a
  * leading "Claude " stripped and lowercased.
  * `resolveSpawnConfig` and `overlaySpawnPresentation` both call this.
- * Squash-sync: if `spawn-config.ts` conflicts on `modelName`, copy upstream's
- * new formula into this function.
  * Do not inline the formula back into `resolveSpawnConfig`.
  */
 export function formatSpawnModelName(

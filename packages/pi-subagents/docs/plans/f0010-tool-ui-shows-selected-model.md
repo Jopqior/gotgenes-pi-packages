@@ -152,8 +152,6 @@ Extract the untested inline rule at `spawn-config.ts` (the `model.name.replace(/
  * omit when `model.id` equals the parent id, otherwise `model.name` with a
  * leading "Claude " stripped and lowercased.
  * `resolveSpawnConfig` and `overlaySpawnPresentation` both call this.
- * Squash-sync: if `spawn-config.ts` conflicts on `modelName`, copy upstream's
- * new formula into this function.
  * Do not inline the formula back into `resolveSpawnConfig`.
  */
 export function formatSpawnModelName(
@@ -166,11 +164,11 @@ Returns `undefined` when `model` is missing or `model.id === parentId`; otherwis
 `resolveSpawnConfig` becomes a one-line call.
 The overlay uses the same helper.
 
-### Squash-sync follow-through
+### Upstream-merge follow-through
 
 After this extract, `spawn-config.ts` no longer holds the formula.
 Upstream `gotgenes/pi-packages` still inlines it.
-A later squash-sync that changes those lines will conflict at the call site.
+A later upstream merge that changes those lines will conflict at the call site.
 That conflict is the signal that the short-name rule moved on upstream.
 
 Resolution (also a recipe in `docs/upstream-sync.md`):

@@ -10,7 +10,7 @@ issue_title: "pi-subagents 迁移到 @jopqior scope 并完成首次发布"
 ### Session summary
 
 Planned fork issue 3 as a repo-level `/build-plan`: rename this workspace's core to `@jopqior/pi-subagents` 1.0.0, retarget only the `workspace:*` companion, rewrite the published identity surface, then operator-manual first publish plus `RELEASE_PLEASE_TOKEN`.
-`docs/upstream-sync.md` already holds the post-rename conflict recipes from [#2]; this plan only drops the "no-op until rename" sentence and adds the correspondence row after the tag.
+`docs/upstream-sync.md` already holds the post-rename conflict recipes from [#2]; this plan adds the correspondence row after the tag.
 Tidy-First reported no preparatory commits.
 
 ### Observations
@@ -48,7 +48,7 @@ Operator steps 5–7 (PAT secret, first npm publish, tag, Trusted Publisher, dis
 
 ### Session summary
 
-Shipped fork issue 3 on trunk: workspace core is `@jopqior/pi-subagents` 1.0.0 on npmjs.org, tagged `pi-subagents-v1.0.0` at `2c6dcd38428c467925b6b496cf3585ee32a1bd32`, with `RELEASE_PLEASE_TOKEN` and Trusted Publisher on `Jopqior/gotgenes-pi-packages`.
+Shipped fork issue 3 on trunk: workspace core is `@jopqior/pi-subagents` 1.0.0 on npmjs.org, tagged `pi-subagents-v1.0.0` at `8d7bcf2ce07648e593bae95a65474bf49aa76073`, with `RELEASE_PLEASE_TOKEN` and Trusted Publisher on `Jopqior/gotgenes-pi-packages`.
 `release.yml` was not dispatched.
 This unblocks [#4].
 Four sessions ran on `xai/grok-4.6` (plan, build, ship, this retro) plus `tidy-first-assessor` and `pre-completion-reviewer` whose agent frontmatter requests `anthropic/claude-sonnet-5`.
