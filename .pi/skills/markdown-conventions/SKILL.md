@@ -24,6 +24,15 @@ Checking a file outside the repository (a scratch sample in `/tmp`) needs `--con
 - `rumdl`'s `MD057` can report an existing relative link as missing when its sentence runs long; split the sentence per the rule above rather than hunting the path.
 - Author and append markdown with the `Write`/`Edit` tools, not shell heredocs (`cat <<EOF`) — heredocs don't interpolate `\uXXXX` escapes and make one-sentence-per-line slips easy, both of which trip markdownlint.
 
+### `pi-autoformat` reflow
+
+The `pi-autoformat` extension reformats every file an `Edit`/`Write` touches, and its markdown pass rewrites prose in ways `rumdl` then accepts:
+
+- It also joins a line ending in `:` with the sentence after it — to add a sentence there, start a new paragraph, not a new line.
+- It likewise joins a sentence onto the previous line when the sentence opens with a lowercase token (a package or command name such as `git-cliff`) — lead with a capital instead.
+- It also reads a numbered section citation (`§ *7. Verify CI*`) as a sentence end and splits it — cite the heading instead (`` the `## 7. Verify CI` section ``).
+- It also reads a leading `~` as strikethrough and rewrites a `~`-prefixed token (`(~:211)` → `(~~211)`), which `rumdl check` passes — write an approximate line reference as `line ~211`.
+
 ### Code fences
 
 - Always specify a language on fenced code blocks (e.g., ` ```typescript `, ` ```bash `, ` ```jsonc `, ` ```text `); use `text` for plain output.
@@ -77,3 +86,62 @@ issue_title: "Short descriptive title" # required
 - `issue` stores the number only, never a URL.
 - Do not duplicate frontmatter fields as inline metadata in the body (e.g., `Issue #N` in the H1 is fine; a separate `**Issue:** #N` line is not).
 - Other doc types (`README.md`) do not use frontmatter.
+
+### Retro file format
+
+Get each stage timestamp from `date -u +"%Y-%m-%dT%H:%M:%SZ"` — never write one from memory; a model has no clock.
+
+Retro files use YAML frontmatter and accumulate `## Stage:` entries:
+
+````markdown
+---
+issue: 42
+issue_title: "Extract ExtensionPaths value object"
+---
+
+# Retro: #42 — Extract ExtensionPaths value object
+
+## Stage: Planning (2026-05-20T14:00:00Z)
+
+### Session summary
+
+...
+
+### Observations
+
+...
+
+## Stage: Implementation — TDD (2026-05-21T10:00:00Z)
+
+### Session summary
+
+...
+
+### Observations
+
+...
+
+## Stage: Final Retrospective (2026-05-22T16:00:00Z)
+
+### Session summary
+
+...
+
+### Diagnostic details
+
+- **Model-performance correlation** — Explore subagent ran on claude-sonnet-4-20250514; appropriate for read-only codebase search.
+- **Escalation-delay tracking** — 8 consecutive tool calls on the same lint error in TDD step 3 before switching approach.
+- **Feedback-loop gap analysis** — `pnpm run check` ran only after step 6; should have run after step 4 (interface change).
+````
+
+The `### Diagnostic details` subsection is optional — include it only when the `/retro` prompt's diagnostic lenses produce actionable findings.
+Omit it when all lenses find nothing notable.
+
+## Architecture docs
+
+Every package's `docs/architecture/architecture.md` module-tree entries describe **current behavior** — what each module is now.
+Cite an issue in a module-tree entry **only** when the ref encodes an active constraint (a lint-guarded boundary, an ADR string boundary, a structural invariant); all other provenance belongs in git log and `docs/architecture/history/`, never in the tree (the "relocated #559, dissolved #505, renamed #510…" trail).
+`/finish-phase`'s bounded doc-hygiene step holds each phase's touched module-tree entries to this standard.
+
+An accepted residual — an ADR bullet, a follow-up issue body — is a claim about the **mechanism**, not the symptom that exposed it.
+Enumerate the mechanism's inputs before writing it.

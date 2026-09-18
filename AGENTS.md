@@ -31,31 +31,12 @@ A rule whose incident has not recurred in any retro since 2026-07-20 is a delete
 
 Releases are **dispatched, never automatic**.
 
-### Architecture-doc conventions
-
-Every package's `docs/architecture/architecture.md` module-tree entries describe **current behavior** — what each module is now.
-Cite an issue in a module-tree entry **only** when the ref encodes an active constraint (a lint-guarded boundary, an ADR string boundary, a structural invariant); all other provenance belongs in git log and `docs/architecture/history/`, never in the tree (the "relocated #559, dissolved #505, renamed #510…" trail).
-`/finish-phase`'s bounded doc-hygiene step holds each phase's touched module-tree entries to this standard.
-
-An accepted residual — an ADR bullet, a follow-up issue body — is a claim about the **mechanism**, not the symptom that exposed it.
-Enumerate the mechanism's inputs before writing it.
-
 ### Workflow
 
 - Keep scope tight.
 - Prefer small, reversible changes.
 - Preserve intentional behavior unless there is a clear reason to change it.
 - Ask before removing functionality or changing defaults.
-- For Pi SDK internals (prompt assembly, caching, session lifecycle), read Pi's own source at the `pi` checkout beside this repo's main checkout, rather than the installed `dist/` bundles or their sourcemaps.
-  That is `../pi` from the root checkout and `../../pi` from a worktree — the worktree sits one level deeper, so the bare `../pi` misses it.
-  Dispatch an `Explore` subagent with `model: "sonnet-5"` for a multi-hop trace there (e.g. "how does `ui.custom` pass keybindings to the factory?") — a targeted read of a known file is fine inline, but a hunt costs 5–10 greps of this session's context, and `Explore`'s haiku default is too weak for the reasoning.
-  Keep the trace inline when its output is a universal claim the design will rest on — a subagent returns it as a summary you would have to re-verify anyway.
-  The checkout tracks Pi's `main` and runs ahead of the pinned dependency.
-  Read it for mechanism, but confirm any API you design around exists in the installed version first — resolve the version from the package's own `devDependencies` pin, then `grep` the types under that exact `node_modules/.pnpm/@earendil-works+pi-coding-agent@<version>_*/` directory.
-  The bare `@*/` glob matches every version in the store, and `head -1` can select one below the package's declared peer floor.
-  Existence is not enough for a seam you design *around*: a callback's position in the call order, and the data populated by the time it fires, are visible only in the compiled `.js`, never in the `.d.ts`.
-  A line number read there is not citable at all: the checkout drifts mid-session.
-  Cite the pinned version from the installed package's sourcemap — `dist/*.js.map`, `sourcesContent`.
 
 #### Tool-injected messages
 
@@ -63,10 +44,6 @@ The `pi-autoformat` extension emits a `[pi-autoformat] Formatted N file(s)` mess
 It is informational — not a turn boundary.
 Continue the current step (e.g. Red→Green→Verify→Commit) until it is complete.
 It also reflows what you just wrote (line wrapping, quote style), so an `oldText` — or a shell/regex pattern — built from the layout you emitted can fail to match; re-read a region you just edited before matching against it again.
-It also joins a line ending in `:` with the sentence after it — to add a sentence there, start a new paragraph, not a new line.
-It likewise joins a sentence onto the previous line when the sentence opens with a lowercase token (a package or command name such as `git-cliff`) — lead with a capital instead.
-It also reads a numbered section citation (`§ *7. Verify CI*`) as a sentence end and splits it — cite the heading instead (`` the `## 7. Verify CI` section ``).
-It also reads a leading `~` as strikethrough and rewrites a `~`-prefixed token (`(~:211)` → `(~~211)`), which `rumdl check` passes — write an approximate line reference as `line ~211`.
 
 #### Stale prompt-template expansion
 
@@ -130,53 +107,7 @@ Both `Shipping` rows come from `/ship`, which picks between them once it has det
 
 ###### Retro file format
 
-Get each stage timestamp from `date -u +"%Y-%m-%dT%H:%M:%SZ"` — never write one from memory; a model has no clock.
-
-Retro files use YAML frontmatter and accumulate `## Stage:` entries:
-
-````markdown
----
-issue: 42
-issue_title: "Extract ExtensionPaths value object"
----
-
-# Retro: #42 — Extract ExtensionPaths value object
-
-## Stage: Planning (2026-05-20T14:00:00Z)
-
-### Session summary
-
-...
-
-### Observations
-
-...
-
-## Stage: Implementation — TDD (2026-05-21T10:00:00Z)
-
-### Session summary
-
-...
-
-### Observations
-
-...
-
-## Stage: Final Retrospective (2026-05-22T16:00:00Z)
-
-### Session summary
-
-...
-
-### Diagnostic details
-
-- **Model-performance correlation** — Explore subagent ran on claude-sonnet-4-20250514; appropriate for read-only codebase search.
-- **Escalation-delay tracking** — 8 consecutive tool calls on the same lint error in TDD step 3 before switching approach.
-- **Feedback-loop gap analysis** — `pnpm run check` ran only after step 6; should have run after step 4 (interface change).
-````
-
-The `### Diagnostic details` subsection is optional — include it only when the `/retro` prompt's diagnostic lenses produce actionable findings.
-Omit it when all lenses find nothing notable.
+See the `markdown-conventions` skill.
 
 Use `/retro-note` to capture quick observations mid-session without interrupting the workflow.
 Use `scripts/issue-context.sh <N>` to gather all available context for an issue (plan, retro, commits, branches) when bootstrapping a new session.

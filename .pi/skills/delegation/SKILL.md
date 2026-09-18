@@ -55,5 +55,4 @@ Both use the same `provider/id` model-alias rule as the reviewer above.
 
 ### Reading Pi's source
 
-Dispatch an `Explore` subagent with `model: "sonnet-5"` for a multi-hop trace in the Pi checkout — a targeted read of a known file is fine inline, but a hunt costs 5–10 greps of this session's context, and `Explore`'s haiku default is too weak for the reasoning.
-The `code-design` skill's Pi SDK section says where that checkout is and how to cite what it finds.
+A multi-hop trace through the Pi checkout is an `Explore` dispatch with a non-default model; the `code-design` skill's "Reading Pi's own source" section says which model, when to keep the trace inline, and how to cite what it finds.
