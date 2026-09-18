@@ -864,6 +864,8 @@ Steps 2, 6, and 8 have design-dependent shapes and are verified by their plans' 
 - [#834] — filed by Step 1's implementation; folded into Step 3.
   Narrowing `SubagentManagerLike.spawn`'s `unknown` options exposed a second hole the typing had hidden — neither door validates `thinking`, and Step 3 already rewrites the precedence for that exact field family on the exact line that holds the unchecked cast.
 - [#793], [#792], [#722], [#735] — pi-permission-system-primary; [#564] — pi-github-tools-primary; the `pkg:pi-subagents` labels are contextual and pull no work into this phase.
+- [#942] — filed by [#937]'s planning; out of scope for the roadmap.
+  It applies the one `package-pi-subagents` `offload` row from the 2026-09-17 agent-doc audit (the skill's phase list, which duplicates this roadmap) and touches no `src/`.
 - Scout inventory (all scattered, persisting from Phase 21) — remains on the `tidy-first` boy-scout path: `settings.ts` `sanitize()` range-check triplication, `mock.calls[N][idx]` indexing (17 sites, 9 files), `createManager()` observer-default merge density, `(manager as any).sweep()` private reach (7 sites, one file), and the `subagent-events-observer.ts` inline `{id, type, description}` payload triad.
 
 ### Steps
@@ -1551,6 +1553,8 @@ The upstream test suite is run periodically as a regression canary for the sessi
 [#904]: https://github.com/gotgenes/pi-packages/issues/904
 [#912]: https://github.com/gotgenes/pi-packages/issues/912
 [#913]: https://github.com/gotgenes/pi-packages/issues/913
+[#937]: https://github.com/gotgenes/pi-packages/issues/937
+[#942]: https://github.com/gotgenes/pi-packages/issues/942
 [#180]: https://github.com/gotgenes/pi-packages/issues/180
 [#400]: https://github.com/gotgenes/pi-packages/issues/400
 [ADR-0002]: ../decisions/0002-extensions-on-a-minimal-core.md
