@@ -138,7 +138,7 @@ fi
 
 check_merge_preconditions
 
-if ! GIT_MERGE_AUTOEDIT=no git merge upstream/main; then
+if ! GIT_MERGE_AUTOEDIT=no git merge -m "chore: merge upstream/main" upstream/main; then
   printf 'error: merge conflicts remain; see docs/upstream-sync.md\n' >&2
   exit 1
 fi
