@@ -39,5 +39,28 @@ Plan committed at `packages/pi-subagents/docs/plans/0904-fallback-base-asserts-n
 
 - `packages/pi-subagents/test/session/prompts.test.ts` — an `identityRegion(prompt, agentName)` helper for slicing a prompt at the `<active_agent>` tag; the assessor declined it as having one call site (the new test), and the six existing `indexOf('<active_agent …')` uses are ordering comparisons rather than region scoping.
 
+## Stage: Implementation — TDD (2026-09-18T21:17:44Z)
+
+### Session summary
+
+Executed all three planned steps: the preparatory `test:` tidy naming the fallback text in one `GENERIC_BASE` constant, the `fix:` reducing `genericBase` to `# Instructions` plus the unchanged imperative, and the `docs:` step amending [ADR 0009] and marking roadmap Step 20 landed.
+Test count in `packages/pi-subagents/test/session/prompts.test.ts` went 66 → 67; the package suite is 1792 green.
+No deviations from the plan.
+
+### Observations
+
+- **Every predicted mutation outcome matched exactly**, including the counts.
+  Mutating one character inside `GENERIC_BASE` killed exactly the 7 repointed assertions; re-adding the capability sentence to `genericBase` killed 8 (those 7 plus the new test); re-adding only the role sentence killed 7 and left the new test green.
+  That last split is the one worth keeping: it demonstrates the new test pins the *capability claim* while the constant pins the *exact text*, and neither covers the other.
+- **The third mutation was a test-side one** — widening the new test's slice from `prompt.slice(0, prompt.indexOf("<active_agent"))` to the whole prompt turned `/\bwrite\b/i` red against `Explore`'s own "heredocs to write to files".
+  The region scoping is load-bearing, not decorative, and that is now demonstrated rather than asserted.
+- **The Tidy-First step paid off exactly as the assessor predicted.**
+  The `fix:` commit's edit to the existing suite was a single constant value; without it the same commit would have improvised replacement wording at seven sites.
+- **`[ADR-0014]` is a dangling reference in `architecture.md`** — used at line 1332 (pre-existing) and now also in the `Landed:` note, with no `[ADR-0014]:` definition in that file.
+  `rumdl` does not flag it.
+  Left as found rather than fixed in a `fix:`-scoped session.
+- Pre-completion reviewer: **PASS**, no warnings.
+  It independently re-derived the reachability claim, confirmed `renderToolSurface` anchors on `Current working directory:` / `Available tools:` / `Guidelines:` (none touched), and rendered all six Mermaid charts through `mmdc`.
+
 [ADR 0009]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0009-portable-inheritance-is-provider-scoped.md
 [ADR 0014]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-permission-system/docs/decisions/0014-tool-surface-is-node-local-prose.md
