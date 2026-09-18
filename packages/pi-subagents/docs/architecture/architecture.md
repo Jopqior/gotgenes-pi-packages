@@ -1377,7 +1377,7 @@ End-of-run delivery became the designed semantics by operator decision, so the R
 
 Release: independent
 
-#### Step 22: Give a resumed run an abort lever the record can pull ([#913])
+#### ✅ Step 22: Give a resumed run an abort lever the record can pull ([#913])
 
 **Cause:** `Subagent.abort()` fires `this.abortController`, created once at construction, while `resume()` passes the caller's signal straight through to `resumeTurnLoop` and deliberately does not route through that controller — an agent aborted on its original run would hold a pre-aborted one.
 So `abort(id)` marks a resumed record `stopped` (and `completeResume`'s later `markCompleted` is a no-op against the status guard) while the child keeps taking turns.
@@ -1390,6 +1390,14 @@ The tool door masks it, because the parent's tool-call signal reaches `resumeTur
 - **Outcome:** `abort(id)` either stops a resumed run or declines it, pinned by a test that aborts mid-resume and asserts the turn loop was signalled.
 - **Commit type:** `fix:`.
 - **Impact 3 / Risk 2 / Priority 12.**
+
+Landed as one lever, reminted per run.
+`Subagent` keeps its controller behind a getter and mints a fresh one at the top of `run()` and `runResume()`, which is what removes the reason the resume path bypassed it: a record aborted on its original run no longer resumes under a spent controller.
+A caller-supplied `signal` is wired to `abort()` rather than forwarded to the turn loop, so the two levers are one — `abort(id)` and a caller cancel reach the same run and both leave the record reading `stopped`, where a caller-signal cancel previously left it reading `completed` with the partial text.
+
+Planning measured the defect against the real `Subagent` rather than reasoning from the code: with no caller signal, `abort()` returned `true`, the record read `stopped` immediately, `resumeTurnLoop` received `undefined`, and the run's late answer still landed in `result` — `markCompleted`'s status guard blocks the status write but always sets the result.
+The Tidy-First assessment found a third stale assertion (`subagent-manager.test.ts`) that neither the issue nor the design summary named.
+[#949] was filed for the adjacent gap the fix inherits without widening: `wireSignal` and `forwardAbortSignal` both register with `addEventListener`, which never fires for a signal that is already aborted.
 
 Release: independent
 
@@ -1414,7 +1422,7 @@ flowchart TD
     S17["✅ Step 17 (#889)<br/>Failed run reports failed"] --> S19["✅ Step 19 (#898)<br/>Compaction-erased turn error"]
     S5 -.informs.-> S18["✅ Step 18 (#890)<br/>Inherited-region guarantee"]
     S18 -.informs.-> S20["✅ Step 20 (#904)<br/>Capability-free fallback"]
-    S16 --> S22["Step 22 (#913)<br/>Resume abort lever"]
+    S16 --> S22["✅ Step 22 (#913)<br/>Resume abort lever"]
     S14 --> S21["✅ Step 21 (#903)<br/>Exactly-once update delivery"]
     S15 -.informs.-> S21
 ```

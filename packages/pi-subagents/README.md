@@ -359,7 +359,7 @@ By default the resumed outcome is announced to the parent like any other backgro
 Pass `claimOutcome: true` to declare that your extension is delivering it, which suppresses that announcement — do this only if you will actually carry the result to the parent, or it reaches nobody.
 
 Pass `signal` to cancel the resumed turn loop.
-`abort(id)` does not reach it: a resume does not run under the record's own abort controller.
+It is wired through the record's own lever, so it ends the resume exactly as `abort(id)` does — either cancel reaches the same run, and the record reads `stopped`.
 
 ### `@gotgenes/pi-subagents/settings` — layered config loader
 
