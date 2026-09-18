@@ -58,6 +58,8 @@ Neither rule sees a `vi.mock()` specifier, which is a call argument rather than 
 - Keep block/ask/allow decisions reviewable: write to the permission review log by default.
 - Preserve the `/permission-system` slash command name — renaming it is a breaking change.
 - In the flat permission format, `permission["*"]` is the universal fallback; pattern ordering is last-match-wins.
+  Every surface resolves through the one multi-value evaluator, `evaluateAnyValue` (#928) — rule position decides, and candidate order decides only which name the decision is reported under in `PermissionCheckResult.target`.
+  Do not reintroduce a per-surface evaluator: `mcp` is the only surface producing multiple candidates, and a first-candidate-wins scan there let a catch-all mask a later rule.
 - The four path layers (`path`, `external_directory`, per-tool, `bash`) compose with **most-restrictive-wins** across surfaces: a more-permissive rule on one surface cannot loosen a more-restrictive rule on another (`ask` > `allow`).
   So a `path` allow cannot suppress an `external_directory: ask` prompt — allow outside-CWD directories on `external_directory`, not `path`.
   The ordering's top half is enforced in the pipeline rather than the resolver: `ToolCallGatePipeline.evaluate` produces all six gates before running any, and `orderDenyFirst` (`src/handlers/gates/descriptor.ts`) runs an unconditionally denying one first, so an earlier gate's `ask` cannot suspend the call ahead of a later gate's `deny` (Refs #899).

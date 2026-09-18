@@ -231,4 +231,94 @@ The pre-completion reviewer returned **PASS**, including an independent re-deriv
 The re-derivation mandate was worth issuing: the reviewer closed the single-candidate claim algebraically rather than by coverage (both evaluators reduce to plain `evaluate()` on a one-element array for *any* rule layer, so the layer enumeration is unnecessary), and traced every producer of a `path-values` intent to confirm none can reach `buildCheckResult` with a surface outside `PATH_SURFACES`.
 It also found one unflagged edge in `findLongestPrefixServer` — a tool name of exactly `<server>_` derives that server — and judged it not fail-open, since the bare tool-name candidate is still present and correct.
 
+## Stage: Final Retrospective (2026-09-18T18:59:19Z)
+
+### Session summary
+
+One process carried all four stages — PR review of a third-party contribution, planning, TDD implementation, and ship — landing `pi-permission-system` v33.0.0 with two breaking commits.
+The work grew from "adopt a contributor's prefix-derivation fix" into "the `mcp` surface never honored the last-match-wins contract its own README publishes", and the second defect turned out to be the larger one.
+The ship stage also uncovered an expired PAT in the release pipeline that turned out to be unnecessary, removed in `2358066a`.
+
+### Observations
+
+#### What went well
+
+- **The spike reframed the issue, and it was cheap.**
+  A throwaway worktree running a 12-config × 11-input matrix through the real `PermissionManager` moved the primary defect from the derivation gap to the matcher underneath it, and produced the single most useful number in the whole issue: **37 of 132 matrix rows change, 0 of 4413 existing tests move**.
+  That one pairing is what justified treating the green suite as a coverage gap rather than as safety, and it made every later "name the killing mutation" step non-negotiable rather than ceremonial.
+- **Reading a sibling issue nobody cited changed the design's framing.**
+  #687 was not referenced by #928, by PR #929, or by the triage entry, but its stated problem 1 is the same masking defect in the reporter's own words — and it proposes a whole new config schema partly to route around it.
+  Finding it before planning meant the plan could dissolve that motivation rather than ship a fix that silently obsoleted an open proposal.
+- **The `MUTANT_evaluateFirst` technique.**
+  Step 2's killing mutation was "restore the deleted evaluator", which no literal swap can express.
+  Reintroducing it as a temporarily-exported function plus its call site, then restoring from a `cp` copy, worked cleanly and produced exactly the predicted 12 reds.
+  Worth reaching for whenever the mutation is *undo this deletion* rather than *flip this comparison*.
+- **The pre-completion reviewer earned its dispatch on judgment, not checklists.**
+  Given an explicit re-derivation mandate for a guard removal, it closed the single-candidate claim **algebraically** (both evaluators reduce to plain `evaluate()` on a one-element array for any rule layer) rather than by enumerating coverage, and independently traced every producer of a `path-values` intent.
+  It also surfaced an edge neither the plan nor the implementation had named — a tool named exactly `<server>_` derives that server — and judged it not fail-open.
+
+#### What caused friction (agent side)
+
+1. `instruction-violation` (self-identified, but only after publishing) — **called `issue_close` on #928 with an unverified draft containing a mistyped SHA** (`57369648…`, missing the leading `c`) and the literal text "wait, let me redo this comment".
+   The `/ship` prompt's rule is explicit and carries six refs already (#704, #777, #788, #814, #861, #890): re-resolve every hex token *in the finished draft*, because verifying after the call can no longer prevent publishing.
+   Impact: the bad comment went out to every issue subscriber; recovery took a GraphQL `deleteIssueComment` mutation plus a re-verified re-post.
+   The notification cannot be recalled.
+   This is the session's most serious failure, and notably the rule it violated is already maximally prominent — more prose will not fix it.
+2. `instruction-violation` (user-caught, twice) — **crammed gate context into `ask_user` option descriptions and `preview` panes instead of a preceding message.**
+   The `clarification-gates` skill's first section says exactly this, and I had not loaded it: `/pr-review` is the one gate-bearing prompt whose Load-skills list omits it, where `plan-issue`, `plan-improvements`, `retro`, and `audit-agent-docs` all name it.
+   Impact: **four `ask_user` calls to settle one decision.**
+   The operator's bounce was verbatim "Whoah, all this context needs to be placed *before* invoking the `ask_user` tool."
+3. `wrong-abstraction` — **offered a mechanism menu before naming what the existing policy already required.**
+   The third gate presented `evaluateFirst` vs `evaluateAnyValue` as a design choice among options, when `evaluateAnyValue` is simply last-match-wins applied to a multi-candidate lookup — the policy the repo already has.
+   The operator had to supply that framing: "we have a guiding policy of last entry wins … if we stick with the policy, what would be necessary so rows 3 and 4 behave correctly?"
+   `clarification-gates` anticipates this failure in one sentence (name which component owns the lever and what happens today in each concrete configuration, before offering mechanisms).
+   Impact: one extra round trip — but it produced the archaeology and blast-radius analysis that became the plan's spine, so the cost was partly recovered.
+4. `instruction-violation` (self-identified) — **wrote `#933` into the plan for a follow-up issue before filing it**; the API returned `#946`.
+   `git-workflow` states the rule directly: file first, then write back the number the API returned.
+   Impact: one corrective `Edit`; caught immediately, no published artifact carried the wrong number.
+5. `missing-context` — **three plan misses, all in the same class: the plan grepped for the removed *symbol* and missed places describing the *mechanism*.**
+   - `architecture.md`'s Mermaid flowchart modelled the per-candidate loop with an `Explicit match?` decision node and never names `evaluateFirst`, so the symbol grep could not see it; the plan listed only line 481.
+   - The baseline-attribution pin asserted `matchedPattern` where a `baseline`-layer rule reports only `target` — `buildCheckResult`'s condition had been read during planning but not carried into the assertion.
+   - Step 4 needed a tool-name-first ordering change in the explicit-`server` branch that the plan never named.
+
+   Impact: all three were absorbed into the commits they belonged to; no follow-up commits, but each cost a red-for-the-wrong-reason cycle.
+6. `rabbit-hole` (mild) — **escalated a cached `pnpm view` read to "published silently no-opped" in a user-facing report before reading the publish job's own log**, which had plainly printed `✅ Published package @gotgenes/pi-permission-system@33.0.0`.
+   Impact: seven tool calls spent on "did it publish", and a moment of false alarm in the ship report.
+   The producer's log is authoritative and was available first.
+7. `premature-convergence` — **diagnosed the expired PAT correctly and stopped at "rotate it"**, accepting the existing pipeline design as given rather than asking whether a PAT was still needed after release-please was retired.
+   Impact: none, because the operator asked the question — but the whole investigation that followed (no branch protection, no rulesets, `github-release` already using `GITHUB_TOKEN`) was available to me at the point I recommended rotation.
+
+#### What caused friction (user side)
+
+- **The single highest-leverage intervention in the session was a question, not a correction**: "do we still need PAT, since we got rid of release-please GitHub Action?"
+  That reframed a credential-rotation chore into a permanent removal of a failure mode.
+  Worth noting as a pattern that worked — the same shape ("is this constraint still real?") applied to the `evaluateFirst` gate produced the other big reframe of the session.
+- Both gate bounces were corrective rather than strategic, and both were caused by a missing skill load on my side.
+  Fixing `/pr-review`'s skill list should convert that class of intervention back into strategic ones.
+
+### Diagnostic details
+
+- **Model-performance correlation** — the main session ran `anthropic/claude-opus-5` throughout; both subagents (`tidy-first-assessor`, `pre-completion-reviewer`) are pinned to `anthropic/claude-sonnet-5` in their `.pi/agents/*.md` frontmatter.
+  The `model_change` entries in the session log (`opus-5 → sonnet-5 → opus-5`) are the subagent dispatches surfacing as phantom switches — exactly the artifact Refs #737 warns about; an unfiltered read shows every main-session turn as opus-5.
+  No mismatch: sonnet-5 handled a genuinely judgment-heavy re-derivation mandate (an algebraic equivalence proof plus an exhaustive call-site trace) without prompting, which is evidence the tier is adequate for the reviewer role rather than a reason to escalate it.
+- **Escalation-delay tracking** — the npm-verification sequence ran seven consecutive tool calls (`pnpm view` × 2, job log, `curl` × 3 with two `sleep`s) on one question.
+  Below the bar for a subagent dispatch — most of the tail was legitimate waiting on registry propagation — but the *first* call should have been the job log rather than the cached client.
+- **Unused-tool detection** — nothing missed.
+  `colgrep` was used for convention discovery, `Explore` was not needed (the report supplied a named file trace, which the prompt says to verify inline), and both judgment subagents were dispatched at their designated points.
+- **Feedback-loop gap analysis** — verification ran incrementally and correctly: a green baseline before step 1 (`check`, root `lint`, `test`, `fallow`), a scoped `vitest run <file>` per red/green, `pnpm run check` immediately after the shared-type edit in step 2, a full-suite run after every step that touched shared code, and the four end-of-cycle gates before the reviewer dispatch.
+  No gap.
+
+### Changes made
+
+1. `.pi/prompts/pr-review.md` — added `clarification-gates` to the Load-skills list.
+   It was the only gate-bearing prompt omitting it, and both `ask_user` bounces this session are stated in that skill's first two sections.
+2. `.pi/prompts/plan-issue.md` — extended the mechanism-grep bullet in Module-Level Changes with the diagram case: a Mermaid node models a control flow without naming the symbol, so a symbol grep cannot see it.
+3. `.pi/skills/package-pi-permission-system/SKILL.md` — extended the existing last-match-wins bullet with the one-evaluator invariant this issue established, and a do-not-reintroduce clause for a per-surface evaluator.
+4. Filed [#948] (`pi-github-tools`) — have `issue_close` refuse a comment citing an unresolvable commit SHA.
+   A deliberate exception to "mechanism is forever; docs are reversible", approved by the operator at this retro's gate: the prose rule has six incident refs (#704, #777, #788, #814, #861, #890) and failed a seventh time in this session's ship stage.
+   `roadmap-fit` exited at step 1 — `pi-github-tools` has no architecture doc and therefore no open phase.
+
+Considered and not landed: more prose on SHA verification anywhere (fails the admission test's first question, and would be the seventh ref on an already-maximally-prominent rule); an `AGENTS.md` note on `pnpm view` caching (a model can infer that a registry client caches — the real error was report ordering, too situational for the always-loaded file); a `releasing` skill note that the pipeline holds no PAT (`release.yml`'s own comment and `.pi/prompts/triage-backlog.md`'s audit already say it, and a third copy would drift).
+
 [#946]: https://github.com/gotgenes/pi-packages/issues/946
+[#948]: https://github.com/gotgenes/pi-packages/issues/948

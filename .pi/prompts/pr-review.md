@@ -91,6 +91,7 @@ Never trust a PR's "all tests pass" claim; it is routinely made without running 
 - Load the `design-review` skill when the PR touches shared interfaces or layer wiring.
 - Load the `testing` skill if the PR changes tests.
 - Load the `reading-artifacts` skill before reading the PR's status or thread as evidence, and the `git-workflow` skill before a commit that credits the contributor.
+- Load the `clarification-gates` skill before the `Decide` step's `ask_user` call.
 
 ## Evaluate
 
