@@ -30,6 +30,19 @@ const envNoGit: EnvInfo = {
 /** The cwd the inherited parent prompt is taken to name, unless a test varies it. */
 const PARENT_CWD = "/parent";
 
+/**
+ * The fallback identity `prompts.ts` hands a child when no parent contribution
+ * is usable, copied verbatim.
+ *
+ * Named once here because several tests only claim *this prompt fell back*;
+ * each used to spell a different fragment of the wording, so a change to the
+ * constant meant improvising a new fragment at every site.
+ */
+const GENERIC_BASE = `# Role
+You are a general-purpose coding agent for complex, multi-step tasks.
+You have full access to read, write, edit files, and execute commands.
+Do what has been asked; nothing more, nothing less.`;
+
 function getDefaultConfig(name: string): AgentConfig {
   return testRegistry.resolveAgentConfig(name);
 }
@@ -82,7 +95,7 @@ describe("buildAgentPrompt", () => {
   it("general-purpose without parent prompt falls back to generic base", () => {
     const config = getDefaultConfig("general-purpose");
     const prompt = buildAgentPrompt(config, "/workspace", env);
-    expect(prompt).toContain("general-purpose coding agent");
+    expect(prompt).toContain(GENERIC_BASE);
     expect(prompt).not.toContain("READ-ONLY");
   });
 
@@ -121,7 +134,7 @@ describe("buildAgentPrompt", () => {
     };
     const prompt = buildAgentPrompt(config, "/workspace", env);
     expect(prompt).toContain("/workspace");
-    expect(prompt).toContain("general-purpose coding agent");
+    expect(prompt).toContain(GENERIC_BASE);
     expect(prompt).toContain("Extra custom instructions here.");
   });
 
@@ -199,7 +212,7 @@ describe("buildAgentPrompt", () => {
     };
     const prompt = buildAgentPrompt(config, "/workspace", env);
     // Should use genericBase as the prefix (same fallback as append mode).
-    expect(prompt).toContain("general-purpose coding agent");
+    expect(prompt).toContain(GENERIC_BASE);
     expect(prompt).not.toContain("You are a pi coding agent sub-agent");
     expect(prompt).toContain("Custom standalone instructions.");
   });
@@ -258,7 +271,7 @@ describe("buildAgentPrompt", () => {
     const prompt = buildAgentPrompt(config, "/workspace", env);
     expect(prompt).not.toContain("<sub_agent_context>");
     expect(prompt).not.toContain("<inherited_system_prompt>");
-    expect(prompt).toContain("general-purpose coding agent");
+    expect(prompt).toContain(GENERIC_BASE);
     expect(prompt).toContain("Extra stuff.");
   });
 
@@ -1087,7 +1100,7 @@ describe("buildAgentPrompt", () => {
           cwd: PARENT_CWD,
           strategy: "portable",
         });
-        expect(prompt.startsWith("# Role")).toBe(true);
+        expect(prompt.startsWith(GENERIC_BASE)).toBe(true);
         expect(prompt).not.toContain("pi packages (docs/packages.md)");
       });
 
@@ -1098,7 +1111,7 @@ describe("buildAgentPrompt", () => {
           strategy: "portable",
           portablePrompt: "   \n\n  ",
         });
-        expect(prompt.startsWith("# Role")).toBe(true);
+        expect(prompt.startsWith(GENERIC_BASE)).toBe(true);
         expect(prompt).not.toContain("pi packages (docs/packages.md)");
       });
 
@@ -1116,7 +1129,7 @@ describe("buildAgentPrompt", () => {
             ]),
         );
 
-        expect(prompt.startsWith("# Role")).toBe(true);
+        expect(prompt.startsWith(GENERIC_BASE)).toBe(true);
         expect(prompt).toContain('<project_instructions path="/workspace/AGENTS.md">');
         expect(prompt).not.toContain("pi packages (docs/packages.md)");
       });
