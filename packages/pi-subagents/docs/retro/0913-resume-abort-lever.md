@@ -32,4 +32,23 @@ A disposable Vitest spike against the real `Subagent` measured all three of the 
 
 - `packages/pi-subagents/src/lifecycle/subagent.ts` — a shared `beginRun(signal)` helper for the "mint controller + wire signal" sequence was considered and **rejected** by the assessor as procedure-splitting: `resetForResume()` sits between the mint and the wire in `runResume()`, so the sequence does not line up with `run()`'s and a helper would fit only one of the two call sites.
 
+## Stage: Implementation — TDD (2026-09-18T22:25:19Z)
+
+### Session summary
+
+Executed all three plan steps as three commits: the preparatory getter conversion (`16f067fd`), the behavioral fix (`acd83b00`), and the README/roadmap docs (`5b942e94`).
+The `pi-subagents` suite went 1792 → 1796 tests (four added: three `Subagent.resume()` cancellation classes plus one manager-door abort-by-id test; three existing assertions of the removed forwarding were rewritten rather than added).
+Pre-completion reviewer: PASS.
+
+### Observations
+
+- No deviations from the plan.
+  Every file it listed was touched, and every file in its predicted-unchanged list stayed unchanged — including `subagent-session.ts`, which the roadmap's `Target:` line named but the design did not need.
+- All three killing mutations behaved as predicted, with one bonus: mutation 1 (forward the caller's `signal` to `resumeTurnLoop` instead of the record's) killed class (c) as well as class (a), because (c) asserts the loop's signal was not already spent on arrival and a `undefined` signal fails that too.
+  Mutations 2 and 3 each killed exactly their own class.
+- The Red step's evidence was strong on its own: two of the parked-loop tests failed by 5 s timeout (the loop is never signalled pre-fix) while the caller-signal test failed in 1 ms on the status assertion — two different failure shapes for two different claims.
+- Worth remembering for a future reader: `markCompleted` blocks the status write against `stopped` but always sets `result`, so an aborted resume's record carries the text of the run it stopped.
+  That is pre-existing and unchanged here.
+- The reviewer independently confirmed the prose sweep (`SKILL.md`, `docs/`, `README.md`) carries no surviving claim that a resume bypasses the record's controller, and that `mmdc` parses all six Mermaid charts after the `S22` ✅ mark.
+
 [#949]: https://github.com/gotgenes/pi-packages/issues/949
