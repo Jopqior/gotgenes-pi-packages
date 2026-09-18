@@ -427,28 +427,10 @@ Before implementing, refactoring, or reviewing code, load the `code-design` skil
 ##### Shell and search
 
 Use `colgrep` for intent-based codebase exploration and convention discovery; use `grep` for exact symbol matching.
-`rg -r` is `--replace`, not `--recursive`; `rg` recurses by default, so drop the `-r`.
 Quote a glob pattern meant for a command rather than the shell — `--include='*.ts'`, `find . -name '*.ts'`.
 Unquoted, it expands against the cwd first: bash silently substitutes a matched filename, and zsh aborts with `no matches found`.
 In zsh an unquoted parameter is not word-split, so `perl -pi -e '…' $FILES` passes the whole list as a single filename — spell a multi-file list inline.
 Do not start a bash word with `=` — zsh's `equals` expansion reads `=word` as a command-path lookup, aborts, and discards the rest of an `A; B; C` chain; use `echo ---`, not `echo ===`.
-Each `bash` call runs in a fresh shell — a variable set in one call is unset in the next.
-Chain producer and consumer in one call, or re-derive the value.
-A `gh issue comment` / `gh pr comment` body containing backticks or fences belongs in a file passed with `--body-file`, whatever the quoting.
-Single quotes ship a `` \` `` literally, and double quotes need every `` ` `` escaped, where one miscount publishes mismatched code spans.
-A `git commit` body with quotes or backticks belongs in a file passed with `-F <file>`, written with `Write` — never `-F -` from a heredoc.
-A `-m` string corrupts one silently; the damage shows only in `git log -1 --format=%B`.
-Do not pipe a long-output command into an early-exiting reader (`head -1`, `sed -n '1p;q'`) under `set -euo pipefail` — the reader closes the pipe, the writer dies of SIGPIPE, and `pipefail` promotes the 141 into a script abort.
-It is a race that fires only once output exceeds one 4096-byte stdio buffer, so it survives for months and then fails always.
-Let the command do its own limiting: `git for-each-ref --count=1`, not `git tag --list | head -1`.
-Pass file tool paths repo-relative (`packages/<pkg>/src/x.ts`), not hand-built absolute ones — a mistyped absolute path trips the `external_directory` gate instead of failing fast.
-Before making an existing prose convention machine-read (a grep-able heading, tag, or marker), enumerate its existing spellings first.
-A hand-written convention drifts.
-When re-verifying a count established earlier in the session, re-run the original command — do not re-derive it with a new pattern.
-A looser one (`rg -l` for an anchored `rg -c '^…'`) admits prose mentions and overturns a correct number.
-Do not spend a tool call measuring the shape of a deterministic command's own output — `git rev-parse` emits exactly 40 hex characters, so `| wc -c` on it tests git, not your work.
-Re-running it a second way (`git log -1 --format=%H`) is the same mistake wearing a disguise.
-Re-resolve the identifiers you *typed*, which is the only place a wrong value can enter.
 
 ##### Markdown
 
