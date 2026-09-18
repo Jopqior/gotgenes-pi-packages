@@ -217,21 +217,6 @@ A cross-package change names every package it bumps in one dispatch.
 
 Release-please and the machinery that worked around its API commit walk — `last-release-sha`, `separate-pull-requests`, `release_pr_merge`, `defaultMergeMethod` — are gone; when reading history (a retro, an older plan, a commit message), treat them as artifacts of that era, not as current mechanism.
 
-#### Clarification gates
-
-Present the substance — concrete examples, before/after, trade-offs — in a message first, then call `ask_user` with options that reference it.
-An option list is a set of choices, not a briefing; context crammed into option descriptions — or into `preview` panes — gets bounced.
-When the decision settles a structure that will repeat across many files, settle its **size budget** in the same gate.
-A placement or shape choice is only sound for a known size, so show a worked example of the largest instance.
-Define a gate's terms of art before its substance — a term the operator must decode is a question they cannot answer.
-When rejecting a candidate on cost, price its cheapest viable form first.
-When every option shares a premise — the same object grown, the same representation assumed, the same vocabulary kept — name it and offer the option that removes it, or say why it is not viable.
-When the change adopts a third-party artifact, that artifact's own decomposition — its config surface, its precedence order, its field set — is a premise like any other.
-Derive the option space from the problem, then check the contribution against it.
-When a gate offers mechanisms for fixing a hazard, first name which component or config rule owns the lever and what happens today in each concrete configuration — a mechanism menu without that grounding gets bounced for it.
-In a bundled gate the substance requirement is per question, not per message — the least-supported question bounces the whole batch.
-An option whose differentiator is a dependency's behavior is a claim about that dependency — read its compiled source before writing the option, never its type declaration or its name.
-
 #### Background agent guardrails
 
 When delegating lint-fix or refactoring work to a background agent:

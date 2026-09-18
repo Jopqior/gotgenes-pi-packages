@@ -127,7 +127,7 @@ If the issue is third-party (its author is not the gh CLI user, as determined in
 The ambiguity for a third-party issue is not *how* to build it but *whether* the operator wants it built, and in what form.
 Use `ask-user` to confirm the direction before planning: at minimum ask whether to (a) implement the proposal as described, (b) implement a different approach to the same underlying problem, or (c) decline/defer.
 When the issue is in an unfamiliar domain (a platform, protocol, or tool you have not verified), research the domain facts first — the direction options themselves depend on them, and an ungrounded ask gets bounced (Refs #533).
-When an option's differentiator is a behavior change, name the scenarios where behavior differs and where it does not (see `AGENTS.md` § Clarification gates).
+When an option's differentiator is a behavior change, name the scenarios where behavior differs and where it does not (see the `clarification-gates` skill).
 Label every number in an `ask_user` option or the plan's predicted-effect table as measured or estimated.
 Measure when the command runs in under a minute; an inferred number with false precision ("18.0 s → ~18.5 s") sells an option on a benefit the real measurement may refute (Refs #678).
 A qualitative cost claim ("only reformats", "nothing is lost") is measurable too — produce the output and diff it before offering the option (Refs #865).
