@@ -1111,6 +1111,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   The Pi Session Inspector maintainer asks this package to confirm that `permissions:ready` / `permissions:ui_prompt` / `permissions:decision` remain a supported cross-extension contract; it wants an answer on the issue, not a step.
 - [#906] — out of scope for the roadmap.
   A terminal attention signal (BEL/OSC) when a prompt opens is a presentation-layer addition sharing no step's mechanism; small and self-contained, so a cheap independent candidate for any phase.
+- [#946] — filed by [#928]'s planning, which carries gap 1 alone; out of scope for the roadmap.
+  Routing a registered MCP proxy tool name to the `mcp` surface edits `classifyToolKind` and adds a cross-extension registry, sharing no mechanism with this phase's bash token-role loss.
+  PR [#930] is its reference implementation, and its registration API is a public surface to weigh on its own.
 - [#620] — deferred with recorded rationale (explicit operator decision; **4th consecutive sweep**, not a silent re-defer).
   [#880] narrows its charter again — a declared `git log` needs no judge — and Phase 16's sandbox record answers band C without belief, so what remains for the chain is genuinely judgment; it is re-evaluated once both have landed.
   [#698] and [#706] fold into it when it is scheduled.
@@ -1515,5 +1518,8 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#937]: https://github.com/gotgenes/pi-packages/issues/937
 [#941]: https://github.com/gotgenes/pi-packages/issues/941
 [#942]: https://github.com/gotgenes/pi-packages/issues/942
+[#928]: https://github.com/gotgenes/pi-packages/issues/928
+[#930]: https://github.com/gotgenes/pi-packages/pull/930
 [#945]: https://github.com/gotgenes/pi-packages/issues/945
+[#946]: https://github.com/gotgenes/pi-packages/issues/946
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
