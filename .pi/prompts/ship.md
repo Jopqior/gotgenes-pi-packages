@@ -128,7 +128,7 @@ Running them after step 4 covers exactly that tree, at a measured cost of about 
 
 1. Run `git rev-parse HEAD` to capture the full SHA.
    Pass that exact value to `ci_find` — never hand-expand the short SHA from the `git push` output, and never type a SHA from memory.
-   Do not measure its shape (`| wc -c`) — it is command output, not a value you typed (Refs #839).
+   Do not measure its shape (`| wc -c`), re-run it to double-check, or count its characters in prose — it is command output, not a value you typed (Refs #839, #904).
 2. Use `ci_find` with that SHA and workflow `ci` to locate the CI run.
    If it times out, re-check the SHA you passed against `git rev-parse HEAD` before assuming a timing miss — a truncated or retyped SHA produces the same timeout (Refs #640).
 3. Use `ci_watch` with the returned `run_id`, workflow `ci`, and `timeout: 600` to wait for it to complete.

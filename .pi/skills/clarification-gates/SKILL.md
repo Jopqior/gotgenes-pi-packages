@@ -16,6 +16,7 @@ An option list is a set of choices, not a briefing; context crammed into option 
 In a bundled gate the substance requirement is per question, not per message — the least-supported question bounces the whole batch.
 Define a gate's terms of art before its substance — a term the operator must decode is a question they cannot answer.
 When a gate offers mechanisms for fixing a hazard, first name which component or config rule owns the lever and what happens today in each concrete configuration — a mechanism menu without that grounding gets bounced for it.
+Hold each option's `description` to one line — a second line is substance, and substance goes in the message above.
 
 ## Sizing and pricing the options
 
