@@ -40,6 +40,7 @@ Before a fork publish, check whether upstream `main` has new commits or a new `p
    It never pushes.
 3. If the merge conflicts, leave it in progress and follow [Conflict handbook](#conflict-handbook).
    Do not `git checkout --ours` or `git checkout --theirs` wholesale.
+   To abandon the conflicted merge and restore the pre-merge state, run `git merge --abort`.
 4. After resolving, regenerate `pnpm-lock.yaml` with `pnpm install` from the repo root even if git auto-merged it with zero markers.
 5. If the merge moved or renamed files, clear the rumdl cache:
 
@@ -57,7 +58,8 @@ Before a fork publish, check whether upstream `main` has new commits or a new `p
    pnpm -r run test
    ```
 
-7. Record a sync-log row below.
+7. If a merge remains in progress, stage the reviewed resolutions with `git add`, then finish with `GIT_EDITOR=true git merge --continue`.
+8. Record a sync-log row below.
    Do not write an unreleased fork version into the correspondence table.
 
 ## Forbidden commands
