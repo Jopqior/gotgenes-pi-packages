@@ -846,6 +846,10 @@ Steps 2, 6, and 8 have design-dependent shapes and are verified by their plans' 
 - [#912] — filed by Step 16's planning; deferred to a later phase with rationale.
   A consumer cannot ask whether an agent is resumable before calling `resume`: `SubagentRecord` carries `status` but neither `sessionReleased` nor `workspaceDisposed`, so a UI cannot grey out a Resume affordance.
   Its shape is undecided between a snapshot field (which needs an admission argument under [decision 0005](../decisions/0005-subagent-record-admission-policy.md), whose rule 3 declines derived live state) and a service query, and it has no named consumer — an enhancement rather than a piece of this phase's front-door and delivery-boundary spine.
+- [#947] — filed by a third-party reporter against the shipped package; deferred to a later phase with rationale.
+  `get_subagent_result({ wait: true })` waits unbounded and its report carries no progress facts, so a child wedged inside one `bash` call for 74 minutes read as a healthy long run — `get-result-tool.ts` accepts `_onUpdate` and discards it, and the widget already renders the activity the model never sees.
+  It joins [#912] and [#755] as one question: what a consumer may learn about a running child, and where [decision 0005](../decisions/0005-subagent-record-admission-policy.md) falls between a `SubagentRecord` field (its rule 2 excludes `activeTools` and `responseText` by name) and tool-report text, which that decision does not reach.
+  Deferred rather than adopted because this phase's cause is front-door parity and this has one door with no divergence; the three together are a phase's spine rather than a 23rd step.
 - [#913] — filed by Step 16's planning; becomes Step 22 by operator decision.
   `Subagent.abort()` fires the record's construction-time controller, which `resumeTurnLoop` never sees, so `abort(id)` reports success on a resumed agent while its turn loop keeps running — the same shape as Steps 15 and 21, a lever set at one lifecycle edge and read at another.
   Peer-sized rather than a line in Step 16, which mitigates it for the new door with a caller `signal` and leaves the controller alone.
@@ -1555,6 +1559,7 @@ The upstream test suite is run periodically as a regression canary for the sessi
 [#913]: https://github.com/gotgenes/pi-packages/issues/913
 [#937]: https://github.com/gotgenes/pi-packages/issues/937
 [#942]: https://github.com/gotgenes/pi-packages/issues/942
+[#947]: https://github.com/gotgenes/pi-packages/issues/947
 [#180]: https://github.com/gotgenes/pi-packages/issues/180
 [#400]: https://github.com/gotgenes/pi-packages/issues/400
 [ADR-0002]: ../decisions/0002-extensions-on-a-minimal-core.md
