@@ -43,3 +43,29 @@ The operator chose repository and GitHub Release repair followed by fresh npm re
 - `scripts/upstream-sync.sh` — do not refactor procedures that restoration deletes; no separate cleanup is warranted.
 - `test/release/bumped-version.test.mjs` and `test/upstream-sync/merge.test.mjs` — avoid a generic cross-domain Git fixture; their transport and release-boundary arrangements differ.
 - `packages/pi-subagents/src/ui/display.ts` — preserve formatter signature, body, consumers, and sole-implementation constraint; only obsolete mechanism-specific commentary is in scope.
+
+## Stage: Implementation — Recovery inputs (2026-09-18T15:18:57Z)
+
+### Session summary
+
+The operator confirmed a writer/publication freeze and approved the external recovery directory `/home/whh/projects/gotgenes-history-recovery/issue-13-20260918T150901Z/`.
+Archived a complete bundle, Git metadata/configuration, untracked files, remote/local ref inventories, complete commit diffs, GitHub records, and all five published npm tarballs with available attestations.
+The baseline passed type checking, root lint without warnings, all 6,973 tests, and root dead-code detection.
+
+### Observations
+
+- Bundle verification and an independent restore passed connectivity checks, resolved all five old tag objects, and recovered the original merge with both original parents.
+  All five npm tarballs matched registry integrity values.
+- Frozen input is `f0914c7d16e906f4fb2077adf677b7c3bc78d080`; its 54 later commits include both planning commits.
+  Remote refs were rechecked without drift; no active run appeared in the captured Actions response.
+- Forty prefix mappings, including the original root pair, have equal trees.
+  Replayed all 54 later commits in the isolated candidate; only the handbook hunks in `d29146af3cb152b9b6e7746eb695b4d492521d51` and `30d95bef32978dfce03e120574e9ffaa892ffc02` required conflict adaptation.
+  Every replay preserves author/message metadata and non-handbook patch identity.
+- All five candidate tag targets preserve both historical package trees exactly, and annotated tags preserve annotation metadata while changing the target.
+  An adversarial old-release tag made the per-ref reachability audit fail; removing it restored green.
+- Exported resolved per-commit patches and metadata reproduce all 54 exact candidate commit IDs in a second independent clone.
+  Raw evidence, mapping, and scripts remain outside the repository; the complete-diff audit is still in progress.
+- The recovery breadcrumb was committed after replay into the candidate rather than into the live graph, keeping the frozen input unchanged.
+  The initial branch-detection command mistakenly also attempted a trunk-only pull; it failed for missing tracking information without merging, followed by the required fetch.
+- No live branch/tag was rewritten, no GitHub mutation ran, and no publication occurred.
+  Step 3 verification and the remaining content/release/cutover work are not yet complete; no pre-completion verdict is claimed.
