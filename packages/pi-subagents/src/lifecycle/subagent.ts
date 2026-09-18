@@ -165,7 +165,9 @@ export class Subagent {
 	canBeSteered(): boolean { return this.state.canBeSteered(); }
 	get maxTurns(): number | undefined { return this.execution.maxTurns; }
 
-	readonly abortController: AbortController;
+	private _abortController: AbortController;
+	/** Cancels whichever run is current. */
+	get abortController(): AbortController { return this._abortController; }
 	private _promise?: Promise<void>;
 	/** Handle on the agent's current run — the initial run, or the live resume that replaced it. */
 	get promise(): Promise<void> | undefined { return this._promise; }
@@ -302,7 +304,7 @@ export class Subagent {
 		this.state = init.state ?? new SubagentState();
 
 		// Abort controller — always created, never injected
-		this.abortController = new AbortController();
+		this._abortController = new AbortController();
 
 		// Execution machinery — a single mandatory collaborator
 		this.execution = init.execution;
