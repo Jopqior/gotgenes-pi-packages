@@ -269,6 +269,7 @@ If the change is breaking, say so explicitly in Goals and use `feat!:` in the su
 
 If planning identified work to defer to a separate issue (a follow-up named in Design Overview, Non-Goals, or Open Questions), create it now with `gh issue create` — before the plan commit, while this session holds full context.
 Record each new issue number in the plan's Non-Goals / Open Questions.
+Take that number from `gh issue create`'s output, and resolve any SHA the issue body cites with `git rev-parse` — a number or hash authored into the draft is wrong by whatever landed since (Refs #913).
 File nothing speculative — only follow-ups the plan concretely names.
 
 After filing, load the `roadmap-fit` skill and follow it for each new issue — an issue spun off while its package has an open improvement phase gets a recorded disposition now, not at phase close.
