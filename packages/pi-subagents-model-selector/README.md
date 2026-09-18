@@ -6,6 +6,10 @@ Ask for model and thinking before every new in-process `@jopqior/pi-subagents` c
 
 Installing or upgrading the core alone does not change selection.
 
+> **Source history:** the repository's git history was restored to the original upstream merge graph.
+> Already-published npm artifacts are unchanged, and artifacts published after that restoration are built from the restored history.
+> See [History restoration](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/history-restoration.md) for what this means for old commit links and existing clones.
+
 ## Install
 
 Load **after** `@jopqior/pi-subagents`.

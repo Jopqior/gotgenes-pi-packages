@@ -10,15 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-* **pi-subagents-model-selector:** match native /model fuzzyFilter ([5a8b92d](https://github.com/Jopqior/gotgenes-pi-packages/commit/5a8b92dc90b8ee19ce6deacea8d31725ac8f5ad3)), closes [#9](https://github.com/Jopqior/gotgenes-pi-packages/issues/9)
+* **pi-subagents-model-selector:** match native /model fuzzyFilter ([da81c02](https://github.com/Jopqior/gotgenes-pi-packages/commit/da81c028e7bde26569df25cacd1a1f1e34af2f9b)), closes [#9](https://github.com/Jopqior/gotgenes-pi-packages/issues/9)
 
 ## [1.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-model-selector-v0.1.0...pi-subagents-model-selector-v1.0.0) (2026-09-13)
 
 
 ### Features
 
-* **pi-subagents-model-selector:** **breaking:** ask for spawn model and thinking on one form ([8923150](https://github.com/Jopqior/gotgenes-pi-packages/commit/89231500ff7148e39c23d55a5195aa5989137016)), closes [#8](https://github.com/Jopqior/gotgenes-pi-packages/issues/8)
+* **pi-subagents-model-selector:** **breaking:** ask for spawn model and thinking on one form ([e5d8407](https://github.com/Jopqior/gotgenes-pi-packages/commit/e5d8407d81fae9dd702365635d5ce893a1e55897)), closes [#8](https://github.com/Jopqior/gotgenes-pi-packages/issues/8)
 
 ### Documentation
 
-* **pi-subagents-model-selector:** describe the /model-style spawn form ([a3d9336](https://github.com/Jopqior/gotgenes-pi-packages/commit/a3d9336e074a0415ebe59ca0e27b9d0a3f2a0165)), closes [#8](https://github.com/Jopqior/gotgenes-pi-packages/issues/8)
+* **pi-subagents-model-selector:** describe the /model-style spawn form ([40cf35c](https://github.com/Jopqior/gotgenes-pi-packages/commit/40cf35c3cf7c4567b0260bdbe99f021f347bc943)), closes [#8](https://github.com/Jopqior/gotgenes-pi-packages/issues/8)
