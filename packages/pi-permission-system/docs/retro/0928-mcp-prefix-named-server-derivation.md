@@ -287,6 +287,11 @@ The ship stage also uncovered an expired PAT in the release pipeline that turned
    The producer's log is authoritative and was available first.
 7. `premature-convergence` — **diagnosed the expired PAT correctly and stopped at "rotate it"**, accepting the existing pipeline design as given rather than asking whether a PAT was still needed after release-please was retired.
    Impact: none, because the operator asked the question — but the whole investigation that followed (no branch protection, no rulesets, `github-release` already using `GITHUB_TOKEN`) was available to me at the point I recommended rotation.
+8. `scope-drift` (user-caught, after the ship report) — **left PR [#930] dangling.**
+   The ship stage treated gap 2 as fully discharged by filing [#946] and never told the contributor anything, so a 990-line PR was left open and silently broken by the work that had just landed.
+   The `/ship` prompt's supersession rule did not cleanly cover it: [#930] was not superseded (gap 2 genuinely did not ship) but deferred, and the prompt's only PR outcome is "close each PR the plan-and-retro read named".
+   The same oversight closed #928 without answering the contributor's reply sitting on it ("I've tidied up those extra files").
+   Impact: no rework, but a contributor was left without a signal on a stacked PR whose base this issue had just rewritten; recovered only because the operator asked "There was a related PR right?".
 
 #### What caused friction (user side)
 
@@ -314,11 +319,15 @@ The ship stage also uncovered an expired PAT in the release pipeline that turned
    It was the only gate-bearing prompt omitting it, and both `ask_user` bounces this session are stated in that skill's first two sections.
 2. `.pi/prompts/plan-issue.md` — extended the mechanism-grep bullet in Module-Level Changes with the diagram case: a Mermaid node models a control flow without naming the symbol, so a symbol grep cannot see it.
 3. `.pi/skills/package-pi-permission-system/SKILL.md` — extended the existing last-match-wins bullet with the one-evaluator invariant this issue established, and a do-not-reintroduce clause for a per-surface evaluator.
-4. Filed [#948] (`pi-github-tools`) — have `issue_close` refuse a comment citing an unresolvable commit SHA.
+4. Closed PR [#930] (`registerMcpProxy`, gap 2) unmerged, pointing at [#946], after the operator asked whether a related PR was still open.
+   Two reasons given to the contributor: the base moved under it (it now conflicts across `mcp-targets.ts`, `permission-manager.ts`, `input-normalizer.ts`, and three test files, since the derivation landed in a different shape), and its registration API is a public cross-extension surface whose design is not settled — so a 990-line rebase would be work toward a moving target.
+   The comment also acknowledged the contributor's housekeeping reply on #928, which the ship stage closed the issue without answering.
+5. Filed [#948] (`pi-github-tools`) — have `issue_close` refuse a comment citing an unresolvable commit SHA.
    A deliberate exception to "mechanism is forever; docs are reversible", approved by the operator at this retro's gate: the prose rule has six incident refs (#704, #777, #788, #814, #861, #890) and failed a seventh time in this session's ship stage.
    `roadmap-fit` exited at step 1 — `pi-github-tools` has no architecture doc and therefore no open phase.
 
 Considered and not landed: more prose on SHA verification anywhere (fails the admission test's first question, and would be the seventh ref on an already-maximally-prominent rule); an `AGENTS.md` note on `pnpm view` caching (a model can infer that a registry client caches — the real error was report ordering, too situational for the always-loaded file); a `releasing` skill note that the pipeline holds no PAT (`release.yml`'s own comment and `.pi/prompts/triage-backlog.md`'s audit already say it, and a third copy would drift).
 
+[#930]: https://github.com/gotgenes/pi-packages/pull/930
 [#946]: https://github.com/gotgenes/pi-packages/issues/946
 [#948]: https://github.com/gotgenes/pi-packages/issues/948
