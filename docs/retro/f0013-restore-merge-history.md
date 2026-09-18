@@ -69,3 +69,40 @@ The baseline passed type checking, root lint without warnings, all 6,973 tests, 
   The initial branch-detection command mistakenly also attempted a trunk-only pull; it failed for missing tracking information without merging, followed by the required fetch.
 - No live branch/tag was rewritten, no GitHub mutation ran, and no publication occurred.
   Step 3 verification and the remaining content/release/cutover work are not yet complete; no pre-completion verdict is claimed.
+
+## Stage: Implementation — TDD (2026-09-18T17:08:28Z)
+
+### Session summary
+
+Completed reversible plan steps 1–6 in the independent candidate, preserving 54 replayed commits and all five historical tagged package snapshots while restoring native merge synchronization and removing dependent instructions.
+Two test cycles added 19 real-Git merge tests and six release-boundary tests, taking the complete suite from 6,973 to 6,998 passing tests.
+Atomic ref replacement, stale-lease rejection, rollback, repeated forward migration, and independent fresh-clone verification passed offline; production migration and publication remain unapproved.
+
+### Observations
+
+- Candidate checkout: `/home/whh/projects/gotgenes-history-recovery/issue-13-20260918T150901Z/candidate`.
+  The external archive contains `approval-manifest.json`, the frozen bundle and service records, replay mappings and reproducible per-commit patches, complete-diff audit records, raw mutation logs, and the disposable cutover remotes.
+  The live checkout remains on its original issue branch with its unrelated untracked directory untouched.
+- Pre-completion reviewer: WARN at `0aaa30c8eb800053888da4bc29f495163aa0d64e`.
+  The reviewer independently checked the candidate and reported no blocking findings; the sole warning was the missing final implementation/rehearsal stage entry, supplied here.
+  All deterministic checks passed, with zero lint warnings; package architecture and roadmap behavior remain unchanged.
+- Step 3 reached a genuine old-script red after supplying its required baseline: synchronization succeeded but produced one parent rather than the required two.
+  Mutations covered merge omission, squash replacement, lost merge state, tag isolation, push protection, and precondition checks, including both rebase-state branches.
+  Git itself rejects staged unrelated paths, so the dirty-index pin checks the script-owned diagnostic and unchanged state rather than assuming Git accepts that merge.
+- Step 4 preserved the original three release tests and the production release helpers.
+  An explicit widened range does not defeat the renderer's tag-reachability boundary; the successful rendering mutation removes the unreleased-only selection instead, with the ineffective range probe retained as a negative control.
+- Complete-diff review required two handbook conflict adaptations during replay and additional current-tree corrections in the issue-3 and selector issue-4 retros.
+  Removed residual historical descriptions rather than retaining tombstone instructions, and verified historical comparisons against explicit upstream and restored planning commits.
+  Historical tagged package trees remain unchanged; current changelogs alter only affected fork commit links.
+- The original merge script was recovered through replay, so its new implementation commit changes only the merge message and adds integration coverage.
+  A separate documentation checkpoint makes native continuation and abort explicit.
+  The issue-13 plan remains frozen migration evidence; this stage records measured deviations and the handoff instead of rewriting its input inventory.
+- Both published-package version previews remain patch releases; their exact derived tags and rendered sections are in the external packet.
+  Eight untagged-package parity failures remain the known baseline, not new regressions.
+  The disposable latest-section preview must use an in-scope tag target: tagging the core at a selector-only commit prints an unreleased heading, unlike the production release commit that writes each named package manifest.
+- Both inspection tarballs passed the allowlist audit; the core's public declarations passed an external consumer type check, and the selector's workspace dependency became the current core version range.
+  Those locally packed, unchanged-version tarballs are inspection artifacts only and must never be published.
+  New-version dependency resolution and provenance verification belong to the approved publication step.
+- The approval packet contains six remote ref replacements, explicit local-ref dispositions, three Release body edits, and eight additive issue correction notes.
+  None has been applied to production.
+  Step 7 requires approval of the exact final packet, renewed old-ref/writer/backup checks, and later reconfirmation of publication; ordinary `/ship` or `/sync-worktree` must not attempt this migration.
