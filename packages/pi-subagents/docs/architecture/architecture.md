@@ -853,6 +853,9 @@ Steps 2, 6, and 8 have design-dependent shapes and are verified by their plans' 
 - [#913] — filed by Step 16's planning; becomes Step 22 by operator decision.
   `Subagent.abort()` fires the record's construction-time controller, which `resumeTurnLoop` never sees, so `abort(id)` reports success on a resumed agent while its turn loop keeps running — the same shape as Steps 15 and 21, a lever set at one lifecycle edge and read at another.
   Peer-sized rather than a line in Step 16, which mitigates it for the new door with a caller `signal` and leaves the controller alone.
+- [#949] — filed by Step 22's planning; deferred to a later phase with rationale.
+  `RunListeners.wireSignal` and `forwardAbortSignal` both register with `addEventListener`, which never fires for a signal that is already aborted, so a run wired to a pre-cancelled signal runs to completion uncancelled.
+  It is Step 22's own smell family — a lever set at one lifecycle edge and read at another — but not its residual: the fix also changes `run()`'s behavior for a pre-aborted spawn signal, which reaches a path this phase's front-door spine does not, and Step 22 is the phase's last open step.
 - [#904] — filed by the [#884] PR review (second pass); becomes Step 20 by operator decision.
   Step 18's own residual, one constant below the one it fixed: [ADR-0008] removed `<sub_agent_context>` for naming `edit` and `write` to a child that holds neither, and `genericBase` asserts the same capabilities four lines down in the same file.
   It survived that sweep because it sits on the colder no-parent-prompt path rather than on append mode's every-child path, which is the same shape as [#871] — a second instance of a step's defect class inside the lines the step already touched.
@@ -1573,6 +1576,7 @@ The upstream test suite is run periodically as a regression canary for the sessi
 [#937]: https://github.com/gotgenes/pi-packages/issues/937
 [#942]: https://github.com/gotgenes/pi-packages/issues/942
 [#947]: https://github.com/gotgenes/pi-packages/issues/947
+[#949]: https://github.com/gotgenes/pi-packages/issues/949
 [#180]: https://github.com/gotgenes/pi-packages/issues/180
 [#400]: https://github.com/gotgenes/pi-packages/issues/400
 [ADR-0002]: ../decisions/0002-extensions-on-a-minimal-core.md
