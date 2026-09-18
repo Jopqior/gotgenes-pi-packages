@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [21.7.2](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.1...pi-subagents-v21.7.2) (2026-09-18)
+
+
+### Bug Fixes
+
+* **pi-subagents:** stop the fallback prompt claiming tools the child may not hold ([661e7f3](https://github.com/gotgenes/pi-packages/commit/661e7f3da8e62bdc3d277abcc28ff82e59b72b07)), closes [#904](https://github.com/gotgenes/pi-packages/issues/904)
+
 ## [21.7.1](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.0...pi-subagents-v21.7.1) (2026-09-15)
 
 
