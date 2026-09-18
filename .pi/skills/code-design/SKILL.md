@@ -166,6 +166,13 @@ A log showing `approved` without _approved by whom_ cannot distinguish a human a
 Before planning or landing a refactor as one atomic commit, ask whether a preparatory step would shrink it — a pure-addition interface, or migrating tests to a shared fixture — landed as separate commits first.
 Kent Beck: "make the change that makes the change easy, then make the easy change."
 
+### Removing code you shipped
+
+When deciding whether to keep shipped code whose justification has weakened, ask: if it did not exist today, knowing what we know now, would we write it?
+If no, remove it.
+Past investment, passing tests, and "it's harmless" describe what was spent, not a reason to keep.
+When the removal undoes a series of commits, `git revert` them rather than hand-editing the files back — a mechanical revert is auditable and its result is diffable against the pre-change tree.
+
 ## TypeScript
 
 - Avoid `any` unless absolutely necessary.

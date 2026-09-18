@@ -141,7 +141,22 @@ Check in both directions:
 
 Report staleness as **WARN** (non-blocking).
 
-### 2d. Code design review
+### 2d. Evidence provenance
+
+**Applicability:** the plan cites measurements or a reproduction as the basis for its design.
+Skip when there is no plan, or the plan makes no empirical claim.
+
+Check how the cited evidence was produced:
+
+- Is it output from the real code path (a real session, real config, the upstream function itself), or a fixture the author constructed?
+  A self-built fixture can only confirm the model that built it.
+- Is n=1 per condition?
+- Is a cached or stochastic source (an LLM call, an embedding index, a timing measurement) measured without controls?
+
+A plan that says "measured" without saying "measured against what" is the finding to report.
+Report as **WARN** (non-blocking).
+
+### 2e. Code design review
 
 **Applicability:** any `src/` or `test/` files appear in the modified-files list.
 Skip if neither was changed.
@@ -162,7 +177,7 @@ For changed `test/` files, load the `testing` skill (`.pi/skills/testing/SKILL.m
 
 Report findings as **WARN** (non-blocking suggestions).
 
-### 2e. Test artifacts
+### 2f. Test artifacts
 
 **Applicability:** a plan file was provided and its "TDD Order" section describes specific test commits (contains `test:` commit lines or names specific test file paths).
 Skip if no plan was provided, or the plan's "TDD Order" section says "No TDD cycles."
@@ -170,7 +185,7 @@ Skip if no plan was provided, or the plan's "TDD Order" section says "No TDD cyc
 For each `test:` step or step that names a specific test file path, verify the file exists on disk.
 Report a missing named test file as **FAIL**.
 
-### 2f. Mermaid diagrams
+### 2g. Mermaid diagrams
 
 **Applicability:** any modified `docs/` markdown file (or any modified markdown file) contains a ` ```mermaid ` block.
 Skip if no modified markdown files contain Mermaid blocks.
@@ -192,7 +207,7 @@ If available, for each modified markdown file containing Mermaid blocks:
    - Raw `<word>` tokens in arrow messages or participant aliases (use `{word}` or backticks).
    - Quoted markdown headings `"## ..."` in node labels.
 
-### 2g. Dead code
+### 2h. Dead code
 
 **Applicability:** always.
 
@@ -200,7 +215,7 @@ Report the result already captured in Step 1.
 If `pnpm fallow dead-code` passed in Step 1, report **PASS**.
 If it failed, report **FAIL** (it was already reported in Step 1 — include the same detail here).
 
-### 2h. Cross-step invariant preservation
+### 2i. Cross-step invariant preservation
 
 **Applicability:** the package has a phased architecture roadmap (`packages/*/docs/architecture/`) AND a modified `src/` file was also a target of an earlier, already-completed roadmap step.
 Skip otherwise.
@@ -209,7 +224,7 @@ Read the earlier completed steps for the modified surface and extract their `Out
 For each, confirm the current change still upholds it — preferably via a test that pins it, otherwise by reading the code.
 Report a regressed invariant as **FAIL**; an invariant that holds but is pinned only by prose (no test) as **WARN**.
 
-### 2i. Planned follow-up issues
+### 2j. Planned follow-up issues
 
 **Applicability:** a plan file was provided and it names work deferred to a follow-up issue (in Design Overview, Non-Goals, Open Questions, or a Decomposition subsection).
 Skip if no plan was provided or it names no follow-up.
@@ -221,7 +236,7 @@ Report a named follow-up with no recorded issue number as **WARN** — it should
 ## Severity model
 
 - **FAIL (blocking):** deterministic check failure, unmet acceptance criterion, conventional commit violation, missing named test artifact, `mmdc` parse error, regressed cross-step invariant.
-- **WARN (non-blocking):** documentation staleness, code design suggestions, Mermaid renderer pitfalls, `mmdc` unavailable, cross-step invariant pinned only by prose, a planned follow-up with no recorded issue number.
+- **WARN (non-blocking):** unverified evidence provenance, documentation staleness, code design suggestions, Mermaid renderer pitfalls, `mmdc` unavailable, cross-step invariant pinned only by prose, a planned follow-up with no recorded issue number.
 - **PASS:** section verified with no issues.
 - **SKIP:** section not applicable — state the reason.
 
@@ -257,6 +272,13 @@ Forward: PASS — AGENTS.md, skills, and READMEs checked; no staleness found
 Reverse: PASS — no condensation needed
 — or —
 Forward: WARN — AGENTS.md "Multi-session lifecycle" section does not mention the new reviewer step
+
+### Evidence provenance
+PASS — plan's measurements come from the real code path
+— or —
+WARN — plan cites "measured" evidence from a self-built fixture, n=1 per condition
+— or —
+SKIP — plan makes no empirical claim
 
 ### Code design review
 PASS — no structural concerns in changed src/ or test/ files

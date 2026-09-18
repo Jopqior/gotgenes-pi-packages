@@ -145,6 +145,7 @@ Before you do the thing in the left column, load the skill in the right one.
 | run a multi-entry `Edit`, a scripted substitution, or a block insertion                              | `edit-tool`              |
 | call `ask_user`                                                                                      | `clarification-gates`    |
 | cite a plan, ADR, roadmap step, triage verdict, PR status, or third-party report                     | `reading-artifacts`      |
+| build a reproduction, spike, or probe whose result becomes design input                              | `reproduction`           |
 | dispatch a subagent, edit `.pi/agents/*.md`, or read a subagent's report                             | `delegation`             |
 | dispatch a release, publish a package for the first time, add a package, or edit a `files` allowlist | `releasing`              |
 | `/worktree`, `/sync-worktree`, or a worktree-lane `/ship`                                            | `worktrees`              |

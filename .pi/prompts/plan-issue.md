@@ -33,6 +33,7 @@ Before investigating the issue, load skills relevant to the change:
 - Load the `design-review` skill and run its checklist before finalizing the design for any refactor, extraction, or change to shared interfaces or layer wiring — judge this from the issue, not from a plan that already shows wiring changes.
 - Load the `tidy-first` skill if the change will create or modify `src/`/`test/` files — you will use it after the design is settled to dispatch the Tidy-First assessor, whose recommendations become preparatory steps in the plan's TDD Order (a docs-only or config-only change skips it).
 - Load the `reading-artifacts` skill before citing a plan, ADR, roadmap step, triage verdict, PR status, or third-party report as evidence.
+- Load the `reproduction` skill before building a repro, spike, or probe whose result will become design input — it governs where the input comes from and what the control proves.
 - Load the `clarification-gates` skill before the `Decide` step's `ask_user` call.
 - Load the `delegation` skill before dispatching `Explore` or the Tidy-First assessor, and before reading what they return.
 
@@ -70,6 +71,7 @@ Before investigating the issue, load skills relevant to the change:
 5. Open the source files most relevant to the change and skim them before writing.
 6. When a bug report does not reproduce locally, dispatch `Explore` (`model: "sonnet-5"`) for the root-cause hunt instead of running it inline — a hunt that ends in "not determinable from the code" still costs this session's context, and the plan is written right after (Refs #719).
    Verifying a diagnosis the report already supplies (named files, a numbered source trace) is not that hunt — keep it inline, since what it establishes is the design's input (Refs #709).
+   A hunt that needs live execution — a CLI repro, an authenticated API spike, a variant table you iterate on — also stays inline; `Explore` is read-only and cannot run it.
    For any bug report, trace what **triggers** the defect, not only what the defect does: name and cite the code path that changes the input (a cache key, an event, a config re-read).
    A fix whose trigger is unreachable is dead code, and the trigger is gate substance — #873's plan named `reload()`, but policy is re-read on any turn from the policy files' mtimes (Refs #873).
    For a third-party report, also establish whether the defect can reach **us**: check the `@gotgenes/*` extensions this repo actually runs under — including ones outside this monorepo, such as `pi-anthropic-auth` — for something that already mitigates it.
@@ -131,6 +133,9 @@ The ambiguity for a third-party issue is not *how* to build it but *whether* the
 Use `ask-user` to confirm the direction before planning: at minimum ask whether to (a) implement the proposal as described, (b) implement a different approach to the same underlying problem, or (c) decline/defer.
 When the issue is in an unfamiliar domain (a platform, protocol, or tool you have not verified), research the domain facts first — the direction options themselves depend on them, and an ungrounded ask gets bounced (Refs #533).
 When an option's differentiator is a behavior change, name the scenarios where behavior differs and where it does not (see the `clarification-gates` skill).
+When the plan's design rests on a reproduction, load the `reproduction` skill and state in Design Overview how the repro was produced.
+A fixture you constructed from your own model of the bug is not a reproduction — it can only confirm the model.
+Reproduce through the real code path (a real session, real config, the upstream function itself) before treating a diagnosis as design input, or label the evidence as synthetic and unconfirmed.
 Label every number in an `ask_user` option or the plan's predicted-effect table as measured or estimated.
 Measure when the command runs in under a minute; an inferred number with false precision ("18.0 s → ~18.5 s") sells an option on a benefit the real measurement may refute (Refs #678).
 A qualitative cost claim ("only reformats", "nothing is lost") is measurable too — produce the output and diff it before offering the option (Refs #865).
