@@ -183,6 +183,36 @@ describe("read_session_file tool", () => {
     expect(text).not.toContain("first");
   });
 
+  it("supports offset paging", async () => {
+    const tools = captureTools(sessionTools);
+    const tool = tools.get("read_session_file")!;
+
+    mockExistsSync.mockReturnValue(true);
+    const fileEntries = [1, 2, 3]
+      .map((n) =>
+        JSON.stringify({
+          type: "message",
+          id: String(n),
+          parentId: n === 1 ? null : String(n - 1),
+          timestamp: `t${n}`,
+          message: { role: "user", content: `turn ${n}`, timestamp: n },
+        }),
+      )
+      .join("\n");
+    mockReadFileSync.mockReturnValue(fileEntries);
+
+    const ctx = makeCtx();
+    const result = await tool.execute(
+      "tc1",
+      { path: "/sessions/--project--/s.jsonl", offset: 1, limit: 1 },
+      undefined,
+      undefined,
+      ctx,
+    );
+    const text = (result as { content: { text: string }[] }).content[0].text;
+    expect(text).toBe("1. user\nturn 2");
+  });
+
   describe("details", () => {
     it("returns status details when the session file is not found", async () => {
       const tools = captureTools(sessionTools);

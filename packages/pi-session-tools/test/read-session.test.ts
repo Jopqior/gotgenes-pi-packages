@@ -3,6 +3,14 @@ import { describe, expect, it } from "vitest";
 import sessionTools from "#src/index";
 import { captureTools } from "#test/helpers/capture-tools";
 
+/** Theme stub whose colour and weight helpers are the identity function. */
+function plainTheme() {
+  return {
+    fg: (_key: string, text: string) => text,
+    bold: (text: string) => text,
+  };
+}
+
 function makeCtx(entries: unknown[], sessionFile?: string): ExtensionContext {
   return {
     sessionManager: {
@@ -255,6 +263,40 @@ describe("read_session tool", () => {
       expect(result.details.summary.totalEntries).toBe(0);
     });
 
+    it("skips the most recent offset entries", async () => {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("read_session")!;
+
+      const result = (await tool.execute(
+        "tc1",
+        { offset: 1 },
+        undefined,
+        undefined,
+        makeCtx(threeUserTurns),
+      )) as { content: { text: string }[] };
+
+      const text = result.content[0].text;
+      expect(text).toContain("turn 1");
+      expect(text).toContain("turn 2");
+      expect(text).not.toContain("turn 3");
+    });
+
+    it("pages backward when offset and limit are combined", async () => {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("read_session")!;
+
+      const result = (await tool.execute(
+        "tc1",
+        { offset: 1, limit: 1 },
+        undefined,
+        undefined,
+        makeCtx(threeUserTurns),
+      )) as { content: { text: string }[] };
+
+      const text = result.content[0].text;
+      expect(text).toBe("1. user\nturn 2");
+    });
+
     it("drops a phantom model change from the transcript and every count", async () => {
       const tools = captureTools(sessionTools);
       const tool = tools.get("read_session")!;
@@ -296,6 +338,21 @@ describe("read_session tool", () => {
         compactions: 0,
         modelChanges: 0,
       });
+    });
+  });
+
+  describe("renderCall", () => {
+    it("names the window bounds in the collapsed call label", () => {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("read_session")!;
+
+      const label = tool
+        .renderCall({ offset: 40, limit: 20 }, plainTheme(), {})
+        .render(200)
+        .join("\n");
+
+      expect(label).toContain("offset: 40");
+      expect(label).toContain("limit: 20");
     });
   });
 

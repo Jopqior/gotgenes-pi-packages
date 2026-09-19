@@ -154,6 +154,36 @@ describe("read_parent_session tool", () => {
     );
   });
 
+  it("skips the most recent offset entries of the parent session", async () => {
+    const tools = captureTools(sessionTools);
+    const tool = tools.get("read_parent_session")!;
+
+    mockExistsSync.mockReturnValue(true);
+    const parentEntries = [1, 2, 3]
+      .map((n) =>
+        JSON.stringify({
+          type: "message",
+          id: String(n),
+          parentId: n === 1 ? null : String(n - 1),
+          timestamp: `t${n}`,
+          message: { role: "user", content: `turn ${n}`, timestamp: n },
+        }),
+      )
+      .join("\n");
+    mockReadFileSync.mockReturnValue(parentEntries);
+
+    const ctx = makeCtx("/sessions/parent/tasks/child.jsonl");
+    const result = await tool.execute(
+      "tc1",
+      { offset: 2, limit: 1 },
+      undefined,
+      undefined,
+      ctx,
+    );
+    const text = (result as { content: { text: string }[] }).content[0].text;
+    expect(text).toBe("1. user\nturn 1");
+  });
+
   describe("details", () => {
     it("returns status details when not in a subagent context", async () => {
       const tools = captureTools(sessionTools);

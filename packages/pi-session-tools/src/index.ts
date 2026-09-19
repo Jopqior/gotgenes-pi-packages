@@ -60,7 +60,13 @@ type SessionToolDetails =
  */
 function formatCallText(
   label: string,
-  args: { types?: string[]; limit?: number; path?: string; cwd?: string },
+  args: {
+    types?: string[];
+    offset?: number;
+    limit?: number;
+    path?: string;
+    cwd?: string;
+  },
   theme: Theme,
 ): string {
   const hints: string[] = [];
@@ -68,6 +74,7 @@ function formatCallText(
   if (args.cwd) hints.push(`cwd: ${args.cwd}`);
   if (args.types && args.types.length > 0)
     hints.push(`types: [${args.types.join(", ")}]`);
+  if (args.offset != null) hints.push(`offset: ${args.offset}`);
   if (args.limit != null) hints.push(`limit: ${args.limit}`);
   const suffix = hints.length > 0 ? ` (${hints.join(", ")})` : "";
   return `${theme.fg("toolTitle", theme.bold(label))}${theme.fg("muted", suffix)}`;
@@ -125,7 +132,7 @@ function formatResultText(
  */
 function buildTranscriptResult(
   allEntries: TranscriptEntry[],
-  params: { types?: string[]; limit?: number },
+  params: { types?: string[]; offset?: number; limit?: number },
 ): {
   content: [{ type: "text"; text: string }];
   details: SessionToolDetails;
@@ -242,10 +249,18 @@ export default function sessionTools(pi: ExtensionAPI): void {
             },
           ),
         ),
+        offset: Type.Optional(
+          Type.Number({
+            minimum: 0,
+            description:
+              "Skip the most recent N entries (after type filtering) before applying `limit`. Page backward through a long session instead of re-reading its tail.",
+          }),
+        ),
         limit: Type.Optional(
           Type.Number({
+            minimum: 0,
             description:
-              "Return only the most recent N entries (after type filtering). When omitted, all matching entries are returned.",
+              "Return only the most recent N entries (after type filtering, and after `offset` when given). When omitted, all matching entries are returned.",
           }),
         ),
       }),
@@ -264,7 +279,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: { types?: string[]; limit?: number },
+        params: { types?: string[]; offset?: number; limit?: number },
         _signal: unknown,
         _onUpdate: unknown,
         ctx: ExtensionContext,
@@ -297,10 +312,18 @@ export default function sessionTools(pi: ExtensionAPI): void {
             },
           ),
         ),
+        offset: Type.Optional(
+          Type.Number({
+            minimum: 0,
+            description:
+              "Skip the most recent N entries (after type filtering) before applying `limit`.",
+          }),
+        ),
         limit: Type.Optional(
           Type.Number({
+            minimum: 0,
             description:
-              "Return only the most recent N entries (after type filtering).",
+              "Return only the most recent N entries (after type filtering, and after `offset` when given).",
           }),
         ),
       }),
@@ -319,7 +342,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: { types?: string[]; limit?: number },
+        params: { types?: string[]; offset?: number; limit?: number },
         _signal: unknown,
         _onUpdate: unknown,
         ctx: ExtensionContext,
@@ -389,10 +412,18 @@ export default function sessionTools(pi: ExtensionAPI): void {
             },
           ),
         ),
+        offset: Type.Optional(
+          Type.Number({
+            minimum: 0,
+            description:
+              "Skip the most recent N entries (after type filtering) before applying `limit`.",
+          }),
+        ),
         limit: Type.Optional(
           Type.Number({
+            minimum: 0,
             description:
-              "Return only the most recent N entries (after type filtering).",
+              "Return only the most recent N entries (after type filtering, and after `offset` when given).",
           }),
         ),
       }),
@@ -411,7 +442,12 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: { path: string; types?: string[]; limit?: number },
+        params: {
+          path: string;
+          types?: string[];
+          offset?: number;
+          limit?: number;
+        },
       ) {
         const allEntries = readSessionFileEntries(params.path);
         if (!allEntries) {
