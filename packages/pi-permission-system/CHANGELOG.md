@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [33.0.1](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v33.0.0...pi-permission-system-v33.0.1) (2026-09-19)
+
+
+### Documentation
+
+* **pi-permission-system:** document the serving-liveness and bound-channel mechanism in the integration spec ([#942](https://github.com/gotgenes/pi-packages/issues/942)) ([2786acc](https://github.com/gotgenes/pi-packages/commit/2786accaf40136f192e6f8d187058ae60c7555b5)), closes [#942](https://github.com/gotgenes/pi-packages/issues/942)
+
 ## [33.0.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.1.0...pi-permission-system-v33.0.0) (2026-09-18)
 
 
