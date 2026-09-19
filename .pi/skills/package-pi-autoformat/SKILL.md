@@ -28,7 +28,7 @@ Read `docs/plans/` before making architectural changes.
 ## Configuration
 
 - Use extension-owned config files:
-  - global: `~/.pi/agent/extensions/pi-autoformat/config.json`
+  - global: `~/.pi/agent/extensions/pi-autoformat/config.json` (respects `PI_CODING_AGENT_DIR`, resolved via the SDK's `getAgentDir()` at the extension boundary)
   - project: `.pi/extensions/pi-autoformat/config.json`
 - Project config overrides global config.
 - Do not move package configuration into Pi `settings.json` without explicit discussion.
