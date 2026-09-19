@@ -433,16 +433,32 @@ function redirectedScope(node: TSNode, scope: UnitScope): UnitScope {
  * list means a pure assignment with no `command_name`.
  */
 function readCommandWords(node: TSNode): CommandWord[] {
-  const words: CommandWord[] = [];
-  let unitStart: number | undefined;
+  const nodes = commandWordNodes(node);
+  const unitStart = nodes.at(0)?.startIndex ?? 0;
+  return nodes.map((child) => ({
+    text: child.text,
+    offset: child.startIndex - unitStart,
+  }));
+}
+
+/**
+ * The nodes {@link readCommandWords} reports words for, in the same order.
+ *
+ * Split out so a consumer that needs a *node* rather than a word — the log's
+ * command masker, which offsets a re-parse by the payload node's `startIndex` —
+ * walks the identical filtered list. Two walks over the same children with the
+ * same filter, written twice, is how the two come to disagree about which word
+ * is at which index.
+ */
+function commandWordNodes(node: TSNode): TSNode[] {
+  const nodes: TSNode[] = [];
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
     if (!child?.isNamed) continue;
     if (child.type === "variable_assignment") continue;
-    unitStart ??= child.startIndex;
-    words.push({ text: child.text, offset: child.startIndex - unitStart });
+    nodes.push(child);
   }
-  return words;
+  return nodes;
 }
 
 /**
