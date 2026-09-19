@@ -225,3 +225,8 @@ Fork issue #12 was rechecked as open and is the only current open fork issue; it
 1. Appended this cross-session retrospective to `docs/retro/f0013-restore-merge-history.md`, including the fixture working-directory failure, approval-presentation friction, model attribution, and verification gap.
 2. The operator declined both proposed rule additions as unnecessary; `AGENTS.md` and all prompt templates remain unchanged.
    No follow-up issue was filed, no external recovery material was deleted, and no release was dispatched.
+3. After the retrospective commit, the operator approved deleting `../gotgenes-history-recovery` and publishing the exact cleanup comment.
+   Deleted the directory at `2026-09-19T09:08:17Z` and verified its absence; it contained only the issue-13 archive and occupied approximately 1.7 GB before removal.
+   Updated `docs/history-restoration.md` to state that the external backup and detailed evidence are no longer available, while preserving the earlier stage entries as historical records.
+   Posted the approved [cleanup comment](https://github.com/Jopqior/gotgenes-pi-packages/issues/13#issuecomment-5740675149) without reopening the issue.
+   The restored repository, published artifacts, `AGENTS.md`, and existing untracked directory remain unchanged by the deletion.

@@ -31,7 +31,10 @@ Avoid hard resets or forced ref updates as a shortcut for preserving local work.
 
 ## Evidence
 
-The complete external recovery archive — frozen input inventory, commit mapping ledger, bundle, and verification records — is maintained outside this repository under archive id `issue-13-20260918T150901Z`.
+The external recovery archive `issue-13-20260918T150901Z` was deleted with operator approval on 2026-09-19, after migration, publication verification, and the final retrospective.
+Its frozen input inventory, commit mapping ledger, bundles, and detailed verification records are no longer available from that archive.
+The committed plan and retrospective retain the migration summary; earlier statements that the external archive was retained describe its status at that time.
+This cleanup does not affect the restored repository or published npm artifacts.
 This document records the migration's user-visible consequences only; it is not an implementation manual, and the restoration procedure is not repeated here.
 
 [#7]: https://github.com/Jopqior/gotgenes-pi-packages/issues/7
