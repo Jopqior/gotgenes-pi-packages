@@ -36,5 +36,39 @@ The Tidy-First assessor contributed one Recommended preparatory step — relocat
 - **Nothing was filed as a follow-up.**
   Both Open Questions (eliding assistant prose; a session-size probe) are deferred deliberately without an issue — neither is concretely named deferred work, and filing them now would be speculative.
 
+## Stage: Implementation — TDD (2026-09-19T08:24:22Z)
+
+### Session summary
+
+Executed all seven TDD steps from the plan, each as its own commit leaving the tree green: the preparatory move of `collectEffectiveModelChangeIndices`, the new `selectEntries` pipeline, the wiring that closes [#950], `offset`, `session_info` rendering, `elide_user_text`, and the docs.
+Test count in `pi-session-tools` grew from 144 to 183 across 12 files (up from 10).
+Pre-completion reviewer: WARN — no FAILs.
+
+### Observations
+
+- **The planned `offset` tool tests were green during Red, and the planned killing mutation could not have reddened them.**
+  A tool test calls `execute` directly, so it never sees the declared TypeBox schema; `buildTranscriptResult` already forwarded the whole `params` bag to `selectEntries`, so `offset` worked the moment the pipeline landed.
+  Step 4's mutation ("drop `offset` from `read_parent_session`'s `Type.Object`") would have left every test green.
+  Added `test/transcript-tool-parameters.test.ts`, which reads each captured tool's `parameters.properties` — the only assertions in the package that see a declared schema at all.
+  The mutation then killed exactly the `read_parent_session` case and nothing else.
+- **Deviation: `test/helpers/capture-tools.ts` changed**, which the plan listed as a predicted-unchanged file.
+  Its reasoning covered `execute` only; the new tests also reach `renderCall` and `parameters`, so `CapturedTool` gained both.
+  The prediction was falsifiable and got falsified, which is the point of listing it.
+- **Deviation: three `entry-summary.test.ts` phantom-count tests were deleted rather than moved.**
+  As raw-count tests they would have duplicated cases already in `entry-selection.test.ts` at two layers.
+  The reviewer traced each and confirmed no claim lost its only pin.
+- **Step 1's mutation killed 2 of 6 tests where the plan predicted all six.**
+  Four of the moved tests have identical expected values under both branches for their inputs (empty array, a single effective marker, interleaved switches, and the zero-assistant guard itself), so only two can discriminate.
+  The plan's prediction was over-broad, not the tests.
+- **A measured baseline that looked like drift was a unit mismatch.**
+  Planning recorded 99,905 rendered chars; the re-measured baseline read 100,938.
+  The first is JS code units, the second `wc -c` bytes, and the file holds em-dashes and arrows — the same render.
+  The step-5 verification that mattered was the byte diff, which showed exactly four inserted `[session] → …` lines and nothing else.
+- **Reordering pruning ahead of windowing turned out to fix a second defect the plan did not claim.**
+  The reviewer's re-derivation found that the old in-window zero-assistant guard could misclassify a genuinely phantom trailing marker as effective whenever a small `limit` happened to slice off every assistant turn.
+  Evaluating the guard on the full type-filtered array is strictly more correct.
+  Unpinned by a test; recorded here rather than expanded into scope.
+- **Reviewer warnings:** the plan's two Open Questions (eliding assistant prose; a session-size probe) remain deliberately unfiled — confirm that disposition still holds at ship time.
+
 [#916]: https://github.com/gotgenes/pi-packages/issues/916
 [#950]: https://github.com/gotgenes/pi-packages/issues/950
