@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.1.0](https://github.com/gotgenes/pi-packages/compare/pi-session-tools-v2.0.0...pi-session-tools-v2.1.0) (2026-09-19)
+
+
+### Features
+
+* **pi-session-tools:** list a session's subagent transcripts ([#943](https://github.com/gotgenes/pi-packages/issues/943)) ([c5c5334](https://github.com/gotgenes/pi-packages/commit/c5c5334a5e738f317a701eec4061ca16649b731e))
+
 ## [2.0.0](https://github.com/gotgenes/pi-packages/compare/pi-session-tools-v1.2.1...pi-session-tools-v2.0.0) (2026-09-19)
 
 
