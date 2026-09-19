@@ -46,8 +46,7 @@ None — the assessor was not dispatched (docs-only change).
 
 ### Session summary
 
-Executed all 11 plan steps as 11 `docs:` commits (`04e3edf8`..
-`20ebdb16`), applying every one of the 19 offload rows plus the one stray `compress` row.
+Executed all 11 plan steps as 11 `docs:` commits, from "move tool-surface, gate-ordering, and capability-axis mechanism into the architecture doc" through "finish the 2026-09-17 offload rows and clear orphaned link definitions", applying every one of the 19 offload rows plus the one stray `compress` row.
 `package-pi-permission-system` went from 12,859 to 5,451 words and `package-pi-subagents` from 2,681 to 2,533 (measured with `wc -w`); `always-loaded.mjs` is unchanged at `total=2425`.
 Pre-completion reviewer: PASS.
 
@@ -65,4 +64,18 @@ Pre-completion reviewer: PASS.
 - **Cutting with an anchor-bounded script was safer than a 30-line `oldText`.**
   A small `node` script that deletes from a start-anchor line to an end-anchor line (exclusive) and splices in a replacement file made each cut deterministic and re-readable; it dropped a paragraph blank line twice, both caught by the immediate `sed -n` re-read.
 - **Orphaned link definitions were the only lint findings**, eleven across the two skills, each caught by the per-step `rumdl check` and removed in the same commit.
-- **The released commit is exactly one** (`5cd4eca5`, `subagent-integration.md`); `next-version.sh pi-permission-system` now reports a patch bump, as the plan's Release Recommendation predicted.
+- **The released commit is exactly one** ("document the serving-liveness and bound-channel mechanism in the integration spec", `subagent-integration.md`); `next-version.sh pi-permission-system` now reports a patch bump, as the plan's Release Recommendation predicted.
+
+## Stage: Sync (worktree) (2026-09-19T07:09:42Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both pass clean.
+Docs-only change, ship independently; the one released commit ("docs(pi-permission-system): document the serving-liveness and bound-channel mechanism in the integration spec") cuts a `pi-permission-system` patch release, as planned.
+No follow-up issues to hand off.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-942--/2026-09-19T06-04-20-335Z_01a0b844-03ee-77b8-b352-5045cc14de09.jsonl` — read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time.
+
+### Observations
+
+Nothing beyond the Planning and Implementation stage notes above; this is a breadcrumb for `/ship` and the final `/retro`.
