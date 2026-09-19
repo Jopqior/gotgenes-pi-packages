@@ -834,3 +834,57 @@ describe("formatTranscript — basic message formatting", () => {
     );
   });
 });
+
+describe("formatTranscript — eliding user text", () => {
+  const mixed = [
+    makeUserEntry("a long prompt body"),
+    makeAssistantEntry("the reply"),
+    {
+      type: "session_info",
+      id: "3",
+      parentId: "2",
+      timestamp: "t",
+      name: "#940 TDD",
+    },
+    makeUserEntry("another prompt", "4"),
+  ];
+
+  it("replaces a user body with its length", () => {
+    const result = formatTranscript(mixed, { elideUserText: true });
+    expect(result).toContain("1. user\n[text elided: 18 chars]");
+    expect(result).toContain("3. user\n[text elided: 14 chars]");
+    expect(result).not.toContain("a long prompt body");
+  });
+
+  it("numbers turns exactly as the unelided transcript does", () => {
+    const turnHeaders = (text: string) =>
+      text.split("\n").filter((line) => /^\d+\. (user|assistant)/.test(line));
+    expect(
+      turnHeaders(formatTranscript(mixed, { elideUserText: true })),
+    ).toEqual(turnHeaders(formatTranscript(mixed)));
+  });
+
+  it("leaves assistant turns, tool lines, and metadata untouched", () => {
+    const withoutUserTurns = (text: string) =>
+      text
+        .split("\n\n---\n\n")
+        .filter((block) => !/^\d+\. user\n/.test(block))
+        .join("\n\n---\n\n");
+    expect(
+      withoutUserTurns(formatTranscript(mixed, { elideUserText: true })),
+    ).toBe(withoutUserTurns(formatTranscript(mixed)));
+  });
+
+  it("still renders a turn whose body is empty", () => {
+    const result = formatTranscript([makeUserEntry("")], {
+      elideUserText: true,
+    });
+    expect(result).toBe("1. user\n[text elided: 0 chars]");
+  });
+
+  it("renders the body when the option is absent", () => {
+    expect(formatTranscript([makeUserEntry("hello")], {})).toBe(
+      "1. user\nhello",
+    );
+  });
+});

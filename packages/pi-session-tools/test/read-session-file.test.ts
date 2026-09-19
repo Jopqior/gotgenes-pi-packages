@@ -183,34 +183,60 @@ describe("read_session_file tool", () => {
     expect(text).not.toContain("first");
   });
 
-  it("supports offset paging", async () => {
-    const tools = captureTools(sessionTools);
-    const tool = tools.get("read_session_file")!;
+  describe("window bounds", () => {
+    function threeTurnFile() {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(
+        [1, 2, 3]
+          .map((n) =>
+            JSON.stringify({
+              type: "message",
+              id: String(n),
+              parentId: n === 1 ? null : String(n - 1),
+              timestamp: `t${n}`,
+              message: { role: "user", content: `turn ${n}`, timestamp: n },
+            }),
+          )
+          .join("\n"),
+      );
+    }
 
-    mockExistsSync.mockReturnValue(true);
-    const fileEntries = [1, 2, 3]
-      .map((n) =>
-        JSON.stringify({
-          type: "message",
-          id: String(n),
-          parentId: n === 1 ? null : String(n - 1),
-          timestamp: `t${n}`,
-          message: { role: "user", content: `turn ${n}`, timestamp: n },
-        }),
-      )
-      .join("\n");
-    mockReadFileSync.mockReturnValue(fileEntries);
+    it("supports offset paging", async () => {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("read_session_file")!;
+      threeTurnFile();
 
-    const ctx = makeCtx();
-    const result = await tool.execute(
-      "tc1",
-      { path: "/sessions/--project--/s.jsonl", offset: 1, limit: 1 },
-      undefined,
-      undefined,
-      ctx,
-    );
-    const text = (result as { content: { text: string }[] }).content[0].text;
-    expect(text).toBe("1. user\nturn 2");
+      const result = await tool.execute(
+        "tc1",
+        { path: "/sessions/--project--/s.jsonl", offset: 1, limit: 1 },
+        undefined,
+        undefined,
+        makeCtx(),
+      );
+      const text = (result as { content: { text: string }[] }).content[0].text;
+      expect(text).toBe("1. user\nturn 2");
+    });
+
+    it("elides user bodies when asked", async () => {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("read_session_file")!;
+      threeTurnFile();
+
+      const result = await tool.execute(
+        "tc1",
+        {
+          path: "/sessions/--project--/s.jsonl",
+          offset: 1,
+          limit: 1,
+          elide_user_text: true,
+        },
+        undefined,
+        undefined,
+        makeCtx(),
+      );
+      const text = (result as { content: { text: string }[] }).content[0].text;
+      expect(text).toBe("1. user\n[text elided: 6 chars]");
+    });
   });
 
   describe("details", () => {

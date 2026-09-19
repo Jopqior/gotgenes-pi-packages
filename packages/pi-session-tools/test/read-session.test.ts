@@ -297,6 +297,21 @@ describe("read_session tool", () => {
       expect(text).toBe("1. user\nturn 2");
     });
 
+    it("elides user bodies when asked, keeping the turn structure", async () => {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("read_session")!;
+
+      const result = (await tool.execute(
+        "tc1",
+        { elide_user_text: true, limit: 1 },
+        undefined,
+        undefined,
+        makeCtx(threeUserTurns),
+      )) as { content: { text: string }[] };
+
+      expect(result.content[0].text).toBe("1. user\n[text elided: 6 chars]");
+    });
+
     it("drops a phantom model change from the transcript and every count", async () => {
       const tools = captureTools(sessionTools);
       const tool = tools.get("read_session")!;
@@ -347,12 +362,17 @@ describe("read_session tool", () => {
       const tool = tools.get("read_session")!;
 
       const label = tool
-        .renderCall({ offset: 40, limit: 20 }, plainTheme(), {})
+        .renderCall(
+          { offset: 40, limit: 20, elide_user_text: true },
+          plainTheme(),
+          {},
+        )
         .render(200)
         .join("\n");
 
       expect(label).toContain("offset: 40");
       expect(label).toContain("limit: 20");
+      expect(label).toContain("elide user text");
     });
   });
 

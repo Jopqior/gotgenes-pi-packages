@@ -64,6 +64,7 @@ function formatCallText(
     types?: string[];
     offset?: number;
     limit?: number;
+    elide_user_text?: boolean;
     path?: string;
     cwd?: string;
   },
@@ -76,6 +77,7 @@ function formatCallText(
     hints.push(`types: [${args.types.join(", ")}]`);
   if (args.offset != null) hints.push(`offset: ${args.offset}`);
   if (args.limit != null) hints.push(`limit: ${args.limit}`);
+  if (args.elide_user_text) hints.push("elide user text");
   const suffix = hints.length > 0 ? ` (${hints.join(", ")})` : "";
   return `${theme.fg("toolTitle", theme.bold(label))}${theme.fg("muted", suffix)}`;
 }
@@ -132,15 +134,23 @@ function formatResultText(
  */
 function buildTranscriptResult(
   allEntries: TranscriptEntry[],
-  params: { types?: string[]; offset?: number; limit?: number },
+  params: {
+    types?: string[];
+    offset?: number;
+    limit?: number;
+    elide_user_text?: boolean;
+  },
 ): {
   content: [{ type: "text"; text: string }];
   details: SessionToolDetails;
 } {
   const entries = selectEntries(allEntries, params);
   const summary = summarizeEntries(entries);
+  const text = formatTranscript(entries, {
+    elideUserText: params.elide_user_text,
+  });
   return {
-    content: [{ type: "text", text: formatTranscript(entries) }],
+    content: [{ type: "text", text }],
     details: { kind: "transcript", summary },
   };
 }
@@ -263,6 +273,12 @@ export default function sessionTools(pi: ExtensionAPI): void {
               "Return only the most recent N entries (after type filtering, and after `offset` when given). When omitted, all matching entries are returned.",
           }),
         ),
+        elide_user_text: Type.Optional(
+          Type.Boolean({
+            description:
+              "Replace each user turn's body with a length placeholder, keeping turn numbering, [provider/model] labels, and tool-call lines. Use it when you need the shape of a session rather than its prompts.",
+          }),
+        ),
       }),
       renderCall(args, theme, context) {
         const text =
@@ -279,7 +295,12 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: { types?: string[]; offset?: number; limit?: number },
+        params: {
+          types?: string[];
+          offset?: number;
+          limit?: number;
+          elide_user_text?: boolean;
+        },
         _signal: unknown,
         _onUpdate: unknown,
         ctx: ExtensionContext,
@@ -326,6 +347,12 @@ export default function sessionTools(pi: ExtensionAPI): void {
               "Return only the most recent N entries (after type filtering, and after `offset` when given).",
           }),
         ),
+        elide_user_text: Type.Optional(
+          Type.Boolean({
+            description:
+              "Replace each user turn's body with a length placeholder, keeping turn numbering, [provider/model] labels, and tool-call lines.",
+          }),
+        ),
       }),
       renderCall(args, theme, context) {
         const text =
@@ -342,7 +369,12 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: { types?: string[]; offset?: number; limit?: number },
+        params: {
+          types?: string[];
+          offset?: number;
+          limit?: number;
+          elide_user_text?: boolean;
+        },
         _signal: unknown,
         _onUpdate: unknown,
         ctx: ExtensionContext,
@@ -426,6 +458,12 @@ export default function sessionTools(pi: ExtensionAPI): void {
               "Return only the most recent N entries (after type filtering, and after `offset` when given).",
           }),
         ),
+        elide_user_text: Type.Optional(
+          Type.Boolean({
+            description:
+              "Replace each user turn's body with a length placeholder, keeping turn numbering, [provider/model] labels, and tool-call lines.",
+          }),
+        ),
       }),
       renderCall(args, theme, context) {
         const text =
@@ -447,6 +485,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
           types?: string[];
           offset?: number;
           limit?: number;
+          elide_user_text?: boolean;
         },
       ) {
         const allEntries = readSessionFileEntries(params.path);

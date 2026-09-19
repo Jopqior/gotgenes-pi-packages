@@ -33,5 +33,11 @@ describe("transcript tool parameters", () => {
         minimum: 0,
       });
     });
+
+    it("declares elide_user_text as a boolean", () => {
+      expect(properties().elide_user_text).toMatchObject({
+        type: "boolean",
+      });
+    });
   });
 });

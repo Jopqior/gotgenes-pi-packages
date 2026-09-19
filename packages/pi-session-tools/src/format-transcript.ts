@@ -15,6 +15,15 @@ export interface TranscriptEntry {
   type: string;
 }
 
+/** Rendering choices a caller can make about how much of each turn to show. */
+export interface TranscriptOptions {
+  /**
+   * Replace each user turn's body with a length placeholder.
+   * A stage-attribution pass wants the shape of a session, not its prompts.
+   */
+  elideUserText?: boolean;
+}
+
 interface ToolResultInfo {
   toolName: string;
   isError: boolean;
@@ -139,9 +148,13 @@ function collectAssistantToolCallIds(entries: TranscriptEntry[]): Set<string> {
 function formatUserMessage(
   message: Record<string, unknown>,
   num: number,
+  options: TranscriptOptions,
 ): string {
   const text = extractTextContent(message.content);
-  return `${num}. user\n${text}`;
+  const body = options.elideUserText
+    ? `[text elided: ${text.length} chars]`
+    : text;
+  return `${num}. user\n${body}`;
 }
 
 function formatAssistantMessage(
@@ -229,7 +242,10 @@ function formatBashMessage(message: Record<string, unknown>): string {
  * by matching toolCallId. Orphan tool results (no matching call) render
  * as standalone lines. Entries are separated by `---` dividers.
  */
-export function formatTranscript(entries: TranscriptEntry[]): string {
+export function formatTranscript(
+  entries: TranscriptEntry[],
+  options: TranscriptOptions = {},
+): string {
   const resultMap = buildToolResultMap(entries);
   const assistantToolCallIds = collectAssistantToolCallIds(entries);
 
@@ -252,7 +268,7 @@ export function formatTranscript(entries: TranscriptEntry[]): string {
 
     if (role === "user") {
       turnNum++;
-      parts.push(formatUserMessage(message, turnNum));
+      parts.push(formatUserMessage(message, turnNum, options));
     } else if (role === "assistant") {
       turnNum++;
       parts.push(formatAssistantMessage(message, turnNum, resultMap));
