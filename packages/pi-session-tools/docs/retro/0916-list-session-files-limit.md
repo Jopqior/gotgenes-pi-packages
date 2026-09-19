@@ -56,9 +56,23 @@ Every file the plan listed was touched and no file outside the list was.
 - `formatListingText` builds its output through an array join rather than string concatenation specifically so `limit: 0` emits no trailing newline after the count line.
   Concatenating `\n${pathLines}` would have left a dangling blank line in exactly the degenerate case.
 - Pre-completion reviewer: **PASS**.
-  It independently verified the byte-identical untruncated output by diffing against `git show 845cb3dd:src/index.ts`, and checked the one untested line in the change — `formatResultText`'s `formatListingSummary(details.directory, details.shown, details.count)` delegation — for swapped arguments, which was the plan's named accepted residual.
+  It independently verified the byte-identical untruncated output by diffing against `src/index.ts` as it stood at the plan commit (`docs: plan a limit for list_session_files (#916)`), and checked the one untested line in the change — `formatResultText`'s `formatListingSummary(details.directory, details.shown, details.count)` delegation — for swapped arguments, which was the plan's named accepted residual.
   It also ran `boundListingPaths` against `2.5`, `-0.5`, `NaN`, and `Infinity`, none of which produce an oldest-N or near-full listing.
   No warnings.
+
+## Stage: Sync (worktree) (2026-09-19T04:31:39Z)
+
+### Session summary
+
+Pre-push checks are clean: `pnpm run lint` and `pnpm fallow dead-code` both pass on the worktree tree with no findings.
+The branch carries five commits ahead of the plan commit: the plan, its planning retro, the `refactor:`, the `test:`, and the `feat!:` (with a `BREAKING CHANGE:` footer, cutting `2.0.0` from `1.2.1` per the plan's Release Recommendation — ship independently, no roadmap batch).
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-916--/2026-09-19T03-56-30-839Z_01a0b7ce-fcf7-7251-bc6b-33385c9185fd.jsonl` — read with `read_session_file({ path: "..." })` for message-level verification at land/retro time.
+
+### Observations
+
+Nothing deferred beyond what the TDD stage already recorded ([#943], [#950]).
+Ready for `/ship 916` at the root.
 
 [#943]: https://github.com/gotgenes/pi-packages/issues/943
 [#950]: https://github.com/gotgenes/pi-packages/issues/950
