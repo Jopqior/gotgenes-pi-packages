@@ -5,10 +5,8 @@
  * as a testable layer beneath the theme-coupled rendering in `index.ts`.
  */
 
-import {
-  collectEffectiveModelChangeIndices,
-  type TranscriptEntry,
-} from "./format-transcript.js";
+import { collectEffectiveModelChangeIndices } from "./entry-selection.js";
+import type { TranscriptEntry } from "./format-transcript.js";
 
 export interface SessionSummary {
   /** Total number of entries in the (already filtered/limited) array. */

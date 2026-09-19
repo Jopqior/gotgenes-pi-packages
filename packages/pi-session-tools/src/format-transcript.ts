@@ -5,6 +5,8 @@
  * while dropping noise (thinking content, image data, token usage, tool result bodies).
  */
 
+import { collectEffectiveModelChangeIndices } from "./entry-selection.js";
+
 /**
  * Minimal structural supertype for session entries.
  * Accepts SDK SessionEntry[] without index-signature conflicts.
@@ -112,48 +114,6 @@ function buildToolResultMap(
     });
   }
   return map;
-}
-
-/**
- * Return the entry indices of `model_change` markers that took effect — a
- * switch followed by at least one assistant turn before the next switch (or
- * the end of entries).
- *
- * A phantom switch (cycling the TUI picker, or ending a session on a switch)
- * never produces a turn and is excluded.
- * Guard: when the stream contains no assistant messages at all (e.g. a
- * `types: ["model_change"]` filtered query), every marker is treated as
- * effective — there is no ground truth to validate against, and suppressing
- * all of them would hide the only signal the caller asked for.
- */
-export function collectEffectiveModelChangeIndices(
-  entries: TranscriptEntry[],
-): Set<number> {
-  const effective = new Set<number>();
-  const modelChangeIndices: number[] = [];
-  let pendingIndex: number | null = null;
-  let sawAssistantMessage = false;
-
-  for (const [index, entry] of entries.entries()) {
-    if (entry.type === "model_change") {
-      modelChangeIndices.push(index);
-      pendingIndex = index;
-      continue;
-    }
-    if (entry.type !== "message") continue;
-    const msg = (entry as unknown as Record<string, unknown>).message as
-      | Record<string, unknown>
-      | undefined;
-    if (msg?.role !== "assistant") continue;
-    sawAssistantMessage = true;
-    if (pendingIndex !== null) {
-      effective.add(pendingIndex);
-      pendingIndex = null;
-    }
-  }
-
-  if (!sawAssistantMessage) return new Set(modelChangeIndices);
-  return effective;
 }
 
 /** Collect all toolCallIds that appear in assistant message content arrays. */
