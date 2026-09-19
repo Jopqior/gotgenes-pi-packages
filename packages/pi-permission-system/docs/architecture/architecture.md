@@ -1179,6 +1179,10 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   It is a test-only regression pin over `command-enumeration.ts`'s output, not the role a collector attaches to a token, so no step in this phase produces or consumes what it needs; it is a boy-scout candidate for whichever step next edits `program.test.ts`.
 - [#942] — filed by [#937]'s planning; out of scope for the roadmap.
   It applies the 18 `package-pi-permission-system` `offload` rows from the 2026-09-17 agent-doc audit — skill prose relocated into this architecture doc, ADRs, and `docs/subagent-integration.md` — and touches no `src/`, so it is doc restructuring beside the phase rather than roadmap work.
+- [#951] — filed by [#923]'s planning; out of scope for the roadmap.
+  `redirectMayWriteFile` proves a write for a `/dev/null` destination, so appending `2>/dev/null` to a read-only pipeline withholds [#803]'s `core-reader` exemption and floors the unit to `ask` — measured against every `<indirection-bash-wrapper>` prompt in the local review log since 2026-09-16, all of them proven core readers.
+  The cause is a missing device row in `redirect-analysis.ts`'s effect proof, not the phase's role loss at projection; the two touch different modules and different seams.
+  One interaction to carry forward: [#609] makes a bare creating redirect reach `path_write`, which would newly project `> /dev/null` as a write destination, so the same device fact is needed on the path surface once that step lands.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by [#880] (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1475,6 +1479,7 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#799]: https://github.com/gotgenes/pi-packages/issues/799
 [#800]: https://github.com/gotgenes/pi-packages/issues/800
 [#802]: https://github.com/gotgenes/pi-packages/issues/802
+[#803]: https://github.com/gotgenes/pi-packages/issues/803
 [#804]: https://github.com/gotgenes/pi-packages/issues/804
 [#807]: https://github.com/gotgenes/pi-packages/issues/807
 [#813]: https://github.com/gotgenes/pi-packages/issues/813
@@ -1523,5 +1528,6 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#930]: https://github.com/gotgenes/pi-packages/pull/930
 [#945]: https://github.com/gotgenes/pi-packages/issues/945
 [#946]: https://github.com/gotgenes/pi-packages/issues/946
+[#951]: https://github.com/gotgenes/pi-packages/issues/951
 [#952]: https://github.com/gotgenes/pi-packages/issues/952
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
