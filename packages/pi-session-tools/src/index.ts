@@ -8,6 +8,7 @@
  *   read_parent_session — Read the parent session's entries from a subagent context
  *   read_session_file — Read an arbitrary session file's entries by path
  *   list_session_files — List a cwd's session files, newest first, bounded by `limit`
+ *   list_subagent_sessions — List a session's subagent transcripts, newest first
  */
 
 import { join } from "node:path";
@@ -26,12 +27,16 @@ import {
   summarizeEntries,
 } from "./entry-summary.js";
 import { formatTranscript, type TranscriptEntry } from "./format-transcript.js";
-import { deriveParentSessionFile } from "./parent-session.js";
+import {
+  deriveParentSessionFile,
+  deriveSubagentSessionsDir,
+} from "./parent-session.js";
 import {
   deriveSessionsRoot,
   encodeCwdToSessionDirName,
   listSessionFiles,
   readSessionFileEntries,
+  sessionFileExists,
 } from "./session-file.js";
 import {
   boundListingPaths,
@@ -483,6 +488,71 @@ export default function sessionTools(pi: ExtensionAPI): void {
           process.cwd(),
         );
         const directory = join(root, encodeCwdToSessionDirName(params.cwd));
+        return buildListingResult(
+          directory,
+          listSessionFiles(directory),
+          params,
+        );
+      },
+    }),
+  );
+
+  pi.registerTool(
+    defineTool({
+      name: "list_subagent_sessions",
+      label: "List Subagent Sessions",
+      description:
+        "List a session's subagent transcripts, newest first. " +
+        "Pi stores each subagent session beneath the parent session file's basename " +
+        "(<session>/tasks/*.jsonl), so list_session_files — which reads one directory " +
+        "and does not recurse — never reports them. " +
+        "Pass the parent session's .jsonl path; render a returned path with read_session_file. " +
+        `Lists at most ${DEFAULT_LIST_LIMIT} paths unless limit says otherwise; ` +
+        "the count line always reports the directory's true total.",
+      parameters: Type.Object({
+        path: Type.String({
+          description:
+            "Absolute path to the session JSONL file whose subagent transcripts to list.",
+        }),
+        limit: Type.Optional(
+          Type.Number({
+            description: `Maximum number of paths to list, newest first. Defaults to ${DEFAULT_LIST_LIMIT}; pass a large number (e.g. 1000) to list every file.`,
+          }),
+        ),
+      }),
+      renderCall(args, theme, context) {
+        const text =
+          (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+        text.setText(formatCallText("list subagent sessions", args, theme));
+        return text;
+      },
+      renderResult(result, options, theme, context) {
+        const text =
+          (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
+        text.setText(formatResultText(result, options, theme));
+        return text;
+      },
+      // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
+      async execute(
+        _toolCallId: string,
+        params: { path: string; limit?: number },
+      ) {
+        if (!sessionFileExists(params.path)) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Session file not found: ${params.path}`,
+              },
+            ],
+            details: {
+              kind: "status",
+              message: `Session file not found: ${params.path}`,
+            } as SessionToolDetails,
+          };
+        }
+
+        const directory = deriveSubagentSessionsDir(params.path);
         return buildListingResult(
           directory,
           listSessionFiles(directory),

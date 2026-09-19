@@ -143,6 +143,33 @@ Session directory: /Users/chris/.pi/agent/sessions/--Users-chris-pi-packages--
   …ten paths…
 ```
 
+### `list_subagent_sessions`
+
+List a session's subagent transcripts, newest first.
+Pi stores each subagent session beneath the parent session file's basename (`<session>/tasks/*.jsonl`), so `list_session_files` — which reads one directory and does not recurse — never reports them.
+Pass a listed path to `read_session_file` to render it.
+
+```text
+list_subagent_sessions({ path: string, limit?: number })
+```
+
+Parameters:
+
+- `path` — absolute path to the session `.jsonl` file whose subagent transcripts to list.
+  Required — there is no default, so a mistyped path can never silently answer about the current session.
+- `limit` — maximum number of paths to list, newest first.
+  Defaults to 10, with the same large-number escape hatch as `list_session_files`.
+
+```text
+Session directory: /Users/chris/.pi/agent/sessions/--project--/2026-09-06T04-26-34-471Z_01a074f7/tasks
+2 session files, newest first:
+  /Users/chris/.pi/agent/sessions/--project--/2026-09-06T04-26-34-471Z_01a074f7/tasks/2026-09-06T17-26-06-793Z_01a077c1.jsonl
+  /Users/chris/.pi/agent/sessions/--project--/2026-09-06T04-26-34-471Z_01a074f7/tasks/2026-09-06T10-02-11-004Z_01a07612.jsonl
+```
+
+The listing reports one generation, mirroring `read_parent_session`'s single step up — call the tool again on a returned path to reach a subagent's own subagents.
+A session that spawned none renders `No session files found.` under the directory that would hold them; a `path` with no session file behind it returns a `Session file not found:` status instead, so the two cases stay distinguishable.
+
 ## Install
 
 ```bash
