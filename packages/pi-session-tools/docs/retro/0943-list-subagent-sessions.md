@@ -59,4 +59,17 @@ All four gates (`check`, root `lint`, `test`, `fallow dead-code`) were green at 
   It independently re-derived the non-breaking claim, the `node:fs` boundary, the predicted-unchanged files, and the doc surfaces, and enumerated its own four mutations, agreeing each is killed by a specific existing assertion.
   No warnings.
 
+## Stage: Sync (worktree) (2026-09-19T06:51:51Z)
+
+### Session summary
+
+Pre-push checks are clean (`pnpm run lint`, `pnpm fallow dead-code`), the branch has no `main`-divergence conflicts to resolve yet, and the plan's `**Release:** ship independently` marker carries no deferred-batch handoff for the root to reconcile.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-943--/2026-09-19T06-03-14-419Z_01a0b843-0273-7654-910b-f972bbabdcc6.jsonl` — read with `read_session_file({ path: "/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-943--/2026-09-19T06-03-14-419Z_01a0b843-0273-7654-910b-f972bbabdcc6.jsonl" })` for message-level verification at land/retro time.
+
+### Observations
+
+No deferred work for the root beyond what the TDD stage note already recorded (the Tidy-First-rejected `parent-session.ts` rename and `index.ts` split, and the `makeCtx`/fs-mock-trio consolidation left for a third consumer).
+Pre-completion reviewer returned PASS with no warnings, so nothing outstanding to flag at ship time.
+
 [#916]: https://github.com/gotgenes/pi-packages/issues/916
