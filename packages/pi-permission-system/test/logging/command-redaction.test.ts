@@ -168,6 +168,101 @@ describe("redactCommandSecrets", () => {
       });
     });
 
+    describe("a secret inside an inline-shell payload", () => {
+      it.each([
+        [
+          "a single-quoted bash -c payload",
+          `bash -c 'TOKEN=sk-secret deploy'`,
+          `bash -c 'TOKEN=${MASK} deploy'`,
+        ],
+        [
+          "a double-quoted sh -c payload",
+          `sh -c "API_KEY=sk-x curl https://x"`,
+          `sh -c "API_KEY=${MASK} curl https://x"`,
+        ],
+        [
+          "an eval payload, which takes no flag",
+          `eval "TOKEN=sk-secret deploy"`,
+          `eval "TOKEN=${MASK} deploy"`,
+        ],
+        [
+          "a payload whose value is an expansion",
+          `bash -c "API_KEY=$SECRET deploy"`,
+          `bash -c "API_KEY=${MASK} deploy"`,
+        ],
+        [
+          "a -c cluster carrying other short flags",
+          `bash -ec 'export OPENROUTER_KEY="sk-y"'`,
+          `bash -ec 'export OPENROUTER_KEY=${MASK}'`,
+        ],
+        [
+          "a path-qualified shell",
+          `/bin/bash -c 'MY_KEY=abc deploy'`,
+          `/bin/bash -c 'MY_KEY=${MASK} deploy'`,
+        ],
+        [
+          "an unquoted payload, which the word rule already reached",
+          `bash -c TOKEN=sk-x`,
+          `bash -c TOKEN=${MASK}`,
+        ],
+      ])("masks %s", (_label, command, expected) => {
+        expect(redactCommandSecrets(command)).toBe(expected);
+      });
+
+      it("masks a payload nested inside another payload", () => {
+        expect(
+          redactCommandSecrets(`bash -c 'bash -c "TOKEN=sk-inner x"'`),
+        ).toBe(`bash -c 'bash -c "TOKEN=${MASK} x"'`);
+      });
+
+      it("masks the outer assignment and the payload's own, as two spans", () => {
+        expect(
+          redactCommandSecrets(`TOKEN=sk-outer bash -c 'API_KEY=sk-inner x'`),
+        ).toBe(`TOKEN=${MASK} bash -c 'API_KEY=${MASK} x'`);
+      });
+
+      it("masks every payload of a chained command", () => {
+        expect(
+          redactCommandSecrets(`bash -c 'echo hi' && bash -c 'TOKEN=sk2 x'`),
+        ).toBe(`bash -c 'echo hi' && bash -c 'TOKEN=${MASK} x'`);
+      });
+
+      it("keeps a masked header inside a payload quote-balanced", () => {
+        expect(
+          redactCommandSecrets(
+            `bash -c 'curl -H "Authorization: Bearer sk-z" https://x'`,
+          ),
+        ).toBe(`bash -c 'curl -H "Authorization:${MASK}" https://x'`);
+      });
+
+      it.each([
+        [
+          "an interpreter payload, which is another language",
+          `bash -c 'python3 -c "print(sorted(d, key=lambda x: x[1]))"'`,
+        ],
+        ["a long option inside a payload", `bash -c 'sort --key 2 f.txt'`],
+        [
+          "a search pattern inside a payload",
+          `bash -c 'grep -r "sk-ant-oat01-abc" .'`,
+        ],
+        [
+          "a header field that binds no credential",
+          `bash -c 'curl -H "Content-Type: application/json" https://x'`,
+        ],
+        ["a shell that runs no inline program", `bash --help`],
+        ["a vacant payload position", `bash -c`],
+        ["a bare eval", `eval`],
+      ])("leaves %s", (_label, command) => {
+        expect(redactCommandSecrets(command)).toBe(command);
+      });
+
+      it("leaves a heredoc body, which is data rather than shell", () => {
+        const command = `cat > .env <<'EOF'\nAPI_KEY=sk-secret\nEOF`;
+
+        expect(redactCommandSecrets(command)).toBe(command);
+      });
+    });
+
     describe("commands with nothing to mask", () => {
       it("returns an ordinary command unchanged", () => {
         expect(redactCommandSecrets("git status --short")).toBe(

@@ -1,8 +1,13 @@
+import { inlineShellPayloadNode } from "#src/access-intent/bash/command-enumeration";
 import {
   ARG_NODE_TYPES,
   resolveNodeText,
 } from "#src/access-intent/bash/node-text";
-import { getWarmBashParser, type TSNode } from "#src/access-intent/bash/parser";
+import {
+  type BashReparser,
+  getWarmBashParser,
+  type TSNode,
+} from "#src/access-intent/bash/parser";
 import { isPlainRecord } from "#src/value-guards";
 import { isSensitiveName, REDACTED_PLACEHOLDER } from "./log-redaction";
 
@@ -25,6 +30,14 @@ import { isSensitiveName, REDACTED_PLACEHOLDER } from "./log-redaction";
  *
  * A value with no name bound to it — a secret typed as a `grep` pattern — is
  * out of reach of a structural rule and stays unmasked.
+ *
+ * An inline-shell payload (`bash -c '…'`, `eval "…"`) is one opaque token to
+ * the outer parse, so it is re-parsed on its own and the recovered spans are
+ * shifted onto the command as written. The widening is restricted to the
+ * payloads the wrapper analyzer already identifies as shell: a heredoc body is
+ * not one, and applying these rules to the 915 `<<'EOF'` bodies in the same
+ * corpus matched six commands, every one embedded Python or TypeScript written
+ * to a file (#923).
  */
 
 /** The log keys whose value is a bash command string. */
@@ -55,18 +68,107 @@ export function redactCommandSecrets(command: string): string {
   try {
     const parser = getWarmBashParser();
     if (!parser) return command;
-    const tree = parser.parse(command);
-    if (!tree) return command;
-    try {
-      const spans: MaskSpan[] = [];
-      collectMaskSpans(tree.rootNode, spans);
-      return applyMaskSpans(command, spans);
-    } finally {
-      tree.delete();
-    }
+    return applyMaskSpans(command, collectSpansIn(parser, command, 0, 0));
   } catch {
     return command;
   }
+}
+
+/**
+ * Every mask span in `source`, shifted by `offset` to its place in the command
+ * being masked, including the spans of any inline-shell payload `source`
+ * carries.
+ *
+ * A payload is re-parsed from its **verbatim inner slice** rather than
+ * `resolveNodeText`'s shell value: the resolved text concatenates children and
+ * expands `$HOME`, which destroys the offset correspondence this shift relies
+ * on. Because the slice excludes the payload's quotes, no span recovered from it
+ * can reach one, so the masked payload stays quoted as it was written.
+ *
+ * `parser` is the narrow {@link BashReparser} rather than the warmed parser's own
+ * type, so the recursion structurally cannot `delete()` the process-wide parser
+ * out from under every later command — the same reason `unresolved-salvage.ts`
+ * takes that interface.
+ */
+function collectSpansIn(
+  parser: BashReparser,
+  source: string,
+  offset: number,
+  depth: number,
+): MaskSpan[] {
+  const tree = parser.parse(source);
+  if (!tree) return [];
+  try {
+    const own: MaskSpan[] = [];
+    collectMaskSpans(tree.rootNode, own);
+    const spans = own.map((span) => ({
+      ...span,
+      start: span.start + offset,
+      end: span.end + offset,
+    }));
+    if (depth >= MAX_PAYLOAD_DEPTH) return spans;
+    for (const payload of inlineShellPayloads(tree.rootNode)) {
+      spans.push(
+        ...collectSpansIn(
+          parser,
+          payload.text,
+          offset + payload.start,
+          depth + 1,
+        ),
+      );
+    }
+    return spans;
+  } finally {
+    tree.delete();
+  }
+}
+
+/**
+ * How many payload layers to descend.
+ *
+ * A payload is a strict sub-span of its own command, so the recursion terminates
+ * regardless; the bound is what makes its cost statable, and it matches the
+ * unwrap depth `wrapper-analysis.ts` already applies to nested wrappers.
+ */
+const MAX_PAYLOAD_DEPTH = 4;
+
+/** A payload's verbatim inner text and its offset into the source holding it. */
+interface PayloadSlice {
+  readonly text: string;
+  readonly start: number;
+}
+
+function inlineShellPayloads(root: TSNode): PayloadSlice[] {
+  const slices: PayloadSlice[] = [];
+  collectInlineShellPayloads(root, slices);
+  return slices;
+}
+
+function collectInlineShellPayloads(
+  node: TSNode,
+  slices: PayloadSlice[],
+): void {
+  if (node.type === "command") {
+    const payload = inlineShellPayloadNode(node);
+    if (payload) slices.push(payloadSlice(payload));
+  }
+  for (let i = 0; i < node.childCount; i++) {
+    const child = node.child(i);
+    if (child) collectInlineShellPayloads(child, slices);
+  }
+}
+
+/** The payload node's text with one matching pair of surrounding quotes removed. */
+function payloadSlice(node: TSNode): PayloadSlice {
+  const text = node.text;
+  const quote = text.at(0);
+  const quoted =
+    (quote === "'" || quote === '"') &&
+    text.length >= 2 &&
+    text.endsWith(quote);
+  return quoted
+    ? { text: text.slice(1, -1), start: node.startIndex + 1 }
+    : { text, start: node.startIndex };
 }
 
 /**
