@@ -60,6 +60,9 @@
     "lint:md": "rumdl check *.md docs/**/*.md",
     "lint": "biome check . && eslint . && pnpm run lint:md"
   },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": ">=0.79.0"
+  },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "@earendil-works/pi-coding-agent": "0.79.1",
