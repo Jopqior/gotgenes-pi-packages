@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [33.0.2](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v33.0.1...pi-permission-system-v33.0.2) (2026-09-19)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** stop writing a named secret inside an inline-shell payload ([eaeb297](https://github.com/gotgenes/pi-packages/commit/eaeb297e0f20b5ceeb935f0d1a062ebf9daa17ec)), closes [#923](https://github.com/gotgenes/pi-packages/issues/923)
+* **pi-permission-system:** mask a secret in a quote-stitched inline-shell payload ([4b79c10](https://github.com/gotgenes/pi-packages/commit/4b79c105c21d3400ff25050eb19490f6c71ede61)), closes [#923](https://github.com/gotgenes/pi-packages/issues/923)
+* **pi-permission-system:** mask a secret in a payload behind an indirection wrapper ([c17959a](https://github.com/gotgenes/pi-packages/commit/c17959a87b2a43816796c9deb9f7b28ae9ceb436)), closes [#923](https://github.com/gotgenes/pi-packages/issues/923)
+
+### Documentation
+
+* **pi-permission-system:** record the payload widening and accept the heredoc residual ([8544508](https://github.com/gotgenes/pi-packages/commit/85445088fad6ce7d10df95cd661e98c0c3fd587f)), closes [#923](https://github.com/gotgenes/pi-packages/issues/923)
+* **pi-permission-system:** record the coarse and wrapper-peeled payload cases ([c3644d6](https://github.com/gotgenes/pi-packages/commit/c3644d60e8dbcd9f332d2509711df05356844e03)), closes [#923](https://github.com/gotgenes/pi-packages/issues/923)
+
 ## [33.0.1](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v33.0.0...pi-permission-system-v33.0.1) (2026-09-19)
 
 
