@@ -97,11 +97,27 @@ The reviewer returned FAIL on the first pass with one blocking finding and WARN 
   The plan put `inlineShellPayloadNode`'s tests in `program.test.ts`; they landed in a new `test/access-intent/bash/command-enumeration.test.ts` instead, named after the module under test as its siblings are.
   `program.test.ts` tests `BashProgram`, a different module.
 - **The [#925] flake is no longer a flake.**
-  `composition-root.test.ts` > `"blocks promptly when no session is draining the parent's inbox"` failed 3/3 at the plan commit `acec8edd`, before any source change of this issue, in the **package-alone** run — not just the root parallel one, which is the boundary [#925]'s body records.
+  `composition-root.test.ts` > `"blocks promptly when no session is draining the parent's inbox"` failed 3/3 at the plan commit (`docs: plan masking a secret inside an inline-shell payload (#923)`), before any source change of this issue, in the **package-alone** run — not just the root parallel one, which is the boundary [#925]'s body records.
   Durations cluster at 5.03–5.10 s against Vitest's 5 s default, so the timeout is the wall rather than a variable stall.
   Posted to [#925] rather than filed anew.
 
 [#609]: https://github.com/gotgenes/pi-packages/issues/609
+
+## Stage: Sync (worktree) (2026-09-19T15:28:01Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both pass on `issue-923-pi-permission-system-a-secret-inside-an` with no fix-up needed.
+The plan's `**Release:** ship independently` marker stands — [#923] carries no roadmap `Release:` tag, so the root ship should cut a release for this package alone.
+No deferred work beyond what the TDD stage note already names: the heredoc/herestring residuals are deliberately unfiled, and [#951] (the `/dev/null` exemption gap) and the sharpened [#925] reproduction are both already filed/posted, not deferred to land time.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-923--/2026-09-19T07-25-46-482Z_01a0b88e-9271-7320-b7e1-671154f9b086.jsonl` — read with `read_session_file({ path: "<above>" })` for message-level verification at land/retro time.
+
+### Observations
+
+Nothing beyond the TDD stage note's own record.
+The corpus-measurement correction (the "0 differ" figure had been carried forward from a prototype that predated two of the three shipped mechanisms) was made and committed before this sync stage; see that entry for the full account.
+
 [#803]: https://github.com/gotgenes/pi-packages/issues/803
 [#920]: https://github.com/gotgenes/pi-packages/issues/920
 [#923]: https://github.com/gotgenes/pi-packages/issues/923
