@@ -98,9 +98,10 @@ Skip a lens entirely when it finds nothing notable.
 
 1. **Model-performance correlation** — for each subagent dispatch (if any), note which model ran and what task it performed.
    Flag quality mismatches: a reasoning-weak model on judgment-heavy work (architecture decisions, code review), or a high-cost model on purely mechanical work (formatting, simple grep).
-   If the `read_session`, `read_parent_session`, or `read_session_file` tools are available, use them to inspect model assignments: attribute each turn to the inline `[provider/model]` label the transcript renders on it.
-   Attribute each turn from the inline `[provider/model]` label in an **unfiltered** `read_session` call.
-   A `types: ["model_change"]`-filtered call bypasses that suppression and renders phantom switches that never ran a turn (Refs #737).
+   If the `read_session`, `read_parent_session`, or `read_session_file` tools are available, attribute each turn from the inline `[provider/model]` label the transcript renders on it, in a **type-unfiltered** call.
+   A `types: ["model_change"]`-filtered call bypasses phantom-switch suppression and renders switches that never ran a turn (Refs #737).
+   `offset` and `elide_user_text` are not type filters and are the intended way to run this lens on a long multi-stage session: page backward with `{ limit: N }` then `{ offset: N, limit: N }` rather than re-requesting a larger window, and set `elide_user_text: true` to drop prompt bodies the lens never reads while keeping every label (Refs #940).
+   `[session] → <name>` lines mark the stage boundaries to attribute each run of turns to.
    `pi-session-tools` is this repo's own tooling for exactly this — use `read_session`/`read_session_file`, not `jq` over `$PI_SESSION_FILE`, and never `PI_MODEL`/`PI_PROVIDER`, which report only the session's *current* model and invent an attribution when extrapolated across stages (Refs #778).
    A subagent's turns live in its own transcript, which `list_subagent_sessions({ path })` finds for a given session file and `read_session_file({ path })` renders — attribute a subagent's model from that transcript rather than from its agent definition, which records the model it was configured with and not the one that ran (Refs #943).
 2. **Escalation-delay tracking** — for each `rabbit-hole` friction point, count how many consecutive tool calls the agent spent on the same error or approach before resolving or changing strategy.
