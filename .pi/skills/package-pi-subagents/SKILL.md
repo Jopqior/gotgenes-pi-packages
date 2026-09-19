@@ -118,15 +118,7 @@ service-adapter ─wraps─→ SubagentManager
 
 ### Architectural direction
 
-The target architecture is documented in `docs/architecture/architecture.md` under "Architecture direction."
-The key phases are:
-
-- **Phase 14** - Strip policy from core: remove `disallowed_tools`, `extensions` filtering, collapse `filterActiveTools` (#237, #238, #239). ✅ Complete
-- **Phase 15** - Domain model evolution: `AgentRecord` → `Agent` with behavior, async `startAgent`, observer pattern, `ConcurrencyQueue` (#227-#232).
-- **Phase 16** - Invert dependencies (extensions on a minimal core, [ADR-0002]): emit child-session lifecycle events and retire `permission-bridge.ts` (#261); add the `WorkspaceProvider` seam (#262); extract worktrees to `@gotgenes/pi-subagents-worktrees` (#263, supersedes #256); remove `isolated`/`extensions: false`/`noSkills` (#264, later partly readmitted as the settings-scoped `excludedExtensionPackages` prevent-load key, #696); born-complete child execution, dissolve the runner (#265).
-  The earlier "agent collaborator architecture" framing was abandoned.
-- **Phase 17** - Core consolidation: resolve the `Subagent` record/executor duality (extract `SubagentState`, make execution deps mandatory), replace the concurrency queue with a thunk limiter, extract the manager observer from `index.ts`, consolidate test fixtures (#373-#381).
-- **Phase 18** - Reconsider the UI (first principles): the inherited widget, conversation viewer, and `/agents` menu are consumers judged on our principles, not preserved by default.
+The target architecture is documented in `docs/architecture/architecture.md` under "Architecture direction", and its phase table under "Refactoring history" is the record of which phases (14 through 18) have landed.
 
 ## Display glyphs
 
@@ -183,5 +175,4 @@ When working in this package:
 2. The upstream test suite is run periodically as a regression canary for the session assembly core.
 3. Modules marked `← removing` or `← replacing` in the architecture doc's current-state listing are slated for deletion - do not add features to them.
 
-[ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
 [ADR-0003]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0003-publish-bundled-type-declarations.md
