@@ -127,28 +127,13 @@ The `permission` object uses deep-shallow merge; scalar fields use simple replac
 
 Both JSONL logs are created owner-only (`0600`, in a `0700` directory) and key-name redacted; the permission-forwarding request/response files are mode-restricted too (but **not** redacted — the parent reads them to render the ask-prompt).
 Do not add a log write path that bypasses `writeLine` in `src/logging/logging.ts`, and do not pass a `mode`-less `appendFileSync`/`writeFileSync`/`mkdirSync` for an artifact holding tool input.
-`writeLine` is also where the **review** stream's width bound lives (`capLogFieldWidths`, `src/logging/log-field-cap.ts`): every string it writes is narrowed to `reviewLogFieldMaxWidth` (1000) and marked with an ellipsis, so no write path can escape the bound and no producer needs to remember it (the debug stream is deliberately unbounded).
+`writeLine` is also where the review stream's width bound and both streams' masking live; the `logging.ts`, `log-field-cap.ts`, and `review-log-renderer.ts` entries in `docs/architecture/architecture.md` carry the mechanism.
 A width cap is **not** redaction and must not be conflated with it: it narrows by length alone and never reads a value to decide what to shorten, and the two compose — a sensitive-keyed value is masked whole however long it was.
-The review log persists the payload's request facts (`renderReviewLogFacts`, `src/presentation/review-log-renderer.ts`), stamped by `GateRunner` beside the request id, and no evidence or annotations (ADR 0011 §6); it does **not** persist a prompt sentence — `message` and `renderLegacyMessage` were removed in #746.
 
-Every terminal entry also carries a `decidedBy` provenance record (`DecisionSource`, `src/authority/decision-source.ts`) naming what decided — a human and which surface they answered on, the chain link, a rule, a session grant, yolo, an infrastructure read, an unreachable authority, a gate error, or another session with its own decider nested inside (Refs #726).
-It is **stamped at the site that decides**, never derived from the event name or the `resolution` value, and it is required on `PermissionPromptDecision` and `GateBypass` so a resolution path added later cannot omit it; do not add a branch that infers one.
-It is not merged into `GateRunner`'s shared `logContext` — that context holds what every resolution of a gate shares, and the decider is by definition not shared.
-Because it is nested, both `writeLine` bounds reach it for free (`capLogFieldWidths` recurses through plain objects and arrays; the redaction replacer descends by nature), pinned by regression tests in `test/logging.test.ts`.
-The forwarded `ForwardedPermissionResponse.decidedBy` is optional and read through the **depth-bounded** `asDecisionSource` guard: the value comes off disk, and a recursive reader over another process's file is a stack-overflow surface.
-The `permissions:decision` bus event deliberately does **not** carry it — the channel's consumers are unknown and it is the narrowest renderer under ADR 0011 §6.
-That event is emitted by whichever session *decides*, so a serving session broadcasts one for every forwarded ask it escalates (`ForwardedRequestServer`, #610): the ask's own gate lives in the requesting session, on another bus entirely for an out-of-process child, so a parent-side consumer that marks an agent blocked on `permissions:ui_prompt` would otherwise never see it cleared.
-It is rendered from the same `PromptPermissionDetails` the prompt was, carries an optional `forwarding` context, and does **not** fire for a request the serving node's recorded authority resolves — silent there stays silent on both channels.
+Every terminal entry also carries a `decidedBy` provenance record (`DecisionSource`, `src/authority/decision-source.ts`) naming what decided; it is stamped at the site that decides, never inferred — do not add a branch that infers one.
+The record's shape, where it is and is not carried, and the bounds that reach it are the `decision-source.ts` entry in `docs/architecture/architecture.md`.
 Redaction is **structural, never value-shape**: `isSensitiveName` (`src/logging/log-redaction.ts`) masks a value because of the name it is bound to, and a provider-prefix/entropy list was measured against a real 6.7 MB log and declined (403 `sk-` hits, all false positives from `task-*`; zero true positives).
 The boundary to repeat verbatim in any doc or reply: a value bound to a sensitive name is masked — whether the name is a log key, a shell variable, or a request header field — and a secret with no name bound to it, such as one typed as a `grep` pattern, is not.
-Since #920 that predicate reaches **inside** a bash command through `redactCommandSecrets` (`src/logging/command-redaction.ts`), which masks a `variable_assignment` value, a `word`-shaped assignment (`env MY_KEY=…`), and an argument of the form `<sensitive-name>: <value>`.
-Every rule matches a parse node, never a substring, and that is the whole safety argument: over 7146 real logged commands a raw-string scan matched ten and all ten were embedded Python (`key=lambda x: x[1]`) or a `sed` pattern, where the node-anchored rule matched none.
-The header rule additionally rejects a camel-cased field name, because an HTTP field name is hyphenated and `grep "legalDirectionalKeys: readonly"` is not a header.
-The predicate is a **union** with the pattern that predates it — it may gain a name but never lose one, which is why `api[-_]?keys?` survives beside the general name-boundary `key` rule (`apikey` has no separator to anchor on).
-Masking runs at `writeLine` ahead of `capLogFieldWidths` and for **both** streams: capping first hands the masker a command the agent never ran, and the debug stream carries the same payload.
-An inline-shell payload (`bash -c '…'`) and a heredoc body carry no assignment node and stay unmasked ([#923]); widening to them needs the wrapper analyzer, since blanket recursion into string nodes re-admits the false positives above.
-Name-keyed redaction is applied at **two** points, and the second is not redundant — `getToolInputPreviewForLog` flattens tool input to a string before the writer sees it, so `serializeRedactedToolInputPreview` (`src/tool-input/tool-input-preview.ts`) is the only place its keys still exist.
-Never redact `formatToolInputForPrompt` or the ask payload's command: the user must see the real input to decide, pinned by `carries the command unmasked` in `test/presentation/tool-ask-payload.test.ts`.
 Governing record: `docs/decisions/0010-permission-log-secret-exposure.md` (Refs #647, #920).
 
 The dialog's size bounds are not redaction and must not be conflated with it: `renderPromptDialog` (`src/presentation/dialog-renderer.ts`) applies a *quantity* cap uniformly, never reads a value to decide what to hide, and keeps the complete text one keystroke away (`Ctrl+O`).
@@ -421,6 +406,5 @@ When a plan or test asserts a specific bash repro string, trace the token throug
 [#520]: https://github.com/gotgenes/pi-packages/issues/520
 [#694]: https://github.com/gotgenes/pi-packages/issues/694
 [#839]: https://github.com/gotgenes/pi-packages/issues/839
-[#923]: https://github.com/gotgenes/pi-packages/issues/923
 [earendil-works/pi#4731]: https://github.com/earendil-works/pi/issues/4731
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
