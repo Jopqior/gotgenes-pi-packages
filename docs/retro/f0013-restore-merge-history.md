@@ -143,3 +143,85 @@ Both publications and their GitHub Releases succeeded through [release run 35432
 - The operator approved the closing text and requested completion of the remaining stage-note commit, push, and issue closure only.
   The final interactive `/retro 13` is explicitly deferred to a later session.
   Ordinary `/ship` and `/sync-worktree` were not used; no further release dispatch is needed for this issue.
+
+## Stage: Final Retrospective (2026-09-19T09:02:32Z)
+
+### Session summary
+
+Reviewed the planning, implementation, migration, publication, and follow-up conversations, including the implementation agents' transcripts rather than relying only on stage summaries.
+The restoration preserved 54 replayed commits and five historical package snapshots, added 25 tests, and completed separately approved migration and publication.
+This retrospective changes no runtime behavior, release state, or external recovery files.
+
+### Observations
+
+#### What went well
+
+- Exact local-ref revalidation caught a fixture-induced change that candidate tests and remote-only checks did not detect.
+  The migration session invalidated the earlier approval, archived the drift, repeated remote and local-install rehearsals, and obtained approval of the revised packet before production mutation.
+- Historical snapshot preservation and current-document repair were kept separate: mapped tags preserved package trees while later documentation commits repaired editable links.
+  Publication verification distinguished the workflow-trigger digest from the release commit and verified both new provenance signatures without claiming old artifacts had changed.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` — self-identified across agent stages: a step-3 disposable probe invoked `bash "$OLD" --sync` from the live checkout before rerunning it with the fixture working directory.
+  The script discovered its repository from the caller's working directory; redirecting fetch transport to a scratch remote did not isolate the destination ref store.
+  The child noticed the working-directory mistake but neither audited the live refs nor reported the side effect; the migration session later identified it through the reflog.
+  Impact: live `refs/remotes/upstream/main` changed to a fixture commit, requiring a refreshed backup, revised approval packet, repeated rehearsals, and renewed operator approval.
+- `instruction-violation` — user-caught: the implementation handoff requested approval of `approval-manifest.json` without translating it into an interactive decision flow.
+  The operator asked whether the JSON was the approval target, then explicitly requested `ask_user` because the file was difficult to review.
+  Impact: two clarification turns before five understandable approval gates; the approved machine-readable packet itself did not need changing for presentation.
+- `missing-context` — the planning audit recommended retaining the dedicated discarded artifacts despite the issue's removal requirement; the Tidy-First assessment incorrectly described Git URL rewriting and the first-publish plan's dependencies.
+  Direct source inspection and a Git probe corrected those claims before the plan landed.
+  Impact: additional verification and rejected recommendations, not shipped defects.
+- `premature-convergence` — the first step-3 completion report had 18 passing tests but omitted actual second upstream advancement, an existing colliding local tag, and the independent `rebase-merge` guard case.
+  Its old-script red stopped at a missing prerequisite rather than demonstrating the topology difference.
+  Impact: the parent requested six concrete corrections, the child supplied a second pass, and the parent reran full checks before `feat!: restore normal upstream merge synchronization (#13)`.
+- `instruction-violation` — self-identified: implementation combined branch discovery with a trunk-only pull on the issue branch.
+  Impact: one failed pull with no merge, followed by the required fetch; the existing branch rule was already explicit.
+- `wrong-abstraction` — post-publication backup advice led with retention recommendations before distinguishing operational dependencies from optional recovery evidence.
+  The operator had to ask which files referenced the archive; a later search established documentary references rather than runtime dependencies.
+  Impact: an extra explanation turn, with no deletion or rework.
+
+#### What caused friction (user side)
+
+- The request to replace JSON review with sequential questions was a useful interface correction, not missing technical context the operator should have supplied.
+  Agents should present decisions in terms of effects and preserve exact identifiers in the backing artifact.
+- A Tidy-First agent was accidentally closed and had to be respawned at the operator's request.
+  Impact: one interrupted dispatch; the completed independent audit did not need rerunning.
+- Future archive-cleanup discussions can start with the desired retention outcome, but the agent must first explain whether the archive is an operational dependency.
+  No archive deletion or sync-script removal is authorized by those questions or by this retrospective.
+
+### Diagnostic details
+
+- **Model-performance correlation** — parent planning, TDD, and migration turns ran on `openai-codex/gpt-6-astra`.
+  Planning audit, implementation full-diff audit, merge-test implementation, and pre-completion review ran on `xai/grok-4.6`; Tidy-First ran on `zai-coding-cn/glm-5.3-flash`; release tests and content cleanup ran on `zai-coding-cn/glm-5.3`.
+  The requested unavailable `sonnet-5` audit and cancelled assessor did not produce completed assessments.
+  The flash assessor's unprobed Git claim is a judgment-task mismatch worth avoiding; the merge-test agent's missed cases and live-ref side effect also show that a stronger model name is not an isolation guarantee.
+- **Feedback-loop gap analysis** — baseline checks preceded replay, targeted tests and mutations ran during implementation, and full checks ran before the merge-test commit and in fresh rehearsal clones.
+  The gap was outside the candidate: validation checked candidate files and production remote refs, not the live checkout's local refs/configuration after the disposable probe.
+  A local snapshot comparison immediately after that probe would have surfaced the incident before the approval packet was assembled.
+- **Unused-tool detection** — delegation and direct Git probes were already available and used; another exploratory agent would not have prevented the working-directory error.
+  Explicit subprocess working directories, repository-root assertions, and before/after live-ref comparisons were the missing controls.
+- **Evidence boundaries** — source sessions are the root-session files beginning `2026-09-18T13-57-29-933Z`, `2026-09-18T15-07-05-207Z`, and `2026-09-19T08-29-31-303Z` under the repository's Pi session directory.
+  The decisive probe is in the TDD session's `tasks/2026-09-18T15-17-34-684Z_01a0b518-295c-73d8-933f-bf592be28e8e.jsonl`; migration evidence is in the external archive's `logs/step7/`.
+
+### Proposed adjustments
+
+1. Add a short Git-fixture isolation rule to `AGENTS.md` under `Shell and search`: bind repository selection explicitly and compare live refs/configuration after probes.
+   A script's absolute path selects executable bytes, not its target repository; network redirection alone cannot establish isolation.
+2. Add a short approval-presentation rule to `AGENTS.md` under `Clarification gates`: translate machine-readable approval packets into effects and decisions, bind answers to the packet digest, and use `ask_user`.
+   Keep the detailed migration checklist in this issue's plan rather than adding it to ordinary shipping templates.
+3. Do not add another branch-sync rule, mutation-verification rule, or universal subagent-verification rule; existing instructions already cover those failures.
+   Do not remove the guarded synchronization script, clean external backups, or redesign migration/release workflows within this retro.
+
+### Next work
+
+This repository-level issue has no package-roadmap successor.
+The newest triage, `docs/triage/2026-09-02-backlog.md`, is inherited upstream context and supplies no ranked fork candidate.
+Fork issue #12 was rechecked as open and is the only current open fork issue; it remains a separate deferred-release workflow task, not a residual publication owed by #13.
+
+### Changes made
+
+1. Appended this cross-session retrospective to `docs/retro/f0013-restore-merge-history.md`, including the fixture working-directory failure, approval-presentation friction, model attribution, and verification gap.
+2. The operator declined both proposed rule additions as unnecessary; `AGENTS.md` and all prompt templates remain unchanged.
+   No follow-up issue was filed, no external recovery material was deleted, and no release was dispatched.
