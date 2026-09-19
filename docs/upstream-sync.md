@@ -187,6 +187,32 @@ If a conflict affects `modelName` in `packages/pi-subagents/src/tools/spawn-conf
 2. Put upstream's new formula into `formatSpawnModelName` in `packages/pi-subagents/src/ui/display.ts`.
 3. Do not paste the formula back into `resolveSpawnConfig`.
 
+### Compatibility integration for fork issue 14
+
+Keep the fork scope header above upstream's compact topic-skill index, and reconcile the skills and lifecycle prompts for fork repository targets, `fNNNN-` lookup, SSH/no-tag synchronization, and npmjs registry flags.
+Feature-worktree landing remains linear; upstream integration retains two parents.
+Keep both the child project-context loader and the fork selection construction wrapper, and retain the fresh per-run abort controller alongside selection cancellation and awaitable resume handles.
+When an upstream roadmap moves into history, move fork dispositions with it rather than dropping them.
+Preserve fork changelog sections unchanged and insert only incoming upstream release sections above their shared baseline.
+
+Migration notes for this batch:
+
+- MCP evaluation now uses the last rule matching any candidate; put exceptions after broad rules.
+  Prefix-named tools derive the longest configured server prefix, and already-prefixed explicit tools no longer add redundant qualified spellings.
+  Review server rules newly applying to those tools.
+- Session discovery defaults to at most 10 newest paths.
+  Supply a larger explicit `limit` when needed; `count` remains the total and `shown` describes the emitted paths.
+- Relocated/full and portable children resolve project context against their own directory; same-directory full inheritance retains its existing block.
+- Resumed runs have a fresh abort controller reachable through the normal abort door.
+- Autoformat resolves global configuration through Pi's agent directory, honoring `PI_CODING_AGENT_DIR`.
+- The project adopts upstream's tracked permission tripwires and removes project loading of `pi-web-access`.
+  The operator authorized deletion of the rechecked local yolo-only override without a backup.
+  Independent global settings may still enable yolo or load the web extension.
+
+The operator additionally authorized coordinated publication of `@jopqior/pi-subagents` and `@jopqior/pi-subagents-model-selector` to npmjs.org after verification.
+A published selector's caret range cannot admit a new core major; its source `workspace:^` dependency acquires the updated range when packed after the core version is assigned.
+Dispatch both packages together, inspect the packed dependency, and publish no other package without further approval.
+
 ## Version correspondence
 
 Each published `@jopqior/pi-subagents` version maps to the newest upstream `pi-subagents-v*` contained in that release's merge base.
@@ -204,5 +230,6 @@ The first data row lands in [#3] as `1.0.0 ← 21.7.0`.
 | Date (UTC)           | Upstream SHA                             | Upstream `pi-subagents` tag | Fork merge SHA                           |
 | -------------------- | ---------------------------------------- | --------------------------- | ---------------------------------------- |
 | 2026-09-12T14:16:33Z | 045213317de608c04a7b6052b2b843e3a0f2176f | pi-subagents-v21.7.0        | 2d8cea699b08afa0f6a2c06eeb1507a52d699636 |
+| 2026-09-19T14:03:45Z | edb35ee28535aac4e12431e47e440f6933911834 | pi-subagents-v21.7.3        | 0408aa5ff9d9811d98df17dde436e7fd45a5a3ad |
 
 [#3]: https://github.com/Jopqior/gotgenes-pi-packages/issues/3
