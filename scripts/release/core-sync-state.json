@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "releases": [
+    {
+      "forkTag": "pi-subagents-v2.0.0",
+      "upstream": {
+        "version": "21.7.3",
+        "commit": "f918568bbb643a6145898c76c5cc225c63b5b793"
+      },
+      "upstreamTip": "edb35ee28535aac4e12431e47e440f6933911834"
+    }
+  ],
+  "syncs": [
+    {
+      "merge": "0408aa5ff9d9811d98df17dde436e7fd45a5a3ad",
+      "upstream": {
+        "version": "21.7.3",
+        "commit": "f918568bbb643a6145898c76c5cc225c63b5b793"
+      },
+      "forkCore": {
+        "level": "none",
+        "rationale": "integration carried upstream 21.7.x compatibility work; conflict resolutions kept fork identity without changing the core contract",
+        "paths": []
+      }
+    }
+  ]
+}

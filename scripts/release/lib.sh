@@ -113,14 +113,36 @@ bumped_version() { # <tag>
 # or the current tag itself when nothing is releasable. This is the single
 # decision entry for tag prediction: every caller that asks "what would this
 # package release?" — next-version.sh, verify-cliff-parity.sh — goes through
-# here, so package-specific policy (path scoping today, core sync derivation
-# later) has one home instead of a per-script sequence to keep in step.
+# here, so package-specific policy has one home instead of a per-script
+# sequence to keep in step.
 #
-# A nonzero status means the question could not be answered; callers must not
-# treat it as "nothing to release".
+# The core package (pi-subagents) derives its tag from verified upstream
+# correspondence instead of the repository-wide commit classification: its
+# history advances through upstream merges whose messages describe upstream
+# releases, not the independent fork version. The policy lives in
+# scripts/release/core-sync.mjs; it receives the scoping arguments verbatim
+# (the same CLIFF_ARGS array this entry built) so there is exactly one
+# representation of the package's path scope, and it is resolved relative to
+# this file so a scratch repository cannot shadow the implementation.
+#
+# A nonzero status means the question could not be answered — missing or
+# inconsistent evidence — and callers must not treat it as "nothing to
+# release".
 next_tag() { # <package> <current-tag>
   cliff_args "$1"
-  bumped_version "$2"
+  if [ "$1" = "pi-subagents" ]; then
+    local core_sync_cli core_next
+    core_sync_cli="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/core-sync.mjs"
+    if ! core_next=$(node "$core_sync_cli" --repo "$PWD" --current "$2" -- "${CLIFF_ARGS[@]}"); then
+      return 1
+    fi
+    # The core CLI prints nothing when no level was decided; normalize to the
+    # bumped_version contract so callers see the current tag, never an empty
+    # string that reads as a derivation failure.
+    printf '%s\n' "${core_next:-$2}"
+  else
+    bumped_version "$2"
+  fi
 }
 
 # Print the version recorded in package $1's package.json.

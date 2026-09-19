@@ -725,6 +725,92 @@ describe("evidence failures", () => {
   });
 });
 
+describe("shared entry point", () => {
+  /**
+   * Run `next_tag` from the real lib.sh against the fixture repository,
+   * exactly as next-version.sh invokes it.
+   *
+   * @param {string} pkg
+   * @param {string} tag
+   * @returns {{ status: number, stdout: string, stderr: string }}
+   */
+  function nextTag(pkg, tag) {
+    const result = spawnSync(
+      "bash",
+      [
+        "-c",
+        `. '${path.join(repoRoot, "scripts", "release", "lib.sh")}'; next_tag ${pkg} ${tag}`,
+      ],
+      { cwd: repo.dir, encoding: "utf8" },
+    );
+    return {
+      status: result.status ?? 1,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  }
+
+  it("routes the core package through the verified policy", () => {
+    syncUpstream({ version: "21.7.1" });
+    writeCoreSyncState();
+
+    const result = nextTag("pi-subagents", BASE_TAG);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("pi-subagents-v1.0.1");
+  });
+
+  it("keeps a fork-owned breaking change dominant at the entry point", () => {
+    syncUpstream({ version: "21.7.1" });
+    repo.commitInScope(
+      "feat(pi-subagents)!: fork break",
+      "packages/pi-subagents/break.txt",
+    );
+    writeCoreSyncState();
+
+    expect(nextTag("pi-subagents", BASE_TAG).stdout.trim()).toBe(
+      "pi-subagents-v2.0.0",
+    );
+  });
+
+  it("prints the current tag for the core package when nothing is releasable", () => {
+    writeCoreSyncState();
+
+    const result = nextTag("pi-subagents", BASE_TAG);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe(BASE_TAG);
+  });
+
+  it("keeps non-core packages on the bounded git-cliff walk", () => {
+    repo.commitInScope("feat(demo)!: initial scope", "packages/demo/a.txt");
+    repo.git("tag", "demo-v1.0.0");
+    repo.commitInScope("fix(demo): repair widget", "packages/demo/a.txt");
+
+    const result = nextTag("demo", "demo-v1.0.0");
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("demo-v1.0.1");
+  });
+
+  it("fails closed at the entry point on unrecorded core merges", () => {
+    const branch = `upstream-${syncCounter++}`;
+    repo.git("checkout", "-b", branch);
+    repo.commitInScope(
+      "feat(pi-subagents): unrecorded upstream change",
+      "packages/pi-subagents/unrecorded.txt",
+    );
+    repo.git("checkout", "main");
+    repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", branch);
+    writeCoreSyncState();
+
+    const result = nextTag("pi-subagents", BASE_TAG);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("--record-core-sync");
+  });
+});
+
 describe("offline prediction", () => {
   /**
    * Re-run the patch derivation with a `git` wrapper on PATH that refuses
