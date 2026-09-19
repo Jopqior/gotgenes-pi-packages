@@ -129,7 +129,9 @@ export function collectRedirectTokens(node: TSNode): PathToken[] {
  * execution contexts, reading none of the host subtree's own text.
  *
  * This is what lets a heredoc body contribute its substitution's operands while
- * its prose stays out of the path surface entirely.
+ * its prose stays out of the path surface entirely, and an argument node
+ * contribute its quoted substitution's operands while its own text is judged
+ * by whatever role its walker gave it (#945).
  *
  * `node` may be a context outright (`> $(cmd)`) or merely contain one
  * (`> ${DIR}/$(cmd)`), so the traversal is the root-inclusive
