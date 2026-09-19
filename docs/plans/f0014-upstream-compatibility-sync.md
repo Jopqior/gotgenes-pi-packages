@@ -11,7 +11,10 @@ issue_title: "Sync upstream main with fork compatibility review"
 
 This is repository-wide integration, not a package roadmap batch.
 The operator explicitly authorized publishing a new `@jopqior/pi-subagents` version after integration and green fork CI, superseding the issue body's original no-publication default.
-Dispatch only `pi-subagents` to the fork's `release.yml`; publication of other packages is not authorized.
+During implementation, the derived core major exceeded the published companion's caret dependency range, and the operator explicitly authorized the companion compatibility update and coordinated publication too.
+Dispatch `pi-subagents pi-subagents-model-selector` to the fork's `release.yml`, targeting npmjs.org under `@jopqior/*`; publication of any other package remains unauthorized.
+Keep the companion's `workspace:^` dependency: packing after both versions are assigned derives the new core range automatically.
+Document coordinated upgrades in the companion README and verify a packed release-version fixture before shipping.
 Keep the current fork version during conflict resolution and let the release scripts derive the next version at ship time.
 Do not promise a patch or copy the upstream version number.
 
@@ -312,7 +315,7 @@ The Tidy-First assessment adds no preparatory source or test commits.
 5. **Ship and release, in the later shipping session only.**
    Re-verify the fork target, push explicitly to `origin main`, and verify CI for the pushed SHA.
    Run the read-only release derivation/parity checks and review the actual commit window; do not copy upstream version numbers or silently release the companion.
-   Recheck token permissions/rulesets and npm Trusted Publishing configuration as needed; dispatch `release.yml` with `--repo Jopqior/gotgenes-pi-packages`, `packages=pi-subagents`, and the expected SHA.
+   Recheck token permissions/rulesets and npm Trusted Publishing configuration as needed; dispatch `release.yml` with `--repo Jopqior/gotgenes-pi-packages`, `packages="pi-subagents pi-subagents-model-selector"`, and the expected SHA.
    Watch prepare, publish and GitHub-release jobs, not a nonexistent push-CI run for the token-generated release commit.
    Verify the published `@jopqior/pi-subagents` version and tarball using `pnpm view ... --registry=https://registry.npmjs.org/`.
    Record the now-published fork/upstream version correspondence and ship notes; close the fork issue with the implemented-in SHA and migration/release summary.

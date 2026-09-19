@@ -44,6 +44,13 @@ Or load from a checkout:
 
 If the core is missing, failed to load, or lacks `registerSpawnSelectionProvider`, this extension throws a configuration error at initialization and does not activate.
 
+### Upgrading across a core major
+
+Upgrade both packages together when the core changes major version.
+The published selector declares a caret dependency on the core version it was packaged against; that range does not admit the next major, even when the spawn-selection API remains compatible.
+In this workspace the dependency is `workspace:^`: pnpm converts it to the core's version range when packing, so a coordinated release must version both packages before packing the selector.
+Maintainers should verify the packed dependency range against the derived core version and name both packages in the release dispatch.
+
 ## Behavior
 
 Every **new** run in an enabled root's in-process tree opens one `/model`-style form: model, thinking, and Submit.
