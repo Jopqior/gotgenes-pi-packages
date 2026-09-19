@@ -72,4 +72,62 @@ Pre-push checks are clean (`pnpm run lint`, `pnpm fallow dead-code`), the branch
 No deferred work for the root beyond what the TDD stage note already recorded (the Tidy-First-rejected `parent-session.ts` rename and `index.ts` split, and the `makeCtx`/fs-mock-trio consolidation left for a third consumer).
 Pre-completion reviewer returned PASS with no warnings, so nothing outstanding to flag at ship time.
 
+## Stage: Final Retrospective (2026-09-19T07:01:26Z)
+
+### Session summary
+
+Shipped #943 through the worktree lane with no retry at any step: lane detection, ff-merge at `8f734225`, both pre-push gates, CI, the `pi-session-tools` 2.1.0 release, the issue close, and worktree teardown.
+The same session carried an unrelated `pi-permission-system` config-debugging thread before the ship, and that thread — not the ship — produced nearly all of this retro's friction findings.
+
+### Observations
+
+#### What went well
+
+- The `## Stage: Sync (worktree)` breadcrumb's recorded peer transcript path made the model-performance lens cost two `read_session_file` calls instead of a `list_session_files` hunt through 611 sessions.
+  This is the [#786] mechanism paying off exactly as designed, and it survived the worktree teardown that removed the peer's checkout.
+- Twice in the permission thread I answered a policy question by running a throwaway Vitest suite against the real resolver rather than reasoning from the config text, and both times the measurement overturned the reading prose would have produced.
+  `"/": "deny"` compiles to an anchored `^/$` and so never covered `/newdir`; `~/development/pi/pi/*` does not match the bare directory entry it appears to cover.
+  Both scratch files were deleted before the ship, so neither reached the merge.
+- The ship's own verification held: `git status --porcelain` was empty at close, and the scratch suites left no residue in the released tarball.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` (self-identified, tool-enforced) — opened codebase exploration with `rg -rn "external_directory" …`, which the `pi-permission-system` deny rule rejected with its own corrective reason string.
+  Impact: one retry, no rework — the rule did its job faster than a human review would have.
+- `premature-convergence` — spent four `ask_user` calls on a single decision boundary (how to fix the `/tmp` shadowing), where the `ask-user` skill caps a boundary at two.
+  The first three were each answered with a question rather than a selection, and each time I answered the question and re-offered substantially the same menu instead of reading the question as evidence that the gate was premature.
+  Impact: three extra round-trips and visible operator frustration ("Jeez this is difficult"); no rework, since every answer was correct.
+- `other` — `list_subagent_sessions`, the tool this session shipped, was not registered in this session, so the `/retro` lens that names it could not call it.
+  Impact: two extra calls to hand-derive the `tasks/` path by reading `src/parent-session.ts`.
+
+#### What caused friction (user side)
+
+Nothing here reads as friction.
+The operator's habit of answering a gate with a question was the correct intervention — it surfaced that my option menus assumed a policy model (sugar expansion, last-match-wins, greedy `*`) they had not been handed.
+The one opportunity: the constraint "I don't want writes under `/`" arrived after the `/tmp` decision had closed, and stating it alongside the `/tmp` ask would have collapsed two decision boundaries into one gate.
+
+### Diagnostic details
+
+- Model-performance correlation — the peer session's two subagents both ran on `anthropic/claude-sonnet-5`: `tidy-first-assessor` (judged the `captureTools` extraction worth doing and rejected three other tidyings with reasons) and `pre-completion-reviewer` (ran four gates and enumerated four independent mutations).
+  Both are judgment-heavy; no mismatch.
+  This session ran the ship on `claude-sonnet-5` and the retro on `claude-opus-5`, an operator-chosen escalation appropriate to synthesis work.
+- Escalation-delay tracking — no `rabbit-hole` friction point; the longest same-topic run was four calls verifying one permission claim, each producing a distinct measurement rather than retrying the same approach.
+- Unused-tool detection — nothing material; `colgrep` and the Explore agent would not have beaten reading `normalize.ts` and `wildcard-matcher.ts` directly.
+- Feedback-loop gap analysis — the ship's gates ran at step 5 on the post-merge tree, which is the tree that was pushed; the permission claims were each verified at the moment they were asserted rather than batched to the end.
+- Stale-in-process asymmetry — worth recording because it cuts both ways in one session.
+  The `/retro` prompt body carried the sentence added by `53baf12e`, which merged into `main` during this same session, so the template text was live.
+  The tool that sentence names was not, because `pi-session-tools` was loaded at session start.
+  `AGENTS.md`'s existing rules already cover the safe behavior in both directions, so this is recorded as an observation, not a rule change.
+
+### Changes made
+
+1. `.pi/skills/clarification-gates/SKILL.md` — added a `## When the operator answers with a question` section: a non-selection answer means the gate was premature, so answer it without re-offering the menu.
+   Scoped to context broadly — a mechanism, a prior decision, a hypothesis in play — rather than to missing facts alone, at the operator's direction.
+2. `README.md` — corrected the stale package-skill list: added the `package-pi-colgrep` bullet and dropped `pi-colgrep` from the sentence naming packages with no dedicated skill.
+   Found incidentally while checking whether a `package-pi-session-tools` skill existed.
+
+Nothing was proposed for `AGENTS.md`.
+Three candidates were considered and rejected: a `/retro` fallback for deriving the `tasks/` path without `list_subagent_sessions` (fails the admission test's first question — reading `src/parent-session.ts` recovered it in two calls), an amendment to the stale-prompt-template paragraph (its wording is already hedged), and a `package-pi-session-tools` skill (the README documents the no-skill state as intentional, and creating one is issue-sized).
+
+[#786]: https://github.com/gotgenes/pi-packages/issues/786
 [#916]: https://github.com/gotgenes/pi-packages/issues/916

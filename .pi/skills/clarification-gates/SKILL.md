@@ -18,6 +18,11 @@ Define a gate's terms of art before its substance — a term the operator must d
 When a gate offers mechanisms for fixing a hazard, first name which component or config rule owns the lever and what happens today in each concrete configuration — a mechanism menu without that grounding gets bounced for it.
 Hold each option's `description` to one line — a second line is substance, and substance goes in the message above.
 
+## When the operator answers with a question
+
+A question in place of a selection means the gate was premature — the options assumed context the operator does not hold: a mechanism, a prior decision, a hypothesis in play.
+Answer it without re-offering the menu; ask again only once their reply stops asking.
+
 ## Sizing and pricing the options
 
 When the decision settles a structure that will repeat across many files, settle its **size budget** in the same gate.
