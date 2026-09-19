@@ -127,6 +127,14 @@ function formatResultText(
   return `${theme.fg("success", "\u2713")} ${theme.fg("muted", formatSummaryText(details.summary))} ${hint}`;
 }
 
+/** The parameter surface every transcript-rendering tool shares. */
+interface TranscriptReadParams {
+  types?: string[];
+  offset?: number;
+  limit?: number;
+  elide_user_text?: boolean;
+}
+
 /**
  * Select the entries the caller asked for, then summarize and format them.
  * Shared by every tool that renders a transcript from an entry array
@@ -134,12 +142,7 @@ function formatResultText(
  */
 function buildTranscriptResult(
   allEntries: TranscriptEntry[],
-  params: {
-    types?: string[];
-    offset?: number;
-    limit?: number;
-    elide_user_text?: boolean;
-  },
+  params: TranscriptReadParams,
 ): {
   content: [{ type: "text"; text: string }];
   details: SessionToolDetails;
@@ -295,12 +298,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: {
-          types?: string[];
-          offset?: number;
-          limit?: number;
-          elide_user_text?: boolean;
-        },
+        params: TranscriptReadParams,
         _signal: unknown,
         _onUpdate: unknown,
         ctx: ExtensionContext,
@@ -369,12 +367,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: {
-          types?: string[];
-          offset?: number;
-          limit?: number;
-          elide_user_text?: boolean;
-        },
+        params: TranscriptReadParams,
         _signal: unknown,
         _onUpdate: unknown,
         ctx: ExtensionContext,
@@ -480,13 +473,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: {
-          path: string;
-          types?: string[];
-          offset?: number;
-          limit?: number;
-          elide_user_text?: boolean;
-        },
+        params: TranscriptReadParams & { path: string },
       ) {
         const allEntries = readSessionFileEntries(params.path);
         if (!allEntries) {
