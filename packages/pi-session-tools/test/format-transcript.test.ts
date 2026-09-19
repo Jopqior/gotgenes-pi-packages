@@ -618,14 +618,29 @@ describe("formatTranscript — metadata entries", () => {
     expect(formatTranscript(entries)).toBe("");
   });
 
-  it("omits session_info entries", () => {
+  it("renders a session_info entry as a stage boundary", () => {
     const entries = [
       {
         type: "session_info",
         id: "1",
         parentId: null,
         timestamp: "t",
-        name: "My session",
+        name: "#934 Ship — Audit and prune the agent documentation",
+      },
+    ];
+    expect(formatTranscript(entries)).toBe(
+      "[session] → #934 Ship — Audit and prune the agent documentation",
+    );
+  });
+
+  it("omits a session_info entry whose name is an explicit clear", () => {
+    const entries = [
+      {
+        type: "session_info",
+        id: "1",
+        parentId: null,
+        timestamp: "t",
+        name: "   ",
       },
     ];
     expect(formatTranscript(entries)).toBe("");

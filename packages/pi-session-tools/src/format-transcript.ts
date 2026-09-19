@@ -192,6 +192,11 @@ function formatMetadataEntry(entry: TranscriptEntry): string | null {
         typeof e.thinkingLevel === "string" ? e.thinkingLevel : "unknown";
       return `[thinking] \u2192 ${level}`;
     }
+    case "session_info": {
+      // An empty name is the SDK's explicit title clear, not a stage boundary.
+      const name = typeof e.name === "string" ? e.name.trim() : "";
+      return name ? `[session] \u2192 ${name}` : null;
+    }
     case "branch_summary": {
       const summary = typeof e.summary === "string" ? e.summary : "";
       const snippet = summary.slice(0, BRANCH_SUMMARY_SNIPPET_LENGTH);
@@ -200,7 +205,7 @@ function formatMetadataEntry(entry: TranscriptEntry): string | null {
       return `[branch] ${snippet}${ellipsis}`;
     }
     default:
-      // custom, label, session_info, custom_message: omitted
+      // custom, label, custom_message: omitted
       return null;
   }
 }
