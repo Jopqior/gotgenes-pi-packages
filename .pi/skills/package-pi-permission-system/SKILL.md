@@ -134,7 +134,8 @@ Every terminal entry also carries a `decidedBy` provenance record (`DecisionSour
 The record's shape, where it is and is not carried, and the bounds that reach it are the `decision-source.ts` entry in `docs/architecture/architecture.md`.
 Redaction is **structural, never value-shape**: `isSensitiveName` (`src/logging/log-redaction.ts`) masks a value because of the name it is bound to, and a provider-prefix/entropy list was measured against a real 6.7 MB log and declined (403 `sk-` hits, all false positives from `task-*`; zero true positives).
 The boundary to repeat verbatim in any doc or reply: a value bound to a sensitive name is masked — whether the name is a log key, a shell variable, or a request header field — and a secret with no name bound to it, such as one typed as a `grep` pattern, is not.
-Governing record: `docs/decisions/0010-permission-log-secret-exposure.md` (Refs #647, #920).
+Governing record: `docs/decisions/0010-permission-log-secret-exposure.md` (Refs #647, #920, #923).
+A shell variable is found inside an inline-shell payload (`bash -c '…'`) as well as at the top level, because the package already knows that argument is shell; a heredoc body and an interpreter payload are declined, measured, as the class where an anchored rule reads a secret out of embedded Python.
 
 The dialog's size bounds are not redaction and must not be conflated with it: `renderPromptDialog` (`src/presentation/dialog-renderer.ts`) applies a *quantity* cap uniformly, never reads a value to decide what to hide, and keeps the complete text one keystroke away (`Ctrl+O`).
 A proposed bound that inspects the value to choose what to shorten has become redaction by another name (Refs #710).

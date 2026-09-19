@@ -1292,6 +1292,7 @@ The command is parsed, and a value is masked when it is bound to a sensitive nam
 KEY="sk-or-v1-…" curl https://x        →  KEY=[redacted] curl https://x
 env MY_KEY=… deploy                    →  env MY_KEY=[redacted] deploy
 curl -H "Authorization: Bearer sk-…"   →  curl -H "Authorization:[redacted]"
+bash -c 'TOKEN=sk-… deploy'            →  bash -c 'TOKEN=[redacted] deploy'
 ```
 
 The boundary is worth stating exactly, because it is easy to over-read:
@@ -1301,7 +1302,10 @@ The boundary is worth stating exactly, because it is easy to over-read:
 
 So `grep -r "sk-ant-…" .` and `deploy --token abc123` are both logged unredacted: the first binds the secret to nothing, and the second binds it to a flag rather than a name.
 The extension deliberately does not try to guess which parts of a command look secret-shaped — see [ADR 0010] for the measured reasoning.
-A command the parser could not fully resolve, and a secret inside an inline-shell payload (`bash -c '…'`) or a heredoc body, are masked only as far as the parse reached.
+A command the parser could not fully resolve is masked only as far as the parse reached.
+A secret inside a **heredoc body** (`cat > .env <<'EOF'` / `API_KEY=…` / `EOF`) is not masked at all: a heredoc body is literal data rather than shell, and re-parsing one as shell is how the log's own Python and TypeScript heredocs come to read as assignments — measured at six false positives and no true ones, so [ADR 0010] declines it.
+An **inline-shell payload** (`bash -c '…'`, `sh -c "…"`, `eval '…'`) *is* masked, because the package already knows that argument is shell.
+An interpreter's payload (`python3 -c '…'`) is not, for the same reason a heredoc body is not.
 
 Every value the **review** log writes is narrowed to `reviewLogFieldMaxWidth` (1000 characters by default) and marked with an ellipsis, so a single pathological command cannot put tens of kilobytes in one entry.
 This is a length bound, not redaction: it never inspects a value to decide what to hide, and it applies to every field alike.
