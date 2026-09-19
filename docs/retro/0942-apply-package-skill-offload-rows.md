@@ -79,3 +79,77 @@ No follow-up issues to hand off.
 ### Observations
 
 Nothing beyond the Planning and Implementation stage notes above; this is a breadcrumb for `/ship` and the final `/retro`.
+
+## Stage: Final Retrospective (2026-09-19T07:22:06Z)
+
+### Session summary
+
+Shipped #942 through the worktree lane: fast-forward-merged `issue-942-apply-the-19-package-skill-offload-rows` into `main`, re-ran both pre-push gates on the merged tree, pushed, verified CI green, closed the issue, dispatched and verified the `pi-permission-system` v33.0.1 release, and tore down the worktree.
+All four stages — planning, build, sync, ship — completed with no rework, no reverted commit, and no operator correction.
+The retrospective spans all four; the peer transcript was read in full for message-level detail.
+
+### Observations
+
+#### What went well
+
+- **A subagent's reported contradiction did not survive verification, and that check was load-bearing.**
+  The planning `Explore` survey reported that the skill's "heartbeat records live beside `sessions/`, never inside it" contradicted the code.
+  Planning read `extension-paths.ts`, `permission-forwarding.ts`, and `forwarding-liveness.ts` and found the survey had misread *which* `sessions/` directory.
+  Had the claim gone into the plan unchecked, the build would have "corrected" a correct sentence into a wrong one — this is the `delegation` rule about a subagent's universal claim earning its place in a concrete, non-hypothetical way.
+- **The `/sync-worktree` dangling-SHA check fired on real breakage.**
+  The rebase rewrote three SHAs that the planning and build stage notes cited (`04e3edf8`, `20ebdb16`, `5cd4eca5`).
+  The step-5 probe found all three, the sync stage rewrote each to its commit subject and amended.
+  Without it, `main` would carry a retro citing three unreachable hashes — the exact #814/#914 failure the check was built for.
+- **Measuring the destinations reframed the whole job.**
+  The audit's `offload` verdict assumed empty destinations; planning measured and found 11 of 19 rows already stated at the destination, often verbatim.
+  The job changed from "move 8,406 words" into "delete most of them and confirm the destination already says it", which is why the residue was ~25 clauses rather than a second copy of the skill.
+- **Verification ran per-row and per-step, not at the end.**
+  Roughly seven destination greps per row before each cut, a removed-line probe after each cut, `rumdl check` before each commit, and `pnpm run lint` at both baseline and close-out.
+  The ship then re-ran both gates on the merged tree — the tree neither `/sync-worktree` nor the build had checked, since the rebase came after the peer's gates.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` (self-identified) — attributing models for the diagnostic lens, I grepped `$PI_SESSION_FILE` for `model_change` events and correlated them against user-message timestamps with a `python3` script.
+  The `/retro` prompt explicitly forbids this route ("never `jq` over `$PI_SESSION_FILE`") and names the hazard: a `model_change`-derived attribution can render phantom switches that never ran a turn (Refs #737).
+  Impact: about 5 tool calls, two of which were a `python3` script that had to be rewritten once for the message envelope shape.
+  Self-corrected by re-deriving attribution from the per-turn `model` fields, which confirmed the same answer (36 ship turns on `claude-sonnet-5`) — so no wrong conclusion was published, only wasted calls.
+  This friction already has an owner: #940 and #944 in the session-tools trio (triage rank 21), and the triage notes the same lens cost three calls during #934.
+- `other` — in `/ship` step 5 I appended `; echo "EXIT=$?"` to `pnpm run lint >/tmp/lint.log 2>&1 || tail -30 /tmp/lint.log`.
+  `$?` there reports the `||` compound's status, which is 0 both when lint passes and when lint fails but `tail` succeeds, so the printed `EXIT=0` was not evidence of a clean lint.
+  Impact: one extra tool call to re-read the log; no rework.
+  The prescribed idiom already self-reports — silence means pass — so the appended echo only added a number that looks authoritative and is not.
+- `other` — the build stage's anchor-bounded `cut942.mjs` script dropped a paragraph blank line twice (before "The live-authority layer" and before `## Testing`).
+  Impact: caught by the immediate `sed -n` re-read each time and fixed in the same step; no rework.
+  The script was still the right instrument — it made each cut deterministic where a 30-line `oldText` would have been fragile.
+- `other` — eleven orphaned `[#N]:` link definitions accumulated across the cuts, each found reactively by that step's `rumdl check` and removed with a `perl -ni` one-liner.
+  Impact: friction only; MD053 caught every one before its commit.
+  Predictable consequence of cutting prose that cites issues, but the lint gate is deterministic here, so anticipating it in the plan would have saved little.
+
+#### What caused friction (user side)
+
+Nothing to report.
+The operator's involvement was concentrated in the one planning gate, where four design choices were settled at once — per-row disposition, `architecture.md` as the sole mechanism destination, a single `investigating-a-report.md` page instead of six retro edits, and accepting the `pi-permission-system` patch release from rows 4–5.
+All four held through the build without revision, which is what let three later stages run unattended.
+
+### Diagnostic details
+
+- **Model-performance correlation** — Planning `anthropic/claude-opus-5` (judgment-heavy: reframing the job, the four-part operator gate); Build `anthropic/claude-fable-5-1` (11 doc steps with per-claim verification — it overturned two plan details mid-execution); Sync and Ship both `anthropic/claude-sonnet-5` (procedural, zero rework across both); this retrospective `anthropic/claude-opus-5`.
+  Both subagents ran `claude-sonnet-5`, attributed from their own transcripts under `…/tasks/`.
+  The one mismatch worth naming: the planning `Explore` survey was the most judgment-heavy dispatch in the issue — 19 rows, each needing a three-way destination classification — and it produced the false `sessions/` contradiction plus `partial` verdicts that the build later found "right in every case but one".
+  The workflow caught both, so the assignment was survivable, but this is the dispatch where a stronger model would have paid.
+- **Escalation-delay tracking** — no `rabbit-hole` friction points, and no sequence of 5+ consecutive calls on the same error.
+  The longest same-target run (build turns ~56–67, about 12 calls on row 3's destination claims) was deliberate per-claim verification, not an error loop.
+- **Feedback-loop gap analysis** — the inverse of the failure mode this lens looks for: verification was incremental at every stage, and the ship re-ran both gates on the post-rebase merged tree that no earlier stage had checked.
+  No gap found.
+
+### Changes made
+
+1. `docs/retro/0942-apply-package-skill-offload-rows.md` — appended this Final Retrospective stage entry.
+
+No changes to `AGENTS.md`, `.pi/prompts/`, or any skill.
+Each candidate was rejected against the `AGENTS.md` admission test or as redundant with a working gate:
+
+- The `$PI_SESSION_FILE` attribution violation is a rule that already exists and names its incident (Refs #737); the friction has a tooling owner in #940 and #944.
+- The `echo "EXIT=$?"` slip is stated twice already — the `git-workflow` skill's `## Gating a commit on a check` section and `/ship`'s pre-push step.
+- The orphaned `[#N]:` definitions are gated deterministically by `rumdl`'s MD053, which caught all eleven before their commits.
+- A `delegation` note on model choice for wide classification sweeps had no crisp trigger, and the workflow already caught the survey's one false finding.
