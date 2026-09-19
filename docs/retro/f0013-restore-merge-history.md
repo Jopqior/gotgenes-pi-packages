@@ -106,3 +106,40 @@ Atomic ref replacement, stale-lease rejection, rollback, repeated forward migrat
 - The approval packet contains six remote ref replacements, explicit local-ref dispositions, three Release body edits, and eight additive issue correction notes.
   None has been applied to production.
   Step 7 requires approval of the exact final packet, renewed old-ref/writer/backup checks, and later reconfirmation of publication; ordinary `/ship` or `/sync-worktree` must not attempt this migration.
+
+## Stage: Migration and Publication (2026-09-19T08:45:31Z)
+
+### Session summary
+
+Completed plan step 7 after renewing the writer/publication freeze and obtaining approval of a revised exact-ref packet.
+Atomically replaced remote `main` and all five historical tags with explicit per-ref leases, reconciled three Release bodies and eight issue correction notes, and installed restored `main` locally without changing the existing untracked directory.
+After successful fresh-clone verification and CI, the operator separately approved publication of `@jopqior/pi-subagents@1.0.2` and `@jopqior/pi-subagents-model-selector@1.0.2` to npmjs.org.
+Both publications and their GitHub Releases succeeded through [release run 35432681523](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/35432681523).
+
+### Observations
+
+- Initial revalidation rejected the previously approved packet: local `refs/remotes/upstream/main` held `6b51c0b1a1eeb83a528499a3ed9151e044f560cd` rather than the frozen integrated upstream commit.
+  Its reflog records a prior-session fetch from a disposable fixture at `2026-09-18T23:32:01+08:00`; the remote production refs and editable service records had not drifted.
+  No production mutation occurred under that invalidated approval.
+- Archived the drifted live graph, Git metadata, reflog, and refreshed untracked snapshot externally, then independently restored the original backup and verified all historical tag objects and original merge parents.
+  Repeated atomic forward/rollback/stale-lease/fresh-clone rehearsal and added a local-install rehearsal that preserved untracked file hashes.
+  The operator approved `approval-manifest-renewed.json`, SHA-256 `200f395e47ccf81825ffb63b93f6c4fd9af7fe02c7f9ffd2968c342ec30b8dce`.
+  Its only changed ref disposition restores the accidentally overwritten local upstream tracking ref; candidate HEAD and all remote/service payloads remain unchanged.
+- Restored candidate `a57fc4567c2d206d9b5cff19996b42f2152ac8e6` passed [CI run 35432449727](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/35432449727).
+  A fresh production clone verified every migrated ref, original ancestry and merge parents, absence of the discarded nodes from retained refs, and byte-identical historical package trees.
+  The approved obsolete local refs were removed; upstream push blocking and tag isolation remain configured.
+- Release commit `788f64093ce023e12ac491355563004f1610142f` is a direct child of the approved candidate and passed [CI run 35432692126](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/35432692126).
+  Both new release sections contain only the inspected documentation entries, and both next-version queries now report nothing pending.
+  The nonblocking Fallow full-report step emits an exit-1 annotation; the workflow succeeds and its separate required dead-code gate passes.
+- Downloaded all seven registry tarballs and verified their integrity hashes.
+  The five older tarballs and their available attestations exactly match the external backup.
+  New tarballs contain the intended public files and exclude internal plans, retros, and tests; core declaration bundles are present, and the selector dependency is `^1.0.2`, which the registry resolves to the new core version.
+- Verified both new provenance bundles cryptographically with `gh attestation verify`, enforcing the fork repository, release workflow, `main` source ref, and candidate source digest.
+  Provenance records the workflow-trigger SHA `a57fc4567c2d206d9b5cff19996b42f2152ac8e6`; the publish job checks out release commit `788f64093ce023e12ac491355563004f1610142f`.
+  Do not describe the provenance source field as the release commit.
+- All new and preserved tag/Release records were rechecked after publication, including exact historical Release bodies and preserved identity fields.
+  Older Actions records, registry provenance, third-party clones, and caches remain outside the ref migration; no garbage collection or deletion of external evidence was attempted.
+  Recovery inputs and execution evidence remain at `/home/whh/projects/gotgenes-history-recovery/issue-13-20260918T150901Z/`, with this stage's raw records under `logs/step7/`.
+- The operator approved the closing text and requested completion of the remaining stage-note commit, push, and issue closure only.
+  The final interactive `/retro 13` is explicitly deferred to a later session.
+  Ordinary `/ship` and `/sync-worktree` were not used; no further release dispatch is needed for this issue.
