@@ -197,7 +197,7 @@ Run against the `design-review` checklist, since this is a wiring change.
 
 Predicted unchanged, with the evidence:
 
-- `packages/pi-autoformat/test/config-loader.test.ts` — all 8 `loadAutoformatConfig(...)` calls already pass `{ cwd, agentDir }` and all 4 `getGlobalConfigPath(...)` calls already pass `agentDir`, so requiring both is a no-op here.
+- `packages/pi-autoformat/test/config-loader.test.ts` — all 7 `loadAutoformatConfig(...)` calls already pass `{ cwd, agentDir }` and all 5 `getGlobalConfigPath(...)` calls already pass `agentDir`, so requiring both is a no-op here.
   Measured: the spike ran the full unit suite with the `src/` changes applied and got 307 passing with zero test edits (306 pre-existing plus the spike's own).
 - `packages/pi-autoformat/schemas/pi-autoformat.schema.json` — describes config *content*, names no path and no environment variable.
 - `packages/pi-autoformat/src/touched-files-queue.ts` — its `homedir()` calls serve `~`-expansion of agent-reported paths, a different concern (see Non-Goals).
