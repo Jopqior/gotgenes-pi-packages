@@ -89,5 +89,63 @@ Branch is otherwise ready to rebase onto local `main` and hand off.
 `pnpm run lint` and `pnpm fallow dead-code` still pass clean.
 No new commits since `docs(retro): add sync stage notes for issue #940`.
 
+## Stage: Final Retrospective (2026-09-19T15:21:43Z)
+
+### Session summary
+
+Shipped #940 through the worktree lane: fast-forward-merged the peer branch, ran both pre-push gates on the merged tree, pushed, verified CI green, closed #940 and the co-shipped [#950], dispatched and verified the release of `pi-session-tools-v2.2.0`, and tore down the worktree.
+The ship ran end to end with no corrections, no rework, and no follow-up commits.
+The retrospective's own model-attribution lens then became the session's one friction point — it is instructed to use the `offset` and `elide_user_text` parameters this issue shipped, which the session's running copy of the extension predates.
+
+### Observations
+
+#### What went well
+
+- **The retro file earned its keep as the ship-time close-target source.**
+  `/ship` step 2 reads the plan and retro in full before any irreversible action; the planning stage note named [#950] ("close [#950] in the same pass since `offset` rewrites the exact slice it reports") well before the commit-range grep independently surfaced it.
+  A step that only grepped the plan for `**Release:**` would have shipped the `limit: 0` fix and left [#950] open.
+- **An unpushed root commit on `main` was absorbed rather than breaking the ff-merge.**
+  `git rev-list --count origin/main..main` reported 1 — `b0cea285 docs(pi-permission-system): disposition #952 against Phase 15`, committed to the root while a worktree branch was pending, which the `worktrees` skill names as the sharper hazard.
+  It was harmless because `/sync-worktree` rebases onto **local** `main`, not `origin/main`: `PRE_MERGE` resolved to exactly that commit and `git merge-base --is-ancestor main "$BRANCH"` predicted the fast-forward correctly.
+  The design absorbed an operator slip that the earlier `origin/main` formulation would have turned into a peer round-trip.
+- **Every SHA in both close comments was resolved and ancestor-checked before publishing.**
+  Four commits (`93d1653a`, `39a4104f`, `d0302df2`, `006d8f7f`) went through `git rev-parse <sha>^{commit}` and `git merge-base --is-ancestor <sha> main` in one batch, and the landing commit was chosen as the one fixing the issue's **title** defect (`offset`), not the newest or largest in range.
+
+#### What caused friction (agent side)
+
+- `missing-context` — **the retrospective's model-attribution lens used the parameters this session had just shipped, on a copy of the extension that predates them.**
+  `.pi/prompts/retro.md` lens 1 now recommends paging with `offset` and setting `elide_user_text: true` (Refs #940, added by this very issue's docs step).
+  Pi loads each extension once at session start, and this session started before the ff-merge, so the running `read_session_file` is the pre-#940 build.
+  Both parameters were **silently ignored** rather than rejected: `{ offset: 5, limit: 3 }` returned the trailing three entries, and `{ elide_user_text: true }` rendered every user-prompt body in full.
+  `AGENTS.md` § Stale in-process extension code carries the general rule, but its worked case is a *removed* tool, which fails loudly; an *added parameter* fails silently and looks like a correct result.
+  Impact: two wasted probe calls, and the model-attribution lens ran against the transcript's tail (the sync stage) instead of the full 500-entry peer session, so per-stage attribution for planning and TDD came from the subagent transcripts rather than the main one.
+  Self-identified — the second probe's output disclosed it.
+
+#### What caused friction (user side)
+
+- None this session.
+  The operator invoked `/ship 940` and `/retro 940` and made no corrections; every decision gate the prompt defines was answered by a deterministic source (the plan's `**Release:** ship independently` marker, `next-version.sh`), so no clarification was needed.
+
+### Diagnostic details
+
+- **Model-performance correlation** — the peer implementation session and both of its subagents ran on `anthropic/claude-sonnet-5`, attributed from the transcripts themselves (`read_session_file` on the recorded peer path; `list_subagent_sessions` for the two task transcripts, per [#943]) rather than from the agent definitions.
+  Both dispatches were judgment-heavy — a `tidy-first-assessor` that read ten files and produced one Recommended preparatory commit with call-site counts, and a `pre-completion-reviewer` that re-derived the pruning/windowing interaction by hand and returned WARN with no FAILs — so a reasoning-strong model was the right fit; no mismatch found.
+  Coverage caveat: the main peer transcript is 500 entries and only its tail could be read, per the friction point above.
+- **Escalation-delay tracking** — no `rabbit-hole` friction points; no error was retried, and the longest same-target sequence was the two `offset`/`elide_user_text` probes.
+- **Unused-tool detection** — none; the lens's gap was a stale build of an available tool, not an undispatched one.
+- **Feedback-loop gap analysis** — `pnpm run lint` and `pnpm fallow dead-code` both ran unpiped (redirect-and-tail) on the post-merge tree at step 5, before the push, which is the point that covers the tree CI will see; CI and the release run were each watched to completion.
+
+### Changes made
+
+1. `packages/pi-session-tools/docs/retro/0940-read-session-offset-and-elision.md` — added this Final Retrospective stage entry.
+
+Two documentation changes were proposed and **declined by the operator**, recorded here so a later session does not re-derive them as new:
+
+1. A one-line caveat in `.pi/prompts/retro.md` lens 1, noting that a retro for `pi-session-tools` itself runs the pre-merge build and ignores `offset`/`elide_user_text` silently.
+2. A one-clause addition to `AGENTS.md` § Stale in-process extension code, naming an **added parameter** as the silent case alongside the existing changed-tool and removed-tool cases.
+
+The general rule already lives in `AGENTS.md`; the operator's call is that it covers this case without a second copy at the point of use.
+
 [#916]: https://github.com/gotgenes/pi-packages/issues/916
+[#943]: https://github.com/gotgenes/pi-packages/issues/943
 [#950]: https://github.com/gotgenes/pi-packages/issues/950
