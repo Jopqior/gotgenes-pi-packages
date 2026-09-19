@@ -254,6 +254,30 @@ export function createScratchReleaseRepository(options = {}) {
     };
   }
 
+  /**
+   * The `cliff_args` scoping arguments lib.sh computes for a package, as an
+   * argv array. Sourcing the real lib.sh keeps tests in step with the
+   * scripts' own scoping instead of duplicating the argument list.
+   *
+   * @param {string} name package directory name
+   * @returns {string[]}
+   */
+  function cliffArgs(name) {
+    const command =
+      ". '" +
+      libShPath +
+      "'; cliff_args " +
+      name +
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: "${CLIFF_ARGS[@]}" is bash array expansion inside the command handed to `bash -c`, not a JS template placeholder — lib.sh owns the array.
+      '; printf "%s\\n" "${CLIFF_ARGS[@]}"';
+    const listing = execFileSync("bash", ["-c", command], {
+      cwd: dir,
+      encoding: "utf8",
+      env: gitEnv,
+    });
+    return listing.trim().split("\n");
+  }
+
   return {
     dir,
     pkg,
@@ -268,6 +292,7 @@ export function createScratchReleaseRepository(options = {}) {
     copyReleaseScripts,
     writeManifest,
     runReleaseScript,
+    cliffArgs,
     dispose() {
       rmSync(dir, { recursive: true, force: true });
     },
