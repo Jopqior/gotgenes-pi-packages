@@ -3,6 +3,7 @@ import {
   type CommandWord,
   classifyWrapperWords,
   executedUnitOf,
+  inlineShellPayloadIndex,
   isTransparentWrapper,
 } from "#src/access-intent/bash/wrapper-analysis";
 
@@ -87,6 +88,62 @@ describe("classifyWrapperWords", () => {
 
     it("does not flag an empty word list", () => {
       expect(classifyWrapperWords([])).toBeUndefined();
+    });
+  });
+});
+
+describe("inlineShellPayloadIndex", () => {
+  /** The payload index of a unit spelled as plain whitespace-separated words. */
+  function payloadIndex(unitText: string): number {
+    return inlineShellPayloadIndex(words(unitText));
+  }
+
+  describe("a shell running an inline program", () => {
+    it.each([
+      ['bash -c "rm -rf /"', 2],
+      ["sh -c 'ls'", 2],
+      ["dash -c ls", 2],
+      ["zsh -c ls", 2],
+      ["ksh -c ls", 2],
+      ['bash -ec "make build"', 2],
+      ['bash -xc "make build"', 2],
+      ['/bin/bash -c "ls"', 2],
+      ['bash -i -c "ls"', 3],
+    ])("names the argument after the -c cluster in %s", (unit, expected) => {
+      expect(payloadIndex(unit)).toBe(expected);
+    });
+
+    it("names eval's first argument, which takes no flag", () => {
+      expect(payloadIndex('eval "rm x"')).toBe(1);
+    });
+  });
+
+  describe("a unit carrying no inline program", () => {
+    it.each([
+      ["bash script.sh", "a shell running a script file"],
+      ["bash --help", "a long option is not a -c cluster"],
+      ["bash -- -c", "the -c follows the end-of-options marker"],
+      ["python3 -c 'print(1)'", "an interpreter is not a shell"],
+      ["node -e 'x'", "an interpreter is not a shell"],
+      ["sudo ls", "an indirection wrapper hides no payload"],
+      ["ls -la", "an ordinary command"],
+    ])("answers -1 for %s (%s)", (unit) => {
+      expect(payloadIndex(unit)).toBe(-1);
+    });
+
+    it("answers -1 for an empty word list", () => {
+      expect(inlineShellPayloadIndex([])).toBe(-1);
+    });
+  });
+
+  describe("a payload flag with nothing after it", () => {
+    // The index still names where the payload *would* be; the caller decides
+    // what an out-of-range index is worth, exactly as `opaquePayload` does.
+    it.each([
+      ["bash -c", 2],
+      ["eval", 1],
+    ])("names the vacant position in %s", (unit, expected) => {
+      expect(payloadIndex(unit)).toBe(expected);
     });
   });
 });

@@ -59,6 +59,30 @@ export function classifyWrapperWords(
   return undefined;
 }
 
+/**
+ * Index within `words` of the inline-shell payload — the inner program an
+ * `"opaque-payload"` unit runs — or `-1` when the unit carries none.
+ *
+ * `eval` takes its program as the first argument (no `-c`, so the flag scan
+ * answers -1 and the index falls out as 1); a shell takes it after the `-c`
+ * cluster. Any other command name carries no inline program at all, which is
+ * what keeps an interpreter (`python3 -c`, `node -e`) out: its payload is
+ * another language, not shell.
+ *
+ * The index names the payload's *position*, which a vacant one still has
+ * (`bash -c`), so each caller decides for itself what reading past the end of
+ * `words` is worth.
+ */
+export function inlineShellPayloadIndex(words: readonly CommandWord[]): number {
+  const commandName = wrapperName(words);
+  if (commandName === undefined) return -1;
+  const isShell = SHELL_WRAPPER_NAMES.has(commandName);
+  if (commandName !== "eval" && !isShell) return -1;
+  const flagIndex = shortFlagCIndex(words.slice(1).map((word) => word.text));
+  if (isShell && flagIndex === -1) return -1;
+  return flagIndex + 2;
+}
+
 // ── Wrapper vocabulary ───────────────────────────────────────────────────────
 
 /**
@@ -203,11 +227,8 @@ function nothingNew(text: string | null, unitText: string): string | null {
 
 /** The inline-shell payload argument, unquoted; `null` when absent. */
 function opaquePayload(words: readonly CommandWord[]): string | null {
-  const args = words.slice(1);
-  // `eval` takes its program as the first argument (no `-c`, so the index is
-  // -1); a shell takes it after the `-c` cluster.
-  const flagIndex = shortFlagCIndex(args.map((word) => word.text));
-  const payload = args[flagIndex + 1] as CommandWord | undefined;
+  const index = inlineShellPayloadIndex(words);
+  const payload = index === -1 ? undefined : words.at(index);
   return payload === undefined ? null : unquote(payload.text);
 }
 
