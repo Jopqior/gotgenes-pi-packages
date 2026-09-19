@@ -118,7 +118,72 @@ No deferred work beyond what the TDD stage note already names: the heredoc/heres
 Nothing beyond the TDD stage note's own record.
 The corpus-measurement correction (the "0 differ" figure had been carried forward from a prototype that predated two of the three shipped mechanisms) was made and committed before this sync stage; see that entry for the full account.
 
+## Stage: Final Retrospective (2026-09-19T19:58:52Z)
+
+### Session summary
+
+Shipped [#923] through the worktree lane: fast-forward-merged 16 commits, released `pi-permission-system` v33.0.2, closed the issue, and tore the worktree down — with no rework at any step.
+This entry synthesizes all four stages (planning, TDD, sync, ship), whose dominant theme is that every real defect in this issue was found by adversarial derivation, and every number that needed correcting came from a measurement whose subject had moved.
+
+### Observations
+
+#### What went well
+
+- **The reviewer found two leaks an 8 056-command corpus could not, and one was the reported defect itself.**
+  Round 1's FAIL on `payloadSlice` (a `concatenation` and an `ansi_c_string` payload both read as unquoted) and its *non-blocking* note about indirection wrappers each pinned a real exposure with zero occurrences in the corpus.
+  Deriving inputs from the stated invariant beat measuring the population, which is the same result [#920]'s review produced on `openingQuoteOf`.
+- **The TDD loop ran mutation-first and caught a mispredicted plan.**
+  Every step saved a green copy to `/tmp`, applied the plan's killing mutations via `python3` in-place rewrites, and restored — 14 mutations across six steps.
+  Two produced results the plan did not predict (step 1's `eval` case reddened all 19 rather than staying green; `opaquePayload`'s peeling swap reddened nothing), and both were reasoned to a verdict rather than patched over.
+- **The sync stage's dangling-SHA sweep earned its place.**
+  The rebase over a sibling `#952` disposition commit rewrote every SHA, and the sweep caught `acec8edd` cited in the TDD stage note, rewording it to the commit's subject before the land.
+  The `architecture.md` conflict was the add-only `[#N]:` reference-definition case the `worktrees` skill names, resolved by keeping both in ascending order.
+- **`/ship`'s `PRE_MERGE` anchor rule fired for real (Refs [#899]).**
+  The branch carried `docs(pi-permission-system): disposition #951 against Phase 15` *before* its plan commit, so `"$PLAN"^..HEAD` could not see it.
+  Both anchors were checked and both yielded the same single package, but the rule is what made that a verified equality rather than an unexamined assumption.
+
+#### What caused friction (agent side)
+
+- `other` (stale evidence) — the "0 commands log differently" figure was carried from the plan's **prototype**, which implemented only the payload-slice widening; the stitched coarse branch, the `ansi_c_string` case, and the indirection peeling all landed afterward and none was in the measured artifact.
+  The follow-up checks were weaker than reported too: they compared the *count* of altered commands (4, then 4), which cannot see one command leaving the set as another enters.
+  User-caught, by a one-word challenge.
+  Impact: one extra commit (`docs(retro): re-measure the corpus differential against the shipped code`) and about five tool calls to dump every input→output pair at both revisions and diff them; the claim survived at 0 of 8 142, so no code changed.
+- `other` (deferring to a subagent's scoping) — the reviewer filed the indirection-wrapper gap as a pre-existing scope boundary rather than a defect, and accepting that framing would have closed [#923] with `sudo bash -c 'TOKEN=…'` still reproducing the reported inconsistency exactly.
+  Self-identified during the TDD stage.
+  Impact: one extra `fix:` commit, caught before ship — no rework, but the near-miss is the notable part.
+- `other` (assessor estimates) — the `tidy-first-assessor`'s line-number references were off by 20–35 lines and its proposed name `commandArgumentNodes` collided in meaning with the existing `commandArgumentWords` (a different filter, whose divergence `architecture.md` records as a finding).
+  Both self-caught at planning time by re-grepping and renaming to `commandWordNodes`.
+  Impact: added friction but no rework.
+- `other` (routine tool friction) — three `Edit` `oldText` mismatches, one `edits[1].newText` schema validation failure, and one `ERR_MODULE_NOT_FOUND` for `web-tree-sitter` in a `/tmp` spike probe.
+  Impact: single retries each, no rework.
+
+#### What caused friction (user side)
+
+- Nothing to change.
+  The one user intervention in four stages was an 11-character challenge to a number, at exactly the point where the number was wrong — a redirecting question rather than a correction, and the highest-leverage possible use of operator attention.
+  The `xargs` aside during planning likewise turned into a separately filed defect ([#951]) rather than scope creep.
+
+### Diagnostic details
+
+- **Model-performance correlation** — planning and TDD ran on `claude-opus-5`, sync and ship on `claude-sonnet-5`, this retrospective on `claude-opus-5`.
+  All three subagents (one `tidy-first-assessor`, two `pre-completion-reviewer` rounds) ran on `claude-sonnet-5`, attributed from their own transcripts under the session's `tasks/` directory.
+  No mismatch to flag: the sonnet-5 reviewer's round-1 FAIL identified a real security leak by adversarial derivation, which is the judgment-heavy half of its job.
+- **Escalation-delay tracking** — no `rabbit-hole` friction points; no sequence exceeded five consecutive tool calls on the same error.
+  The longest same-target run was the corpus re-measurement (five calls), which was a deliberate procedure rather than a stuck loop.
+- **Feedback-loop gap analysis** — verification ran incrementally throughout, not only at the end: `pnpm run check` and the package suite after every Red→Green pair, `pnpm run lint` before every commit, and full gates (`test`, `check`, `lint`, `fallow dead-code`) at the TDD stage's close, again at `/sync-worktree` step 2, and again at `/ship` step 5 on the merged tree.
+  The ship-stage re-run is the one that covers the post-rebase tree neither earlier run saw.
+- **Unused-tool detection** — nothing notable; no friction point had an undispatched tool that would have helped.
+
+### Changes made
+
+1. `.pi/skills/reproduction/SKILL.md` — added `## A prototype's measurement expires when the implementation diverges`: re-measure against real pre- and post-change code once the implementation gains a mechanism the prototype lacked, and diff the full input→output mapping rather than a count of changed inputs.
+2. `.pi/skills/pre-completion/SKILL.md` — added `## A non-blocking observation can still be the issue's own defect` at the end of the file: the reviewer scopes findings against the plan, so check each non-blocking observation against the issue's reported symptom before accepting it.
+3. `packages/pi-permission-system/docs/retro/0923-inline-shell-payload-secret-redaction.md` — this Final Retrospective stage entry.
+
+No `AGENTS.md` change: both rules fail the admission test's second question — each fires at a trigger that already has a skill loader.
+
 [#803]: https://github.com/gotgenes/pi-packages/issues/803
+[#899]: https://github.com/gotgenes/pi-packages/issues/899
 [#920]: https://github.com/gotgenes/pi-packages/issues/920
 [#923]: https://github.com/gotgenes/pi-packages/issues/923
 [#925]: https://github.com/gotgenes/pi-packages/issues/925

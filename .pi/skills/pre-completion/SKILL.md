@@ -87,3 +87,8 @@ Do not proceed automatically — let the user decide.
 
 A finding in code the change never touched is a defect in the **record**, not a regression: correct the ADR or issue text, file or widen the follow-up, and offer that as the fix option.
 Scope the next dispatch to the delta — name the new commit and the rounds already reviewed.
+
+## A non-blocking observation can still be the issue's own defect
+
+The reviewer scopes findings against the plan, so "matches the plan's scoping, not a defect" is a claim about the plan, not about the issue.
+Check each non-blocking observation against the issue's reported symptom before accepting it (Refs #923).

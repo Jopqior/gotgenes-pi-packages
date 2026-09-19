@@ -30,6 +30,12 @@ Take the input from something that already exists:
 When no real artifact is reachable, say so: label the evidence synthetic and unconfirmed, and carry that label into the plan's Design Overview.
 A named limit is a finding; an unnamed one becomes a premise.
 
+## A prototype's measurement expires when the implementation diverges
+
+A number measured against a prototype covers only the mechanisms the prototype had.
+Re-measure against the real pre- and post-change code whenever the implementation later gained one it lacked — the stale number still reads true, so nothing surfaces the expiry (Refs #923).
+Diff the full input→output mapping, not a count of changed inputs: a count cannot see one input leaving the set as another enters.
+
 ## Read the report for what contradicts you
 
 The reporter's own repro is evidence, and its most valuable content is whatever does not fit your hypothesis.
