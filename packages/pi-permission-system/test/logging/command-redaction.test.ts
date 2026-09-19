@@ -256,6 +256,37 @@ describe("redactCommandSecrets", () => {
         expect(redactCommandSecrets(command)).toBe(command);
       });
 
+      it("masks an ANSI-C quoted payload, whose slice skips the dollar too", () => {
+        expect(redactCommandSecrets(`bash -c $'TOKEN=sk-x deploy'`)).toBe(
+          `bash -c $'TOKEN=${MASK} deploy'`,
+        );
+      });
+
+      describe("a payload assembled from several quoted segments", () => {
+        // A `concatenation` payload's shell value is stitched together across
+        // quote boundaries, so no constant offset maps a span in the value back
+        // onto the command. The value still decides *whether* a secret is bound
+        // there, and the whole argument is masked when one is — coarser than a
+        // sliceable payload, and the alternative is writing the secret.
+        it("masks the whole argument when a segment boundary splits the value", () => {
+          expect(redactCommandSecrets(`bash -c 'TOKEN=sk-a'"bc"`)).toBe(
+            `bash -c ${MASK}`,
+          );
+        });
+
+        it("masks the whole argument when a variable is interpolated into it", () => {
+          expect(redactCommandSecrets(`bash -c 'TOKEN='"$SECRET"`)).toBe(
+            `bash -c ${MASK}`,
+          );
+        });
+
+        it("leaves a segmented payload that binds no credential", () => {
+          const command = `bash -c 'echo '"$GREETING"`;
+
+          expect(redactCommandSecrets(command)).toBe(command);
+        });
+      });
+
       it("leaves a heredoc body, which is data rather than shell", () => {
         const command = `cat > .env <<'EOF'\nAPI_KEY=sk-secret\nEOF`;
 

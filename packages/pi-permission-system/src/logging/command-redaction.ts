@@ -108,14 +108,15 @@ function collectSpansIn(
     }));
     if (depth >= MAX_PAYLOAD_DEPTH) return spans;
     for (const payload of inlineShellPayloads(tree.rootNode)) {
-      spans.push(
-        ...collectSpansIn(
-          parser,
-          payload.text,
-          offset + payload.start,
-          depth + 1,
-        ),
+      const sliced = payload.kind === "slice";
+      const inner = collectSpansIn(
+        parser,
+        payload.text,
+        sliced ? offset + payload.start : 0,
+        depth + 1,
       );
+      if (sliced) spans.push(...inner);
+      else if (inner.length > 0) spans.push(wholeOf(payload, offset));
     }
     return spans;
   } finally {
@@ -132,44 +133,101 @@ function collectSpansIn(
  */
 const MAX_PAYLOAD_DEPTH = 4;
 
-/** A payload's verbatim inner text and its offset into the source holding it. */
-interface PayloadSlice {
+/**
+ * An inline-shell payload's program, and how a span found in it maps back onto
+ * the command being masked.
+ *
+ * `"slice"` — the program is a verbatim span of the command: a bare word, or
+ * literal text inside one pair of quotes. A span found in it shifts onto the
+ * command by the constant {@link PayloadSource.start}.
+ *
+ * `"stitched"` — the program is assembled across quote boundaries
+ * (`bash -c 'TOKEN='"$SECRET"`, one `concatenation` node), so no constant shift
+ * exists and an offset into the program names nothing in the command. The
+ * program still decides *whether* a secret is bound inside, so the whole
+ * argument is masked when one is — coarser than a slice, and the alternative is
+ * writing the secret.
+ */
+interface PayloadSource {
+  readonly kind: "slice" | "stitched";
   readonly text: string;
   readonly start: number;
+  readonly end: number;
 }
 
-function inlineShellPayloads(root: TSNode): PayloadSlice[] {
-  const slices: PayloadSlice[] = [];
-  collectInlineShellPayloads(root, slices);
-  return slices;
+/** The span covering a stitched payload argument whole, quotes included. */
+function wholeOf(payload: PayloadSource, offset: number): MaskSpan {
+  return {
+    start: payload.start + offset,
+    end: payload.end + offset,
+    replacement: REDACTED_PLACEHOLDER,
+  };
+}
+
+function inlineShellPayloads(root: TSNode): PayloadSource[] {
+  const payloads: PayloadSource[] = [];
+  collectInlineShellPayloads(root, payloads);
+  return payloads;
 }
 
 function collectInlineShellPayloads(
   node: TSNode,
-  slices: PayloadSlice[],
+  payloads: PayloadSource[],
 ): void {
   if (node.type === "command") {
     const payload = inlineShellPayloadNode(node);
-    if (payload) slices.push(payloadSlice(payload));
+    if (payload) payloads.push(payloadSourceOf(payload));
   }
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
-    if (child) collectInlineShellPayloads(child, slices);
+    if (child) collectInlineShellPayloads(child, payloads);
   }
 }
 
-/** The payload node's text with one matching pair of surrounding quotes removed. */
-function payloadSlice(node: TSNode): PayloadSlice {
+/**
+ * The program a payload node carries, sliced where the grammar spells it as one
+ * contiguous run of the command and stitched where it does not.
+ *
+ * A `word` payload is the program already. A `string`/`raw_string` wraps it in
+ * one quote pair and an `ansi_c_string` in a `$` plus one quote pair, so each is
+ * a slice at a known offset. Anything else — a `concatenation`, an expansion —
+ * is stitched: `resolveNodeText` knows how to read its shell value, and that
+ * value's own offsets describe no span of the command.
+ */
+function payloadSourceOf(node: TSNode): PayloadSource {
+  const bounds = { start: node.startIndex, end: node.endIndex };
+  if (node.type === "word") {
+    return { kind: "slice", text: node.text, ...bounds };
+  }
+
   const text = node.text;
-  const quote = text.at(0);
-  const quoted =
+  const quoteAt = text.startsWith("$") ? 1 : 0;
+  const quote = text.at(quoteAt);
+  const singlyQuoted =
+    SINGLY_QUOTED_PAYLOAD_TYPES.has(node.type) &&
     (quote === "'" || quote === '"') &&
-    text.length >= 2 &&
+    text.length >= quoteAt + 2 &&
     text.endsWith(quote);
-  return quoted
-    ? { text: text.slice(1, -1), start: node.startIndex + 1 }
-    : { text, start: node.startIndex };
+
+  return singlyQuoted
+    ? {
+        kind: "slice",
+        text: text.slice(quoteAt + 1, -1),
+        start: node.startIndex + quoteAt + 1,
+        end: node.endIndex - 1,
+      }
+    : { kind: "stitched", text: resolveNodeText(node), ...bounds };
 }
+
+/**
+ * Payload node types whose program sits inside exactly one pair of quotes, so
+ * removing them (and a leading `$`) leaves a verbatim span of the command.
+ */
+const SINGLY_QUOTED_PAYLOAD_TYPES: ReadonlySet<string> = new Set([
+  "string",
+  "raw_string",
+  "ansi_c_string",
+]);
 
 /**
  * Apply {@link redactCommandSecrets} to every command-bearing key in a log
