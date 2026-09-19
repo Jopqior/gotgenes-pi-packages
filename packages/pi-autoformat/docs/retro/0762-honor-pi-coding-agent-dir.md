@@ -34,4 +34,27 @@ Settled the design as boundary injection mirroring [#732], plus this package's f
 - `packages/pi-autoformat/test/extension.test.ts` and `packages/pi-permission-model-judge/test/extension.test.ts` — the temp-`agentDir` global-config fixture (`mkdtempSync` → `mkdirSync(dirname(getGlobalConfigPath(…)))` → `writeFileSync` → `vi.stubEnv`) will be duplicated across two packages; extracting a shared helper means editing a second package's tests for a defect in this one.
 - `packages/pi-autoformat/test/config-loader.test.ts` — seven `mkdtempSync` call sites with no teardown at all, relying on OS temp reaping.
 
+## Stage: Implementation — TDD (2026-09-19T05:24:26Z)
+
+### Session summary
+
+Landed the plan's two steps unchanged: one `fix:` commit (the narrowed `config-loader.ts` signatures, the `getAgentDir()` value import and lazy call at the `extension.ts` boundary, the `peerDependencies` entry, and the regression test) and one `docs:` commit naming `PI_CODING_AGENT_DIR` in `README.md`, `docs/configuration.md`, and the package skill.
+`pi-autoformat` unit tests went 306 → 307; `check`, root `lint`, workspace `test`, and `fallow dead-code` are green, the real-CLI acceptance suite passes, and the pre-completion reviewer returned PASS.
+
+### Observations
+
+- Both killing mutations behaved exactly as the plan predicted, which is what made them worth running.
+  Replacing `getAgentDir()` with a hardcoded `join(homedir(), ".pi", "agent")` at the boundary killed **1** test — the new one — confirming it pins the wiring and nothing else does.
+  Making `getGlobalConfigPath` ignore its parameter killed **5**: the new test plus the four global-config cases in `test/config-loader.test.ts`, confirming the new test asserts through the same path the loader actually uses rather than around it.
+- Ran the real-CLI acceptance suite (`pnpm --filter @gotgenes/pi-autoformat run test:acceptance`, 2 tests, ~20 s) even though the plan did not ask for it.
+  It is the only gate that exercises the new value import under Pi's own extension loader, which is the one risk the unit suite cannot speak to — the monorepo's `devDependency` would satisfy the import either way.
+  Green.
+- `pnpm install` produced no `pnpm-lock.yaml` change for the added `peerDependencies` block, and `pnpm install --frozen-lockfile` succeeds, so CI's frozen install is unaffected.
+- `docs/configuration.md` got a blockquote note naming both the default and the overridden path rather than the inline `(respects PI_CODING_AGENT_DIR)` parenthetical the plan proposed; `README.md` and the skill use the parenthetical.
+  The reviewer flagged the divergence and judged the prose accurate — the config reference is the place worth spelling out where the file actually lands.
+- Pre-completion reviewer: **PASS**.
+  One WARN under evidence provenance: the plan cited 8 `loadAutoformatConfig(` and 4 `getGlobalConfigPath(` call sites in `test/config-loader.test.ts`; the real counts are 7 and 5.
+  The numbers came from the Tidy-First assessor's report and were not re-derived at planning time — the conclusion ("every call site already passes both scopes, so zero churn") held and was confirmed by the untouched file, but the figures were wrong.
+  Corrected in `b90ecd11`.
+
 [#732]: https://github.com/gotgenes/pi-packages/issues/732
