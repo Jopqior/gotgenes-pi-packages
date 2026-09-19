@@ -37,5 +37,28 @@ Filed [#950] for a mirror-image defect found on the transcript side while design
 - `packages/pi-session-tools/src/index.ts` — the assessor declined a shared pluralization helper for "N session file(s)", used in two spots today and three after this change; the three strings diverge enough that extracting it mostly relocates a ternary.
 - `packages/pi-session-tools/test/list-session-files.test.ts` — the assessor declined adding `renderResult`-level coverage for the collapsed row as a pre-existing module-wide gap rather than preparation for this change.
 
+## Stage: Implementation — TDD (2026-09-19T04:26:37Z)
+
+### Session summary
+
+Executed all three TDD steps: the `refactor:` extracting `src/session-listing.ts`, the `test:` fixture helper, and the `feat!:` adding `limit` with a default of 10.
+Test count went from 116 to 130 (+14), across a new `test/session-listing.test.ts` (16 tests) and a new `describe("limit")` plus a `details.shown` case in `test/list-session-files.test.ts`.
+Every file the plan listed was touched and no file outside the list was.
+
+### Observations
+
+- One deviation, recorded in the step-1 commit body: the plan specified `formatListingSummary(directory, shown, total)` from step 1, calling it with `shown === total` until step 3.
+  That leaves an unused parameter for a whole commit, and an unused parameter cannot be pinned by a mutation.
+  Step 1 shipped `formatListingSummary(directory, total)` and step 3 widened it.
+- All six of step 3's killing mutations behaved as the plan predicted, with one addition worth recording: the `params.limit ?? files.length` mutation killed **two** tests, not one — the `details.shown` test uses a 12-file fixture with no explicit `limit`, so it rides the default too.
+  That is the plan under-predicting, not a test misfiring.
+- The `(showing N)` mutation killed five tests and the slice-direction mutation six; in both cases the `limit >= total` test stayed green, which is what makes the truncated and untruncated arms separable.
+- `formatListingText` builds its output through an array join rather than string concatenation specifically so `limit: 0` emits no trailing newline after the count line.
+  Concatenating `\n${pathLines}` would have left a dangling blank line in exactly the degenerate case.
+- Pre-completion reviewer: **PASS**.
+  It independently verified the byte-identical untruncated output by diffing against `git show 845cb3dd:src/index.ts`, and checked the one untested line in the change — `formatResultText`'s `formatListingSummary(details.directory, details.shown, details.count)` delegation — for swapped arguments, which was the plan's named accepted residual.
+  It also ran `boundListingPaths` against `2.5`, `-0.5`, `NaN`, and `Infinity`, none of which produce an oldest-N or near-full listing.
+  No warnings.
+
 [#943]: https://github.com/gotgenes/pi-packages/issues/943
 [#950]: https://github.com/gotgenes/pi-packages/issues/950
