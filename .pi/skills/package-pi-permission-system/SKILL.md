@@ -265,25 +265,11 @@ The `tool-kind.ts` entry in `docs/architecture/architecture.md` carries how the 
 
 ## Windows and Git Bash
 
-Platform facts verified against Pi core source during #533 planning:
+Platform facts verified against Pi core source:
 
 - **Pi core executes every bash tool command through Git Bash on Windows** (`pi/packages/coding-agent/src/utils/shell.ts`): resolution order is custom `shellPath` → `%ProgramFiles%\Git\bin\bash.exe` → any `bash.exe` on PATH (MSYS2/Cygwin); there is no cmd/PowerShell branch.
   So bash tokens gated on a `win32` host carry POSIX/MSYS path semantics, while tool-input paths (`read`/`write`/`edit`) carry Node `fs` win32 semantics — the two surfaces have **different platforms** on the same host.
-- Node `fs` on Windows genuinely resolves `/dev/null` to `C:\dev\null`, so a *tool-input* `/dev/null` prompting is correct behavior; a *bash* `> /dev/null` prompting is a bug — Git Bash's MSYS runtime maps it to the NUL device and never touches the filesystem.
-- Pi core rewrites Windows-style `> NUL` redirects to `> /dev/null` before spawning the shell (`normalizeNulRedirects()`, [earendil-works/pi#4731]), because MSYS does not recognize `NUL` and would create a literal undeletable file.
-  So `/dev/null` is the canonical device token the gates see on win32 — core actively produces it.
-- MSYS interprets POSIX-shaped absolute paths through its mount table: `/dev/*` are runtime devices; `/c/…` is a deterministic drive mount for `C:\…`; `/tmp` is a mount whose Windows target **varies by bash flavor** (Git Bash → `%TEMP%`; MSYS2 → `<msysroot>\tmp`; Cygwin → its own root) and other absolutes (`/usr`, `/etc`, `/mingw64`) resolve inside the install root.
-  This package therefore must never map `/tmp` (or any non-drive-mount POSIX absolute) to a concrete Windows path — no `cygpath` shell-outs, no `os.tmpdir()` reads; determinism (same policy + same input → same decision) forbids both.
-- Git Bash also accepts Windows-shaped paths (`C:/foo`, `C:\foo`) unchanged, so the drive-letter token handling (#508) and win32 case folding (#382) apply to those shapes on both surfaces — the MSYS semantics above are *additive* branches for POSIX-shaped tokens, not a replacement.
-- On win32 a backslash is a path separator, so a backslash-relative bash argument (`cat dir\file`) is gated by the `path` surface the same as `dir/file` ([#520]); the broad rule-candidate classifier recognizes it via `PathFlavor.hasPathSeparator` (the win32 flavor counts `\` as a separator), and it resolves through the ordinary win32 `forBashToken` (`plain`) branch.
-  On POSIX `\` is a legal filename character, so the token stays bare there.
-- The bash-token interpretation layer implementing these semantics (exact `/dev/*` devices preserved, `/c/` mounts translated, other POSIX absolutes literal-only external) shipped in #533: `PathNormalizer.forBashToken`/`interpretBashCdTarget`/`isBoundaryOutsideWorkingDirectory` branch on the shape returned by the pure `access-intent/bash/msys-bash-tokens.ts` classifier, and `BashPathResolver` routes every bash token (both the `external_directory` and `path` surfaces) through `forBashToken`.
-  See `docs/decisions/0003-git-bash-posix-path-semantics.md`.
-- A win32 non-mount POSIX absolute (`/tmp/foo`) is a literal-only `AccessPath` matched and displayed exactly as typed, and a `/tmp/*` allow rule suppresses its prompt.
-  This works because the win32 path fold (`pathMatchOptions` in `rule.ts` → `PathFlavor.matchOptions`) normalizes separators on **both** the rule pattern and the matched value.
-  Folding only the pattern — the pre-#653 behavior — made every forward-slash match value unmatchable, silently voiding a rule like `path: {"/dev/null": "allow"}` on Windows.
-  Keep the fold symmetric: matching goes through `CompiledWildcardPattern.matches(value)`, which owns both halves, and the compiled pattern exposes no raw `RegExp` a caller could `.test()` with an unfolded value.
-  A win32 path shape therefore needs no hand-built backslash match alias (#533's was removed in #653).
+  The token interpretation that follows from this — MSYS devices preserved, `/c/` mounts translated, other POSIX absolutes literal-only, the symmetric win32 match fold — is ADR 0003 (`docs/decisions/0003-git-bash-posix-path-semantics.md`) and the `msys-bash-tokens.ts`, `path-normalizer.ts`, and `wildcard-matcher.ts` entries in `docs/architecture/architecture.md`.
 
 ## Notes for Agents
 
@@ -335,5 +321,4 @@ When a plan or test asserts a specific bash repro string, trace the token throug
 [#520]: https://github.com/gotgenes/pi-packages/issues/520
 [#694]: https://github.com/gotgenes/pi-packages/issues/694
 [#839]: https://github.com/gotgenes/pi-packages/issues/839
-[earendil-works/pi#4731]: https://github.com/earendil-works/pi/issues/4731
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
