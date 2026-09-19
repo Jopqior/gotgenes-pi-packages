@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.2](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v1.0.1...pi-subagents-v1.0.2) (2026-09-19)
+
+
+### Documentation
+
+* remove obsolete history integration instructions ([#13](https://github.com/Jopqior/gotgenes-pi-packages/issues/13)) ([fdd291c](https://github.com/Jopqior/gotgenes-pi-packages/commit/fdd291c413dc63f8439c86e9a43946f8c8cda902))
+* **pi-subagents:** repair release references after history restoration ([122bbe5](https://github.com/Jopqior/gotgenes-pi-packages/commit/122bbe5b5abe37037634d150d8f2f8abd2b17445))
+
 ## [1.0.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v1.0.0...pi-subagents-v1.0.1) (2026-09-13)
 
 
