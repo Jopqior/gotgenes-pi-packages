@@ -256,6 +256,31 @@ describe("redactCommandSecrets", () => {
         expect(redactCommandSecrets(command)).toBe(command);
       });
 
+      it.each([
+        [
+          "a payload behind sudo",
+          `sudo bash -c 'TOKEN=sk-secret deploy'`,
+          `sudo bash -c 'TOKEN=${MASK} deploy'`,
+        ],
+        [
+          "a payload behind xargs",
+          `xargs -I{} sh -c 'TOKEN=sk-secret deploy'`,
+          `xargs -I{} sh -c 'TOKEN=${MASK} deploy'`,
+        ],
+        [
+          "a payload behind timeout, which takes a leading operand",
+          `timeout 5 bash -c 'TOKEN=sk-secret deploy'`,
+          `timeout 5 bash -c 'TOKEN=${MASK} deploy'`,
+        ],
+        [
+          "a payload behind two wrapper layers",
+          `sudo timeout 5 bash -c 'TOKEN=sk-secret deploy'`,
+          `sudo timeout 5 bash -c 'TOKEN=${MASK} deploy'`,
+        ],
+      ])("masks %s", (_label, command, expected) => {
+        expect(redactCommandSecrets(command)).toBe(expected);
+      });
+
       it("masks an ANSI-C quoted payload, whose slice skips the dollar too", () => {
         expect(redactCommandSecrets(`bash -c $'TOKEN=sk-x deploy'`)).toBe(
           `bash -c $'TOKEN=${MASK} deploy'`,

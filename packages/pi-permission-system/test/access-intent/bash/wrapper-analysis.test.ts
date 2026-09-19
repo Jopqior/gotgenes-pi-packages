@@ -118,6 +118,33 @@ describe("inlineShellPayloadIndex", () => {
     });
   });
 
+  describe("a shell reached through an indirection wrapper", () => {
+    // `executedUnitOf` peels indirection to name the payload, so this must peel
+    // it too: otherwise `sudo bash -c 'TOKEN=…'` masks under `executedUnit` and
+    // not under `command`, which is the inconsistency #923 reports.
+    it.each([
+      [`sudo bash -c 'x'`, 3],
+      [`xargs sh -c 'x'`, 3],
+      [`timeout 5 bash -c 'x'`, 4],
+      [`env FOO=bar bash -c 'x'`, 4],
+      [`sudo -u root bash -c 'x'`, 5],
+      [`sudo timeout 5 bash -c 'x'`, 5],
+      [`find . -exec sh -c 'x' ;`, 5],
+    ])("names the payload of %s through the wrapper", (unit, expected) => {
+      expect(payloadIndex(unit)).toBe(expected);
+    });
+
+    it.each([
+      [`sudo ls`, "the wrapped command carries no inline program"],
+      [`xargs grep foo`, "the wrapped command carries no inline program"],
+      [`sudo python3 -c 'x'`, "the wrapped interpreter is not a shell"],
+      [`xargs --unknown-opt`, "the wrapper's own options run out first"],
+      [`find . -exec`, "the exec flag ends the command"],
+    ])("answers -1 for %s (%s)", (unit) => {
+      expect(payloadIndex(unit)).toBe(-1);
+    });
+  });
+
   describe("a unit carrying no inline program", () => {
     it.each([
       ["bash script.sh", "a shell running a script file"],
