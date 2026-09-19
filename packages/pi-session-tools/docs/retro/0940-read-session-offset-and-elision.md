@@ -85,5 +85,9 @@ The two Open Questions the TDD-stage reviewer flagged (eliding assistant prose; 
 No new friction since the TDD stage note (commit `docs(retro): add TDD stage notes for issue #940`).
 Branch is otherwise ready to rebase onto local `main` and hand off.
 
+**Re-run (2026-09-19T15:11:34Z):** local `main` unchanged since the first sync (`git rev-list --count main..origin/main` reports 0), so this is a no-op re-check.
+`pnpm run lint` and `pnpm fallow dead-code` still pass clean.
+No new commits since `docs(retro): add sync stage notes for issue #940`.
+
 [#916]: https://github.com/gotgenes/pi-packages/issues/916
 [#950]: https://github.com/gotgenes/pi-packages/issues/950
