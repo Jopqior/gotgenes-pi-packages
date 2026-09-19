@@ -37,4 +37,26 @@ The plan is `packages/pi-session-tools/docs/plans/0943-list-subagent-sessions.md
 - `packages/pi-session-tools/test/` — `makeCtx` is duplicated across four suites with three different signatures, so unifying it is a design call rather than a lift-and-shift; the new suite needs no `ctx` at all, so the change does not hit that friction.
 - `packages/pi-session-tools/test/list-session-files.test.ts` — the `existsSync`/`readdirSync`/`statSync` mock trio and its `mockSessionFiles(n)` fixture will have a second consumer after this change but not a third; `vi.hoisted()` stubs are conventionally file-local in this package, so the new suite copies rather than shares.
 
+## Stage: Implementation — TDD (2026-09-19T06:47:41Z)
+
+### Session summary
+
+Executed all four planned steps as separate commits: lifting `captureTools` into `test/helpers/capture-tools.ts`, adding `deriveSubagentSessionsDir` and `sessionFileExists`, registering `list_subagent_sessions` with its README section, and pointing `/retro`'s model lens at subagent transcripts.
+The package's suite went from 9 files / 130 tests to 10 / 144.
+All four gates (`check`, root `lint`, `test`, `fallow dead-code`) were green at baseline and at HEAD.
+
+### Observations
+
+- Every killing mutation the plan named behaved exactly as predicted, including the per-class counts: the `captureTools` stub-out reddened 31 tests in the four migrated suites and left the other five green; dropping `"tasks"` from the derivation reddened 4 tests while `basename(f)` without the `.jsonl` suffix reddened 3 and left the suffix-less case green; removing the existence guard reddened exactly the 2 missing-file tests; passing `params.path` instead of the derived directory reddened the 5 body-asserting tests and left the two status tests and the `count`/`shown` test green.
+- The registration-deletion mutation was applied with a small Python slice rather than an `Edit`, since the block to remove is ~60 lines; the file was verified changed (`grep -c` fell from 2 to 1, the survivor being the module header comment) before the suite was read, per the rule that a substitution matching nothing reads like a mutation that killed nothing.
+- One deviation from the plan: lifting `captureTools` left `vi` unused in `test/read-session.test.ts`, which Biome reports at **warning** level, so `pnpm run lint` still exited 0.
+  It surfaced only from the `grep -c 'lint/'` count the `git-workflow` skill prescribes.
+  Fixed as `style(pi-session-tools): drop the now-unused vi import from read-session tests`, a fifth commit — the most recent commit at that point was a `docs:` one, which must not carry a lint fixup.
+- The plan's three "predicted unchanged" claims held: `src/session-listing.ts`, `test/session-listing.test.ts`, and `.pi/prompts/sync-worktree.md` all show a zero diff, and `src/index.ts` still imports no `node:fs` symbol.
+- The new suite needed one path-aware `existsSync` implementation — for the "session exists, spawned no subagents" case — which is also the assertion that discriminates checking the raw `path` from checking the derived directory.
+  The Tidy-First assessor predicted exactly this and it was the only fixture wrinkle.
+- Pre-completion reviewer: PASS.
+  It independently re-derived the non-breaking claim, the `node:fs` boundary, the predicted-unchanged files, and the doc surfaces, and enumerated its own four mutations, agreeing each is killed by a specific existing assertion.
+  No warnings.
+
 [#916]: https://github.com/gotgenes/pi-packages/issues/916
