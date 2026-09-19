@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.2.0](https://github.com/gotgenes/pi-packages/compare/pi-session-tools-v2.1.0...pi-session-tools-v2.2.0) (2026-09-19)
+
+
+### Features
+
+* **pi-session-tools:** page backward through a long transcript ([93d1653](https://github.com/gotgenes/pi-packages/commit/93d1653acf136c40bec030e2bbba4bf6c0d7b8c5)), closes [#940](https://github.com/gotgenes/pi-packages/issues/940)
+* **pi-session-tools:** show session renames as transcript stage boundaries ([39a4104](https://github.com/gotgenes/pi-packages/commit/39a4104f30501f110d0cc2c06620c7cdb7f2b56d)), closes [#940](https://github.com/gotgenes/pi-packages/issues/940)
+* **pi-session-tools:** elide user-message bodies from a transcript ([d0302df](https://github.com/gotgenes/pi-packages/commit/d0302df2fb16b72099119979f89ed6c43f03d612)), closes [#940](https://github.com/gotgenes/pi-packages/issues/940)
+
+### Bug Fixes
+
+* **pi-session-tools:** return no entries for a limit of zero or less ([006d8f7](https://github.com/gotgenes/pi-packages/commit/006d8f7f3654cd5328f3ec12cd134191f0a7961a)), closes [#940](https://github.com/gotgenes/pi-packages/issues/940)
+
+### Documentation
+
+* **pi-session-tools:** document transcript paging and elision ([aec7186](https://github.com/gotgenes/pi-packages/commit/aec7186b7f2e001671cbb7ff23d243323f1f7b77)), closes [#940](https://github.com/gotgenes/pi-packages/issues/940)
+
 ## [2.1.0](https://github.com/gotgenes/pi-packages/compare/pi-session-tools-v2.0.0...pi-session-tools-v2.1.0) (2026-09-19)
 
 
