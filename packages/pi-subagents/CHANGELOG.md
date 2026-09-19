@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v1.0.2...pi-subagents-v2.0.0) (2026-09-19)
+
+
+### Features
+
+* **breaking:** sync upstream behavior while preserving fork selection ([#14](https://github.com/Jopqior/gotgenes-pi-packages/issues/14)) ([0408aa5](https://github.com/Jopqior/gotgenes-pi-packages/commit/0408aa5ff9d9811d98df17dde436e7fd45a5a3ad)), closes [#14](https://github.com/Jopqior/gotgenes-pi-packages/issues/14)
+
+### Bug Fixes
+
+* **pi-subagents:** stop a relocated child inheriting its parent's project-context paths ([3deb50c](https://github.com/Jopqior/gotgenes-pi-packages/commit/3deb50c6dcef0b5fa84de7f955765baf92297921)), closes [#918](https://github.com/Jopqior/gotgenes-pi-packages/issues/918)
+* **pi-subagents:** give a relocated child its own project instructions ([c69f99a](https://github.com/Jopqior/gotgenes-pi-packages/commit/c69f99ad92db3f6449ebde1bc1c7ba1b298951d1)), closes [#918](https://github.com/Jopqior/gotgenes-pi-packages/issues/918)
+* **pi-subagents:** resolve a portable child's project context against its own directory ([7f8baaf](https://github.com/Jopqior/gotgenes-pi-packages/commit/7f8baaf061cad16d1820892a117960f08040408f)), closes [#918](https://github.com/Jopqior/gotgenes-pi-packages/issues/918)
+* **pi-subagents:** stop the fallback prompt claiming tools the child may not hold ([661e7f3](https://github.com/Jopqior/gotgenes-pi-packages/commit/661e7f3da8e62bdc3d277abcc28ff82e59b72b07)), closes [#904](https://github.com/Jopqior/gotgenes-pi-packages/issues/904)
+* **pi-subagents:** cancel an in-flight resume when the agent is aborted ([acd83b0](https://github.com/Jopqior/gotgenes-pi-packages/commit/acd83b0059e3f196ebd4b0664dae9614b20dfbed)), closes [#913](https://github.com/Jopqior/gotgenes-pi-packages/issues/913)
+
+### Documentation
+
+* **pi-subagents:** record project context as a directory-resolved layer ([95aeb69](https://github.com/Jopqior/gotgenes-pi-packages/commit/95aeb695a1e04e1812f45821d377642795891438)), closes [#918](https://github.com/Jopqior/gotgenes-pi-packages/issues/918)
+* **pi-subagents:** record the resume abort lever in the README and roadmap ([5b942e9](https://github.com/Jopqior/gotgenes-pi-packages/commit/5b942e94fed972d3403ca0dabb856866d4a1b667)), closes [#913](https://github.com/Jopqior/gotgenes-pi-packages/issues/913)
+
 ## [1.0.2](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v1.0.1...pi-subagents-v1.0.2) (2026-09-19)
 
 

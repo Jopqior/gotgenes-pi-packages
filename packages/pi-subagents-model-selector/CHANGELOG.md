@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.3](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-model-selector-v1.0.2...pi-subagents-model-selector-v1.0.3) (2026-09-19)
+
+
+### Documentation
+
+* **pi-subagents-model-selector:** coordinate core-major upgrades ([#14](https://github.com/Jopqior/gotgenes-pi-packages/issues/14)) ([fad1250](https://github.com/Jopqior/gotgenes-pi-packages/commit/fad1250e2ceeb83516d090726926f962653142f1))
+
 ## [1.0.2](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-model-selector-v1.0.1...pi-subagents-model-selector-v1.0.2) (2026-09-19)
 
 
