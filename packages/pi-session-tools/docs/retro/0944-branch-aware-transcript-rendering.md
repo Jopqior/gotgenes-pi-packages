@@ -74,3 +74,18 @@ All four gates (`check`, root `lint`, `test`, `fallow dead-code`) were green at 
 - Pre-completion reviewer: WARN on the first round, PASS on the second.
   The two WARNs it raised were real gaps on this issue's own mechanism and were closed rather than accepted: `test/session-tree.test.ts` gained a multi-root array, a `leafId` naming an island node, and an ancestor stranded above a broken parent link; `test/read-session.test.ts` gained the tool-level case combining a `types` filter with a forked session, which is how `/retro`'s model-attribution lens actually calls it.
   All five were authored after Green, so they were mutated explicitly, and the reviewer re-derived both mutations itself rather than accepting the report.
+
+## Stage: Sync (worktree) (2026-09-19T22:55:13Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both passed on the first run with no fixes needed.
+The plan's Release Recommendation is **ship independently** — `pi-session-tools` has no architecture roadmap, so no batch holds this issue.
+Nothing was deferred to the root session beyond the standard land steps; the change is breaking (`fix(pi-session-tools)!:`) and the `BREAKING CHANGE:` footer's remediation (`branches: "all"`) is already verified present as a real declared parameter on all three tools.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-944--/2026-09-19T20-24-59-290Z_01a0bb57-f69a-70fc-bcdf-74a53a15300b.jsonl` — read with `read_session_file({ path: "<path above>" })` for message-level verification at land/retro time.
+
+### Observations
+
+No friction in this stage.
+The TDD stage's implementing session and the pre-completion reviewer both already re-derived the breaking-change classification, the corpus measurements, and the follow-up-tool decline (no issue filed, matching #943's precedent), so this sync found nothing new to surface.
