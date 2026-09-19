@@ -6,6 +6,7 @@ import {
   type CommandWord,
   classifyWrapperWords,
   executedUnitOf,
+  inlineShellPayloadIndex,
   isTransparentWrapper,
   type WrapperKind,
 } from "./wrapper-analysis";
@@ -261,6 +262,30 @@ export function collectSalvagedCommands(node: TSNode): BashCommand[] {
   const out: BashCommand[] = [];
   collectCommandsInto(node, SALVAGED_SCOPE, out);
   return out;
+}
+
+/**
+ * The node holding a `command` node's inline-shell payload — the inner program
+ * of `bash -c '…'`, `sh -c "…"`, or `eval '…'` — or `null` for any other
+ * command.
+ *
+ * The node rather than its text, because the log's command masker re-parses the
+ * payload and offsets the spans it recovers by the node's `startIndex`
+ * (`logging/command-redaction.ts`, #923). {@link executedUnitOf} answers the
+ * text question for display and cannot serve that one: it unquotes, unwraps
+ * nested indirection, and drops a result that adds nothing — all of which lose
+ * the correspondence to the command as written.
+ *
+ * The payload set is the *shell* set, which is what keeps an interpreter
+ * (`python3 -c`, `node -e`) out: its payload is another language, so re-parsing
+ * it as bash would read a secret out of embedded Python.
+ */
+export function inlineShellPayloadNode(command: TSNode): TSNode | null {
+  const nodes = commandWordNodes(command);
+  const index = inlineShellPayloadIndex(
+    nodes.map((node) => ({ text: node.text, offset: node.startIndex })),
+  );
+  return index === -1 ? null : (nodes.at(index) ?? null);
 }
 
 function collectCommandsInto(
