@@ -781,6 +781,13 @@ function collectGenericCommandTokens(
       continue;
     }
 
+    // Read for its text below — but a quoted substitution among these
+    // arguments really runs, and its own operands are candidates wherever it
+    // sits (ADR 0009's positional invariance, #945). The unquoted spelling
+    // reaches the nested command through the trailing recursion.
+    if (ARG_NODE_TYPES.has(child.type))
+      tokens.push(...collectHostedExecutionTokens(child));
+
     // If there was no explicit command_name node, the first word-like
     // child is the command name itself — skip it.
     if (!seenCommandName && ARG_NODE_TYPES.has(child.type)) {

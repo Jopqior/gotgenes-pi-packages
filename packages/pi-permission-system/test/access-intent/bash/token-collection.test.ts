@@ -586,6 +586,27 @@ describe("collectCommandTokens — generic commands", () => {
       expect(await tokensOf("FOO=/etc/shadow echo hi")).toEqual(["hi"]);
     });
   });
+
+  describe("an execution hosted in a quoted argument (#945)", () => {
+    // A generic command collects every argument's text, so a quoted
+    // substitution was emitted as its own literal spelling and the command
+    // inside it — which really runs — contributed nothing. Both tokens are
+    // kept: the nested operand is added beside the argument's text, not in
+    // place of it.
+    it("projects the operands of a substitution passed as an argument", async () => {
+      expect(await tokensOf('echo "$(cat /etc/shadow)"')).toEqual([
+        "/etc/shadow",
+        "$(cat /etc/shadow)",
+      ]);
+    });
+
+    it("projects the operands of a substitution inside a concatenation", async () => {
+      expect(await tokensOf('cat "prefix$(cat /etc/shadow)"')).toEqual([
+        "/etc/shadow",
+        "prefix$(cat /etc/shadow)",
+      ]);
+    });
+  });
 });
 
 // ── collectRedirectTokens ─────────────────────────────────────────────────────
