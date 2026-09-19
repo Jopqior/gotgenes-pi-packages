@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.0.0](https://github.com/gotgenes/pi-packages/compare/pi-session-tools-v2.2.0...pi-session-tools-v3.0.0) (2026-09-19)
+
+
+### Bug Fixes
+
+* **pi-session-tools:** **breaking:** follow the live path when rendering a branched session ([4d893f7](https://github.com/gotgenes/pi-packages/commit/4d893f7a4d6bf3a6ffb0620b65817e5ec05f0a76)), closes [#944](https://github.com/gotgenes/pi-packages/issues/944)
+
 ## [2.2.0](https://github.com/gotgenes/pi-packages/compare/pi-session-tools-v2.1.0...pi-session-tools-v2.2.0) (2026-09-19)
 
 
