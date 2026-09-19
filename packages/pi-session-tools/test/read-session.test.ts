@@ -466,4 +466,74 @@ describe("read_session tool", () => {
       expect(result.details.summary.totalEntries).toBe(0);
     });
   }); // describe("details")
+
+  describe("branches", () => {
+    function userTurn(id: string, parentId: string | null, body: string) {
+      return {
+        type: "message",
+        id,
+        parentId,
+        timestamp: `t${id}`,
+        message: { role: "user", content: body, timestamp: 1 },
+      };
+    }
+
+    // 1 → {2, 3}: the operator rewound after "retracted" and asked "kept".
+    const forked = [
+      userTurn("1", null, "first"),
+      userTurn("2", "1", "retracted"),
+      userTurn("3", "1", "kept"),
+    ];
+
+    async function render(
+      params: Record<string, unknown>,
+      ctx = makeCtx(forked),
+    ) {
+      const tool = captureTools(sessionTools).get("read_session")!;
+      return (await tool.execute("tc1", params, undefined, undefined, ctx)) as {
+        content: { text: string }[];
+        details: { summary: { totalEntries: number } };
+      };
+    }
+
+    it("follows the live path by default", async () => {
+      const result = await render({});
+      expect(result.content[0].text).toBe(
+        "1. user\nfirst\n\n---\n\n" +
+          '[abandoned branch] 1 entry omitted (branches: "all" to include)\n\n---\n\n' +
+          "2. user\nkept",
+      );
+    });
+
+    it("counts only the live path in the summary", async () => {
+      const result = await render({});
+      expect(result.details.summary.totalEntries).toBe(2);
+    });
+
+    it("brackets the abandoned branch when asked for all branches", async () => {
+      const result = await render({ branches: "all" });
+      expect(result.content[0].text).toBe(
+        "1. user\nfirst\n\n---\n\n" +
+          "[abandoned branch begins] 1 entry\n\n---\n\n" +
+          "2. user\nretracted\n\n---\n\n" +
+          "[abandoned branch ends]\n\n---\n\n" +
+          "3. user\nkept",
+      );
+    });
+
+    it("treats an unrecognized branches value as the live default", async () => {
+      const result = await render({ branches: "everything" });
+      expect(result.content[0].text).not.toContain("retracted");
+    });
+
+    it("walks from the session manager's leaf, not the last entry", async () => {
+      // The leaf is entry 2, so the branch ending in "kept" is the abandoned one.
+      const result = await render({}, makeCtx(forked, undefined, "2"));
+      expect(result.content[0].text).toBe(
+        "1. user\nfirst\n\n---\n\n" +
+          "2. user\nretracted\n\n---\n\n" +
+          '[abandoned branch] 1 entry omitted (branches: "all" to include)',
+      );
+    });
+  });
 });

@@ -39,5 +39,11 @@ describe("transcript tool parameters", () => {
         type: "boolean",
       });
     });
+
+    it("declares branches as a string", () => {
+      expect(properties().branches).toMatchObject({
+        type: "string",
+      });
+    });
   });
 });

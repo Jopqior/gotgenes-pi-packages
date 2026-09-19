@@ -37,7 +37,7 @@ Read the current session's entries as a structured transcript.
 Useful for retro lenses and cross-session context.
 
 ```text
-read_session({ types?: string[], offset?: number, limit?: number, elide_user_text?: boolean })
+read_session({ types?: string[], offset?: number, limit?: number, elide_user_text?: boolean, branches?: "live" | "all" })
 ```
 
 Parameters:
@@ -50,12 +50,37 @@ Parameters:
   `0` returns none; a negative value is clamped to `0`.
 - `elide_user_text` — replace each user turn's body with a `[text elided: N chars]` placeholder.
   Defaults to `false`.
+- `branches` — which branches of the session's entry tree to render.
+  Defaults to `"live"`; any value other than `"all"` is read as `"live"`.
 
 The output is a human-readable transcript: numbered user/assistant turns, one-line tool call summaries with correlated result status, and metadata events (compaction, model changes, session renames).
 Tool result bodies, thinking content, and image data are omitted.
 A `[model change]` line renders only when the switch actually took effect — a marker followed by an assistant turn before the next switch or the end of entries.
 A phantom switch (e.g. cycling the TUI model picker with no turn run after it) is omitted from both the transcript and the `model changes` count, and does not consume a slot against `limit`.
 A `[session]` line marks each point where the session was renamed, which is how a multi-stage session's stage boundaries stay visible even when user bodies are elided.
+
+#### Rewound sessions
+
+A session file is a tree, not a list: every entry records its parent, and rewinding the conversation makes the next entry a second child of an earlier one.
+The transcript follows the _live path_ — the walk from the session's newest entry back to the root, which is the same path Pi resumes into — and replaces each stretch it leaves out with a marker:
+
+```text
+[abandoned branch] 89 entries omitted (branches: "all" to include)
+```
+
+Pass `branches: "all"` to render those entries too, bracketed so they stay distinguishable from the live path:
+
+```text
+[abandoned branch begins] 89 entries
+…the abandoned turns…
+[abandoned branch ends]
+```
+
+A marker survives an explicit `types` filter, so a filtered call can never hide the fact that a branch was dropped.
+It does occupy a slot against `offset` and `limit`, like any other rendered entry.
+The summary counts session entries only, so a live-path render reports the turns that are actually on it.
+
+A session with no rewind renders identically either way, and an entry array with no parent links — a pre-v3 file — is left exactly as it is read.
 
 #### Reading a long session without re-reading its tail
 
@@ -68,6 +93,7 @@ A `[session]` line marks each point where the session was renamed, which is how 
   On a measured 246-entry session, user bodies were 46.7% of the rendered transcript, and the elided render of the **whole** session cost less than three partial unelided calls did.
 
 Neither is a filter: both leave phantom-switch suppression and the `[provider/model]` label on every assistant turn intact, so an attribution pass can use them freely.
+Branch resolution _is_ a filter — it is the one knob that changes which turns an attribution pass sees, which is the point of following the live path by default.
 
 In the TUI the tool row shows a compact summary by default (e.g. `✓ 42 entries — 38 messages, 18 tool calls, 2 compactions`).
 Press `Ctrl-O` to expand to the full transcript.
@@ -110,7 +136,7 @@ Derives the parent session file from the subagent directory layout.
 Returns an error if not running in a subagent context.
 
 ```text
-read_parent_session({ types?: string[], offset?: number, limit?: number, elide_user_text?: boolean })
+read_parent_session({ types?: string[], offset?: number, limit?: number, elide_user_text?: boolean, branches?: "live" | "all" })
 ```
 
 Parameters and output format are the same as `read_session`.
@@ -121,7 +147,7 @@ Read an arbitrary session file as a structured transcript, given its path.
 Useful for reading a **sibling** session that neither `read_session` (current session only) nor `read_parent_session` (parent-via-subagent only) can reach — for example, a peer worktree session in the parallel-worktree ship flow.
 
 ```text
-read_session_file({ path: string, types?: string[], offset?: number, limit?: number, elide_user_text?: boolean })
+read_session_file({ path: string, types?: string[], offset?: number, limit?: number, elide_user_text?: boolean, branches?: "live" | "all" })
 ```
 
 Parameters:

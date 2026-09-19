@@ -320,4 +320,57 @@ describe("read_session_file tool", () => {
       });
     });
   }); // describe("details")
+
+  describe("branches", () => {
+    function userLine(id: string, parentId: string | null, body: string) {
+      return JSON.stringify({
+        type: "message",
+        id,
+        parentId,
+        timestamp: `t${id}`,
+        message: { role: "user", content: body, timestamp: 1 },
+      });
+    }
+
+    async function render(params: Record<string, unknown>) {
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(
+        [
+          JSON.stringify({
+            type: "session",
+            version: 3,
+            id: "s1",
+            timestamp: "t0",
+            cwd: "/",
+          }),
+          userLine("1", null, "first"),
+          userLine("2", "1", "retracted"),
+          userLine("3", "1", "kept"),
+        ].join("\n"),
+      );
+      const tool = captureTools(sessionTools).get("read_session_file")!;
+      return (await tool.execute(
+        "tc1",
+        { path: "/sessions/--project--/s.jsonl", ...params },
+        undefined,
+        undefined,
+        makeCtx(),
+      )) as { content: { text: string }[] };
+    }
+
+    it("follows the live path by default, taking the last entry as the leaf", async () => {
+      const result = await render({});
+      expect(result.content[0].text).toBe(
+        "1. user\nfirst\n\n---\n\n" +
+          '[abandoned branch] 1 entry omitted (branches: "all" to include)\n\n---\n\n' +
+          "2. user\nkept",
+      );
+    });
+
+    it("brackets the abandoned branch when asked for all branches", async () => {
+      const result = await render({ branches: "all" });
+      expect(result.content[0].text).toContain("[abandoned branch begins]");
+      expect(result.content[0].text).toContain("retracted");
+    });
+  });
 });

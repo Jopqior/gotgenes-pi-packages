@@ -304,4 +304,51 @@ describe("read_parent_session tool", () => {
       });
     });
   }); // describe("details")
+
+  describe("branches", () => {
+    it("follows the parent session's live path by default", async () => {
+      const tool = captureTools(sessionTools).get("read_parent_session")!;
+      mockExistsSync.mockReturnValue(true);
+      mockReadFileSync.mockReturnValue(
+        [
+          JSON.stringify({
+            type: "session",
+            version: 3,
+            id: "s1",
+            timestamp: "t0",
+            cwd: "/project",
+          }),
+          ...[
+            ["1", null, "first"],
+            ["2", "1", "retracted"],
+            ["3", "1", "kept"],
+          ].map(([id, parentId, body]) =>
+            JSON.stringify({
+              type: "message",
+              id,
+              parentId,
+              timestamp: `t${id}`,
+              message: { role: "user", content: body, timestamp: 1 },
+            }),
+          ),
+        ].join("\n"),
+      );
+
+      const ctx = makeCtx(
+        "/sessions/--project--/2026-05-20T12-00-00Z_/tasks/child.jsonl",
+      );
+      const result = (await tool.execute(
+        "tc1",
+        {},
+        undefined,
+        undefined,
+        ctx,
+      )) as { content: { text: string }[] };
+      expect(result.content[0].text).toBe(
+        "1. user\nfirst\n\n---\n\n" +
+          '[abandoned branch] 1 entry omitted (branches: "all" to include)\n\n---\n\n' +
+          "2. user\nkept",
+      );
+    });
+  });
 });

@@ -45,6 +45,11 @@ import {
   formatListingSummary,
   formatListingText,
 } from "./session-listing.js";
+import type { BranchMode } from "./session-tree.js";
+
+/** Shared description for the `branches` parameter on every transcript tool. */
+const BRANCHES_DESCRIPTION =
+  'Which branches to render. "live" (the default) follows the path from the session\'s newest entry back to the root and replaces each rewound stretch with a marker naming how many entries it omitted. "all" additionally renders those entries, bracketed by begin/end markers.';
 
 /** Discriminated union stored in tool `details` for the session-read and discovery tools. */
 type SessionToolDetails =
@@ -65,6 +70,7 @@ function formatCallText(
     offset?: number;
     limit?: number;
     elide_user_text?: boolean;
+    branches?: string;
     path?: string;
     cwd?: string;
   },
@@ -78,6 +84,7 @@ function formatCallText(
   if (args.offset != null) hints.push(`offset: ${args.offset}`);
   if (args.limit != null) hints.push(`limit: ${args.limit}`);
   if (args.elide_user_text) hints.push("elide user text");
+  if (args.branches) hints.push(`branches: ${args.branches}`);
   const suffix = hints.length > 0 ? ` (${hints.join(", ")})` : "";
   return `${theme.fg("toolTitle", theme.bold(label))}${theme.fg("muted", suffix)}`;
 }
@@ -133,21 +140,36 @@ interface TranscriptReadParams {
   offset?: number;
   limit?: number;
   elide_user_text?: boolean;
+  branches?: string;
 }
 
 /**
  * Select the entries the caller asked for, then summarize and format them.
  * Shared by every tool that renders a transcript from an entry array
  * (`read_session`, `read_parent_session`, `read_session_file`).
+ *
+ * `leafId` is the session's live leaf when the caller knows it; the file
+ * readers omit it, and the walk falls back to the last entry — the leaf Pi
+ * itself resumes into.
  */
 function buildTranscriptResult(
   allEntries: TranscriptEntry[],
   params: TranscriptReadParams,
+  leafId?: string | null,
 ): {
   content: [{ type: "text"; text: string }];
   details: SessionToolDetails;
 } {
-  const entries = selectEntries(allEntries, params);
+  // Anything but the literal "all" resolves to the safe default, so a mistyped
+  // parameter renders the live path rather than the branch it discarded.
+  const branches: BranchMode = params.branches === "all" ? "all" : "live";
+  const entries = selectEntries(allEntries, {
+    types: params.types,
+    offset: params.offset,
+    limit: params.limit,
+    branches,
+    leafId,
+  });
   const summary = summarizeEntries(entries);
   const text = formatTranscript(entries, {
     elideUserText: params.elide_user_text,
@@ -248,7 +270,8 @@ export default function sessionTools(pi: ExtensionAPI): void {
         "the full session history including messages, model changes, compaction events, and custom entries. " +
         "The transcript format shows numbered user/assistant turns, one-line tool call summaries with " +
         "correlated results, and metadata events (compaction, model changes). " +
-        "Tool result bodies, thinking content, and image data are omitted.",
+        "Tool result bodies, thinking content, and image data are omitted. " +
+        "A session that was rewound renders only the live path, with a marker naming what it omitted.",
       parameters: Type.Object({
         types: Type.Optional(
           Type.Array(
@@ -282,6 +305,9 @@ export default function sessionTools(pi: ExtensionAPI): void {
               "Replace each user turn's body with a length placeholder, keeping turn numbering, [provider/model] labels, and tool-call lines. Use it when you need the shape of a session rather than its prompts.",
           }),
         ),
+        branches: Type.Optional(
+          Type.String({ description: BRANCHES_DESCRIPTION }),
+        ),
       }),
       renderCall(args, theme, context) {
         const text =
@@ -303,7 +329,11 @@ export default function sessionTools(pi: ExtensionAPI): void {
         _onUpdate: unknown,
         ctx: ExtensionContext,
       ) {
-        return buildTranscriptResult(ctx.sessionManager.getEntries(), params);
+        return buildTranscriptResult(
+          ctx.sessionManager.getEntries(),
+          params,
+          ctx.sessionManager.getLeafId(),
+        );
       },
     }),
   );
@@ -317,6 +347,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
         "Derives the parent session file from the subagent directory layout. " +
         "Returns a structured transcript with numbered user/assistant turns, one-line tool call summaries, " +
         "and metadata events. Tool result bodies, thinking content, and image data are omitted. " +
+        "A session that was rewound renders only the live path, with a marker naming what it omitted. " +
         "Returns an error if not running in a subagent context.",
       parameters: Type.Object({
         types: Type.Optional(
@@ -350,6 +381,9 @@ export default function sessionTools(pi: ExtensionAPI): void {
             description:
               "Replace each user turn's body with a length placeholder, keeping turn numbering, [provider/model] labels, and tool-call lines.",
           }),
+        ),
+        branches: Type.Optional(
+          Type.String({ description: BRANCHES_DESCRIPTION }),
         ),
       }),
       renderCall(args, theme, context) {
@@ -420,6 +454,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
         "read_session nor read_parent_session can reach. " +
         "Returns a structured transcript with numbered user/assistant turns, one-line tool call summaries, " +
         "and metadata events. Tool result bodies, thinking content, and image data are omitted. " +
+        "A session that was rewound renders only the live path, with a marker naming what it omitted. " +
         "Returns an error if the file does not exist.",
       parameters: Type.Object({
         path: Type.String({
@@ -456,6 +491,9 @@ export default function sessionTools(pi: ExtensionAPI): void {
             description:
               "Replace each user turn's body with a length placeholder, keeping turn numbering, [provider/model] labels, and tool-call lines.",
           }),
+        ),
+        branches: Type.Optional(
+          Type.String({ description: BRANCHES_DESCRIPTION }),
         ),
       }),
       renderCall(args, theme, context) {
