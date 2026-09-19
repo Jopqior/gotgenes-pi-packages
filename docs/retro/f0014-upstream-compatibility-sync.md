@@ -108,3 +108,85 @@ Recorded the published core's correspondence to upstream `pi-subagents-v21.7.3` 
   Use returned run/job identifiers rather than inventing them.
 - This integration is not a fork roadmap-phase completion.
   Next: `/retro 14` at the root on `main`.
+
+## Stage: Final Retrospective (2026-09-19T15:01:24Z)
+
+### Session summary
+
+Reviewed planning, implementation, fresh-session smoke testing, shipping, and associated subagent reports rather than relying only on stage summaries.
+The integration and coordinated publication succeeded; improvement opportunities concern evidence precision and explaining verification exceptions before presenting a final result.
+This retrospective changes no runtime behavior or release scope.
+
+### Observations
+
+#### What went well
+
+- The automatic-merge audit was separate from conflict resolution: a read-only reviewer compared fork-sensitive runtime and release paths against both parents while document editors owned disjoint paths.
+  This preserved selection wiring alongside incoming context and cancellation changes without speculative preparatory refactoring.
+- The release-boundary gate caught the companion's incompatible published caret range before shipping.
+  Actual `pnpm pack` output demonstrated that existing `workspace:^` supplies the new range, avoiding a manifest edit; `docs(pi-subagents-model-selector): coordinate core-major upgrades (#14)` documented the coordinated upgrade.
+- Fresh-session testing exercised selection, cancellation, resume, listing limits, and a permission denial instead of trusting stale tools.
+  Published tarball inspection checked the actual companion dependency rather than treating workflow success as artifact proof.
+
+#### What caused friction (agent side)
+
+- `missing-context` — Tidy-First treated `loadProjectContext` as optional everywhere and suggested `node --test` for a Vitest file.
+  The parent corrected both before writing the plan.
+  Impact: report verification and correction, but no implementation repair.
+- `missing-context` — The companion approval briefing proposed updating its dependency before reading its existing `workspace:^` manifest and release preparation path.
+  Impact: the explanation changed immediately after approval; publication approval remained necessary, but the proposed source edit was unnecessary.
+- `missing-context` — The isolated packing fixture initially lacked the repository's workspace configuration and then its core dependency link.
+  Impact: two failed pack attempts before the third succeeded; no repository manifest mutation was needed.
+- `other` — A session restart lost live subagent result lookup, requiring transcript recovery and a report-capture review.
+  The full review also misstated whether module counts changed and where dual-package approval was recorded.
+  Impact: an additional bounded review corrected the evidence without rerunning expensive gates against unchanged HEAD.
+- `other` — The build handoff named eight parity failures without explaining that the script expects release tags for every package, while this fork publishes only selected packages.
+  Impact: the operator had to ask what those failures meant; no code or release rework followed.
+- `instruction-violation` (self-identified) — Shipping supplied an unverified job ID to `gh run view`, contrary to the existing command-derived identifier rule.
+  Impact: one avoidable 404 call; the next call used the returned run ID and obtained the complete log.
+
+#### What caused friction (user side)
+
+- No user-caused rework was evident in the reviewed exchanges.
+  Configuration replacement and publication scope were strategic decisions, not avoidable mechanical oversight.
+- The parity follow-up was an opportunity for the agent to explain the exception earlier, not a request for the operator to know release-script terminology.
+- Future smoke-test feedback can separate directly observed checks from configuration inspection.
+  The smoke transcript left duplicate-loading runtime verification pending, while the implementation handoff later recorded the operator's broader all-pass attestation; retain that distinction rather than promoting attestation to independently observed evidence.
+
+### Diagnostic details
+
+- Model attribution comes from unfiltered transcript turns, not configured agent defaults.
+  The parent turns inspected ran on `openai-codex/gpt-6-astra`.
+  Planning's failed Explore transcript shows `xai/grok-4.6`; the earlier unresolved `sonnet-5` attempt has no executed-model evidence here.
+  Tidy-First, document reconciliation, architecture reconciliation, automatic-merge auditing, full pre-completion review, and report capture ran on `zai-coding-cn/glm-5.3`.
+  These were judgment-heavy tasks; the assessment and review inaccuracies justify checking individual claims, not a general model-ranking conclusion from this sample.
+- The smoke parent reported its successful child as `zai-coding-cn/glm-5.3-flash`, but this retrospective did not independently attribute that child from its own turns.
+  This was a chooser/resume exercise, not review-quality evidence.
+- Escalation: packing setup took three consecutive pack calls, with the third succeeding; the incorrect job lookup was replaced on the next call.
+  Neither sequence crossed the more-than-five-call threshold or warrants a new escalation rule.
+- Available-context gap: reading `packages/pi-subagents-model-selector/package.json` and `scripts/release/prepare-release.sh` before the companion gate would have prevented the unnecessary dependency-edit proposal.
+  Another subagent or web search was not needed for those local facts.
+- Verification was incremental: baseline checks, merge-time gates, companion pack/lint, final checks, independent review, pushed-SHA CI, and published-tarball inspection appear in stage evidence and transcripts.
+  No end-only verification pattern was found.
+
+### Proposals and exclusions
+
+- Recommend observations only, without adding another agent rule.
+  Existing `AGENTS.md` principles require real-surface verification and command-derived numbers; `.pi/skills/delegation/SKILL.md` already requires checking report claims.
+- Do not change model defaults based on one assessment and one review report.
+- Do not change parity behavior, import upstream tags, or publish siblings to make the full-repository report green.
+  A package-scoped parity interface would require a separately approved tooling issue, not a retrospective edit.
+- Do not extend `.pi/prompts/ship.md` with an npm propagation retry policy from a single transient observation.
+  Re-querying and artifact verification were sufficient here.
+
+### Next-work assessment
+
+Issue 14 is repository integration, not a fork roadmap step or phase completion.
+The current fork open-issue query returned no entries.
+The newest triage, `docs/triage/2026-09-18-backlog.md`, describes the upstream backlog; its ranked and deferred items do not become fork obligations through synchronization.
+There is no authorized fork successor to recommend and no reason to invoke phase closure for this issue.
+
+### Changes made
+
+1. Appended the cross-session retrospective, diagnostic findings, evidence limitations, and next-work assessment to `docs/retro/f0014-upstream-compatibility-sync.md`.
+2. The operator approved a notes-only commit; no agent rules, prompts, runtime files, release tooling, or package artifacts were changed.
