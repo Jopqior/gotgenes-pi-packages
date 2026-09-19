@@ -182,11 +182,17 @@ This retrospective changes no runtime behavior or release scope.
 ### Next-work assessment
 
 Issue 14 is repository integration, not a fork roadmap step or phase completion.
-The current fork open-issue query returned no entries.
+The initial fork open-issue query returned no entries.
 The newest triage, `docs/triage/2026-09-18-backlog.md`, describes the upstream backlog; its ranked and deferred items do not become fork obligations through synchronization.
-There is no authorized fork successor to recommend and no reason to invoke phase closure for this issue.
+Subsequent operator discussion identified two fork follow-ups: [#15](https://github.com/Jopqior/gotgenes-pi-packages/issues/15) for independent selector releases, using upstream worktrees as the dependency-policy reference, and [#16](https://github.com/Jopqior/gotgenes-pi-packages/issues/16) for deriving core sync release levels from upstream version changes.
+The selector's `workspace:^` policy comes from issue 4 and mechanically uses the core version at pack time; it does not establish an API compatibility floor.
+The issue 14 plan explicitly selected `feat!:` for this integration; the sync script's default remains `chore: merge upstream/main`, not a mandatory breaking marker.
+The agreed direction for issue 16 is the upstream core release level, raised when fork-owned core changes require a higher level, without rewriting published history.
+Recommend `/plan-issue #16` first, then `/plan-issue #15`; these are separate follow-ups, not a phase closure.
 
 ### Changes made
 
 1. Appended the cross-session retrospective, diagnostic findings, evidence limitations, and next-work assessment to `docs/retro/f0014-upstream-compatibility-sync.md`.
 2. The operator approved a notes-only commit; no agent rules, prompts, runtime files, release tooling, or package artifacts were changed.
+3. After further discussion and explicit authorization, filed fork issues [#15](https://github.com/Jopqior/gotgenes-pi-packages/issues/15) and [#16](https://github.com/Jopqior/gotgenes-pi-packages/issues/16) and recorded their agreed scope here.
+   Issue 15 has no package architecture roadmap; issue 16 is repository-scoped, so neither required an open-phase disposition.
