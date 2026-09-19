@@ -207,6 +207,34 @@ describe("resolveBranches", () => {
     });
   });
 
+  describe("a tree with more than one root", () => {
+    it("marks a disconnected root rather than dropping it silently", () => {
+      const entries = [node("1", null), node("2", null), node("3", "1")];
+      expect(resolveBranches(entries, { mode: "live" })).toEqual([
+        node("1", null),
+        omitted(1),
+        node("3", "1"),
+      ]);
+    });
+
+    it("keeps a disconnected root that is itself the leaf", () => {
+      const entries = [node("1", null), node("2", "1"), node("3", null)];
+      expect(resolveBranches(entries, { mode: "live" })).toEqual([
+        omitted(2),
+        node("3", null),
+      ]);
+    });
+  });
+
+  describe("a leaf with no descendants of its own", () => {
+    it("renders the named island and marks everything else", () => {
+      const entries = [node("1", null), node("2", "1"), node("island", null)];
+      expect(
+        resolveBranches(entries, { mode: "live", leafId: "island" }),
+      ).toEqual([omitted(2), node("island", null)]);
+    });
+  });
+
   describe("a malformed parent chain", () => {
     it("stops at an entry that is its own parent", () => {
       const entries = [node("1", "1"), node("2", "1"), node("3", "1")];
@@ -225,6 +253,16 @@ describe("resolveBranches", () => {
     it("stops at a parent that is missing from the array", () => {
       const entries = [node("2", "1"), node("3", "2")];
       expect(resolveBranches(entries, { mode: "live" })).toEqual(entries);
+    });
+
+    it("marks an ancestor stranded above a broken link rather than dropping it", () => {
+      // Entry 3's parent is gone, so the walk stops there and entry 1 — a real
+      // ancestor — reads as abandoned. It is marked, never silently removed.
+      const entries = [node("1", null), node("3", "missing")];
+      expect(resolveBranches(entries, { mode: "live" })).toEqual([
+        omitted(1),
+        node("3", "missing"),
+      ]);
     });
   });
 });

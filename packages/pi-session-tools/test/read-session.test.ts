@@ -526,6 +526,15 @@ describe("read_session tool", () => {
       expect(result.content[0].text).not.toContain("retracted");
     });
 
+    it("keeps the omission marker through a type filter, as the retro lens calls it", async () => {
+      const result = await render({ types: ["message"] });
+      expect(result.content[0].text).toBe(
+        "1. user\nfirst\n\n---\n\n" +
+          '[abandoned branch] 1 entry omitted (branches: "all" to include)\n\n---\n\n' +
+          "2. user\nkept",
+      );
+    });
+
     it("walks from the session manager's leaf, not the last entry", async () => {
       // The leaf is entry 2, so the branch ending in "kept" is the abandoned one.
       const result = await render({}, makeCtx(forked, undefined, "2"));
