@@ -33,6 +33,7 @@ import {
   listSessionFiles,
   readSessionFileEntries,
 } from "./session-file.js";
+import { formatListingSummary, formatListingText } from "./session-listing.js";
 
 /** Discriminated union stored in tool `details` for the session-read and discovery tools. */
 type SessionToolDetails =
@@ -95,27 +96,11 @@ function formatResultText(
     return `${theme.fg("warning", "\u26a0")} ${theme.fg("muted", details.message)} ${hint}`;
   }
   if (details.kind === "listing") {
-    const count =
-      details.count === 1 ? "1 session file" : `${details.count} session files`;
-    return `${theme.fg("success", "\u2713")} ${theme.fg("muted", `${count} in ${details.directory}`)} ${hint}`;
+    const summary = formatListingSummary(details.directory, details.count);
+    return `${theme.fg("success", "\u2713")} ${theme.fg("muted", summary)} ${hint}`;
   }
   // kind === "transcript"
   return `${theme.fg("success", "\u2713")} ${theme.fg("muted", formatSummaryText(details.summary))} ${hint}`;
-}
-
-/**
- * Render the text body for `list_session_files`: the resolved directory,
- * then either the newest-first file listing or a "no files" message.
- */
-function renderListing(directory: string, files: string[]): string {
-  const header = `Session directory: ${directory}`;
-  if (files.length === 0) return `${header}\nNo session files found.`;
-  const countLine =
-    files.length === 1
-      ? "1 session file, newest first:"
-      : `${files.length} session files, newest first:`;
-  const fileLines = files.map((f) => `  ${f}`).join("\n");
-  return `${header}\n${countLine}\n${fileLines}`;
 }
 
 /**
@@ -142,6 +127,25 @@ function buildTranscriptResult(
   return {
     content: [{ type: "text", text: formatTranscript(entries) }],
     details: { kind: "transcript", summary },
+  };
+}
+
+/**
+ * Render a directory's session files as the tool's text body plus its
+ * `listing` details. Shared shape with `buildTranscriptResult`.
+ */
+function buildListingResult(
+  directory: string,
+  files: string[],
+): {
+  content: [{ type: "text"; text: string }];
+  details: SessionToolDetails;
+} {
+  return {
+    content: [
+      { type: "text", text: formatListingText(directory, files, files.length) },
+    ],
+    details: { kind: "listing", directory, count: files.length },
   };
 }
 
@@ -456,15 +460,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
           process.cwd(),
         );
         const directory = join(root, encodeCwdToSessionDirName(params.cwd));
-        const files = listSessionFiles(directory);
-        return {
-          content: [{ type: "text", text: renderListing(directory, files) }],
-          details: {
-            kind: "listing",
-            directory,
-            count: files.length,
-          } as SessionToolDetails,
-        };
+        return buildListingResult(directory, listSessionFiles(directory));
       },
     }),
   );
