@@ -486,61 +486,7 @@ describe("formatTranscript — metadata entries", () => {
     );
   });
 
-  it("suppresses a trailing model_change with no following assistant turn", () => {
-    const entries = [
-      {
-        type: "message",
-        message: {
-          role: "assistant",
-          content: [{ type: "text", text: "Hi" }],
-          provider: "anthropic",
-          model: "claude-sonnet-4-20250514",
-        },
-      },
-      {
-        type: "model_change",
-        provider: "anthropic",
-        modelId: "claude-opus-4-20250514",
-      },
-    ];
-    expect(formatTranscript(entries)).toBe(
-      "1. assistant [anthropic/claude-sonnet-4-20250514]\nHi",
-    );
-  });
-
-  it("keeps only the last of several consecutive model_change entries that precede an assistant turn", () => {
-    const entries = [
-      {
-        type: "model_change",
-        provider: "opencode-go",
-        modelId: "deepseek-v4-flash",
-      },
-      {
-        type: "model_change",
-        provider: "anthropic",
-        modelId: "claude-fable-5",
-      },
-      {
-        type: "model_change",
-        provider: "anthropic",
-        modelId: "claude-opus-4-8",
-      },
-      {
-        type: "message",
-        message: {
-          role: "assistant",
-          content: [{ type: "text", text: "Hi" }],
-          provider: "anthropic",
-          model: "claude-opus-4-8",
-        },
-      },
-    ];
-    expect(formatTranscript(entries)).toBe(
-      "[model change] → anthropic/claude-opus-4-8\n\n---\n\n1. assistant [anthropic/claude-opus-4-8]\nHi",
-    );
-  });
-
-  it("renders every model_change when the stream has no assistant messages at all (filtered-stream guard)", () => {
+  it("renders every model_change it is handed, leaving phantom pruning to entry selection", () => {
     const entries = [
       {
         type: "model_change",

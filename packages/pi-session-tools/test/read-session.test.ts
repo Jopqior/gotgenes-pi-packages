@@ -208,6 +208,97 @@ describe("read_session tool", () => {
     expect(text).toBe("");
   });
 
+  describe("window bounds", () => {
+    const threeUserTurns = [1, 2, 3].map((n) => ({
+      type: "message",
+      id: String(n),
+      parentId: n === 1 ? null : String(n - 1),
+      timestamp: `t${n}`,
+      message: { role: "user", content: `turn ${n}`, timestamp: n },
+    }));
+
+    it("returns no entries for a limit of zero", async () => {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("read_session")!;
+
+      const result = (await tool.execute(
+        "tc1",
+        { limit: 0 },
+        undefined,
+        undefined,
+        makeCtx(threeUserTurns),
+      )) as {
+        content: { text: string }[];
+        details: { summary: { totalEntries: number } };
+      };
+
+      expect(result.content[0].text).toBe("");
+      expect(result.details.summary.totalEntries).toBe(0);
+    });
+
+    it("returns no entries for a negative limit", async () => {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("read_session")!;
+
+      const result = (await tool.execute(
+        "tc1",
+        { limit: -2 },
+        undefined,
+        undefined,
+        makeCtx(threeUserTurns),
+      )) as {
+        content: { text: string }[];
+        details: { summary: { totalEntries: number } };
+      };
+
+      expect(result.content[0].text).toBe("");
+      expect(result.details.summary.totalEntries).toBe(0);
+    });
+
+    it("drops a phantom model change from the transcript and every count", async () => {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("read_session")!;
+
+      const entries = [
+        { type: "message", message: { role: "user", content: "hello" } },
+        {
+          type: "message",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "hi" }],
+            provider: "anthropic",
+            model: "claude-sonnet",
+          },
+        },
+        {
+          type: "model_change",
+          provider: "anthropic",
+          modelId: "claude-opus",
+        },
+      ];
+
+      const result = (await tool.execute(
+        "tc1",
+        {},
+        undefined,
+        undefined,
+        makeCtx(entries),
+      )) as {
+        content: { text: string }[];
+        details: { kind: string; summary: Record<string, number> };
+      };
+
+      expect(result.content[0].text).not.toContain("[model change]");
+      expect(result.details.summary).toEqual({
+        totalEntries: 2,
+        messages: 2,
+        toolCalls: 0,
+        compactions: 0,
+        modelChanges: 0,
+      });
+    });
+  });
+
   describe("details", () => {
     it("returns transcript details with summary counts", async () => {
       const tools = captureTools(sessionTools);

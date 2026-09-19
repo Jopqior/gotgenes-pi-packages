@@ -5,8 +5,6 @@
  * while dropping noise (thinking content, image data, token usage, tool result bodies).
  */
 
-import { collectEffectiveModelChangeIndices } from "./entry-selection.js";
-
 /**
  * Minimal structural supertype for session entries.
  * Accepts SDK SessionEntry[] without index-signature conflicts.
@@ -229,16 +227,12 @@ function formatBashMessage(message: Record<string, unknown>): string {
 export function formatTranscript(entries: TranscriptEntry[]): string {
   const resultMap = buildToolResultMap(entries);
   const assistantToolCallIds = collectAssistantToolCallIds(entries);
-  const effectiveModelChanges = collectEffectiveModelChangeIndices(entries);
 
   const parts: string[] = [];
   let turnNum = 0;
 
-  for (const [index, entry] of entries.entries()) {
+  for (const entry of entries) {
     if (entry.type !== "message") {
-      if (entry.type === "model_change" && !effectiveModelChanges.has(index)) {
-        continue; // phantom switch — suppressed
-      }
       const formatted = formatMetadataEntry(entry);
       if (formatted !== null) parts.push(formatted);
       continue;

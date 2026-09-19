@@ -21,6 +21,7 @@ import {
   type Theme,
 } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
+import { selectEntries } from "./entry-selection.js";
 import {
   formatSummaryText,
   type SessionSummary,
@@ -118,9 +119,9 @@ function formatResultText(
 }
 
 /**
- * Filter entries by `types`, slice to the most recent `limit`, then summarize
- * and format the result. Shared by every tool that renders a transcript from
- * an entry array (`read_session`, `read_parent_session`, `read_session_file`).
+ * Select the entries the caller asked for, then summarize and format them.
+ * Shared by every tool that renders a transcript from an entry array
+ * (`read_session`, `read_parent_session`, `read_session_file`).
  */
 function buildTranscriptResult(
   allEntries: TranscriptEntry[],
@@ -129,14 +130,7 @@ function buildTranscriptResult(
   content: [{ type: "text"; text: string }];
   details: SessionToolDetails;
 } {
-  let entries = allEntries;
-  if (params.types) {
-    const allowed = new Set(params.types);
-    entries = entries.filter((e) => allowed.has(e.type));
-  }
-  if (params.limit != null) {
-    entries = entries.slice(-params.limit);
-  }
+  const entries = selectEntries(allEntries, params);
   const summary = summarizeEntries(entries);
   return {
     content: [{ type: "text", text: formatTranscript(entries) }],
