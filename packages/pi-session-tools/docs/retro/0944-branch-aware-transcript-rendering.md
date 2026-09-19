@@ -42,3 +42,35 @@ The plan is `packages/pi-session-tools/docs/plans/0944-branch-aware-transcript-r
 
 - `packages/pi-session-tools/src/index.ts` — the `Type.Object` parameter blocks of `read_parent_session` (L323) and `read_session_file` (L431) are word-for-word identical for `types`/`offset`/`limit`/`elide_user_text`, while `read_session`'s (L249) carries intentionally richer prose; the assessor rated a two-way extraction Optional and a three-way one the wrong-abstraction trap, and I took neither, so adding `branches` touches three sites.
 - `packages/pi-session-tools/test/` — `makeCtx` remains duplicated across four suites with differing signatures (carried over from #943's deferral); this change adds `getLeafId` to one copy only, since only `read_session` calls it.
+
+## Stage: Implementation — TDD (2026-09-19T22:52:08Z)
+
+### Session summary
+
+Executed all seven planned steps as separate commits, plus one follow-up `test:` commit closing the pre-completion reviewer's two coverage warnings.
+The package went from 12 test files / 183 tests at baseline to 13 / 228.
+All four gates (`check`, root `lint`, `test`, `fallow dead-code`) were green at baseline and at HEAD, and the reviewer returned PASS on re-dispatch.
+
+### Observations
+
+- Every killing mutation the plan named behaved as predicted except one, and the exception was a finding rather than a pass.
+  The plan claimed *treat an entry with no string `id` as abandoned* would redden "the mixed-array and no-ids tests"; it reddened only the mixed-array test, because the no-ids cases are guarded by a different half of the rule (an unresolvable leaf returns the input unchanged) and short-circuit before `isAbandoned` runs.
+  A second mutation — returning `new Set(byId.keys())` from that guard, which is exactly the fail-open direction the plan's risk table names — reddened the two no-ids tests, so the class is pinned; the plan just attributed it to the wrong mutation.
+- One planned probe was vacuous and had to be rewritten before it could discriminate.
+  The test for "branch resolution runs before `filterByTypes`" used a fixture whose live path did not actually pass *through* a filtered-out entry, so reordering the two stages produced identical output.
+  Replacing it with a fixture whose live path runs `1 → 3 → 4` across a `model_change` made the reorder mutation kill it.
+  This is the `testing` skill's "name both outcomes and confirm your assertion's value differs between them" rule, caught by counting reds against the plan's prediction rather than by reading the test.
+- Two tests in the new `read_session` branch suite passed during Red, for a reason worth recording: `buildTranscriptResult` already called `selectEntries(allEntries, params)`, so the raw `branches` tool parameter flowed straight into `EntrySelection.branches` by name before any wiring was written.
+  The plan had predicted exactly this coupling and made removing it part of step 6 ("build the selection object explicitly"), but the consequence for the Red step was not anticipated.
+  Both were mutated explicitly afterward and both discriminate.
+- The Tidy-First step that added `getLeafId` to `read-session.test.ts`'s `makeCtx` was load-bearing exactly as the assessor predicted: the stub is behind an `as unknown as ExtensionContext` cast, so nothing would have caught its absence until the suite ran.
+- `Omit<BranchMarkerEntry, "type">` does not distribute over a discriminated union, so a single `marker(fields)` factory failed `tsc` on `count`; three small typed factories replaced it.
+  Relatedly, every test that builds a marker has to go through a factory returning `BranchMarkerEntry` — a fresh object literal passed to `formatTranscript` trips TypeScript's excess-property check against `TranscriptEntry`, which is `{ type: string }`.
+- Deviation from the plan's Module-Level Changes: the README's canonical end-to-end sample transcript did **not** gain a marker line as the table claimed.
+  That sample is a linear, unforked session, so a marker there would show output it cannot produce; the marker examples went into the new `#### Rewound sessions` subsection instead.
+  The reviewer confirmed this reading in the delta round.
+- Every other predicted-unchanged claim held, including the interesting one: `test/format-transcript.test.ts`'s `handles parallel tool calls with out-of-order results` fixture (file order `1, 3, 2`, tree order `1 → 2 → 3`) is untouched and green, because that suite calls `formatTranscript` directly and never reaches `resolveBranches`.
+  That fixture is the concrete reason branch resolution had to live in `entry-selection.ts`.
+- Pre-completion reviewer: WARN on the first round, PASS on the second.
+  The two WARNs it raised were real gaps on this issue's own mechanism and were closed rather than accepted: `test/session-tree.test.ts` gained a multi-root array, a `leafId` naming an island node, and an ancestor stranded above a broken parent link; `test/read-session.test.ts` gained the tool-level case combining a `types` filter with a forked session, which is how `/retro`'s model-attribution lens actually calls it.
+  All five were authored after Green, so they were mutated explicitly, and the reviewer re-derived both mutations itself rather than accepting the report.
