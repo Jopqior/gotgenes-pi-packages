@@ -10,6 +10,68 @@
 
 import type { TranscriptEntry } from "./format-transcript.js";
 
+/** The bounds a transcript tool applies to a session's entries before rendering. */
+export interface EntrySelection {
+  /** Entry types to keep. When omitted, every type is kept. */
+  types?: string[];
+  /** How many of the most recent entries to skip. */
+  offset?: number;
+  /** How many entries to take, counting backward from the offset point. */
+  limit?: number;
+}
+
+/**
+ * Filter by `types`, drop phantom `model_change` markers, then window.
+ * The returned array is exactly what the caller will see rendered, which is
+ * why `limit` counts entries that survive pruning rather than raw entries.
+ *
+ * Pruning runs on the unwindowed array on purpose: `offset` lets a window end
+ * short of the session's end, and a marker whose assistant turn sits one entry
+ * past that edge is a real switch, not a phantom.
+ */
+export function selectEntries(
+  entries: TranscriptEntry[],
+  selection: EntrySelection,
+): TranscriptEntry[] {
+  const filtered = filterByTypes(entries, selection.types);
+  const pruned = prunePhantomModelChanges(filtered);
+  return windowEntries(pruned, selection.offset, selection.limit);
+}
+
+function filterByTypes(
+  entries: TranscriptEntry[],
+  types: string[] | undefined,
+): TranscriptEntry[] {
+  if (!types) return entries;
+  const allowed = new Set(types);
+  return entries.filter((e) => allowed.has(e.type));
+}
+
+function prunePhantomModelChanges(
+  entries: TranscriptEntry[],
+): TranscriptEntry[] {
+  const effective = collectEffectiveModelChangeIndices(entries);
+  return entries.filter(
+    (entry, index) => entry.type !== "model_change" || effective.has(index),
+  );
+}
+
+/**
+ * Take at most `limit` entries, ending `offset` entries from the most recent.
+ * Both bounds clamp at zero, mirroring `boundListingPaths`: left unclamped, a
+ * negative bound reads as an offset from the other end and silently returns
+ * more entries than the caller asked for.
+ */
+function windowEntries(
+  entries: TranscriptEntry[],
+  offset: number | undefined,
+  limit: number | undefined,
+): TranscriptEntry[] {
+  const end = Math.max(0, entries.length - Math.max(0, offset ?? 0));
+  const start = limit == null ? 0 : Math.max(0, end - Math.max(0, limit));
+  return entries.slice(start, end);
+}
+
 /**
  * Return the entry indices of `model_change` markers that took effect — a
  * switch followed by at least one assistant turn before the next switch (or
