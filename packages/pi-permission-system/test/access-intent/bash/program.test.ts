@@ -479,6 +479,28 @@ describe("BashProgram", () => {
       });
     });
 
+    describe("operands of a command hosted in a quoted argument (#945)", () => {
+      it("flags the operand of a substitution in a consumed flag argument", async () => {
+        const program = await BashProgram.parse(
+          'sed -e "$(cat /etc/shadow)" f.txt',
+          normalizer,
+        );
+        expect(
+          program.externalAccesses().map(({ path }) => path.value()),
+        ).toEqual(["/etc/shadow"]);
+      });
+
+      it("flags the operand of a substitution in a generic command's argument", async () => {
+        const program = await BashProgram.parse(
+          'echo "$(cat /etc/shadow)"',
+          normalizer,
+        );
+        expect(
+          program.externalAccesses().map(({ path }) => path.value()),
+        ).toEqual(["/etc/shadow"]);
+      });
+    });
+
     describe("glob-bearing path tokens (#821)", () => {
       it.each([
         ["a bracket glob", "cat /etc/[p]asswd", "/etc/[p]asswd"],
