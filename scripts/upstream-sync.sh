@@ -15,8 +15,7 @@
 
 set -euo pipefail
 
-UPSTREAM_URL='https://github.com/gotgenes/pi-packages.git'
-UPSTREAM_URL_ALT='https://github.com/gotgenes/pi-packages'
+UPSTREAM_URL='git@github.com:gotgenes/pi-packages.git'
 
 die() {
   printf 'error: %s\n' "$1" >&2
@@ -45,7 +44,7 @@ cd "$repo_root"
 ensure_upstream_remote() {
   if git remote get-url upstream >/dev/null 2>&1; then
     url="$(git remote get-url upstream)"
-    if [[ "$url" != "$UPSTREAM_URL" && "$url" != "$UPSTREAM_URL_ALT" ]]; then
+    if [[ "$url" != "$UPSTREAM_URL" ]]; then
       die "upstream remote URL is ${url}; expected ${UPSTREAM_URL}"
     fi
   else
@@ -82,7 +81,7 @@ check_merge_preconditions() {
 
 print_newest_upstream_pi_subagents_tag() {
   local listing newest peeled
-  listing="$(git ls-remote --tags https://github.com/gotgenes/pi-packages.git 'pi-subagents-v*')"
+  listing="$(git ls-remote --tags upstream 'pi-subagents-v*')"
   newest="$(
     printf '%s\n' "$listing" \
       | awk '{ print $2 }' \

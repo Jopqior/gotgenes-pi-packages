@@ -16,6 +16,14 @@ Before a fork publish, check whether upstream `main` has new commits or a new `p
 
 ## Procedure
 
+The upstream remote uses `git@github.com:gotgenes/pi-packages.git` for both fetching commits and querying tags.
+An SSH key with GitHub read access is required.
+For an existing HTTPS remote, switch it before running the script:
+
+```bash
+git remote set-url upstream git@github.com:gotgenes/pi-packages.git
+```
+
 1. From the repo root on `main`, with a clean index and tracked worktree:
 
    ```bash

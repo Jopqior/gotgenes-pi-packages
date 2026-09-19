@@ -21,7 +21,7 @@ const repoRoot = path.resolve(
 );
 const scriptPath = path.join(repoRoot, "scripts", "upstream-sync.sh");
 const realGit = execFileSync("which", ["git"], { encoding: "utf8" }).trim();
-const githubUpstream = "https://github.com/gotgenes/pi-packages.git";
+const githubUpstream = "git@github.com:gotgenes/pi-packages.git";
 const mergeMessage = "chore: merge upstream/main";
 const refuseHint =
   "run ./scripts/upstream-sync.sh to fetch and print ahead/behind without merging";
@@ -45,13 +45,7 @@ const gitWrapperSource = [
   "    return input;",
   "  }",
   "  return input.map((arg) => {",
-  "    if (",
-  '      arg === "https://github.com/gotgenes/pi-packages.git" ||',
-  '      arg === "https://github.com/gotgenes/pi-packages"',
-  "    ) {",
-  "      return upstreamBare;",
-  "    }",
-  '    if (cmd === "fetch" && arg === "upstream") {',
+  '    if (arg === "upstream") {',
   "      return upstreamBare;",
   "    }",
   '    if (cmd === "fetch" && arg === "main") {',
@@ -580,6 +574,33 @@ describe("upstream-sync.sh", () => {
   });
 
   describe("guards", () => {
+    it("accepts an existing SSH upstream remote", () => {
+      const { work } = materializeNetwork(scratch, "divergent");
+      git(work, ["remote", "add", "upstream", githubUpstream]);
+
+      const result = runScript(work, []);
+
+      expect(result.status).toBe(0);
+      expect(git(work, ["remote", "get-url", "upstream"]).stdout.trim()).toBe(
+        githubUpstream,
+      );
+    });
+
+    it("refuses a different upstream repository before fetching", () => {
+      const { work } = materializeNetwork(scratch, "divergent");
+      git(work, [
+        "remote",
+        "add",
+        "upstream",
+        "git@github.com:example/other.git",
+      ]);
+
+      const result = runScript(work, []);
+
+      expect(result.status).toBe(1);
+      expect(recordedFetches()).toEqual([]);
+    });
+
     it("refuses a non-main branch without merging", () => {
       const { work } = materializeNetwork(scratch, "divergent");
       git(work, ["checkout", "-b", "feature"]);
@@ -903,7 +924,7 @@ describe("upstream-sync.sh", () => {
         lsRemote.some(
           (args) =>
             args.includes("--tags") &&
-            args.includes(githubUpstream) &&
+            args.includes("upstream") &&
             args.includes("pi-subagents-v*"),
         ),
       ).toBe(true);
