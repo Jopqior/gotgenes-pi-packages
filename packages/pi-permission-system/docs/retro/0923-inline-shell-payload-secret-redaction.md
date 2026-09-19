@@ -51,8 +51,53 @@ A second defect surfaced from the operator's `xargs` question and was filed as [
 
 - `src/access-intent/bash/{program,sync-commands,unresolved-salvage,command-redaction}.ts` — four sites repeat the same parse-a-fragment-then-`delete()`-the-tree idiom with no abstraction over it; the assessor declined to unify them and step 4 makes it a fifth occurrence inside a recursion.
 
+## Stage: Implementation — TDD (2026-09-19T14:56:08Z)
+
+### Session summary
+
+Ten commits over the plan's six steps plus four review-driven additions: two Tidy-First preparations, the payload-node query, the masking recursion, the writer-level pin, the doc sweep, then two `fix:` commits and two doc corrections that came out of the pre-completion review.
+The package suite went from 4435 to 4511 tests (+76).
+The reviewer returned FAIL on the first pass with one blocking finding and WARN on the delta re-review, with one non-blocking provenance finding now closed below.
+
+### Observations
+
+- **The reviewer found two real leaks the corpus could not, and one of them was the reported defect itself.**
+  `payloadSlice` decided "quoted" by comparing a node's first and last character, which holds for `string`/`raw_string` and nothing else the grammar can put at a payload position.
+  `bash -c 'TOKEN='"$SECRET"` (a `concatenation`, and an entirely ordinary interpolation idiom) and `bash -c $'TOKEN=sk-x'` (an `ansi_c_string`) were written verbatim.
+  Neither shape occurs once in 8 138 real commands, so measurement was never going to surface them — deriving inputs from the stated invariant was, which is the same lesson [#920]'s review produced about `openingQuoteOf`.
+- **The reviewer's *non-blocking* observation was the more serious of the two.**
+  It noted in passing that a payload behind an indirection wrapper is never reached, and called it a pre-existing scope boundary rather than a defect.
+  Checking it showed `sudo bash -c 'TOKEN=sk-secret deploy'` reproducing this issue's defect exactly — masked under `executedUnit`, verbatim under `command`, one record — and `xargs -I{} sh -c '…'` is in my own review log.
+  Closing [#923] on the plan's literal scope would have left the reported inconsistency live one wrapper layer up.
+  Worth generalizing: a reviewer's "matches the plan's scoping, so not a defect" is a claim about the plan, not about the issue.
+- **A coarse mask was the right answer where a precise one has no offset.**
+  A stitched `concatenation` payload's program is assembled across quote boundaries, so no constant shift maps a span in the program back onto the command.
+  Rather than build a per-character offset map, the program decides *whether* a secret is bound and the whole argument is replaced when one is.
+  `bash -c 'TOKEN='"$SECRET"` → `bash -c [redacted]`: the argument text is lost, which is the correct trade against writing the secret.
+  An `ansi_c_string` needed no such compromise — skipping the leading `$` leaves a single quote pair, so it stays precise.
+- **The peeling fix reused the existing walk rather than adding wrapper knowledge.**
+  `inlineShellPayloadIndex` now peels over `innerCommandIndex` / `execTerminatorIndex`, tracking the payload's position in the original word list; a new private `directPayloadIndex` holds the non-peeling arithmetic.
+  The reviewer independently confirmed `base += start` composes across four layers and a nested `find -exec … \;`, and that no gate-facing answer (`classifyWrapperWords`, `executedUnitOf`, `isTransparentWrapper`, `floorExemption`) moved.
+- **One mutation produced zero reds, and that was the correct result.**
+  Swapping `opaquePayload`'s `directPayloadIndex` back to the peeling `inlineShellPayloadIndex` reddened nothing.
+  The two are provably equivalent at that call site — `unwrapIndirection` has already peeled by the time its opaque branch runs, so the peeling loop's first iteration returns with `base = 0`.
+  An equivalent mutation, not a missing test; the reviewer confirmed the reading rather than taking it.
+  The plan's step 1 mutation (a) was also mispredicted: it claimed the `eval` case would stay green under an off-by-one, but both branches share the `flagIndex + 2` return, so all 19 cases reddened.
+- **The corpus differential reconciled** — the delta review's one WARN.
+  Two numbers were reported without saying they measure different things: **0** is how many real commands log *differently under this change than before it*; **4** is how many the masker alters *at all*, a figure unchanged from before the widening.
+  Measured at the end: all 4 come from [#920]'s pre-existing `Authorization:` header rule — three real `curl` calls (`"Authorization: token $(gh auth token)"`, `"Authorization: Bearer $TOK"`, and a two-header probe) and one heredoc holding this issue's own spike vectors, reached through a recovering parse.
+  Neither the coarse branch nor the peeling fires on any real command, so both are pinned by tests alone and not by measurement — stated rather than implied.
+- **A deviation from the plan, adopted on the assessor's and reviewer's agreement.**
+  The plan put `inlineShellPayloadNode`'s tests in `program.test.ts`; they landed in a new `test/access-intent/bash/command-enumeration.test.ts` instead, named after the module under test as its siblings are.
+  `program.test.ts` tests `BashProgram`, a different module.
+- **The [#925] flake is no longer a flake.**
+  `composition-root.test.ts` > `"blocks promptly when no session is draining the parent's inbox"` failed 3/3 at the plan commit `acec8edd`, before any source change of this issue, in the **package-alone** run — not just the root parallel one, which is the boundary [#925]'s body records.
+  Durations cluster at 5.03–5.10 s against Vitest's 5 s default, so the timeout is the wall rather than a variable stall.
+  Posted to [#925] rather than filed anew.
+
 [#609]: https://github.com/gotgenes/pi-packages/issues/609
 [#803]: https://github.com/gotgenes/pi-packages/issues/803
 [#920]: https://github.com/gotgenes/pi-packages/issues/920
 [#923]: https://github.com/gotgenes/pi-packages/issues/923
+[#925]: https://github.com/gotgenes/pi-packages/issues/925
 [#951]: https://github.com/gotgenes/pi-packages/issues/951
