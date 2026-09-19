@@ -175,6 +175,26 @@ describe("list_session_files tool", () => {
       );
     });
 
+    it("reports the bounded count in shown and the true total in count", async () => {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("list_session_files")!;
+
+      mockSessionFiles(12);
+
+      const ctx = makeCtx(undefined);
+      const result = (await tool.execute(
+        "tc1",
+        { cwd: "/Users/chris/peer" },
+        undefined,
+        undefined,
+        ctx,
+      )) as { details: { kind: string; count: number; shown: number } };
+
+      expect(result.details.kind).toBe("listing");
+      expect(result.details.count).toBe(12);
+      expect(result.details.shown).toBe(10);
+    });
+
     it("returns listing details with count 0 for an empty directory", async () => {
       const tools = captureTools(sessionTools);
       const tool = tools.get("list_session_files")!;
@@ -194,4 +214,93 @@ describe("list_session_files tool", () => {
       expect(result.details.count).toBe(0);
     });
   }); // describe("details")
+
+  describe("limit", () => {
+    async function listWith(params: {
+      cwd: string;
+      limit?: number;
+    }): Promise<string> {
+      const tools = captureTools(sessionTools);
+      const tool = tools.get("list_session_files")!;
+      const result = await tool.execute(
+        "tc1",
+        params,
+        undefined,
+        undefined,
+        makeCtx(undefined),
+      );
+      return (result as { content: { text: string }[] }).content[0].text;
+    }
+
+    async function peerDir(): Promise<string> {
+      const { homedir } = await import("node:os");
+      const { join } = await import("node:path");
+      return join(
+        homedir(),
+        ".pi",
+        "agent",
+        "sessions",
+        "--Users-chris-peer--",
+      );
+    }
+
+    it("lists only the newest ten when the caller passes no limit", async () => {
+      const newestFirst = mockSessionFiles(12);
+      const dir = await peerDir();
+      const { join } = await import("node:path");
+
+      const text = await listWith({ cwd: "/Users/chris/peer" });
+
+      expect(text).toBe(
+        [
+          `Session directory: ${dir}`,
+          "12 session files, newest first (showing 10):",
+          ...newestFirst.slice(0, 10).map((n) => `  ${join(dir, n)}`),
+        ].join("\n"),
+      );
+    });
+
+    it("honours an explicit limit below the default", async () => {
+      const newestFirst = mockSessionFiles(12);
+      const dir = await peerDir();
+      const { join } = await import("node:path");
+
+      const text = await listWith({ cwd: "/Users/chris/peer", limit: 3 });
+
+      expect(text).toBe(
+        [
+          `Session directory: ${dir}`,
+          "12 session files, newest first (showing 3):",
+          ...newestFirst.slice(0, 3).map((n) => `  ${join(dir, n)}`),
+        ].join("\n"),
+      );
+    });
+
+    it("renders the unqualified count line when the limit exceeds the total", async () => {
+      const newestFirst = mockSessionFiles(12);
+      const dir = await peerDir();
+      const { join } = await import("node:path");
+
+      const text = await listWith({ cwd: "/Users/chris/peer", limit: 1000 });
+
+      expect(text).toBe(
+        [
+          `Session directory: ${dir}`,
+          "12 session files, newest first:",
+          ...newestFirst.map((n) => `  ${join(dir, n)}`),
+        ].join("\n"),
+      );
+    });
+
+    it("lists nothing for a negative limit, rather than all but the oldest", async () => {
+      mockSessionFiles(12);
+      const dir = await peerDir();
+
+      const text = await listWith({ cwd: "/Users/chris/peer", limit: -2 });
+
+      expect(text).toBe(
+        `Session directory: ${dir}\n12 session files, newest first (showing 0):`,
+      );
+    });
+  }); // describe("limit")
 });

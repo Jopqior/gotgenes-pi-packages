@@ -117,19 +117,30 @@ Encodes the given `cwd` to Pi's session-directory naming convention (`--<cwd wit
 Pass a listed path to `read_session_file` to render it as a transcript.
 
 ```text
-list_session_files({ cwd: string })
+list_session_files({ cwd: string, limit?: number })
 ```
 
 Parameters:
 
 - `cwd` — the working directory whose session files to list (e.g. a peer worktree path).
   Required — there is no default, since the sibling-session use case always targets a directory other than the current session's own.
+- `limit` — maximum number of paths to list, newest first.
+  Defaults to 10.
+  Pass a large number (e.g. `1000`) to list every file; there is no sentinel for "all", and `0` lists none.
 
 ```text
 Session directory: /Users/chris/.pi/agent/sessions/--Users-chris-worktrees-issue-546--
 2 session files, newest first:
   /Users/chris/.pi/agent/sessions/--Users-chris-worktrees-issue-546--/2026-07-06T10-00-00Z_.jsonl
   /Users/chris/.pi/agent/sessions/--Users-chris-worktrees-issue-546--/2026-07-05T09-00-00Z_.jsonl
+```
+
+The count line always reports the directory's true total, and names how many paths follow when the listing is bounded:
+
+```text
+Session directory: /Users/chris/.pi/agent/sessions/--Users-chris-pi-packages--
+608 session files, newest first (showing 10):
+  …ten paths…
 ```
 
 ## Install

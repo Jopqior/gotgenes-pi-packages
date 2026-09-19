@@ -7,7 +7,7 @@
  *   read_session — Read the current session's raw entries (survives compaction)
  *   read_parent_session — Read the parent session's entries from a subagent context
  *   read_session_file — Read an arbitrary session file's entries by path
- *   list_session_files — List a cwd's session files, newest first
+ *   list_session_files — List a cwd's session files, newest first, bounded by `limit`
  */
 
 import { join } from "node:path";
@@ -33,13 +33,18 @@ import {
   listSessionFiles,
   readSessionFileEntries,
 } from "./session-file.js";
-import { formatListingSummary, formatListingText } from "./session-listing.js";
+import {
+  boundListingPaths,
+  DEFAULT_LIST_LIMIT,
+  formatListingSummary,
+  formatListingText,
+} from "./session-listing.js";
 
 /** Discriminated union stored in tool `details` for the session-read and discovery tools. */
 type SessionToolDetails =
   | { kind: "transcript"; summary: SessionSummary }
   | { kind: "status"; message: string }
-  | { kind: "listing"; directory: string; count: number };
+  | { kind: "listing"; directory: string; count: number; shown: number };
 
 // ---- rendering helpers ----
 
@@ -96,7 +101,11 @@ function formatResultText(
     return `${theme.fg("warning", "\u26a0")} ${theme.fg("muted", details.message)} ${hint}`;
   }
   if (details.kind === "listing") {
-    const summary = formatListingSummary(details.directory, details.count);
+    const summary = formatListingSummary(
+      details.directory,
+      details.shown,
+      details.count,
+    );
     return `${theme.fg("success", "\u2713")} ${theme.fg("muted", summary)} ${hint}`;
   }
   // kind === "transcript"
@@ -137,15 +146,22 @@ function buildTranscriptResult(
 function buildListingResult(
   directory: string,
   files: string[],
+  params: { limit?: number },
 ): {
   content: [{ type: "text"; text: string }];
   details: SessionToolDetails;
 } {
+  const paths = boundListingPaths(files, params.limit ?? DEFAULT_LIST_LIMIT);
   return {
     content: [
-      { type: "text", text: formatListingText(directory, files, files.length) },
+      { type: "text", text: formatListingText(directory, paths, files.length) },
     ],
-    details: { kind: "listing", directory, count: files.length },
+    details: {
+      kind: "listing",
+      directory,
+      count: files.length,
+      shown: paths.length,
+    },
   };
 }
 
@@ -428,12 +444,19 @@ export default function sessionTools(pi: ExtensionAPI): void {
         "Encodes the given cwd to Pi's session-directory naming convention and lists the " +
         ".jsonl files found there, so a caller does not have to hand-roll the encoding. " +
         "Pass the returned path to read_session_file to render one as a transcript. " +
-        "Useful for locating a sibling session (e.g. a peer worktree session).",
+        "Useful for locating a sibling session (e.g. a peer worktree session). " +
+        `Lists at most ${DEFAULT_LIST_LIMIT} paths unless limit says otherwise; ` +
+        "the count line always reports the directory's true total.",
       parameters: Type.Object({
         cwd: Type.String({
           description:
             "The working directory whose session files to list (e.g. a peer worktree path).",
         }),
+        limit: Type.Optional(
+          Type.Number({
+            description: `Maximum number of paths to list, newest first. Defaults to ${DEFAULT_LIST_LIMIT}; pass a large number (e.g. 1000) to list every file.`,
+          }),
+        ),
       }),
       renderCall(args, theme, context) {
         const text =
@@ -450,7 +473,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: { cwd: string },
+        params: { cwd: string; limit?: number },
         _signal: unknown,
         _onUpdate: unknown,
         ctx: ExtensionContext,
@@ -460,7 +483,11 @@ export default function sessionTools(pi: ExtensionAPI): void {
           process.cwd(),
         );
         const directory = join(root, encodeCwdToSessionDirName(params.cwd));
-        return buildListingResult(directory, listSessionFiles(directory));
+        return buildListingResult(
+          directory,
+          listSessionFiles(directory),
+          params,
+        );
       },
     }),
   );
