@@ -1101,6 +1101,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#804] — deferred to **Phase 17** with recorded rationale (operator composition decision; 3rd consecutive sweep): it mirrors the `commandEffects` shape [#880] creates, and landing it in the same phase would have both steps deciding one shape.
   It was deferred to Phase 16 by the previous two sweeps; Phase 16 is now the sandbox record's alone, so the same rationale moves it one phase further rather than changing.
 - [#822] — deferred to Phase 16 with recorded rationale (operator decision; 3rd consecutive sweep): a sandbox subsumes static glob expansion, so the mechanism waits for the seam that would replace it — which is now Phase 16's subject rather than a step of this phase.
+- [#952] — filed by this session; deferred to **Phase 17**, beside [#804].
+  An extension or MCP tool cannot declare its direction, so `effectProvenByTool` returns `unproven`, the gate names the bare `external_directory` family, and the write surface's catch-all vetoes a read a directional grant already allowed — measured on `read_session_file`, where all 5 schema-carrying prompts in the local review log record `matchedPattern: "*"` against `external_directory_write`.
+  Its `toolEffects` key mirrors the config shape [#880] creates, which is the rationale [#804] and [#926] already carry: two steps deciding one config shape in one phase is the outcome to avoid.
 - [#926] — deferred with recorded rationale (operator decision): transparent wrapper commands (`rtk ls` needing rules separately from `ls`) want a user-declared alias table, which mirrors the config shape [#880] creates.
   This is the same rationale [#804] carries, and it applies for the same reason: two steps deciding one config shape in one phase is the outcome to avoid.
 - [#931] — out of scope for the roadmap.
@@ -1520,4 +1523,5 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#930]: https://github.com/gotgenes/pi-packages/pull/930
 [#945]: https://github.com/gotgenes/pi-packages/issues/945
 [#946]: https://github.com/gotgenes/pi-packages/issues/946
+[#952]: https://github.com/gotgenes/pi-packages/issues/952
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
