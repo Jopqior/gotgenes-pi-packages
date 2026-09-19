@@ -3,7 +3,8 @@
   "entry": [
     "packages/*/src/extension.ts",
     "packages/*/src/index.ts",
-    "packages/*/src/service.ts"
+    "packages/*/src/service.ts",
+    "scripts/**/*.mjs"
   ],
   "ignoreExportsUsedInFile": true,
   "ignoreDependencies": ["tree-sitter-bash", "@gotgenes/pi-subagents"],

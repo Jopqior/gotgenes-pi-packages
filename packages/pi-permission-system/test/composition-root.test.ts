@@ -29,6 +29,7 @@ import {
   type ExtensionAPI,
 } from "@earendil-works/pi-coding-agent";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { unregisteredLinkMessage } from "#src/authority/authorizer-chain-audit";
 import { childNodeAbsentMessage } from "#src/authority/child-node-audit";
 import {
   createPermissionForwardingLocation,
@@ -42,6 +43,7 @@ import {
 } from "#src/authority/subagent-lifecycle-events";
 import { getSubagentSessionRegistry } from "#src/authority/subagent-registry";
 import {
+  DEBUG_LOG_FILENAME,
   getGlobalConfigPath,
   getGlobalLogsDir,
   REVIEW_LOG_FILENAME,
@@ -207,6 +209,18 @@ function readReviewLog(): { event: string }[] {
     .split("\n")
     .filter((line) => line.trim())
     .map((line) => JSON.parse(line) as { event: string });
+}
+
+/** Read the debug-log entries written under the stubbed agent dir. */
+function readDebugLog(): Record<string, unknown>[] {
+  const path = join(getGlobalLogsDir(agentDir), DEBUG_LOG_FILENAME);
+  if (!existsSync(path)) {
+    return [];
+  }
+  return readFileSync(path, "utf8")
+    .split("\n")
+    .filter((line) => line.trim())
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
 /** Drive the registered `session_start` handler with a ctx. */
@@ -988,8 +1002,8 @@ describe("fact-shaping inheritance stops at live authority", () => {
   // A link returns a verdict, so live authority converges at the adjudicating
   // node (ADR 0007 §7) and inheriting one would run authority the operator's
   // own exclusion removed. That a configured-but-absent link is skipped here
-  // rather than borrowed is deliberate; whether the skip should be louder is
-  // its own question, tracked as #861.
+  // rather than borrowed is deliberate — and since #861 the skip is no longer
+  // silent: the operator answering the ask is told once per configured name.
   it("does not resolve an authorizer registered only in the parent", async () => {
     writeGlobalConfig({
       permission: { "*": "ask" },
@@ -1026,11 +1040,13 @@ describe("fact-shaping inheritance stops at live authority", () => {
     // The child has UI and no serving parent, so it adjudicates locally and its
     // own chain runs — the one shape in which a missing link changes the verdict.
     const capturedTitles: string[] = [];
+    const notified: string[] = [];
     const childCtx = makeBaseCtx(childCwd, childSessionId, {
       select: async (title: string): Promise<string | undefined> => {
         capturedTitles.push(title);
         return "Yes";
       },
+      notify: (message: string) => notified.push(message),
     });
     await fireSessionStart(childPi, childCtx);
 
@@ -1056,6 +1072,9 @@ describe("fact-shaping inheritance stops at live authority", () => {
     expect(readReviewLog().map((entry) => entry.event)).toContain(
       "authorizer_chain_unregistered_link",
     );
+    // And the operator answering that prompt is told why no judge answered it:
+    // the review log alone left the skip invisible (#861).
+    expect(notified).toEqual([unregisteredLinkMessage("parent-only-judge")]);
 
     rmSync(parentCwd, { recursive: true, force: true });
     rmSync(childCwd, { recursive: true, force: true });
@@ -2103,5 +2122,150 @@ describe("directional external-directory relief (#806)", () => {
       const outcome = await runPathTool(bare, toolName, externalPath);
       expect(outcome.prompts).toHaveLength(1);
     }
+  });
+});
+
+describe("configured permission-dialog hotkeys reach the inline dialog", () => {
+  /**
+   * A TUI ctx whose `ui.custom` captures the dialog component.
+   *
+   * The composition root's other UI ctx drives the `select`/`input` fallback,
+   * which has no hotkeys at all — only `mode: "tui"` reaches the inline
+   * keybind dialog, which is where a configured binding is observable.
+   */
+  function makeTuiCtx(cwd: string): {
+    ctx: unknown;
+    render: () => string[];
+    press: (data: string) => void;
+  } {
+    let component:
+      | { render(width: number): string[]; handleInput(data: string): void }
+      | undefined;
+    const base = makeBaseCtx(cwd, "tui-session") as {
+      ui: Record<string, unknown>;
+    };
+    const ctx = {
+      ...base,
+      mode: "tui",
+      ui: {
+        ...base.ui,
+        getToolsExpanded: (): boolean => false,
+        setToolsExpanded: (): void => {},
+        custom: (
+          factory: (
+            tui: { requestRender: () => void },
+            theme: { fg(color: string, text: string): string },
+            keybindings: { matches(data: string, action: string): boolean },
+            done: (decision: unknown) => void,
+          ) => typeof component,
+        ): Promise<unknown> =>
+          new Promise((resolve) => {
+            component = factory(
+              { requestRender: (): void => {} },
+              { fg: (_color, text) => text },
+              { matches: () => false },
+              resolve,
+            );
+          }),
+      },
+    };
+    return {
+      ctx,
+      render: () => component?.render(80) ?? [],
+      press: (data) => {
+        component?.handleInput(data);
+      },
+    };
+  }
+
+  /** The hotkey each option row advertises, in rendered order. */
+  function optionKeys(lines: string[]): (string | undefined)[] {
+    return lines
+      .map((line) => /^[ \u25b6] \((\w)\) /.exec(line)?.[1])
+      .filter((key) => key !== undefined);
+  }
+
+  it("renders and honors the characters the config bound", async () => {
+    writeGlobalConfig({
+      permission: { "*": "allow", demo: "ask" },
+      permissionDialogKeys: {
+        approve: "1",
+        approveSession: "2",
+        deny: "4",
+        denyWithReason: "5",
+      },
+    });
+
+    const cwd = mkdtempSync(join(tmpdir(), "pi-perm-keys-cwd-"));
+    const pi = makeFakePi({ toolNames: ["demo"] });
+    piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+    const { ctx, render, press } = makeTuiCtx(cwd);
+    await fireSessionStart(pi, ctx);
+
+    const decision = pi.fire(
+      "tool_call",
+      { toolName: "demo", toolCallId: "keys-ask", input: {} },
+      ctx,
+    ) as Promise<{ block?: true }>;
+    await sleep(0);
+
+    expect(optionKeys(render())).toEqual(["1", "2", "4", "5"]);
+
+    // The default letter is no longer live; the configured one commits.
+    press("n");
+    press("n");
+    press("4");
+    press("4");
+    expect((await decision).block).toBe(true);
+
+    rmSync(cwd, { recursive: true, force: true });
+  });
+
+  it("warns about a refused binding and leaves the policy alone", async () => {
+    writeGlobalConfig({
+      debugLog: true,
+      permission: { "*": "allow", demo: "ask" },
+      permissionDialogKeys: { deny: "j" },
+    });
+
+    const cwd = mkdtempSync(join(tmpdir(), "pi-perm-keys-bad-cwd-"));
+    const pi = makeFakePi({ toolNames: ["demo", "quiet"] });
+    piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+    const { ctx, render, press } = makeTuiCtx(cwd);
+    await fireSessionStart(pi, ctx);
+
+    expect(
+      readDebugLog().filter(
+        (entry) =>
+          entry.event === "config.loaded" &&
+          typeof entry.warning === "string" &&
+          entry.warning.includes('permissionDialogKeys.deny: "j"'),
+      ).length,
+    ).toBeGreaterThan(0);
+
+    // The scope was not rejected: `*: allow` still allows, so a tool the config
+    // does not name never prompts at all.
+    const allowed = (await pi.fire(
+      "tool_call",
+      { toolName: "quiet", toolCallId: "keys-allowed", input: {} },
+      ctx,
+    )) as { block?: true };
+    expect(allowed.block).toBeUndefined();
+
+    // And the refused decision kept its default letter.
+    const decision = pi.fire(
+      "tool_call",
+      { toolName: "demo", toolCallId: "keys-default", input: {} },
+      ctx,
+    ) as Promise<{ block?: true }>;
+    await sleep(0);
+    expect(optionKeys(render())).toEqual(["y", "s", "n", "r"]);
+    press("n");
+    press("n");
+    expect((await decision).block).toBe(true);
+
+    rmSync(cwd, { recursive: true, force: true });
   });
 });

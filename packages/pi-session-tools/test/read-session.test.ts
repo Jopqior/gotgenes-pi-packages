@@ -1,31 +1,7 @@
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-} from "@earendil-works/pi-coding-agent";
-import { describe, expect, it, vi } from "vitest";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { describe, expect, it } from "vitest";
 import sessionTools from "#src/index";
-
-// We'll test the tool's execute function directly. Since the extension registers
-// tools via pi.registerTool, we capture the registered tool definitions.
-
-function captureTools(factory: (pi: ExtensionAPI) => void) {
-  const tools = new Map<
-    string,
-    { execute: (...args: unknown[]) => Promise<unknown> }
-  >();
-  const pi = {
-    registerTool: vi.fn(
-      (tool: {
-        name: string;
-        execute: (...args: unknown[]) => Promise<unknown>;
-      }) => {
-        tools.set(tool.name, tool);
-      },
-    ),
-  } as unknown as ExtensionAPI;
-  factory(pi);
-  return tools;
-}
+import { captureTools } from "#test/helpers/capture-tools";
 
 function makeCtx(entries: unknown[], sessionFile?: string): ExtensionContext {
   return {

@@ -26,6 +26,7 @@ Load these skills before starting:
 - `markdown-conventions` — formatting rules for the architecture and history documents.
 - `mermaid` — for any diagrams moved or updated.
 - `code-design` — to judge whether the delivered code matches the phase's documented outcomes.
+- `reading-artifacts` — before reading a step's `Outcome:` or `Landed:` line as a claim about the code.
 
 ## Step 1: Identify the current phase
 
@@ -147,7 +148,7 @@ Without this pass, every phase close re-inflates the document and the read cost 
    Step 5.2 deletes the whole roadmap section outright — the table row is the only thing about the phase that stays in `architecture.md`.
 2. Strip provenance from touched module-tree entries.
    For each module-tree entry the phase changed, reduce it to what the module is **now**; cite an issue only when the ref encodes an active constraint (a lint-guarded boundary, an ADR string boundary, a structural invariant), never as a provenance trail ("relocated #559, dissolved #505, renamed #510…"), which belongs in git log and `history/`.
-   This is the shared architecture-doc convention in `AGENTS.md` (`### Architecture-doc conventions`); hold every touched module-tree entry to it.
+   This is the shared architecture-doc convention in the `markdown-conventions` skill (`## Architecture docs`); hold every touched module-tree entry to it.
 3. Re-frame delivered `Target:`/pending prose.
    Where the phase's delivered outcomes have made a `**Target:**` or otherwise-pending passage current state, re-frame it as current — but only for prose the phase actually delivered against.
    Leave genuinely-open targets (later-phase directions the phase did not deliver) as targets.

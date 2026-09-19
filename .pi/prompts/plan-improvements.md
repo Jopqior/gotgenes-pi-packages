@@ -25,6 +25,8 @@ Load these skills before starting analysis:
 - `package-<PKG>` — package-specific context (replace `<PKG>` with `$1`).
 - `code-design` — design principles and structural heuristics.
 - `markdown-conventions` — for the output document.
+- `delegation` — before dispatching the craftsmanship scout and before reading its inventory.
+- `clarification-gates` — before the phase-composition `ask_user` gates.
 
 ## Analysis (follow the improvement-discovery workflow)
 
@@ -179,15 +181,15 @@ Declining ends the run: report the proposed composition and write no roadmap, so
 
 **Feasibility probe.**
 Before committing any step whose outcome claim depends on the SDK/type surface (e.g. "remove the file-level `eslint-disable` once the SDK exports usable types"), confirm the named type or export actually exists in the real surface (SDK `.d.ts`, `--help`, schema).
-Do not commit an outcome the surface cannot deliver — this mirrors the AGENTS.md rule that a named remediation in a migration note must be verified against the real surface.
-For an SDK **UI or behavioral** capability (not just "does this method exist"), confirm the behavior in the Pi core source (`../pi`, or `../../pi` from a worktree) and a sibling extension that already uses it, not only the exported type — a `.d.ts` says a method exists but not that it behaves the way the step needs (e.g. `ctx.ui.custom` renders inline by default only per the core's `overlay ?? false`, invisible in the type signature).
+Do not commit an outcome the surface cannot deliver — this mirrors the `git-workflow` skill's rule that a named remediation in a migration note must be verified against the real surface.
+For an SDK **UI or behavioral** capability (not just "does this method exist"), confirm the behavior in the Pi core source (this machine has no `../pi` checkout — read the pinned dependency's compiled code) and a sibling extension that already uses it, not only the exported type — a `.d.ts` says a method exists but not that it behaves the way the step needs (e.g. `ctx.ui.custom` renders inline by default only per the core's `overlay ?? false`, invisible in the type signature).
 
 ## File the issues
 
 A step is identified by its GitHub issue number, so the issues are filed **before** the roadmap is written — there is no link-back pass and no second commit.
 Steps adopted from already-filed issues need no new issue; file only the steps without one, and when every step adopts an existing issue there is nothing to file at all.
 
-1. Load the `github-voice` skill, then file the issues **one `gh issue create --label "enhancement,pkg:$1"` call per issue**, with the title and `--body-file` paired literally in the same command — never via shell-array index arithmetic (the shell is zsh; its 1-indexed arrays silently shift titles relative to bodies).
+1. Load the `github-voice` skill, then file the issues **one `gh issue create --label "enhancement,pkg:$1"` call per issue**, with the title and `--body-file` paired literally in the same command — never via shell-array index arithmetic (array indexing differs across shells and silently shifts titles relative to bodies).
    A `bug`-typed step keeps the `bug` label instead of `enhancement`.
    Run `gh` from the repo root (it must execute inside the repository).
    Use the repo's `## What` / `## Why` / `## Proposed change` / `## Context` sections.

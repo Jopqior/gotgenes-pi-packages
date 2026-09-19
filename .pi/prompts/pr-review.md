@@ -35,7 +35,7 @@ Stop after recording the decision and handing off; do not start implementation h
 
 A fork PR's workflow runs sit at `action_required` until a maintainer approves them, so `statusCheckRollup` is usually **empty** — absent checks mean *not run*, never *passed*.
 Do not read `mergeable`/`mergeStateStatus` as evidence of a green build.
-Approve the run (`gh api -X POST repos/gotgenes/pi-packages/actions/runs/<id>/approve`) or run the checks yourself per the Verify gate below.
+Approve the run (`gh api -X POST repos/Jopqior/gotgenes-pi-packages/actions/runs/<id>/approve`) or run the checks yourself per the Verify gate below.
 
 ## Verify the defect (required gate — do this before evaluating the diff)
 
@@ -90,6 +90,8 @@ Never trust a PR's "all tests pass" claim; it is routinely made without running 
 - Load the `code-design` skill for the design heuristics you will judge the PR against.
 - Load the `design-review` skill when the PR touches shared interfaces or layer wiring.
 - Load the `testing` skill if the PR changes tests.
+- Load the `reading-artifacts` skill before reading the PR's status or thread as evidence, and the `git-workflow` skill before a commit that credits the contributor.
+- Load the `clarification-gates` skill before the `Decide` step's `ask_user` call.
 
 ## Evaluate
 
@@ -139,7 +141,7 @@ Whichever direction is chosen, the contributor gets explicit, durable credit:
   ```
 
 - The PR close comment (ship stage) thanks `@<login>` by name and links the implementing SHA(s).
-- Never use `Closes #$1` in a commit (it pre-empts the curated close comment, per AGENTS.md); reference the PR as `Refs #$1` / `(#$1)`.
+- Never use `Closes #$1` in a commit (it pre-empts the curated close comment, per the `git-workflow` skill); reference the PR as `Refs #$1` / `(#$1)`.
 
 ## Record the decision and hand off
 

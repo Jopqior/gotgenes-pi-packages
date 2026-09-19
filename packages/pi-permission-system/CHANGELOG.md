@@ -5,6 +5,93 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [33.0.1](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v33.0.0...pi-permission-system-v33.0.1) (2026-09-19)
+
+
+### Documentation
+
+* **pi-permission-system:** document the serving-liveness and bound-channel mechanism in the integration spec ([#942](https://github.com/gotgenes/pi-packages/issues/942)) ([2786acc](https://github.com/gotgenes/pi-packages/commit/2786accaf40136f192e6f8d187058ae60c7555b5)), closes [#942](https://github.com/gotgenes/pi-packages/issues/942)
+
+## [33.0.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.1.0...pi-permission-system-v33.0.0) (2026-09-18)
+
+
+### Features
+
+* **breaking:** apply MCP server rules to prefix-named tools such as github_search_code ([1994b32](https://github.com/gotgenes/pi-packages/commit/1994b3227e16898c8ca4ff0d7a17b258dc306bcb)), closes [#929](https://github.com/gotgenes/pi-packages/issues/929)
+
+### Bug Fixes
+
+* **breaking:** honor last-match-wins for MCP rules instead of stopping at the first candidate ([c573696](https://github.com/gotgenes/pi-packages/commit/c57369648a4ffd64de9b07999e2687ceaa96e867))
+* stop deriving unmatchable re-prefixed MCP candidates for already-qualified tool names ([72b3b0b](https://github.com/gotgenes/pi-packages/commit/72b3b0b6859511f9ce41d55aa803e57e5886077c)), closes [#929](https://github.com/gotgenes/pi-packages/issues/929)
+
+### Documentation
+
+* describe how MCP tool names derive server and tool permission targets ([49484a6](https://github.com/gotgenes/pi-packages/commit/49484a635d69292e8e0ad17dbe792019acd97269))
+
+## [32.1.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.6...pi-permission-system-v32.1.0) (2026-09-16)
+
+
+### Features
+
+* **pi-permission-system:** let the permission dialog's hotkeys be remapped ([e8fa79b](https://github.com/gotgenes/pi-packages/commit/e8fa79b6a30b925441aa2afb21c13fb10ff0b133)), closes [#927](https://github.com/gotgenes/pi-packages/issues/927)
+* **pi-permission-system:** report a refused permission-dialog key binding ([6798c63](https://github.com/gotgenes/pi-packages/commit/6798c6359cee2abed5f3e1cf28f10002d22d765d)), closes [#927](https://github.com/gotgenes/pi-packages/issues/927)
+
+### Documentation
+
+* **pi-permission-system:** document permissionDialogKeys ([63d3221](https://github.com/gotgenes/pi-packages/commit/63d3221c5b3eac76843c63b4d1e81e8afde60c8f)), closes [#927](https://github.com/gotgenes/pi-packages/issues/927)
+
+## [32.0.6](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.5...pi-permission-system-v32.0.6) (2026-09-16)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** stop a removed prompt section from swallowing the prose after it ([af79199](https://github.com/gotgenes/pi-packages/commit/af79199ac42e6b09587bf0cbb256435a176660ab))
+* **pi-permission-system:** keep a custom system prompt's own tool and guideline sections ([7cce96a](https://github.com/gotgenes/pi-packages/commit/7cce96af106d4822799b4728ecf1432526a79ba1))
+* **pi-permission-system:** leave an unedited prompt region byte-identical ([1f1ce66](https://github.com/gotgenes/pi-packages/commit/1f1ce669d6d19d591da1262e89b3c919300b0f75))
+
+### Documentation
+
+* **pi-permission-system:** record the tool-surface removal boundary ([ebbb8f0](https://github.com/gotgenes/pi-packages/commit/ebbb8f07c77eaa22c45b83e2d43397770dde1054))
+* **pi-permission-system:** record the footerless-prompt edge in the tool-surface pass ([2aa7435](https://github.com/gotgenes/pi-packages/commit/2aa74353864cf648f802a8a63cbe5b1b141c27af))
+
+## [32.0.5](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.4...pi-permission-system-v32.0.5) (2026-09-16)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** tell the operator when a configured chain link is missing ([3662541](https://github.com/gotgenes/pi-packages/commit/3662541d4ebc555d54faf2934085d22b36ee618e)), closes [#861](https://github.com/gotgenes/pi-packages/issues/861)
+
+### Documentation
+
+* **pi-permission-system:** record the unregistered-link warning ([f70b1e3](https://github.com/gotgenes/pi-packages/commit/f70b1e3ce52a38744da2a07880878efb61dfae00)), closes [#861](https://github.com/gotgenes/pi-packages/issues/861)
+* **pi-permission-system:** state the resolved skip in the boundary test comment ([9cd18f1](https://github.com/gotgenes/pi-packages/commit/9cd18f1ef6bd8f9dbabf6fc6ce6b9dfa58d64764)), closes [#861](https://github.com/gotgenes/pi-packages/issues/861)
+
+## [32.0.4](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.3...pi-permission-system-v32.0.4) (2026-09-16)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** evaluate bash rules against a command a partial parse dropped ([28cedc4](https://github.com/gotgenes/pi-packages/commit/28cedc45dd4a11ee9189f41ee661a051d2b13936)), closes [#875](https://github.com/gotgenes/pi-packages/issues/875)
+* **pi-permission-system:** gate the paths a command dropped by a partial parse reads ([6f1d032](https://github.com/gotgenes/pi-packages/commit/6f1d0328f8151da8716641f0ee0c25341699cd75)), closes [#875](https://github.com/gotgenes/pi-packages/issues/875)
+* **pi-permission-system:** keep the whole-command deny reachable when a salvage recovers the only units ([ab91a66](https://github.com/gotgenes/pi-packages/commit/ab91a660eafb879a3370104cb6f68353041a7cbb)), closes [#875](https://github.com/gotgenes/pi-packages/issues/875)
+
+### Documentation
+
+* **pi-permission-system:** record the salvage of a bash command a partial parse dropped ([17a3684](https://github.com/gotgenes/pi-packages/commit/17a3684f182467c19e1ca56664e1adf900980f11))
+
+## [32.0.3](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.2...pi-permission-system-v32.0.3) (2026-09-15)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** mask a value bound to a bare or suffixed key name ([f23b8b9](https://github.com/gotgenes/pi-packages/commit/f23b8b93ceafa732ffe9d5484e4a935094d06754)), closes [#920](https://github.com/gotgenes/pi-packages/issues/920)
+* **pi-permission-system:** stop writing a named secret into the permission logs ([cf4f370](https://github.com/gotgenes/pi-packages/commit/cf4f370d192d778e600a253331bbf6e42b3cd758)), closes [#920](https://github.com/gotgenes/pi-packages/issues/920)
+
+### Documentation
+
+* **pi-permission-system:** restate the log-redaction boundary as name-structural ([958cba1](https://github.com/gotgenes/pi-packages/commit/958cba124a1b799a7e6af959440a26d7cf722934)), closes [#920](https://github.com/gotgenes/pi-packages/issues/920)
+* **pi-permission-system:** correct the review-log knob's unredacted claim ([0664a6c](https://github.com/gotgenes/pi-packages/commit/0664a6cf6fbf3e75c4a6864cc582716dd6d15a26)), closes [#920](https://github.com/gotgenes/pi-packages/issues/920)
+
 ## [32.0.2](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v32.0.1...pi-permission-system-v32.0.2) (2026-09-11)
 
 

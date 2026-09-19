@@ -224,11 +224,12 @@ Package-specific context (architecture, priorities, testing strategy) lives in s
 Load the relevant skill before working on a package:
 
 - `package-pi-autoformat` — for `packages/pi-autoformat/`
+- `package-pi-colgrep` — for `packages/pi-colgrep/`
 - `package-pi-github-tools` — for `packages/pi-github-tools/`
 - `package-pi-permission-system` — for `packages/pi-permission-system/`
 - `package-pi-subagents` — for `packages/pi-subagents/`
 
-The remaining packages (`pi-colgrep`, `pi-session-tools`, `pi-subagents-worktrees`, `pi-subagents-model-selector`, `pi-nocd`, `pi-permission-model-judge`) have no dedicated skill — their READMEs cover everything you need.
+The remaining packages (`pi-session-tools`, `pi-subagents-worktrees`, `pi-subagents-model-selector`, `pi-nocd`, `pi-permission-model-judge`) have no dedicated skill — their READMEs cover everything you need.
 
 ## License
 
