@@ -80,3 +80,31 @@ Three implementation commits landed before this stage note; the later shipping c
 - Next: `/ship 14` must verify fork targeting, push explicitly to `origin main`, await fork CI, recheck release permissions and the actual release window, and dispatch only `pi-subagents pi-subagents-model-selector`.
   Verify both published artifacts and the selector's packed dependency, then add published version correspondence and close the fork issue.
   Default-token release commits do not trigger ordinary push CI; observe the release workflow jobs instead.
+
+## Stage: Ship (2026-09-19T14:52:26Z)
+
+### Session summary
+
+Pushed the trunk integration to the fork, verified CI, closed fork issue 14 with operator-approved wording, and published both authorized packages to npmjs.org.
+Release commit `57f8b3f121762cd90650af462b871418a3babfff` carries `pi-subagents-v2.0.0` and `pi-subagents-model-selector-v1.0.3`.
+Recorded the published core's correspondence to upstream `pi-subagents-v21.7.3` in the sync handbook.
+
+### Observations
+
+- Root lint and dead-code checks passed before pushing explicitly to `origin main`.
+  The 222 previously unpushed commits included imported upstream history and the pre-plan SSH fix; this was the trunk lane, with no worktree to remove.
+- CI run `35449672831` passed for `c024d56dbf732a5e5bec287103ae583e7e7c2906`.
+  The fork still had no rulesets and an unprotected `main`; the release prepare job grants `contents: write` despite the repository's read-only default.
+- Release derivation returned core `2.0.0` and selector `1.0.3`, consistent with the explicit breaking integration and approved companion publication.
+  Both fork packages passed parity; the eight never-tagged upstream-named packages remained the documented parity exception.
+  Changed sibling packages `pi-autoformat`, `pi-permission-system`, and `pi-session-tools` were not authorized for publication and were omitted.
+- Release run `35449930074` passed prepare, publish, and GitHub-release jobs.
+  Both fork release tags were fetched from origin; no upstream tags were imported.
+- Initial npmjs version queries returned no matching versions after the workflow succeeded; subsequent queries found both versions.
+  Downloaded published tarballs confirmed fork names/versions, the selector's `^2.0.0` core dependency, the core project-context module and declaration bundles, and exclusion of tests, plans, and retros.
+- The issue close comment was approved interactively before publication, and its commit references were resolved and checked as ancestors of `main`.
+  No other fork issue or PR was open; imported upstream issue references were not treated as fork close targets.
+- A log lookup used an unverified job ID and returned 404; fetching the release run's complete log provided the actual publication evidence.
+  Use returned run/job identifiers rather than inventing them.
+- This integration is not a fork roadmap-phase completion.
+  Next: `/retro 14` at the root on `main`.
