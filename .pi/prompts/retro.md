@@ -102,6 +102,7 @@ Skip a lens entirely when it finds nothing notable.
    Attribute each turn from the inline `[provider/model]` label in an **unfiltered** `read_session` call.
    A `types: ["model_change"]`-filtered call bypasses that suppression and renders phantom switches that never ran a turn (Refs #737).
    `pi-session-tools` is this repo's own tooling for exactly this — use `read_session`/`read_session_file`, not `jq` over `$PI_SESSION_FILE`, and never `PI_MODEL`/`PI_PROVIDER`, which report only the session's *current* model and invent an attribution when extrapolated across stages (Refs #778).
+   A subagent's turns live in its own transcript, which `list_subagent_sessions({ path })` finds for a given session file and `read_session_file({ path })` renders — attribute a subagent's model from that transcript rather than from its agent definition, which records the model it was configured with and not the one that ran (Refs #943).
 2. **Escalation-delay tracking** — for each `rabbit-hole` friction point, count how many consecutive tool calls the agent spent on the same error or approach before resolving or changing strategy.
    Flag sequences longer than 5 consecutive tool calls on the same error as "should have dispatched an Explore or Plan subagent" or "should have asked the user."
 3. **Unused-tool detection** — for each `rabbit-hole` or `missing-context` friction point, check whether a subagent type or tool was available that could have helped but was never dispatched.
