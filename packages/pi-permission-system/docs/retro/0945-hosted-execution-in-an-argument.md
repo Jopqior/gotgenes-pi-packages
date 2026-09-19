@@ -95,7 +95,71 @@ The plan's `**Release:**` marker is `ship independently` — nothing downstream 
 No deferred work beyond what the plan's Non-Goals already name ([#609], [#859], [#863], all pre-existing issues).
 Pre-completion reviewer returned WARN at the TDD stage (retro contradicted the shipped `tokensOf` migration); addressed in that stage's retro entry before this sync.
 
+## Stage: Final Retrospective (2026-09-19T22:37:44Z)
+
+### Session summary
+
+Shipped #945 through the worktree lane: fast-forward-merged the peer branch, ran the pre-push gates on the merged tree, pushed, verified CI, closed the issue, dispatched and verified the release (`pi-permission-system` v33.0.3), and tore down the worktree.
+Every step landed on its first attempt — no rejected merge, no CI failure, no re-dispatch.
+The dominant friction was not in the work but in the handling of command-produced numbers, which failed in opposite directions at two different stages.
+
+### Observations
+
+#### What went well
+
+- **A `sonnet-5` reviewer caught a number an `opus-5` implementer had authored.**
+  The `pre-completion-reviewer` counted the migrated `it(` blocks in the step 1 diff and found seven where the commit body claimed eight.
+  The correction then went through a scripted `git rebase` with a `backup-945` tag and a `git diff backup-945 HEAD` verifying the tree byte-identical — the `git-workflow` skill's exact prescription for a non-interactive reword, executed without a stumble.
+  Worth promoting: the reviewer's value here came from *recounting* a claim rather than reading it, which is the one thing a reviewer handed a premise cannot do.
+- **`/sync-worktree` ran a dangling-SHA scan over the retro file after its rebase.**
+  The peer enumerated every hex token in the retro at `HEAD` and tested each for reachability from `main`.
+  The rebase turned out to be a no-op so nothing could have dangled, but the check ran unconditionally rather than being skipped on the guess that it was unnecessary — which is what makes it a guard rather than a ritual.
+- **The two walker fixes were committed separately and each pinned independently.**
+  Deleting the pattern-first call reddened 7 tests and left step 3's 2 green; deleting the generic call reddened exactly 2 and left step 2's green.
+  The split earned its cost in evidence, not just in reviewability.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` — the ship session measured the shape of `git rev-parse` output three separate times, which `/ship` step 7.1 prohibits by name ("Do not measure its shape (`| wc -c`), re-run it to double-check, or count its characters in prose — it is command output, not a value you typed", Refs [#839], [#904]).
+  The trigger each time was a miscount performed in reasoning: the 40-character SHA was read as 41, which manufactured a doubt that then justified the measurement.
+  The first instance ran three calls (`wc -c` → 41, re-run `git rev-parse main`, `tr -d '\n' | wc -c` → 40) before resolving that the first count had included the trailing newline.
+  Caught at retro, not mid-session.
+  Impact: about 6 wasted tool calls across steps 4, 7, and 9; no wrong value was published and no rework followed.
+- `instruction-violation` — the first violation happened at step 4.2 (`PRE_MERGE=$(git rev-parse main)`), which is where the run's **first** `git rev-parse` lives, but the prohibition is written only at step 7.1.
+  Impact: the rule was not yet in view when it was first needed; this is a prompt-locality gap as much as an agent failure, and it is the basis of the change made below.
+- `other` — after step 9's ancestry test answered `PRE_MERGE is ancestor of PLAN^`, the session ran a second call to print both hashes and compare them literally.
+  The prompt already states that the test is reflexive and that either anchor works in that case, so the second call verified something the prompt had pre-answered.
+  Impact: 1 wasted tool call; same root cause as above — distrusting a command's answer.
+- `instruction-violation` (prior stage, reviewer-caught) — the TDD stage authored "eight existing tests" into a commit body instead of counting them, violating `AGENTS.md` principle 4.
+  Impact: one scripted rebase to reword, plus the reviewer time to detect it.
+
+The two `instruction-violation` classes above are the same principle failing in **opposite** directions within one issue: the TDD stage wrote a number it had not measured, and the ship stage re-measured a number it had already been given.
+`AGENTS.md` principle 4 covers only the first direction ("a number a command can produce is never authored"); the second — a number a command *did* produce is not re-derived — is currently written down only in `/ship`.
+
+#### What caused friction (user side)
+
+- Nothing to report.
+  The operator ran the four stages as designed and did not need to intervene at any point in the ship.
+
+### Diagnostic details
+
+- **Model-performance correlation** — the peer session ran planning and TDD on `anthropic/claude-opus-5` and the sync stage on `anthropic/claude-sonnet-5`; the root ship ran on `anthropic/claude-sonnet-5`.
+  Both subagents (`tidy-first-assessor`, `pre-completion-reviewer`) ran on `anthropic/claude-sonnet-5`, attributed from their own task transcripts rather than their agent definitions.
+  No mismatch to flag: the judgment-heavy pre-completion review on `sonnet-5` re-derived both walkers' control flow by hand, opened the tests behind each cited invariant, and caught an `opus-5` authored count — the reasoning-weak-model-on-judgment-work concern did not materialize here.
+- **Escalation-delay tracking** — no `rabbit-hole` reached the 5-consecutive-call threshold.
+  The longest same-topic run was 3 calls (the `PRE_MERGE` character-count detour), which self-resolved.
+- **Unused-tool detection** — nothing applicable; no friction point in this session was of a kind a subagent or search tool would have shortened.
+- **Feedback-loop gap analysis** — verification ran incrementally throughout, not only at the end: the TDD stage ran `vitest` per Red/Green transition and `pnpm run check`/`lint` at every step boundary, `/sync-worktree` re-ran `lint` and `fallow dead-code`, and `/ship` ran both gates again on the merged tree before pushing.
+  No gap to flag.
+
+### Changes made
+
+1. `.pi/prompts/ship.md` — hoisted the "a SHA is command output" prohibition out of step 7.1 and into the preamble, so it is in view at step 4.2 where the run's first `git rev-parse` happens; extended it to cover counting in reasoning, which is what triggered every instance here.
+   Removed the now-duplicated sentence from step 7.1, leaving its distinct rule (never hand-expand or retype a SHA) in place.
+
 [#741]: https://github.com/gotgenes/pi-packages/issues/741
 [#742]: https://github.com/gotgenes/pi-packages/issues/742
+[#839]: https://github.com/gotgenes/pi-packages/issues/839
+[#904]: https://github.com/gotgenes/pi-packages/issues/904
 [#859]: https://github.com/gotgenes/pi-packages/issues/859
 [#863]: https://github.com/gotgenes/pi-packages/issues/863

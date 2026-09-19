@@ -16,6 +16,9 @@ When it is empty, derive the number from the newest plan commit (`git log --form
 The lane is detected in step 1 and changes only five things: where the plan is read from (step 2), whether a branch is fast-forward-merged (step 4), the CI-failure recovery rule (step 7), whether a worktree is torn down (step 12), and the session name.
 Every other step is identical.
 
+Every SHA this run handles is command output, not a value you typed.
+Do not measure its shape (`| wc -c`), re-run the command to double-check, or count its characters — in prose or in reasoning (Refs #839, #904, #945).
+
 ## 0. Confirm you are at the root on `main`
 
 Run `git rev-parse --show-toplevel` and `git branch --show-current`.
@@ -128,7 +131,6 @@ Running them after step 4 covers exactly that tree, at a measured cost of about 
 
 1. Run `git rev-parse HEAD` to capture the full SHA.
    Pass that exact value to `ci_find` — never hand-expand the short SHA from the `git push` output, and never type a SHA from memory.
-   Do not measure its shape (`| wc -c`), re-run it to double-check, or count its characters in prose — it is command output, not a value you typed (Refs #839, #904).
 2. Use `ci_find` with that SHA and workflow `ci` to locate the CI run.
    If it times out, re-check the SHA you passed against `git rev-parse HEAD` before assuming a timing miss — a truncated or retyped SHA produces the same timeout (Refs #640).
 3. Use `ci_watch` with the returned `run_id`, workflow `ci`, and `timeout: 600` to wait for it to complete.
