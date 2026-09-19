@@ -1,29 +1,8 @@
 import { basename } from "node:path";
-import type {
-  ExtensionAPI,
-  ExtensionContext,
-} from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
 import sessionTools from "#src/index";
-
-function captureTools(factory: (pi: ExtensionAPI) => void) {
-  const tools = new Map<
-    string,
-    { execute: (...args: unknown[]) => Promise<unknown> }
-  >();
-  const pi = {
-    registerTool: vi.fn(
-      (tool: {
-        name: string;
-        execute: (...args: unknown[]) => Promise<unknown>;
-      }) => {
-        tools.set(tool.name, tool);
-      },
-    ),
-  } as unknown as ExtensionAPI;
-  factory(pi);
-  return tools;
-}
+import { captureTools } from "#test/helpers/capture-tools";
 
 function makeCtx(sessionFile: string | undefined): ExtensionContext {
   return {
