@@ -268,6 +268,50 @@ describe("collectCommandTokens — pattern-first commands", () => {
         "/etc/hosts",
       ]);
     });
+
+    // Quoting the substitution wraps it in a `string`, which the walker reads
+    // as the flag's argument and — before #945 — never descended. The
+    // unquoted cases above reach the nested command through the `!isArgNode`
+    // recursion, so each pair differs only in the quotes.
+    it("projects a quoted substitution's operands past a script flag", async () => {
+      expect(await tokensOf('sed -e "$(cat /etc/shadow)" f.txt')).toEqual([
+        "/etc/shadow",
+        "f.txt",
+      ]);
+    });
+
+    it("projects a quoted substitution's operands past a value flag", async () => {
+      expect(
+        await tokensOf('grep -A "$(cat /etc/shadow)" pattern /etc/passwd'),
+      ).toEqual(["/etc/shadow", "/etc/passwd"]);
+    });
+
+    it("projects a quoted substitution's operands past a script-file flag", async () => {
+      // `-f` still reads the argument's own text as a script path; the nested
+      // command's operand is added beside it, not in place of it.
+      expect(await tokensOf('grep -f "$(echo x)" /etc/passwd')).toEqual([
+        "x",
+        "$(echo x)",
+        "/etc/passwd",
+      ]);
+    });
+
+    it("projects a quoted substitution's operands past a declined suffix flag", async () => {
+      // BSD `sed -i ''` consumes the empty suffix, so `-e` is read next and
+      // its quoted argument is the one hosting the execution.
+      expect(await tokensOf('sed -i "" -e "$(cat /etc/shadow)" f.txt')).toEqual(
+        ["/etc/shadow", "f.txt"],
+      );
+    });
+
+    it("reads nothing from a single-quoted argument, which runs nothing", async () => {
+      // A raw_string cannot host a substitution, so the projection must not
+      // grow here — the test that separates searching an argument's
+      // executions from searching its text.
+      expect(await tokensOf("grep -e '$(cat /etc/shadow)' f.txt")).toEqual([
+        "f.txt",
+      ]);
+    });
   });
 
   describe("a pattern positional the parser does not type as an argument (#823)", () => {
@@ -303,6 +347,26 @@ describe("collectCommandTokens — pattern-first commands", () => {
       // pattern out as an operand token.
       expect(await tokensOf("grep <<< text pattern /etc/passwd")).toEqual([
         "/etc/passwd",
+      ]);
+    });
+  });
+
+  describe("an execution hosted in a quoted positional or operand (#945)", () => {
+    // A quoted substitution parses as a `string`, which the walker claims as a
+    // positional or an operand and reads for its text alone. The command
+    // inside it really runs wherever it sits, so its operands are candidates
+    // like any other position (ADR 0009's positional invariance).
+    it("projects the operands of a substitution spent as the pattern", async () => {
+      expect(await tokensOf('grep "$(cat /etc/shadow)" f.txt')).toEqual([
+        "/etc/shadow",
+        "f.txt",
+      ]);
+    });
+
+    it("projects the operands of a substitution collected as an operand", async () => {
+      expect(await tokensOf('grep pat "$(cat /etc/shadow)"')).toEqual([
+        "/etc/shadow",
+        "$(cat /etc/shadow)",
       ]);
     });
   });
@@ -1024,6 +1088,18 @@ describe("effect attribution", () => {
       { token: "x", effect: UNPROVEN_EFFECT },
       { token: "/etc/shadow", effect: { effect: "read", source: "core" } },
     ]);
+  });
+
+  it("gives an argument-hosted execution's tokens their own attribution", async () => {
+    // `sed` is outside the pure-reader core and `cat` is in it, so the two
+    // tokens must disagree — a token that inherited the enclosing command's
+    // proof would read unproven here (#945).
+    expect(await attributedTokens('sed -e "$(cat /etc/shadow)" f.txt')).toEqual(
+      [
+        { token: "/etc/shadow", effect: { effect: "read", source: "core" } },
+        { token: "f.txt", effect: UNPROVEN_EFFECT },
+      ],
+    );
   });
 
   it("attributes each unit of a pipeline separately", async () => {

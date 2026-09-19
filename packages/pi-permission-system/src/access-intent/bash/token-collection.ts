@@ -617,6 +617,15 @@ function collectPatternCommandTokens(
     const isArgNode = ARG_NODE_TYPES.has(child.type);
     const text = resolveNodeText(child);
 
+    // An argument is read for its text below, and its text alone — but a
+    // quoted substitution sitting there really runs, and its own operands are
+    // candidates wherever it sits (ADR 0009's positional invariance). The
+    // unquoted spelling reaches the nested command through the `!isArgNode`
+    // recursions below; the quoted one parses as a `string` and would
+    // otherwise stop here, whichever role the argument turns out to have
+    // (#945).
+    if (isArgNode) tokens.push(...collectHostedExecutionTokens(child));
+
     // Handle the argument a previous flag consumed. The consumption discharges
     // on whatever node type follows, not only on an ARG_NODE_TYPES one: a bare
     // number (`-A 3`), an expansion (`-A $N`), and a substitution
