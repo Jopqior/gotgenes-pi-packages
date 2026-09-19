@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { formatSummaryText, summarizeEntries } from "#src/entry-summary";
+import { BRANCH_MARKER_TYPE, type BranchMarkerEntry } from "#src/session-tree";
+
+function omittedMarker(count: number): BranchMarkerEntry {
+  return { type: BRANCH_MARKER_TYPE, marker: "omitted", count };
+}
+
+function endMarker(): BranchMarkerEntry {
+  return { type: BRANCH_MARKER_TYPE, marker: "abandoned_end" };
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -328,5 +337,22 @@ describe("formatSummaryText", () => {
       modelChanges: 0,
     });
     expect(text).toBe("5 entries");
+  });
+});
+
+describe("branch markers", () => {
+  it("counts no branch marker toward the entry total", () => {
+    const summary = summarizeEntries([
+      omittedMarker(90),
+      { type: "compaction" },
+      endMarker(),
+    ]);
+    expect(summary).toEqual({
+      totalEntries: 1,
+      messages: 0,
+      toolCalls: 0,
+      compactions: 1,
+      modelChanges: 0,
+    });
   });
 });

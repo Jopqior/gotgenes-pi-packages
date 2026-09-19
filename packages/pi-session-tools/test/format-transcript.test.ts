@@ -1,5 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { formatTranscript } from "#src/format-transcript";
+import { BRANCH_MARKER_TYPE, type BranchMarkerEntry } from "#src/session-tree";
+
+function omittedMarker(count: number): BranchMarkerEntry {
+  return { type: BRANCH_MARKER_TYPE, marker: "omitted", count };
+}
+
+function beginMarker(count: number): BranchMarkerEntry {
+  return { type: BRANCH_MARKER_TYPE, marker: "abandoned_begin", count };
+}
+
+function endMarker(): BranchMarkerEntry {
+  return { type: BRANCH_MARKER_TYPE, marker: "abandoned_end" };
+}
 
 function makeUserEntry(content: unknown, id = "1") {
   return {
@@ -884,6 +897,44 @@ describe("formatTranscript — eliding user text", () => {
 
   it("renders the body when the option is absent", () => {
     expect(formatTranscript([makeUserEntry("hello")], {})).toBe(
+      "1. user\nhello",
+    );
+  });
+});
+
+describe("branch markers", () => {
+  it("names the omitted count and how to see the entries", () => {
+    expect(formatTranscript([omittedMarker(331)])).toBe(
+      '[abandoned branch] 331 entries omitted (branches: "all" to include)',
+    );
+  });
+
+  it("renders a single omitted entry in the singular", () => {
+    expect(formatTranscript([omittedMarker(1)])).toBe(
+      '[abandoned branch] 1 entry omitted (branches: "all" to include)',
+    );
+  });
+
+  it("brackets an abandoned run", () => {
+    expect(
+      formatTranscript([
+        beginMarker(2),
+        makeUserEntry("retracted", "2"),
+        endMarker(),
+      ]),
+    ).toBe(
+      "[abandoned branch begins] 2 entries\n\n---\n\n" +
+        "1. user\nretracted\n\n---\n\n" +
+        "[abandoned branch ends]",
+    );
+  });
+
+  it("omits a marker whose variant it does not recognize", () => {
+    const unknownVariant = {
+      type: BRANCH_MARKER_TYPE,
+      marker: "nonsense",
+    } as unknown as BranchMarkerEntry;
+    expect(formatTranscript([unknownVariant, makeUserEntry("hello")])).toBe(
       "1. user\nhello",
     );
   });

@@ -210,6 +210,8 @@ function formatMetadataEntry(entry: TranscriptEntry): string | null {
       const name = typeof e.name === "string" ? e.name.trim() : "";
       return name ? `[session] \u2192 ${name}` : null;
     }
+    case "branch_marker":
+      return formatBranchMarker(e);
     case "branch_summary": {
       const summary = typeof e.summary === "string" ? e.summary : "";
       const snippet = summary.slice(0, BRANCH_SUMMARY_SNIPPET_LENGTH);
@@ -219,6 +221,28 @@ function formatMetadataEntry(entry: TranscriptEntry): string | null {
     }
     default:
       // custom, label, custom_message: omitted
+      return null;
+  }
+}
+
+/**
+ * Format a synthetic branch marker.
+ *
+ * `omitted` stands in for a run of abandoned entries that live-path rendering
+ * dropped, and names the parameter that brings them back; the begin/end pair
+ * brackets the same run when the caller asked to see it.
+ */
+function formatBranchMarker(marker: Record<string, unknown>): string | null {
+  const count = typeof marker.count === "number" ? marker.count : 0;
+  const entries = count === 1 ? "1 entry" : `${count} entries`;
+  switch (marker.marker) {
+    case "omitted":
+      return `[abandoned branch] ${entries} omitted (branches: "all" to include)`;
+    case "abandoned_begin":
+      return `[abandoned branch begins] ${entries}`;
+    case "abandoned_end":
+      return "[abandoned branch ends]";
+    default:
       return null;
   }
 }
