@@ -24,6 +24,8 @@ Bound its searches to the repo, and require fixing a failed pattern before widen
 
 A subagent's universal claim ("no ordering issue", "nothing else calls this") is the one to verify — a positive finding ships the line that proves it, a universal one quantifies over cases the report never shows.
 Check a multi-question report against itself first, and check that each answer cites the implementation rather than a test fixture.
+A **count** the report supplies — call sites, occurrences, files matched — is re-derived before it lands in a plan, an ADR, or an issue body.
+The report's conclusion can be right while its arithmetic is wrong, and the artifact outlives the dispatch (Refs #762).
 
 The mirror holds for a claim **you** supply: a reviewer cannot verify a coverage assertion handed to it as a premise, so state what you checked, not what you conclude was covered.
 When a change creates N artifacts that cross-reference each other, enumerate the edges rather than sampling them.

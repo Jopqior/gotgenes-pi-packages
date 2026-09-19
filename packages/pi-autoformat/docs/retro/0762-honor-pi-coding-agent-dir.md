@@ -72,4 +72,76 @@ The plan's marker line is `**Release:** ship independently` — no batch, no def
 No deferred work beyond what the plan's Open Questions already name (an absence-warning for the global config, and whether `src/index.ts` should stop re-exporting the two loader symbols) — both explicitly left unfiled in the plan itself.
 Nothing else for the root session to pick up before rebasing.
 
+## Stage: Final Retrospective (2026-09-19T05:57:47Z)
+
+### Session summary
+
+Shipped this issue through the worktree lane across four sessions: the branch fast-forward-merged onto `main`, CI passed on `b134c9a0`, the issue closed with the landing SHA, and `pi-autoformat-v5.1.10` released and verified.
+The defect itself was a three-line fix whose whole cost sat in evidence discipline — a planning spike measured the red before the design was settled, two killing mutations matched their predicted kill counts exactly, and the one piece of rework in the entire issue was a relayed number nobody re-derived.
+
+### Observations
+
+#### What went well
+
+- The planning spike is the reason this issue had no design rework.
+  Rather than reading `config-loader.ts` and reasoning about the defect, the planning session wrote a disposable `test/spike-762.test.ts`, drove `createAutoformatExtension` with no injected `loadConfig` under a stubbed `PI_CODING_AGENT_DIR`, and measured red (`commandTimeoutMs: 10000`, the built-in default) against the marker `424242`.
+  It then applied the candidate fix, measured green plus `tsc` clean plus 307/307 unit tests, and restored the tree from `/tmp` backups before writing a line of the plan.
+  The design that reached the plan was already known to work.
+- Both killing mutations matched their predicted kill counts, which is what made them worth applying.
+  Hardcoding `join(homedir(), ".pi", "agent")` at the boundary killed exactly **1** test (the new one), pinning the wiring; making `getGlobalConfigPath` ignore its parameter killed exactly **5** (the new test plus four `config-loader.test.ts` cases), confirming the new test asserts through the loader's real path rather than around it.
+  A prediction that matches is weak evidence on its own; a prediction that names two different numbers for two different mutations and hits both is not.
+- `/sync-worktree`'s dangling-SHA check earned its place on a real case.
+  The rebase rewrote `b90ecd11` to `23e1250d`, and the TDD stage note — written before the rebase — cited the old SHA in prose.
+  The check caught it, and the citation was rewritten to name the commit by its subject.
+  This is the hazard the step was added for (Refs #814, #914), firing for the first time on live input rather than on a constructed test.
+- The `ask_user` gate priced its own options before asking.
+  Making `cwd`/`agentDir` required was offered with a **measured** "zero test churn" — the spike had already confirmed all existing call sites pass both scopes — so the operator chose a tightening whose cost was known rather than estimated.
+- The real-CLI acceptance suite ran unprompted, and it was the right call.
+  The plan did not ask for it, but this change adds `pi-autoformat`'s first runtime SDK value import, and the unit suite cannot speak to whether that import resolves under Pi's own extension loader — the monorepo `devDependency` would satisfy it either way.
+  Green on 2/2.
+
+#### What caused friction (agent side)
+
+- `missing-context` — the plan cited 8 `loadAutoformatConfig(` and 4 `getGlobalConfigPath(` call sites in `test/config-loader.test.ts`.
+  The real counts are 7 and 5 (measured again on `main` at retro time: `grep -c` → 7, 5).
+  The numbers came from the `tidy-first-assessor`'s report and were relayed into the plan without re-derivation.
+  The assessor's *conclusion* — "every call site already passes both scopes, so zero churn" — was correct and was confirmed by the untouched file, so nothing downstream was wrong; only the figures were.
+  Impact: one follow-up `docs:` commit ("docs: correct the config-loader.test.ts call-site counts in the #762 plan") after the pre-completion reviewer WARNed on it.
+  No code rework, no design change.
+- `instruction-violation` (self-identified, caught by the reviewer rather than the author) — `AGENTS.md` principle 4 says a number a command can produce is never authored, and principle 2 says a subagent's claim is the one to verify.
+  Neither fired here because the number was *relayed*, not authored: the planner did not type it from memory, and a specific count is not the "universal claim" the `delegation` skill names.
+  Sharper still, `.pi/prompts/plan-issue.md:156` pointed the wrong way — it instructs the planner to treat "a call-site count that is off" reported by the assessor as **a correction to the design**, which grants the assessor's arithmetic authority over the file.
+  Here the assessor was the one that was wrong.
+  Impact: the same one follow-up commit above; the prompt line would have produced the same outcome again on a re-run.
+- `other` — a compound restore command (`cp /tmp/green-ext.ts … && grep -c homedir …`) reported failure because `grep -c` exits 1 on a zero count, which is exactly the post-mutation-revert state being confirmed.
+  The `git-workflow` skill already documents this (`grep -c` exits 1 on a zero count).
+  Impact: added friction but no rework — the session read the result correctly and continued.
+
+#### What caused friction (user side)
+
+Nothing to flag.
+The operator answered the planning gate's two questions and did not intervene again across planning, TDD, sync, ship, or release — no corrections, no redirections, and no rework traceable to missing context.
+The one place earlier context could in principle have helped (that `pi-autoformat` alone among the workspace packages carries no SDK peer entry) was discovered by the planning session itself, at the real surface, in one command.
+
+### Diagnostic details
+
+- **Model-performance correlation** — planning and TDD ran on `anthropic/claude-opus-5`, sync on `anthropic/claude-sonnet-5`, ship and this retro on `anthropic/claude-opus-5`.
+  Both subagents (`tidy-first-assessor`, `pre-completion-reviewer`) are model-locked to `anthropic/claude-sonnet-5`.
+  The one defect and the one catch both came from sonnet-5 subagents: the assessor produced the wrong call-site counts, and the reviewer caught them.
+  No mismatch worth changing — the judgment-heavy stages (design, TDD sequencing) ran on the stronger model, and the mechanical stage (sync: two gates, a note, a rebase) ran on the cheaper one.
+- **Escalation-delay tracking** — no `rabbit-hole` friction points, so no sequences to count.
+  The longest same-target run in the peer transcript was five consecutive calls locating Pi's extension-loader alias for `@earendil-works/pi-coding-agent` (peer turns 30–35, narrowing from `../../pi/src` to `../../pi/packages/coding-agent/src/core/extensions/loader.ts`), which ended in the cited line rather than in a widening search.
+- **Unused-tool detection** — nothing applicable; the one `missing-context` point needed no tool that was unavailable, only a `grep -c` the session had already run elsewhere.
+- **Feedback-loop gap analysis** — verification ran incrementally throughout, not only at the end.
+  The TDD session established a four-gate green baseline (`check`, root `lint`, `test`, `fallow dead-code`) before writing a test, ran the single affected test file at Red and at Green, ran `pnpm run check` after the `package.json` edit, ran `pnpm install --frozen-lockfile` to confirm CI's install was unaffected, and re-ran the four gates at end of cycle.
+  `/ship` then re-ran root `lint` and `fallow dead-code` on the post-merge tree — the tree neither the peer's pre-rebase check nor CI had yet seen.
+
+### Changes made
+
+1. `.pi/skills/delegation/SKILL.md` — added two lines to § Reading the report: a **count** the report supplies is re-derived before it lands in a plan, an ADR, or an issue body, because the conclusion can be right while the arithmetic is wrong.
+   This closes the gap between the two existing rules that both missed this case — `AGENTS.md` principle 4 governs a number you *author*, and the skill's neighboring line governs a *universal* claim; a relayed specific count is neither.
+2. `.pi/prompts/plan-issue.md` — narrowed the Tidy First contradiction clause to *structural* contradictions (a missing function, a different interface shape) and split counts out: a reported count is a lead to re-run, not an authoritative correction to the design.
+   The prior wording named "a call-site count that is off" as a design correction, which is what granted the assessor's wrong arithmetic authority over the file.
+3. `packages/pi-autoformat/docs/retro/0762-honor-pi-coding-agent-dir.md` — this Final Retrospective stage entry.
+
 [#732]: https://github.com/gotgenes/pi-packages/issues/732

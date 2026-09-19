@@ -153,7 +153,8 @@ Make the change easy, then make the easy change.
 The assessment runs in a subagent so the many-files read does not consume this session's context.
 Skip when the change touches no `src/`/`test/` files (the skill's applicability gate) and note the skip.
 
-The assessor reads the real files against your design summary, so treat a contradiction it reports — a function that does not exist, an interface with a different shape, a call-site count that is off — as a correction to the design before the plan records it.
+The assessor reads the real files against your design summary, so treat a structural contradiction it reports — a function that does not exist, an interface with a different shape — as a correction to the design before the plan records it.
+A **count** it reports is a lead, not a finding: re-run the grep before the plan records the number (Refs #762).
 
 ## Write the plan
 
