@@ -74,5 +74,70 @@ The branch carries five commits ahead of the plan commit: the plan, its planning
 Nothing deferred beyond what the TDD stage already recorded ([#943], [#950]).
 Ready for `/ship 916` at the root.
 
+## Stage: Final Retrospective (2026-09-19T05:37:45Z)
+
+### Session summary
+
+Shipped the bound on `list_session_files` through the worktree lane: fast-forward-merged five branch commits onto `main`, verified CI, closed the issue, and released `pi-session-tools` 2.0.0 (from `1.2.1`).
+The whole issue ran clean across four stages — one `ask_user` gate at planning, three TDD steps with every predicted killing mutation behaving, a PASS from the pre-completion reviewer, and no CI failure, merge rejection, or release retry.
+This retrospective read the peer session's transcript through the package's own `read_session_file`, using the path the sync stage recorded.
+
+### Observations
+
+#### What went well
+
+- The step-1 deviation is the clearest instance of mutation discipline changing a plan rather than being satisfied by it.
+  The plan specified `formatListingSummary(directory, shown, total)` from step 1, called with `shown === total` until step 3.
+  The implementing session shipped `(directory, total)` and widened it in step 3 instead, recording the reason in the commit body: an unused parameter cannot be pinned by a mutation.
+  A plan signature was revised because it was unverifiable, not because it was wrong.
+- The package under change served the retrospective that reviewed it.
+  The worktree was torn down before this session ran, and the peer transcript was still one `read_session_file` call away because the sync stage recorded its absolute path under `~/.pi/agent/sessions/`.
+  That breadcrumb is what made the model-attribution lens below cost one call instead of a directory hunt.
+- The pre-completion reviewer did not take the session's coverage claim as a premise.
+  It reconstructed `src/index.ts` as it stood at the plan commit and diffed the untruncated output against it to prove byte-identity, then checked the one untested delegation for swapped arguments and ran `boundListingPaths` against `2.5`, `-0.5`, `NaN`, and `Infinity`.
+  Each is a check the implementing session could not have graded itself on.
+
+#### What caused friction (agent side)
+
+- `other` — the TDD stage note cited the plan commit's SHA, and `/sync-worktree`'s step-5 check correctly flagged it: at that moment the plan commit was on the branch and not yet an ancestor of `main`.
+  The peer then grepped for it, resolved its subject, rewrote the citation, re-ran the check, and amended — and narrated the reason as "not safe long-term" rather than "not yet reachable from `main`", which is the condition the check actually tests.
+  `/sync-worktree` forbids a branch SHA in its own note and its step 5 says the check "covers the TDD stage note as well", so detection is by design; `/tdd-plan` carries no corresponding rule at the point the SHA is written.
+  Impact: seven tool calls and one amend at sync time, no rework on `main`.
+- `instruction-violation` (self-identified) — the sync stage wrote a placeholder timestamp into its entry, then corrected it against `date -u`.
+  The `markdown-conventions` skill states the rule without hedging: get each stage timestamp from `date -u` — never write one from memory.
+  Impact: one extra `Edit`; the committed timestamp is correct.
+- `other` — two `Edit` calls in the TDD stage failed on a non-matching `oldText` and each needed a re-read of the region first.
+  This is the `pi-autoformat` reflow hazard `AGENTS.md` already names; the rule was not applied pre-emptively after writing the same region.
+  Impact: four extra tool calls, no rework.
+- `other` — the ship stage appended `echo "EXIT:$?"` to `pnpm run lint >/tmp/lint.log 2>&1 || tail -30 /tmp/lint.log`, where `$?` reports the status of the `||` list rather than the gate's.
+  `EXIT:0` was therefore uninformative and the log had to be read separately to confirm the gate passed; the `pnpm fallow dead-code` call immediately after used the correct `rc=$?` capture.
+  Impact: one extra tool call, no rework.
+
+#### What caused friction (user side)
+
+- The planning note invited a re-confirmation that the workflow cannot deliver.
+  It recorded that a major bump for a one-parameter addition "is the kind of cost that reads differently a week later" and called it "worth re-confirming at ship time".
+  But `/ship` only asks when the plan's marker reads `mid-batch — defer`, and this one read `ship independently`, so the release was dispatched without reopening the question.
+  The invitation was addressed to a gate that does not exist.
+  Nothing went wrong here — 2.0.0 was the operator's own choice at the planning gate — but a stage note asking a later stage to re-decide something needs to name the mechanism that would carry it, or it is a note to nobody.
+
+### Diagnostic details
+
+- **Model-performance correlation** — planning and implementation ran on `anthropic/claude-opus-5`, the two judgment-heavy stages: a measured `ask_user` gate, the breaking-change classification, and six killing mutations with per-class predictions.
+  The sync stage ran on `anthropic/claude-sonnet-5` against a mechanical checklist (two gates, one stage note, a rebase) and still caught the unreachable plan SHA.
+  Ship and this retrospective ran on `anthropic/claude-opus-5`.
+  Both subagents are pinned to `anthropic/claude-sonnet-5` by their definitions; the `pre-completion-reviewer`'s work was judgment-heavy verification and it returned PASS with specific, independently-derived evidence, so no mismatch was observed in either direction.
+- **Escalation-delay tracking** — no `rabbit-hole` friction point arose, so this lens has nothing to flag.
+  The longest run of same-target calls was step 3's mutation sweep (six mutations, each an `Edit`, a suite run, and a restore), which is the plan's prescribed verification rather than thrash.
+- **Feedback-loop gap analysis** — verification was incremental throughout.
+  A four-gate green baseline ran before step 1, a per-file `vitest` run after each Red and Green, `pnpm run check` mid-step-3 when the schema changed, the full suite plus lint plus `fallow` after the last step, and `pnpm run lint` and `pnpm fallow dead-code` again at ship on the merged tree — the tree neither the peer's pre-rebase checks nor the branch's own CI had covered.
+  No end-only verification to flag.
+
+### Changes made
+
+1. `.pi/prompts/tdd-plan.md` — added one line to the `## Write stage notes` section: name a commit by its subject rather than its SHA on an `issue-<N>-*` branch, since `/sync-worktree`'s rebase rewrites every branch SHA.
+   This adds prevention where the SHA is written; `/sync-worktree`'s step-5 dangling-SHA check stays in place as the backstop.
+2. `packages/pi-session-tools/docs/retro/0916-list-session-files-limit.md` — this Final Retrospective stage entry.
+
 [#943]: https://github.com/gotgenes/pi-packages/issues/943
 [#950]: https://github.com/gotgenes/pi-packages/issues/950

@@ -211,6 +211,7 @@ Before stopping, persist implementation observations for cross-session continuit
 4. Commit: `git add <retro-file> && git commit -m "docs(retro): add TDD stage notes for issue #N"`.
 
 Wrap code identifiers, filenames, and text containing underscores in backticks in the retro file.
+Name a commit by its subject, not its SHA, when the work is on an `issue-<N>-*` branch — `/sync-worktree`'s rebase rewrites every branch SHA (Refs #814, #914).
 Append with the `Edit` tool (or `Write` for a new file), not a shell heredoc.
 When appending a new stage to an existing retro, anchor the `Edit` on the file's last line or use `Write` with the full content — the repeated `### Observations` / `### Session summary` headers make header-anchored edits ambiguous.
 
