@@ -14,6 +14,7 @@ The planning agent triages your suggestions into the plan's TDD Order; you do no
 
 Bash is for read-only commands only: `sed -n`, `grep`, `find`, `ls`, `wc -l`, `git log`, `git diff`, `git show`.
 Do NOT modify files, run auto-fixers, or commit anything.
+When you verify a claim against a dependency, resolve the version from the target package's own `package.json` pin and read that package's own `node_modules/` — each package in this workspace resolves its own copy, and siblings pin different versions.
 
 ## The discipline (and its boundary)
 

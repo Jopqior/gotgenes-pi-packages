@@ -89,3 +89,70 @@ Nothing was deferred to the root session beyond the standard land steps; the cha
 
 No friction in this stage.
 The TDD stage's implementing session and the pre-completion reviewer both already re-derived the breaking-change classification, the corpus measurements, and the follow-up-tool decline (no issue filed, matching #943's precedent), so this sync found nothing new to surface.
+
+## Stage: Final Retrospective (2026-09-19T23:09:06Z)
+
+### Session summary
+
+Shipped #944 through the worktree lane with no rework: one fast-forward merge, green pre-push gates, one CI run, one release dispatch, `pi-session-tools` 2.2.0 → 3.0.0.
+The retrospective spans four stages across two sessions — planning and TDD in the peer worktree, sync in the peer, ship and retro at the root.
+The dominant finding is not in this session but upstream of it: the `tidy-first-assessor` returned two precise, confidently-stated facts that were both wrong, and only the planning agent's habit of re-deriving them kept either out of the plan.
+
+### Observations
+
+#### What went well
+
+- The worktree convergence ran exactly as the `worktrees` skill describes, with no lane-specific surprise.
+  The ff-merge was predicted before it ran, `PRE_MERGE` turned out to equal `"$PLAN"^` so both range anchors agreed, and the co-shipped-issue scan found only #944's own files.
+  Thirty-seven tool calls, zero corrections, zero retries.
+- The #945 SHA-shape guardrail fired in reasoning and held.
+  At step 7 the ship session registered a doubt about the pushed SHA's shape and declined to measure or re-run it, passing the `git rev-parse` output through to `ci_find` unexamined — which matched.
+  This is the first observed instance of that rule being tested since it landed.
+- The pre-completion reviewer re-derived its own claims instead of reporting them.
+  On the delta round it reverted both described mutations itself against a backup and confirmed the discrimination counts (4 of 22 in `test/session-tree.test.ts`, 3 of 50 for the `filterByTypes` exemption), rather than accepting the implementing session's report.
+  That is the `delegation` skill's posture executed by the subagent on its own input.
+- The operator's single intervention across all four stages was a redirecting question at the planning gate — "how do you identify the live path?"
+  — not a correction after the fact.
+  It cost one message to answer and the re-asked gate was answered immediately.
+
+#### What caused friction (agent side)
+
+- `missing-context` — the `tidy-first-assessor` verified the design's SDK claims against the wrong package's `node_modules`.
+  Its report cites `@earendil-works/pi-coding-agent@0.84.4`; `packages/pi-session-tools/package.json` pins `0.79.1` and declares a `>=0.75.0` peer floor.
+  Re-derived during this retro: seven of the nine packages resolve `0.79.1`, and only `pi-subagents` and `pi-permission-model-judge` carry `0.84.4` — so a workspace-wide read lands on a sibling's copy roughly a fifth of the time, while staying fully inside the repo.
+  Impact: no rework, because the planning agent re-resolved the versions and the plan cites `0.79.1` and the `0.75.0` floor it checked.
+  The governing rule already exists — the `code-design` skill's "resolve the version from the package's own `devDependencies` pin" — but it lives in a skill a fresh-context subagent never loads, and `.pi/agents/tidy-first-assessor.md` says nothing about it.
+- `missing-context` — the same report's universal claim about existing fixtures was false, and carried a precise count that made it read as measured.
+  It stated that `format-transcript.test.ts`'s 41 `parentId` occurrences form "strictly linear `1→2→3→4` chains, never branching"; L137's fixture is `[id 1, id 3 (parent 2), id 2 (parent 1)]`, where file order and tree order deliberately disagree.
+  The planning agent caught it by re-deriving, per the `AGENTS.md` principle that a subagent's universal claim is the one to verify, and the assessor's conclusion survived anyway.
+  Impact: none beyond the re-derivation, but two false verified-sounding facts from one dispatch is a pattern, not a slip — and the plan is better for it, since the fixture is now recorded as the concrete reason branch resolution had to live in `entry-selection.ts`.
+- `other` — this retrospective's own transcript tools are the pre-#944 build.
+  The ff-merge replaced `packages/pi-session-tools/src/` under a root session that had loaded the extension at startup, so every `read_session`/`read_session_file` call in this retro rendered in file order, not live path.
+  No impact here — every session read was linear, so no `[abandoned branch]` marker was due — but the lens sentence `4d4f24d4` added to `.pi/prompts/retro.md` describes behavior the very session that ships it cannot exercise.
+  `AGENTS.md`'s staleness passage is written for a session that *edits* `packages/<pkg>/src/`; a ship session merges, which has the same effect and is not named.
+- `other` — the peer session's `git commit -F -` from a heredoc was denied mid-TDD by the `pi-permission-system` deny rule.
+  Impact: one extra tool call — it wrote `/tmp/msg944.txt` and re-ran with `-F <file>`, with no retry loop and no question to the operator.
+  Recording it as evidence the deny rule's reason string is actionable rather than merely obstructive.
+
+#### What caused friction (user side)
+
+Nothing to flag.
+The one intervention was the redirecting question noted above, which is the intended shape.
+
+### Diagnostic details
+
+- **Model-performance correlation** — attributed from the inline `[provider/model]` labels in type-unfiltered `read_session`/`read_session_file` calls, and for the subagents from their own task transcripts via `list_subagent_sessions`, not from the agent definitions.
+  Planning and TDD turns ran `anthropic/claude-opus-5`; Sync and Ship ran `anthropic/claude-sonnet-5`; this retrospective runs `anthropic/claude-opus-5`.
+  All three subagent dispatches — `tidy-first-assessor` once, `pre-completion-reviewer` twice — ran `anthropic/claude-sonnet-5`.
+  The apparent mismatch is not a model one: the assessor produced two wrong quantified facts on the same model where the reviewer was clean across two rounds, and the difference between them is that the reviewer re-derives its own claims by protocol and the assessor does not.
+- **Escalation-delay tracking** — no sequence exceeded five consecutive tool calls on one error.
+  The longest was the TDD investigation of two tests that passed during Red: four calls, resolved by writing a disposable `/tmp/dbg.test.ts` probe, reading its output, and deleting it.
+- **Feedback-loop gap analysis** — no gap.
+  `check`, `vitest`, and `lint` ran after every TDD step rather than once at the end, and the ship session ran `lint` and `fallow dead-code` after the ff-merge, on the exact tree it then pushed.
+- **Unused-tool detection** — nothing notable; no friction point traced to a subagent or tool that was available and never dispatched.
+
+### Changes made
+
+1. `.pi/agents/tidy-first-assessor.md` — added a dependency-verification rule to the read-only bash paragraph: resolve a version from the target package's own `package.json` pin and read that package's own `node_modules/`.
+   The equivalent rule already lives in the `code-design` skill, which a fresh-context subagent never loads; the agent definition is the only text it reads.
+2. `AGENTS.md` § Stale in-process extension code — the opening sentence now names a fast-forward merge alongside an edit, since a `/ship` session never edits `packages/<pkg>/src/` and the staleness it produces is identical.

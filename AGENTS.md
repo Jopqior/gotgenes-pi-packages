@@ -65,7 +65,7 @@ When the pasted prompt body contradicts the on-disk file (e.g. you just changed 
 
 ### Stale in-process extension code
 
-Pi loads each package's extension once at session start, so a session that edits `packages/<pkg>/src/` keeps running the **pre-edit** tool for the rest of its life.
+Pi loads each package's extension once at session start, so a session that edits — or fast-forward-merges — `packages/<pkg>/src/` keeps running the **pre-merge** tool for the rest of its life.
 When the change targets a tool the workflow itself calls (`ci_find`, `ci_watch`, `issue_close`), restart Pi before the step that uses it — otherwise `/ship` exercises the old behavior and the new code looks broken.
 The same applies when a change **removes** a tool `/ship` calls: the running session still has it registered.
 A session that renames or deletes a prompt template is subject to the same staleness: it keeps the commands it registered at startup, so the first run of a renamed command needs a fresh session.
