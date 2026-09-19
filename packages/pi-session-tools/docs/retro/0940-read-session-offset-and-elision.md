@@ -70,5 +70,20 @@ Pre-completion reviewer: WARN — no FAILs.
   Unpinned by a test; recorded here rather than expanded into scope.
 - **Reviewer warnings:** the plan's two Open Questions (eliding assistant prose; a session-size probe) remain deliberately unfiled — confirm that disposition still holds at ship time.
 
+## Stage: Sync (worktree) (2026-09-19T15:07:50Z)
+
+### Session summary
+
+`pnpm run lint` and `pnpm fallow dead-code` both pass clean from the worktree root.
+The plan (`packages/pi-session-tools/docs/plans/0940-read-session-offset-and-elision.md`) marks `**Release:** ship independently` — no architecture roadmap governs this package, so nothing to check at land time on that front.
+The two Open Questions the TDD-stage reviewer flagged (eliding assistant prose; a session-size probe) are still unfiled by design; confirm that disposition at `/ship`.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-940--/2026-09-19T07-25-29-859Z_01a0b88e-5182-7717-8089-b7977c26dc3e.jsonl` — read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time.
+
+### Observations
+
+No new friction since the TDD stage note (commit `docs(retro): add TDD stage notes for issue #940`).
+Branch is otherwise ready to rebase onto local `main` and hand off.
+
 [#916]: https://github.com/gotgenes/pi-packages/issues/916
 [#950]: https://github.com/gotgenes/pi-packages/issues/950
