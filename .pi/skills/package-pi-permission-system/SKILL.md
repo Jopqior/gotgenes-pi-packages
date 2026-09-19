@@ -103,7 +103,7 @@ The `permission` object uses deep-shallow merge; scalar fields use simple replac
 
 - Zod source of truth: `src/config/config-schema.ts` (the composable schemas, the `z.infer` config types, and `buildPermissionsJsonSchema`).
 - Schema: `schemas/permissions.schema.json` — **generated** from `config-schema.ts` via `pnpm run gen:schema`; never edit it by hand.
-  A parity test in `test/config-schema.test.ts` fails on drift (Refs #547).
+  A parity test in `test/config-schema.test.ts` fails on drift.
 - Example: `config/config.example.json`
 - Keep `config-schema.ts`, example config, `docs/configuration.md`, and `README.md` aligned when the config shape changes — the schema and the config types are both derived from `config-schema.ts`, so it is the one edit point.
 - `docs/architecture/architecture.md` inline-copies the core `rule.ts` types (`Rule`, `RuleOrigin`, `Ruleset`).
