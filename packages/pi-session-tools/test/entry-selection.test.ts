@@ -3,6 +3,7 @@ import {
   collectEffectiveModelChangeIndices,
   selectEntries,
 } from "#src/entry-selection";
+import { BRANCH_MARKER_TYPE } from "#src/session-tree";
 
 describe("collectEffectiveModelChangeIndices", () => {
   function modelChange(provider = "anthropic", modelId = "claude-opus") {
@@ -210,6 +211,76 @@ describe("selectEntries", () => {
       expect(selectEntries(entries, { offset: 2, limit: 2 })).toEqual([
         assistant("a0"),
         modelChange("opus"),
+      ]);
+    });
+  });
+
+  describe("branch resolution", () => {
+    function node(id: string, parentId: string | null, type = "message") {
+      return { type, id, parentId };
+    }
+
+    function omitted(count: number) {
+      return { type: BRANCH_MARKER_TYPE, marker: "omitted", count };
+    }
+
+    // 1 (model_change root) → 2 → {3, 4}; the file ends on 4, so 3 is abandoned.
+    const forked = [
+      node("1", null, "model_change"),
+      node("2", "1"),
+      node("3", "2"),
+      node("4", "2"),
+    ];
+
+    it("leaves entries untouched when no mode is given", () => {
+      expect(selectEntries(forked, {})).toEqual(forked);
+    });
+
+    it("drops the abandoned branch in live mode", () => {
+      expect(selectEntries(forked, { branches: "live" })).toEqual([
+        node("1", null, "model_change"),
+        node("2", "1"),
+        omitted(1),
+        node("4", "2"),
+      ]);
+    });
+
+    it("walks from the caller's leaf rather than the last entry", () => {
+      expect(selectEntries(forked, { branches: "live", leafId: "3" })).toEqual([
+        node("1", null, "model_change"),
+        node("2", "1"),
+        node("3", "2"),
+        omitted(1),
+      ]);
+    });
+
+    it("resolves branches before filtering by type, so a filter cannot sever the chain", () => {
+      // The live path runs 1 → 3 → 4 and passes *through* a model_change.
+      // Filtering to messages first would remove that link, stranding entry 1
+      // off the walk and reporting it as abandoned along with entry 2.
+      const entries = [
+        node("1", null),
+        node("2", "1"),
+        node("3", "1", "model_change"),
+        node("4", "3"),
+      ];
+      expect(
+        selectEntries(entries, { branches: "live", types: ["message"] }),
+      ).toEqual([node("1", null), omitted(1), node("4", "3")]);
+    });
+
+    it("keeps the omission marker through an explicit type filter", () => {
+      const selected = selectEntries(forked, {
+        branches: "live",
+        types: ["model_change"],
+      });
+      expect(selected).toEqual([node("1", null, "model_change"), omitted(1)]);
+    });
+
+    it("windows the live path, counting the marker as an entry", () => {
+      expect(selectEntries(forked, { branches: "live", limit: 2 })).toEqual([
+        omitted(1),
+        node("4", "2"),
       ]);
     });
   });

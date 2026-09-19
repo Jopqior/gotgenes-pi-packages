@@ -2,13 +2,18 @@
  * entry-selection.ts — Chooses which session entries a transcript renders.
  *
  * Everything that happens to an entry array before formatting lives here:
- * type filtering, phantom `model_change` pruning, and windowing. Keeping the
- * selection pure and separate from `format-transcript.ts` lets the window be
- * computed against the whole session rather than against what a caller asked
- * to see.
+ * branch resolution, type filtering, phantom `model_change` pruning, and
+ * windowing. Keeping the selection pure and separate from
+ * `format-transcript.ts` lets the window be computed against the whole session
+ * rather than against what a caller asked to see.
  */
 
 import type { TranscriptEntry } from "./format-transcript.js";
+import {
+  BRANCH_MARKER_TYPE,
+  type BranchMode,
+  resolveBranches,
+} from "./session-tree.js";
 
 /** The bounds a transcript tool applies to a session's entries before rendering. */
 export interface EntrySelection {
@@ -18,12 +23,21 @@ export interface EntrySelection {
   offset?: number;
   /** How many entries to take, counting backward from the offset point. */
   limit?: number;
+  /** Which branches to keep. When omitted, the entry tree is not consulted. */
+  branches?: BranchMode;
+  /** The live leaf, when the caller knows it. Otherwise the last entry is used. */
+  leafId?: string | null;
 }
 
 /**
- * Filter by `types`, drop phantom `model_change` markers, then window.
+ * Resolve branches, filter by `types`, drop phantom `model_change` markers,
+ * then window.
  * The returned array is exactly what the caller will see rendered, which is
  * why `limit` counts entries that survive pruning rather than raw entries.
+ *
+ * Branch resolution runs first because `filterByTypes` severs parent chains: a
+ * `types: ["message"]` query drops the `model_change` that roots most sessions,
+ * which would orphan everything below it.
  *
  * Pruning runs on the unwindowed array on purpose: `offset` lets a window end
  * short of the session's end, and a marker whose assistant turn sits one entry
@@ -33,18 +47,33 @@ export function selectEntries(
   entries: TranscriptEntry[],
   selection: EntrySelection,
 ): TranscriptEntry[] {
-  const filtered = filterByTypes(entries, selection.types);
+  const resolved = selection.branches
+    ? resolveBranches(entries, {
+        mode: selection.branches,
+        leafId: selection.leafId,
+      })
+    : entries;
+  const filtered = filterByTypes(resolved, selection.types);
   const pruned = prunePhantomModelChanges(filtered);
   return windowEntries(pruned, selection.offset, selection.limit);
 }
 
+/**
+ * Keep the requested types, plus every branch marker.
+ * A marker is not a session entry type, and the disclosure that a branch was
+ * dropped must not itself be droppable — that would reproduce the silent
+ * omission for exactly the type-filtered calls that read a transcript for
+ * attribution.
+ */
 function filterByTypes(
   entries: TranscriptEntry[],
   types: string[] | undefined,
 ): TranscriptEntry[] {
   if (!types) return entries;
   const allowed = new Set(types);
-  return entries.filter((e) => allowed.has(e.type));
+  return entries.filter(
+    (e) => allowed.has(e.type) || e.type === BRANCH_MARKER_TYPE,
+  );
 }
 
 function prunePhantomModelChanges(
