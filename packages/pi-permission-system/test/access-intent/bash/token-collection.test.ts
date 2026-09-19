@@ -470,31 +470,28 @@ describe("collectCommandTokens — pattern-first commands", () => {
 // ── collectCommandTokens — generic commands ───────────────────────────────────
 
 describe("collectCommandTokens — generic commands", () => {
-  it("collects all argument tokens after the command name", async () => {
-    const { node, tree } = await parseCommandNode("cat /etc/hosts /etc/passwd");
+  async function tokensOf(cmd: string): Promise<string[]> {
+    const { node, tree } = await parseCommandNode(cmd);
     try {
-      expect(commandTokens(node)).toEqual(["/etc/hosts", "/etc/passwd"]);
+      return commandTokens(node);
     } finally {
       tree.delete();
     }
+  }
+
+  it("collects all argument tokens after the command name", async () => {
+    expect(await tokensOf("cat /etc/hosts /etc/passwd")).toEqual([
+      "/etc/hosts",
+      "/etc/passwd",
+    ]);
   });
 
   it("skips variable assignment prefixes", async () => {
-    const { node, tree } = await parseCommandNode("FOO=/bar cat /etc/hosts");
-    try {
-      expect(commandTokens(node)).toEqual(["/etc/hosts"]);
-    } finally {
-      tree.delete();
-    }
+    expect(await tokensOf("FOO=/bar cat /etc/hosts")).toEqual(["/etc/hosts"]);
   });
 
   it("collects no tokens for a bare command with no arguments", async () => {
-    const { node, tree } = await parseCommandNode("ls");
-    try {
-      expect(commandTokens(node)).toEqual([]);
-    } finally {
-      tree.delete();
-    }
+    expect(await tokensOf("ls")).toEqual([]);
   });
 
   describe("a command hosted in a prefix position (#742)", () => {
@@ -503,43 +500,26 @@ describe("collectCommandTokens — generic commands", () => {
     // than accessed — but either can *host* a substitution that really runs,
     // whose own operands are candidates like any other position (ADR 0009).
     it("collects the operand of a substitution in command-name position", async () => {
-      const { node, tree } = await parseCommandNode("$(cat /etc/shadow)");
-      try {
-        expect(commandTokens(node)).toEqual(["/etc/shadow"]);
-      } finally {
-        tree.delete();
-      }
+      expect(await tokensOf("$(cat /etc/shadow)")).toEqual(["/etc/shadow"]);
     });
 
     it("collects the operand of a substitution in a prefix assignment", async () => {
-      const { node, tree } = await parseCommandNode(
-        "FOO=$(cat /etc/shadow) echo hi",
-      );
-      try {
-        expect(commandTokens(node)).toEqual(["/etc/shadow", "hi"]);
-      } finally {
-        tree.delete();
-      }
+      expect(await tokensOf("FOO=$(cat /etc/shadow) echo hi")).toEqual([
+        "/etc/shadow",
+        "hi",
+      ]);
     });
 
     it("collects a prefix-hosted operand for a pattern-first command too", async () => {
-      const { node, tree } = await parseCommandNode(
-        "FOO=$(cat /etc/shadow) grep -f p x",
-      );
-      try {
-        expect(commandTokens(node)).toEqual(["/etc/shadow", "p", "x"]);
-      } finally {
-        tree.delete();
-      }
+      expect(await tokensOf("FOO=$(cat /etc/shadow) grep -f p x")).toEqual([
+        "/etc/shadow",
+        "p",
+        "x",
+      ]);
     });
 
     it("leaves a prefix assignment's literal value uncollected", async () => {
-      const { node, tree } = await parseCommandNode("FOO=/etc/shadow echo hi");
-      try {
-        expect(commandTokens(node)).toEqual(["hi"]);
-      } finally {
-        tree.delete();
-      }
+      expect(await tokensOf("FOO=/etc/shadow echo hi")).toEqual(["hi"]);
     });
   });
 });
