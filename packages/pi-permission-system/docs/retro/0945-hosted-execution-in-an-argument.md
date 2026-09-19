@@ -81,6 +81,20 @@ The post-implementation corpus re-measurement reproduced the plan's predicted fi
   Addressed by this entry and the cross-reference added to the Deferred tidyings list.
   The reviewer independently re-derived the walkers' control flow for every `ARG_NODE_TYPES` branch (no drop, no double-count), opened the tests behind each claimed invariant rather than trusting the plan's table, and verified the "order is presentational" claim at `bash-path-resolver.ts`.
 
+## Stage: Sync (worktree) (2026-09-19T22:25:03Z)
+
+### Session summary
+
+Pre-push checks pass clean from the repo root (`pnpm run lint`: 0 `lint/` findings; `pnpm fallow dead-code`: 0 issues, 364 entry points).
+The plan's `**Release:**` marker is `ship independently` — nothing downstream in Track A ([#863], [#859], [#609]) needs to land in the same release.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-945--/2026-09-19T20-11-41-349Z_01a0bb4b-c9a4-70ff-82da-3267423b431d.jsonl` — read with `read_session_file({ path: "..." })` for message-level verification at land/retro time.
+
+### Observations
+
+No deferred work beyond what the plan's Non-Goals already name ([#609], [#859], [#863], all pre-existing issues).
+Pre-completion reviewer returned WARN at the TDD stage (retro contradicted the shipped `tokensOf` migration); addressed in that stage's retro entry before this sync.
+
 [#741]: https://github.com/gotgenes/pi-packages/issues/741
 [#742]: https://github.com/gotgenes/pi-packages/issues/742
 [#859]: https://github.com/gotgenes/pi-packages/issues/859
