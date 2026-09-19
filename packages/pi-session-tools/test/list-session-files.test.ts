@@ -1,3 +1,4 @@
+import { basename } from "node:path";
 import type {
   ExtensionAPI,
   ExtensionContext,
@@ -53,21 +54,32 @@ vi.mock("node:fs", () => ({
   },
 }));
 
+/**
+ * Mock a session directory holding `count` `.jsonl` files with ascending
+ * mtimes, and return their basenames newest-first — the order the tool is
+ * expected to emit.
+ */
+function mockSessionFiles(count: number): string[] {
+  const names = Array.from(
+    { length: count },
+    (_, i) => `s-${String(i + 1).padStart(2, "0")}.jsonl`,
+  );
+  const mtimes = new Map(names.map((name, i) => [name, (i + 1) * 1000]));
+  mockExistsSync.mockReturnValue(true);
+  mockReaddirSync.mockReturnValue(names);
+  mockStatSync.mockImplementation((path: string) => ({
+    mtimeMs: mtimes.get(basename(path)) ?? 0,
+  }));
+  return [...names].reverse();
+}
+
 describe("list_session_files tool", () => {
   it("lists session files for a cwd, newest first", async () => {
     const tools = captureTools(sessionTools);
     const tool = tools.get("list_session_files")!;
     expect(tool).toBeDefined();
 
-    mockExistsSync.mockReturnValue(true);
-    mockReaddirSync.mockReturnValue([
-      "2026-05-20T12-00-00Z_.jsonl",
-      "2026-05-20T12-01-00Z_.jsonl",
-    ]);
-    mockStatSync.mockImplementation((path: string) => {
-      if (path.endsWith("12-00-00Z_.jsonl")) return { mtimeMs: 1000 };
-      return { mtimeMs: 2000 };
-    });
+    const newestFirst = mockSessionFiles(2);
 
     const ctx = makeCtx(undefined);
     const result = await tool.execute(
@@ -88,7 +100,7 @@ describe("list_session_files tool", () => {
       "--Users-chris-development-pi-pi-packages-worktrees-issue-546--",
     );
     expect(text).toBe(
-      `Session directory: ${dir}\n2 session files, newest first:\n  ${join(dir, "2026-05-20T12-01-00Z_.jsonl")}\n  ${join(dir, "2026-05-20T12-00-00Z_.jsonl")}`,
+      `Session directory: ${dir}\n2 session files, newest first:\n  ${join(dir, newestFirst[0])}\n  ${join(dir, newestFirst[1])}`,
     );
   });
 
@@ -114,9 +126,7 @@ describe("list_session_files tool", () => {
     const tools = captureTools(sessionTools);
     const tool = tools.get("list_session_files")!;
 
-    mockExistsSync.mockReturnValue(true);
-    mockReaddirSync.mockReturnValue(["s.jsonl"]);
-    mockStatSync.mockReturnValue({ mtimeMs: 500 });
+    mockSessionFiles(1);
 
     const ctx = makeCtx(
       "/custom/root/.pi/agent/sessions/--Users-chris-current--/2026-01-01T00-00-00Z_.jsonl",
@@ -145,9 +155,7 @@ describe("list_session_files tool", () => {
       const tools = captureTools(sessionTools);
       const tool = tools.get("list_session_files")!;
 
-      mockExistsSync.mockReturnValue(true);
-      mockReaddirSync.mockReturnValue(["a.jsonl", "b.jsonl"]);
-      mockStatSync.mockReturnValue({ mtimeMs: 100 });
+      mockSessionFiles(2);
 
       const ctx = makeCtx(undefined);
       const result = (await tool.execute(
