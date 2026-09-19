@@ -83,10 +83,16 @@ The reviewer returned FAIL on the first pass with one blocking finding and WARN 
   The two are provably equivalent at that call site — `unwrapIndirection` has already peeled by the time its opaque branch runs, so the peeling loop's first iteration returns with `base = 0`.
   An equivalent mutation, not a missing test; the reviewer confirmed the reading rather than taking it.
   The plan's step 1 mutation (a) was also mispredicted: it claimed the `eval` case would stay green under an off-by-one, but both branches share the `flagIndex + 2` return, so all 19 cases reddened.
-- **The corpus differential reconciled** — the delta review's one WARN.
-  Two numbers were reported without saying they measure different things: **0** is how many real commands log *differently under this change than before it*; **4** is how many the masker alters *at all*, a figure unchanged from before the widening.
-  Measured at the end: all 4 come from [#920]'s pre-existing `Authorization:` header rule — three real `curl` calls (`"Authorization: token $(gh auth token)"`, `"Authorization: Bearer $TOK"`, and a two-header probe) and one heredoc holding this issue's own spike vectors, reached through a recovering parse.
-  Neither the coarse branch nor the peeling fires on any real command, so both are pinned by tests alone and not by measurement — stated rather than implied.
+- **The corpus differential was reported on evidence that did not cover the shipped code, and the operator caught it.**
+  The delta review's WARN was that two numbers went unreconciled: **0** commands log differently, **4** commands are altered at all.
+  The reconciliation is that they measure different things — 4 is the masker's absolute footprint, unchanged before and after; 0 is the pre-versus-post delta.
+  But the "0" being carried forward came from the **plan's prototype**, which implemented only the payload-slice widening.
+  The stitched coarse branch, the `ansi_c_string` case, and the indirection peeling were all added later and none of them was in the thing measured — and peeling in particular reaches `xargs -I{} sh -c '…'`, which *is* in this corpus.
+  The post-fix checks were weaker than stated too: they compared the *count* of altered commands (4, then 4), which cannot see one command leaving the set as another enters.
+  Re-measured properly at the end — real pre-change code at `refactor(pi-permission-system): answer which node holds an inline-shell payload` against real post-change code at `HEAD`, dumping every input→output pair over the same log and diffing the 8 142 commands present in both runs: **0 differ**, and the altered set is the same 4 in both.
+  Those 4 are all [#920]'s pre-existing `Authorization:` header rule — three real `curl` calls (`"Authorization: token $(gh auth token)"`, `"Authorization: Bearer $TOK"`, and a two-header probe) plus one heredoc holding this issue's own spike vectors, reached through a recovering parse.
+  Neither the coarse branch nor the peeling fires on any real command, so both are pinned by tests alone and not by measurement.
+  The lesson is narrower than "measure again": a prototype measurement expires the moment the implementation gains a mechanism the prototype lacked, and the expiry is silent because the number still reads true.
 - **A deviation from the plan, adopted on the assessor's and reviewer's agreement.**
   The plan put `inlineShellPayloadNode`'s tests in `program.test.ts`; they landed in a new `test/access-intent/bash/command-enumeration.test.ts` instead, named after the module under test as its siblings are.
   `program.test.ts` tests `BashProgram`, a different module.
