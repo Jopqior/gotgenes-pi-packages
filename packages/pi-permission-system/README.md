@@ -183,6 +183,11 @@ Hardening the gates against bypass, fail-closed corrections (breaking ones inclu
 - _Model judgment in the core._
   This package makes no LLM call and holds no model config; model-assisted judging attaches as a chain link over the authorizer seam instead.
   A link decides nothing until you name it in `authorizerChain`, and its `allow` on an excluded surface is downgraded to `defer`.
+- _Supporting a non-Pi host._
+  Built and validated against Pi's extension API and no other: a fork that loads Pi extensions — [Oh My Pi](https://github.com/can1357/oh-my-pi) among them — diverges in payload shape, tool vocabulary, and approval authority, on its own release schedule.
+  Input that violates a contract this package already reads is hardened against anyway, because defensive normalization is correct whoever sent it.
+  Modeling a foreign host's semantics is not, because a guarantee that cannot be executed against is worse than a declined one.
+  This one is conditional rather than permanent — the architecture doc names the five conditions that would make a second host a goal.
 
 The [architecture doc](https://github.com/gotgenes/pi-packages/blob/main/packages/pi-permission-system/docs/architecture/architecture.md#scope-and-non-goals) carries the full inventory, with the decision record behind each entry.
 
@@ -194,6 +199,7 @@ The companion question — whether a capability model replaces the actor-keyed s
 **Where adjacent requests belong.**
 True isolation of a permitted action → an agent sandbox, which this package's scope decisions are exported to rather than duplicated in.
 Model-assisted judging of an `ask` → a chain link over the authorizer seam; [@gotgenes/pi-permission-model-judge](https://www.npmjs.com/package/@gotgenes/pi-permission-model-judge) is the first-party one, and judges mistyped paths.
+A non-Pi host's own payload shapes and tool formats → that host's Pi-compatibility layer, where one fix reaches every Pi extension at once instead of one.
 Approve-and-steer, edit diffs, and risk explanations → a downstream package over the `permissions:decision` event and the presentation seams.
 
 ## Documentation

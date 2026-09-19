@@ -61,14 +61,40 @@ This is the full inventory, with the decision record or design principle each re
 | A special evaluation path for MCP, or side-channel fallbacks                         | Design principles 4 and 5                                                               |
 | OpenCode's top-level `"permission": "allow"` string shorthand                        | `docs/opencode-compatibility.md` divergence table                                       |
 | A model that classifies access intent before `evaluate()`                            | §"Beyond the target"; [ADR-0007](../decisions/0007-model-judge-authorizer-chain-adr.md) |
+| Supporting a non-Pi host that loads Pi extensions                                    | Operator position (#922)                                                                |
 
-Two entries rest on an operator position rather than a decision record, and are marked as such above.
+Three entries rest on an operator position rather than a decision record, and are marked as such above.
+The host boundary is a line between two kinds of change, not a refusal to accept fixes: a payload that violates a contract this package already reads is normalized defensively, while a foreign host's bespoke tool formats, host-only tools, and separate approval authority are each declined.
 
 The following are **not** boundaries, and must not be written as such.
 Durable persistence of an approval is anticipated by design principle 8 and §"Authority lives in three places", which reserve a place for a ruling that outlives the session.
 Whether a capability model replaces the actor-keyed surface list is settled: [ADR-0013](../decisions/0013-permission-policy-model.md) adds read/write capability as an axis beside the existing keys, so direction becomes expressible on `path` and on the boundary.
 Which channels policy may enter through remains open in issue #799.
 Multi-hop escalation, three-way grant scope, terminal-replacement registration, and non-TUI presentation are admitted-not-shipped or externally blocked, not declined.
+
+### What would make a second host a goal
+
+The host boundary is conditional, and the conditions are about verifiability rather than effort.
+All five would have to hold; the first and the last are not this package's to satisfy.
+
+1. **The host publishes a versioned extension-API contract.**
+   Today a host adapts by rewriting imports at load time and nothing declares which extension-API version it implements, so every divergence is learned from a user's bug report.
+   A stated contract is what makes a compatibility claim a claim about something.
+2. **The suite executes against that host in CI.**
+   A permission system's value is that its guarantees hold, so an unexecuted compatibility claim is worse than a declined one.
+   This means a second lane on the host's runtime, not a mock of it.
+3. **Host-only tools have a policy vocabulary.**
+   A host that ships a persistent interpreter, browser control, or an editor-protocol client introduces permission surfaces with no rules, no defaults, and no documented recipes.
+   They resolve to `ask` today through the universal fallback, which is safe but not expressible — a user cannot write policy about them.
+4. **The dual-authority question is settled.**
+   A host with its own approval layer makes this package a second authority over the same tool call, and the composition of the two — which prompts, which wins, whether an auto-approve mode bypasses these gates — has to be decided before either can be trusted.
+   Getting it wrong is a silent bypass, which is this package's worst failure mode.
+5. **A maintainer who uses that host owns the lane.**
+   Nobody here runs it, so without an owner the lane rots into a green check that proves nothing.
+
+Condition 1 is the one that currently fails hardest, and it is measurable.
+Measured 2026-09-19 against Oh My Pi: 633 published versions, and 15 releases in the 11 days from 2026-09-08 to 2026-09-18 — roughly daily, against a pinned and slower-moving Pi.
+Recheck that cadence before rereading this section as settled.
 
 ## Core data model
 
