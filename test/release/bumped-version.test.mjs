@@ -1,3 +1,8 @@
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createScratchReleaseRepository } from "./helpers/git-repository.mjs";
@@ -84,6 +89,87 @@ describe("bumped_version across an upstream merge boundary", () => {
     repo.commitInScope("fix(demo): fresh fork fix", "packages/demo/new.txt");
 
     expect(repo.bumpedVersion("demo-v1.0.0")).toBe("demo-v1.0.1\n");
+  });
+});
+
+describe("entry-point parity", () => {
+  // `next-version.sh` and `verify-cliff-parity.sh` must answer "what would
+  // this package release?" through the same decision entry, so the two
+  // scripts are exercised as real processes against the same fixture history
+  // and their answers compared. The scripts cd to their own root, so the
+  // fixture runs its own copies against its own packages/demo.
+  function prepareParityFixture() {
+    repo.copyReleaseScripts(
+      "lib.sh",
+      "next-version.sh",
+      "verify-cliff-parity.sh",
+    );
+    repo.writeManifest("demo", "1.0.0");
+    repo.commitInScope("feat(demo)!: initial scope", "packages/demo/a.txt");
+    repo.git("tag", "demo-v1.0.0");
+  }
+
+  it("derives the same patch tag in the predictor and the parity check", () => {
+    prepareParityFixture();
+    repo.commitInScope("fix(demo): repair widget", "packages/demo/a.txt");
+
+    const prediction = repo.runReleaseScript("next-version.sh", "demo");
+    const parity = repo.runReleaseScript("verify-cliff-parity.sh");
+
+    expect(prediction.status).toBe(0);
+    expect(prediction.stdout).toBe("demo-v1.0.1\n");
+    expect(parity.status).toBe(0);
+    expect(parity.stdout).toContain("would release 1.0.1");
+  });
+
+  it("reports the same empty window in the predictor and the parity check", () => {
+    prepareParityFixture();
+
+    const prediction = repo.runReleaseScript("next-version.sh", "demo");
+    const parity = repo.runReleaseScript("verify-cliff-parity.sh");
+
+    expect(prediction.status).toBe(0);
+    expect(prediction.stdout).toBe("");
+    expect(prediction.stderr).toContain(
+      "Nothing to release for 'demo' (at demo-v1.0.0)",
+    );
+    expect(parity.status).toBe(0);
+    expect(parity.stdout).toContain("ok    1.0.0 (nothing to release)");
+  });
+
+  it("propagates a failing git-cliff invocation in both entry points", () => {
+    prepareParityFixture();
+    repo.commitInScope("fix(demo): repair widget", "packages/demo/a.txt");
+    const failingBin = mkdtempSync(path.join(tmpdir(), "failing-cliff-"));
+    const cliffStub = path.join(failingBin, "git-cliff");
+    writeFileSync(cliffStub, "#!/bin/sh\nexit 1\n");
+    chmodSync(cliffStub, 0o755);
+    const stubEnv = {
+      ...process.env,
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_SYSTEM: "/dev/null",
+      PATH: `${failingBin}${path.delimiter}${process.env.PATH}`,
+    };
+    try {
+      const prediction = spawnSync(
+        "bash",
+        [path.join(repo.dir, "scripts", "release", "next-version.sh"), "demo"],
+        { cwd: repo.dir, encoding: "utf8", env: stubEnv },
+      );
+      const parity = spawnSync(
+        "bash",
+        [path.join(repo.dir, "scripts", "release", "verify-cliff-parity.sh")],
+        { cwd: repo.dir, encoding: "utf8", env: stubEnv },
+      );
+
+      expect(prediction.status).not.toBe(0);
+      expect(parity.status).toBe(1);
+      expect(parity.stdout).toContain(
+        "FAIL  git-cliff could not derive a version",
+      );
+    } finally {
+      rmSync(failingBin, { recursive: true, force: true });
+    }
   });
 });
 

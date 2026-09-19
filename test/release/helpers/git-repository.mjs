@@ -1,4 +1,4 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import {
   copyFileSync,
   mkdirSync,
@@ -16,6 +16,7 @@ const repoRoot = path.resolve(
 );
 const libShPath = path.join(repoRoot, "scripts", "release", "lib.sh");
 const cliffTomlPath = path.join(repoRoot, "cliff.toml");
+const releaseScriptsDir = path.join(repoRoot, "scripts", "release");
 const gitEnv = {
   ...process.env,
   GIT_CONFIG_GLOBAL: "/dev/null",
@@ -199,6 +200,60 @@ export function createScratchReleaseRepository(options = {}) {
     }
   }
 
+  /**
+   * Copy the real release entry-point scripts into the scratch repo, so a
+   * test can run them as processes against fixture history. The scripts
+   * `cd` to their own repository root, so the copies operate on the scratch
+   * repo rather than the real checkout.
+   *
+   * @param {...string} names file names under scripts/release/
+   */
+  function copyReleaseScripts(...names) {
+    mkdirSync(path.join(dir, "scripts", "release"), { recursive: true });
+    for (const name of names) {
+      copyFileSync(
+        path.join(releaseScriptsDir, name),
+        path.join(dir, "scripts", "release", name),
+      );
+    }
+  }
+
+  /**
+   * Write a minimal package manifest so `require_package` and the parity
+   * tag-versus-manifest check accept the fixture package.
+   *
+   * @param {string} name package directory name
+   * @param {string} version manifest version
+   */
+  function writeManifest(name, version) {
+    const manifestPath = path.join(dir, "packages", name, "package.json");
+    mkdirSync(path.dirname(manifestPath), { recursive: true });
+    writeFileSync(
+      manifestPath,
+      `${JSON.stringify({ name: `@fixture/${name}`, version }, null, 2)}\n`,
+    );
+  }
+
+  /**
+   * Run a script from the scratch repo's own copy as a real process.
+   *
+   * @param {string} name file name under scripts/release/
+   * @param {...string} args script arguments
+   * @returns {{ status: number, stdout: string, stderr: string }}
+   */
+  function runReleaseScript(name, ...args) {
+    const result = spawnSync(
+      "bash",
+      [path.join(dir, "scripts", "release", name), ...args],
+      { cwd: dir, encoding: "utf8", env: gitEnv },
+    );
+    return {
+      status: result.status ?? 1,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
+  }
+
   return {
     dir,
     pkg,
@@ -210,6 +265,9 @@ export function createScratchReleaseRepository(options = {}) {
     mergeNewUpstream,
     bumpedVersion,
     renderReleaseSection,
+    copyReleaseScripts,
+    writeManifest,
+    runReleaseScript,
     dispose() {
       rmSync(dir, { recursive: true, force: true });
     },

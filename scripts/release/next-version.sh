@@ -42,11 +42,10 @@ if [ -z "$current" ]; then
   exit 1
 fi
 
-cliff_args "$pkg"
-
-# git-cliff prints the *current* version, plus a "nothing to bump" warning on
-# stderr, when no releasable commit has landed since the last tag.
-next=$(bumped_version "$current")
+# The shared decision entry: scopes cliff_args itself, then derives the next
+# tag. git-cliff prints the *current* version, plus a "nothing to bump"
+# warning on stderr, when no releasable commit has landed since the last tag.
+next=$(next_tag "$pkg" "$current")
 
 if [ -z "$next" ]; then
   echo "Error: git-cliff produced no version for '$pkg'." >&2

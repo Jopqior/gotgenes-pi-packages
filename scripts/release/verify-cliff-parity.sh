@@ -11,8 +11,13 @@
 # Read-only and offline. Requires tags to be present locally.
 #
 # Usage:
-#   git fetch --tags
+#   git fetch origin
 #   ./scripts/release/verify-cliff-parity.sh
+#
+# Fetch `origin` plainly, never `--tags`: a bare `git fetch --tags` resolves
+# against the default remote and can override `remote.upstream.tagOpt`,
+# importing upstream's colliding `pi-subagents-v*` tags into this fork's tag
+# namespace. The fork's own tags arrive through a normal `git fetch origin`.
 
 set -euo pipefail
 
@@ -59,8 +64,7 @@ while IFS= read -r pkg; do
     fi
   fi
 
-  cliff_args "$pkg"
-  if ! next=$(bumped_version "$tag"); then
+  if ! next=$(next_tag "$pkg" "$tag"); then
     printf '%-28s FAIL  git-cliff could not derive a version\n' "$pkg"
     failures=$((failures + 1))
     continue

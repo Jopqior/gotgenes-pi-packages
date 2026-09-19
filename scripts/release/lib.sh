@@ -109,6 +109,20 @@ bumped_version() { # <tag>
   git-cliff "${CLIFF_ARGS[@]}" --bumped-version "$(git rev-parse "$1")..HEAD" 2>/dev/null
 }
 
+# Print the next release tag for package $1 given its current release tag $2,
+# or the current tag itself when nothing is releasable. This is the single
+# decision entry for tag prediction: every caller that asks "what would this
+# package release?" — next-version.sh, verify-cliff-parity.sh — goes through
+# here, so package-specific policy (path scoping today, core sync derivation
+# later) has one home instead of a per-script sequence to keep in step.
+#
+# A nonzero status means the question could not be answered; callers must not
+# treat it as "nothing to release".
+next_tag() { # <package> <current-tag>
+  cliff_args "$1"
+  bumped_version "$2"
+}
+
 # Print the version recorded in package $1's package.json.
 package_json_version() {
   jq -r '.version' "packages/$1/package.json"
