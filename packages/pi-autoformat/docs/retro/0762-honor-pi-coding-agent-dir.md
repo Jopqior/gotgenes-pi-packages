@@ -55,6 +55,21 @@ Landed the plan's two steps unchanged: one `fix:` commit (the narrowed `config-l
 - Pre-completion reviewer: **PASS**.
   One WARN under evidence provenance: the plan cited 8 `loadAutoformatConfig(` and 4 `getGlobalConfigPath(` call sites in `test/config-loader.test.ts`; the real counts are 7 and 5.
   The numbers came from the Tidy-First assessor's report and were not re-derived at planning time — the conclusion ("every call site already passes both scopes, so zero churn") held and was confirmed by the untouched file, but the figures were wrong.
-  Corrected in `b90ecd11`.
+  Corrected in the "docs: correct the config-loader.test.ts call-site counts in the #762 plan" commit.
+
+## Stage: Sync (worktree) (2026-09-19T05:46:07Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both pass from the worktree root with no fixes needed.
+The branch carries five commits beyond the plan's parent: the `fix:` ("honor PI_CODING_AGENT_DIR when loading the global config"), the `docs:` naming the variable in `README.md`/`docs/configuration.md`/the package skill, a `docs:` correcting a call-site count the pre-completion reviewer WARNed on, and the planning/TDD retro-note commits.
+The plan's marker line is `**Release:** ship independently` — no batch, no deferred sibling.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-762--/2026-09-19T04-03-01-774Z_01a0b7d4-f40e-7448-a760-94f02a18ef37.jsonl` — read with `read_session_file({ path: "..." })` for message-level verification at land/retro time.
+
+### Observations
+
+No deferred work beyond what the plan's Open Questions already name (an absence-warning for the global config, and whether `src/index.ts` should stop re-exporting the two loader symbols) — both explicitly left unfiled in the plan itself.
+Nothing else for the root session to pick up before rebasing.
 
 [#732]: https://github.com/gotgenes/pi-packages/issues/732
