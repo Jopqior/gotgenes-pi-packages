@@ -1304,8 +1304,13 @@ So `grep -r "sk-ant-…" .` and `deploy --token abc123` are both logged unredact
 The extension deliberately does not try to guess which parts of a command look secret-shaped — see [ADR 0010] for the measured reasoning.
 A command the parser could not fully resolve is masked only as far as the parse reached.
 A secret inside a **heredoc body** (`cat > .env <<'EOF'` / `API_KEY=…` / `EOF`) is not masked at all: a heredoc body is literal data rather than shell, and re-parsing one as shell is how the log's own Python and TypeScript heredocs come to read as assignments — measured at six false positives and no true ones, so [ADR 0010] declines it.
-An **inline-shell payload** (`bash -c '…'`, `sh -c "…"`, `eval '…'`) *is* masked, because the package already knows that argument is shell.
+An **inline-shell payload** (`bash -c '…'`, `sh -c "…"`, `eval '…'`) *is* masked, because the package already knows that argument is shell — including one reached through a wrapper (`sudo bash -c '…'`, `xargs -I{} sh -c '…'`).
 An interpreter's payload (`python3 -c '…'`) is not, for the same reason a heredoc body is not.
+Where a payload is stitched together across quote boundaries (`bash -c 'TOKEN='"$SECRET"`), the whole argument is replaced rather than just the value, because no single offset maps the value back onto the command:
+
+```text
+bash -c 'TOKEN='"$SECRET"               →  bash -c [redacted]
+```
 
 Every value the **review** log writes is narrowed to `reviewLogFieldMaxWidth` (1000 characters by default) and marked with an ellipsis, so a single pathological command cannot put tens of kilobytes in one entry.
 This is a length bound, not redaction: it never inspects a value to decide what to hide, and it applies to every field alike.

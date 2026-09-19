@@ -18,7 +18,13 @@ One is now closed and the other is **accepted rather than tracked**, which is th
 `command-redaction.ts` re-parses an **inline-shell payload** — the argument `classifyWrapperWords` already identifies as `"opaque-payload"`: `eval`'s first argument, and the argument after a `-c` short-flag cluster for `bash`/`sh`/`dash`/`zsh`/`ksh`.
 The payload's verbatim inner slice is parsed on its own and the recovered spans are shifted by the slice's start index, bounded at four nested layers.
 Because the slice excludes the payload's quotes, no span can reach one, so the masked payload stays quoted as it was written.
+Indirection layers are peeled first, so `sudo bash -c '…'` and `xargs -I{} sh -c '…'` are reached too — `executedUnit` peels them, so a payload query that did not would reintroduce the same inconsistency one wrapper layer up.
 That closes the internal inconsistency the residual named: `bash -c 'TOKEN=sk-secret deploy'` no longer reads masked under `executedUnit` and verbatim under `command` in the same record.
+
+One payload shape is masked **coarsely** rather than precisely.
+A payload whose program is stitched across quote boundaries (`bash -c 'TOKEN='"$SECRET"`, one `concatenation` node) has no constant offset mapping a span in the program back onto the command, so when its program binds a secret the whole argument is replaced rather than the value alone.
+That costs the command text for that argument and is the correct trade against writing the secret; it fires on none of the corpus's commands.
+An `ansi_c_string` payload (`bash -c $'…'`) is precise, since skipping the `$` leaves a single quote pair.
 
 A **heredoc body is declined**, interpolating or not, and the measurement is the argument rather than a preference.
 Measured over 8 056 unique command strings from a 13 MB review log (17 981 records):
