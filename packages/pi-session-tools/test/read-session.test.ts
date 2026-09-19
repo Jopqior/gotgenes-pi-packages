@@ -11,11 +11,24 @@ function plainTheme() {
   };
 }
 
-function makeCtx(entries: unknown[], sessionFile?: string): ExtensionContext {
+/**
+ * `leafId` defaults to the last entry's id, which is what Pi's own
+ * `SessionManager` assigns while indexing a file it just loaded.
+ * Pass one explicitly to model a session whose leaf is not its last entry.
+ */
+function makeCtx(
+  entries: unknown[],
+  sessionFile?: string,
+  leafId?: string | null,
+): ExtensionContext {
   return {
     sessionManager: {
       getEntries: () => entries,
       getSessionFile: () => sessionFile,
+      getLeafId: () =>
+        leafId !== undefined
+          ? leafId
+          : ((entries.at(-1) as { id?: string } | undefined)?.id ?? null),
     },
   } as unknown as ExtensionContext;
 }
