@@ -290,20 +290,12 @@ describe("ConfigStore", () => {
       expect(mockNotify).toHaveBeenCalledTimes(2);
     });
 
-    it("calls syncPermissionSystemStatus when hasUI is true", () => {
+    // The status bar is a UI side effect of the *session*, not of loading
+    // config: `PermissionSession.refreshConfig` owns it (#933). A load that
+    // syncs is a load coupled to a ctx it does not need.
+    it("does not sync the status bar, whatever the ctx reports", () => {
       const { store } = makeStore();
-      const ctx = makeCtx({ hasUI: true });
-      store.refresh(ctx, true);
-      expect(mockSyncPermissionSystemStatus).toHaveBeenCalledWith(
-        ctx,
-        expect.any(Object),
-      );
-    });
-
-    it("does not call syncPermissionSystemStatus when hasUI is false", () => {
-      const { store } = makeStore();
-      const ctx = makeCtx({ hasUI: false });
-      store.refresh(ctx, true);
+      store.refresh(makeCtx({ hasUI: true }), true);
       expect(mockSyncPermissionSystemStatus).not.toHaveBeenCalled();
     });
 

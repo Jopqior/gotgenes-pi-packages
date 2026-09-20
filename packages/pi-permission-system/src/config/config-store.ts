@@ -94,10 +94,13 @@ export class ConfigStore implements SessionConfigStore, CommandConfigStore {
   /**
    * Reload merged config from disk.
    *
-   * If `ctx` is provided, uses it to derive the cwd and sync UI status.
+   * If `ctx` is provided, uses it to derive the cwd.
    * When `projectTrusted` is `false`, the project scope is withheld so an
    * untrusted repository's runtime config (`yoloMode`, `permissionReviewLog`,
    * …) cannot loosen the operator's global config (#644).
+   *
+   * The status bar is synced by `PermissionSession.refreshConfig`, which owns
+   * the context this load does not need (#933).
    */
   refresh(ctx: ExtensionContext | undefined, projectTrusted: boolean): void {
     const cwd = ctx?.cwd ?? null;
@@ -109,10 +112,6 @@ export class ConfigStore implements SessionConfigStore, CommandConfigStore {
     );
     const runtimeConfig = normalizePermissionSystemConfig(mergeResult.merged);
     this.config = runtimeConfig;
-
-    if (ctx?.hasUI) {
-      syncPermissionSystemStatus(ctx, runtimeConfig);
-    }
 
     const warning =
       mergeResult.issues.length > 0 ? mergeResult.issues.join("\n") : undefined;
