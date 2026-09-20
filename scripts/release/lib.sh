@@ -109,6 +109,16 @@ bumped_version() { # <tag>
   git-cliff "${CLIFF_ARGS[@]}" --bumped-version "$(git rev-parse "$1")..HEAD" 2>/dev/null
 }
 
+# Print the absolute path of the core release policy CLI, resolved next to
+# this file so a scratch repository's own script layout cannot shadow the
+# implementation a caller intended. Both the prediction entry and release
+# preparation resolve it here, so there is one spelling of the path.
+core_sync_cli() {
+  local dir
+  dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  printf '%s/core-sync.mjs\n' "$dir"
+}
+
 # Print the next release tag for package $1 given its current release tag $2,
 # or the current tag itself when nothing is releasable. This is the single
 # decision entry for tag prediction: every caller that asks "what would this
@@ -122,8 +132,7 @@ bumped_version() { # <tag>
 # releases, not the independent fork version. The policy lives in
 # scripts/release/core-sync.mjs; it receives the scoping arguments verbatim
 # (the same CLIFF_ARGS array this entry built) so there is exactly one
-# representation of the package's path scope, and it is resolved relative to
-# this file so a scratch repository cannot shadow the implementation.
+# representation of the package's path scope.
 #
 # A nonzero status means the question could not be answered — missing or
 # inconsistent evidence — and callers must not treat it as "nothing to
@@ -131,9 +140,8 @@ bumped_version() { # <tag>
 next_tag() { # <package> <current-tag>
   cliff_args "$1"
   if [ "$1" = "pi-subagents" ]; then
-    local core_sync_cli core_next
-    core_sync_cli="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/core-sync.mjs"
-    if ! core_next=$(node "$core_sync_cli" --repo "$PWD" --current "$2" -- "${CLIFF_ARGS[@]}"); then
+    local core_next
+    if ! core_next=$(node "$(core_sync_cli)" --repo "$PWD" --current "$2" -- "${CLIFF_ARGS[@]}"); then
       return 1
     fi
     # The core CLI prints nothing when no level was decided; normalize to the

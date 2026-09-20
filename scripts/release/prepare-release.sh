@@ -99,6 +99,13 @@ insert_release_section() {
 pkgs=()
 tags=()
 
+# The core release's verified upstream correspondence, resolved in the
+# preflight below and consumed by phase 2 to persist the release record.
+# Empty until pi-subagents is named and its evidence checks out.
+core_upstream_version=""
+core_upstream_commit=""
+core_upstream_tip=""
+
 for pkg in ${PACKAGES//,/ }; do
   require_package "$pkg"
 
@@ -113,6 +120,26 @@ for pkg in ${PACKAGES//,/ }; do
   if git rev-parse "$tag" >/dev/null 2>&1; then
     echo "Error: tag $tag already exists." >&2
     exit 1
+  fi
+
+  if [ "$pkg" = "pi-subagents" ]; then
+    # Resolve and validate the core correspondence here, in the preflight, so
+    # a blocked core fails before any sibling manifest, changelog, tag, or
+    # state write. The decision must agree with the tag the shared entry
+    # predicted: prediction and preparation consume one policy, and two
+    # answers from it cannot both be right.
+    cliff_args "$pkg"
+    if ! core_decision=$(node "$(core_sync_cli)" --repo "$PWD" --current "$(latest_tag "$pkg")" --json -- "${CLIFF_ARGS[@]}"); then
+      exit 1
+    fi
+    core_next=$(printf '%s\n' "$core_decision" | jq -r '.nextTag // ""')
+    if [ "$core_next" != "$tag" ]; then
+      echo "Error: core release decision '${core_next}' disagrees with the predicted tag '${tag}'." >&2
+      exit 1
+    fi
+    core_upstream_version=$(printf '%s\n' "$core_decision" | jq -r '.upstream.version')
+    core_upstream_commit=$(printf '%s\n' "$core_decision" | jq -r '.upstream.commit')
+    core_upstream_tip=$(printf '%s\n' "$core_decision" | jq -r '.upstreamTip')
   fi
 
   pkgs+=("$pkg")
@@ -159,6 +186,24 @@ while [ "$i" -lt ${#pkgs[@]} ]; do
   rm -f "$section"
 
   git add "packages/$pkg/package.json" "packages/$pkg/CHANGELOG.md"
+
+  if [ "$pkg" = "pi-subagents" ]; then
+    # Append the release's verified correspondence in the same commit as the
+    # artifacts. The next release window anchors at this tag and the upstream
+    # release it actually incorporated, recorded as evidence rather than
+    # inferred from the manifest; the strict reader rejects a malformed
+    # append on the next prediction.
+    state_file=scripts/release/core-sync-state.json
+    tmp=$(mktemp)
+    jq --arg forkTag "$tag" \
+      --arg version "$core_upstream_version" \
+      --arg commit "$core_upstream_commit" \
+      --arg tip "$core_upstream_tip" \
+      '.releases += [{ forkTag: $forkTag, upstream: { version: $version, commit: $commit }, upstreamTip: $tip }]' \
+      "$state_file" > "$tmp" && mv "$tmp" "$state_file"
+    git add "$state_file"
+  fi
+
   subjects+=("$pkg $version")
   i=$((i + 1))
 done

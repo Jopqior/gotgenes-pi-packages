@@ -43,6 +43,9 @@ export function createScratchReleaseRepository(options = {}) {
   const dir = mkdtempSync(path.join(tmpdir(), "release-repo-"));
   copyFileSync(cliffTomlPath, path.join(dir, "cliff.toml"));
 
+  /** @type {string | null} path of the bare `origin` created by `addLocalOrigin` */
+  let localOriginPath = null;
+
   /**
    * Run a git command inside the scratch repo.
    *
@@ -219,6 +222,35 @@ export function createScratchReleaseRepository(options = {}) {
   }
 
   /**
+   * Point `origin` at a disposable bare repository beside the scratch repo,
+   * so scripts that push (prepare-release.sh) exercise a real push against a
+   * real remote-ref store without any network or real remote receiving it.
+   *
+   * @returns {string} path of the bare origin
+   */
+  function addLocalOrigin() {
+    const bare = `${dir}-origin.git`;
+    execFileSync("git", ["init", "--bare", bare], { env: gitEnv });
+    git("remote", "add", "origin", bare);
+    localOriginPath = bare;
+    return bare;
+  }
+
+  /**
+   * Write a package changelog with the given body, so splice-based release
+   * scripts find a pre-existing file shaped like production's instead of
+   * generating a first-release changelog from scratch.
+   *
+   * @param {string} name package directory name
+   * @param {string} content changelog body
+   */
+  function writeChangelog(name, content) {
+    const changelogPath = path.join(dir, "packages", name, "CHANGELOG.md");
+    mkdirSync(path.dirname(changelogPath), { recursive: true });
+    writeFileSync(changelogPath, content);
+  }
+
+  /**
    * Write a minimal package manifest so `require_package` and the parity
    * tag-versus-manifest check accept the fixture package.
    *
@@ -232,6 +264,30 @@ export function createScratchReleaseRepository(options = {}) {
       manifestPath,
       `${JSON.stringify({ name: `@fixture/${name}`, version }, null, 2)}\n`,
     );
+  }
+
+  /**
+   * Run a script from the scratch repo's own copy as a real process, with
+   * extra environment variables layered over the fixture's git environment —
+   * the way the release workflow supplies PACKAGES and CI to
+   * prepare-release.sh.
+   *
+   * @param {Record<string, string>} extraEnv
+   * @param {string} name file name under scripts/release/
+   * @param {...string} args script arguments
+   * @returns {{ status: number, stdout: string, stderr: string }}
+   */
+  function runReleaseScriptEnv(extraEnv, name, ...args) {
+    const result = spawnSync(
+      "bash",
+      [path.join(dir, "scripts", "release", name), ...args],
+      { cwd: dir, encoding: "utf8", env: { ...gitEnv, ...extraEnv } },
+    );
+    return {
+      status: result.status ?? 1,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    };
   }
 
   /**
@@ -290,11 +346,17 @@ export function createScratchReleaseRepository(options = {}) {
     bumpedVersion,
     renderReleaseSection,
     copyReleaseScripts,
+    addLocalOrigin,
     writeManifest,
+    writeChangelog,
     runReleaseScript,
+    runReleaseScriptEnv,
     cliffArgs,
     dispose() {
       rmSync(dir, { recursive: true, force: true });
+      if (localOriginPath !== null) {
+        rmSync(localOriginPath, { recursive: true, force: true });
+      }
     },
   };
 }
