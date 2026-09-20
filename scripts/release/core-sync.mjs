@@ -199,6 +199,22 @@ export function decideCoreRelease(input) {
       return { sync, upstreamParent, forkParent };
     });
 
+  // The window's sync chain must be continuous on the upstream side: each
+  // incorporated line descends from everything incorporated before it. The
+  // first must descend from the release record's upstream tip; each later
+  // one from the previous sync's upstream parent — the recorder's
+  // previousTip rule, enforced again at read time.
+  let previousTip = release.upstreamTip;
+  for (const { sync, upstreamParent } of windowSyncs) {
+    requireAncestor(
+      repo,
+      previousTip,
+      upstreamParent,
+      `sync ${sync.merge}'s upstream parent does not descend from the previously incorporated tip`,
+    );
+    previousTip = upstreamParent;
+  }
+
   // Every recorded sync must have incorporated a *released* upstream state:
   // no in-scope core commit — source, test, shipped doc, or metadata, of any
   // commit type — may sit between the recorded release and the incorporated

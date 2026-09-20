@@ -658,6 +658,99 @@ describe("shared entry point", () => {
   });
 });
 
+describe("sync chain continuity", () => {
+  /**
+   * Hand-record a sync whose upstream line branches from `base` and closes
+   * with a release-bump manifest commit claiming `version`. The line shares
+   * the manifest with main, so the merge genuinely conflicts and the
+   * resolution keeps the incorporated release's claim — a real two-parent
+   * merge, not a synthetic pointer.
+   *
+   * @param {string} base git revision the upstream line branches from
+   * @param {string} version the recorded upstream version
+   * @returns {{ merge: string, upstreamParent: string }}
+   */
+  function recordDivergentSync(base, version) {
+    const branch = uniqueUpstreamBranch();
+    repo.git("checkout", "-b", branch, base);
+    repo.commitInScope(
+      `feat(pi-subagents): divergent upstream ${version}`,
+      `packages/pi-subagents/divergent-${version}.txt`,
+    );
+    repo.writeManifest("pi-subagents", version);
+    repo.git("add", "packages/pi-subagents/package.json");
+    repo.git("commit", "-m", `chore(pi-subagents): release ${version}`);
+    const upstreamParent = repo.gitOut("rev-parse", "HEAD");
+    repo.git("checkout", "main");
+    const mergeResult = spawnSync(
+      "git",
+      ["merge", "--no-ff", "-m", "chore: merge upstream/main", branch],
+      { cwd: repo.dir, encoding: "utf8" },
+    );
+    expect(mergeResult.status).not.toBe(0);
+    repo.writeManifest("pi-subagents", version);
+    repo.git("add", "-A");
+    repo.git("commit", "-m", "chore: merge upstream/main");
+    const merge = repo.gitOut("rev-parse", "HEAD");
+    recordedSyncs.push({
+      merge,
+      upstream: { version, commit: upstreamParent },
+      forkCore: {
+        level: "none",
+        rationale: "upstream-only integration; no fork core resolution",
+        paths: [],
+      },
+    });
+    return { merge, upstreamParent };
+  }
+
+  it("still derives a patch over recorder-written continuous state", () => {
+    // Sequential syncs branch from post-merge main, so each upstream parent
+    // descends from the previous one — the recorder's own previousTip rule.
+    syncUpstream({ version: "21.7.1" });
+    syncUpstream({ version: "21.7.2" });
+    writeCoreSyncState();
+
+    expect(decide()).toMatchObject({
+      nextTag: "pi-subagents-v1.0.1",
+      upstreamLevel: "patch",
+    });
+  });
+
+  it("blocks a window whose first sync does not descend from the release record's upstream tip", () => {
+    // The upstream line branches from the pre-baseline initial commit, so
+    // the incorporated parent never contains the recorded baseline tip.
+    // Manifest correspondence, containment, and tails all hold; only the
+    // ancestry chain is broken.
+    const initial = repo.gitOut("rev-parse", "pi-subagents-v0.9.0");
+    recordDivergentSync(initial, "21.7.1");
+    writeCoreSyncState();
+
+    const error = errorOf(() => decide());
+
+    expect(error.message).toMatch(
+      /does not descend from the previously incorporated tip/,
+    );
+  });
+
+  it("blocks a window whose later sync does not descend from the previous sync's upstream parent", () => {
+    // The second upstream line branches from the first sync's fork parent,
+    // so the two upstream lines diverged before either incorporated the
+    // other — merge-base(U1, U2) is the fork parent, not U1 — while the
+    // versions stay monotone.
+    const { merge } = syncUpstream({ version: "21.7.1" });
+    const forkParent = repo.gitOut("rev-parse", `${merge}^1`);
+    recordDivergentSync(forkParent, "21.7.2");
+    writeCoreSyncState();
+
+    const error = errorOf(() => decide());
+
+    expect(error.message).toMatch(
+      /does not descend from the previously incorporated tip/,
+    );
+  });
+});
+
 describe("offline prediction", () => {
   /**
    * Re-run the patch derivation with a `git` wrapper on PATH that refuses
