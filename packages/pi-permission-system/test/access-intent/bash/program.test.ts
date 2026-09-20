@@ -2253,4 +2253,67 @@ describe("BashProgram", () => {
       ]);
     });
   });
+
+  describe("an interpreter's inline script (#863)", () => {
+    const cwd = "/projects/my-app";
+    const normalizer = new PathNormalizer(
+      pathFlavorForPlatform(process.platform),
+      cwd,
+    );
+
+    /** The issue's reported command, abbreviated but structurally intact. */
+    const reportedCommand = [
+      'node -e "',
+      "// check which packages are installed",
+      "const fs = require('fs');",
+      "for (const pkg of ['pkg-a','pkg-b']) {",
+      "  try { console.log(pkg, require.resolve(pkg + '/package.json')); } catch { console.log(pkg, '(not installed)'); }",
+      "}",
+      '"',
+    ].join("\n");
+
+    beforeEach(() => {
+      realpathSync.mockReset();
+      realpathSync.mockImplementation((p: string) => p);
+    });
+
+    it("raises no external access for the reported command", async () => {
+      const program = await BashProgram.parse(reportedCommand, normalizer);
+      expect(program.externalAccesses()).toEqual([]);
+    });
+
+    it("offers no rule candidate for the reported command", async () => {
+      // The issue reports only the external_directory ask, but the same token
+      // reached the broader `path` surface too, because it contains `/`.
+      const program = await BashProgram.parse(reportedCommand, normalizer);
+      expect(program.pathRuleCandidates()).toEqual([]);
+    });
+
+    it("still enumerates the invocation for the bash surface", async () => {
+      // The command enumerator is a separate walker; `bash:` rules govern the
+      // interpreter invocation exactly as before.
+      const program = await BashProgram.parse('node -e "// x"', normalizer);
+      expect(program.commands()).toEqual([{ text: 'node -e "// x"' }]);
+    });
+
+    it("still projects a script-hosted command's operand", async () => {
+      const program = await BashProgram.parse(
+        'node -e "$(cat /etc/shadow)"',
+        normalizer,
+      );
+      expect(
+        program.externalAccesses().map(({ path }) => path.value()),
+      ).toEqual(["/etc/shadow"]);
+    });
+
+    it("still flags a script file's operand outside the tree", async () => {
+      const program = await BashProgram.parse(
+        "node build.js /etc/passwd",
+        normalizer,
+      );
+      expect(
+        program.externalAccesses().map(({ path }) => path.value()),
+      ).toEqual(["/etc/passwd"]);
+    });
+  });
 });

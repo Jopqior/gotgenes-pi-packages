@@ -132,6 +132,18 @@ describe("collectCommandTokens — pattern-first commands", () => {
     }
   }
 
+  /** Tokens of a whole snippet, for the surfaces that sit outside the command. */
+  async function pathTokensOf(cmd: string): Promise<string[]> {
+    const parser = await getParser();
+    const tree = parser.parse(cmd);
+    if (!tree) throw new Error("parse returned null");
+    try {
+      return pathCandidateTokens(tree.rootNode);
+    } finally {
+      tree.delete();
+    }
+  }
+
   it("sed: skips the first positional (inline pattern) and collects the rest", async () => {
     const { node, tree } = await parseCommandNode("sed 's/x/y/' a.txt b.txt");
     try {
@@ -368,6 +380,122 @@ describe("collectCommandTokens — pattern-first commands", () => {
         "/etc/shadow",
         "$(cat /etc/shadow)",
       ]);
+    });
+  });
+
+  describe("an interpreter's inline script (#863)", () => {
+    // `node -e "<script>"` hands the walker a program text in a flag's argument
+    // slot. With the interpreter absent from PATTERN_FIRST_COMMANDS the generic
+    // walker emitted it as a token, and a script opening with a `//` comment
+    // then passed the classifier's leading-`/` branch.
+    describe("a flag-supplied script contributes no token", () => {
+      it.each([
+        // The issue's own repro. tree-sitter-bash concatenates a double-quoted
+        // string's per-line children, so the newlines are gone by collection.
+        [
+          "node -e \"\n// check which packages are installed\nconst fs = require('fs');\n\"",
+        ],
+        ['node -e "// x"'],
+        ['node --eval "// x"'],
+        ["node --eval=//x"],
+        ["node -p '1+1'"],
+        ["node --print '1+1'"],
+        ['bun -e "// x"'],
+        ["bun --eval '1+1'"],
+        ["bun -p '1+1'"],
+        ["bun --print '1+1'"],
+        ['python3 -c "# c\nprint(1)"'],
+        ["python -c '# c'"],
+        ["perl -e '// x'"],
+        ["perl -E 'say 1'"],
+        ["ruby -e '# x'"],
+      ])("%s yields no token", async (command) => {
+        expect(await tokensOf(command)).toEqual([]);
+      });
+    });
+
+    describe("a script file stays an operand", () => {
+      // Zero pattern positionals is what separates an interpreter from `grep`:
+      // nothing leads with an inline script, so no positional is skipped.
+      it.each([
+        ["node build.js /tmp/x", ["build.js", "/tmp/x"]],
+        ["python3 script.py /tmp/x", ["script.py", "/tmp/x"]],
+        ["ruby task.rb /tmp/x", ["task.rb", "/tmp/x"]],
+      ])("%s yields both operands", async (command, expected) => {
+        expect(await tokensOf(command)).toEqual(expected);
+      });
+    });
+
+    describe("a flag the table does not name still over-surfaces", () => {
+      // ADR 0009's recoverable direction: an unlisted flag's value becomes a
+      // token that names nothing and the existence probe discards, which is
+      // strictly better than claiming an arity the binary does not have.
+      it("reads ruby -E as the encoding flag it is, not a script flag", async () => {
+        expect(await tokensOf("ruby -E utf-8 -e 'code'")).toEqual(["utf-8"]);
+      });
+
+      it("splits an unrecognized long option's embedded value", async () => {
+        expect(await tokensOf('node --input-type=module -e "// x"')).toEqual([
+          "module",
+        ]);
+      });
+    });
+
+    describe("spellings the change does not reach", () => {
+      // Pinned as current behavior, not as intent. When the issue named in each
+      // comment closes, the assertion below fails and points at it.
+      it("still projects a quoted --flag='script' value (#957)", async () => {
+        // A quoted value makes the argument a `concatenation`, which never
+        // reaches the flag branch's `child.type === "word"` guard, so the
+        // blind `--opt=value` split hands the script back.
+        expect(await tokensOf("node --eval='// x'")).toEqual([
+          "--eval=// x",
+          "// x",
+        ]);
+      });
+
+      it("still projects a script behind a clustered flag", async () => {
+        // `classifyPatternCommandFlag` reads `text.slice(0, 2)`, so `-pe` is
+        // looked up as `-p` — unlisted for perl, and listing it would
+        // over-list. Recorded as an ADR 0009 residual.
+        expect(await tokensOf("perl -pe 's|a|b|' f.txt")).toEqual([
+          "s|a|b|",
+          "f.txt",
+        ]);
+      });
+    });
+
+    describe("the surfaces around the script are untouched", () => {
+      it("still collects a redirect destination", async () => {
+        expect(await pathTokensOf('node -e "x" > /tmp/out.txt')).toEqual([
+          "/tmp/out.txt",
+        ]);
+      });
+
+      it("still projects the operands of a script-hosted execution", async () => {
+        expect(await tokensOf('node -e "$(cat /etc/shadow)"')).toEqual([
+          "/etc/shadow",
+        ]);
+      });
+
+      it("leaves a script-hosted execution's operand with its own attribution", async () => {
+        // The interpreter rows move `node` from the generic walker to the
+        // pattern-first one, so #945's attribution invariant has to be re-read
+        // through the walker that now runs.
+        const { node, tree } = await parseCommandNode(
+          'node -e "$(cat /etc/shadow)"',
+        );
+        try {
+          expect(collectCommandTokens(node)).toEqual([
+            {
+              token: "/etc/shadow",
+              effect: { effect: "read", source: "core" },
+            },
+          ]);
+        } finally {
+          tree.delete();
+        }
+      });
     });
   });
 
