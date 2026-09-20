@@ -1229,6 +1229,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   It is real roadmap work — the fix consumes the `TokenEffect` this phase's spine is about — but it is a *consumer* of that proof rather than part of the role loss, which is the same posture [#952] carries.
   It is also blocked: widening the bypass to `bash` widens the `deny` override in [#955] to a surface that can compose a read into a pipeline.
   Distinct from [#800], which asked for read-only relief across *any* external directory and closed on the `external_directory_read` rule; this is the narrower case where the package has already declared the path needs no prompt and only one surface honors it.
+- [#963] — filed by an operator session (2026-09-20); **becomes a new step in this phase, after [#924]** (operator decision).
+  A wrapper that only changes *how* the same visible command runs (`time`, `timeout`, `nice`, `stdbuf`, `setsid`) is floored with the wrappers that change *what* runs, so `time pnpm run lint` asks where `pnpm run lint` resolves by its own rules — a deterministic false-positive ask in the phase's direction, though its mechanism is ADR 0013 §11's floor rather than a lost token role.
+  It owns `wrapper-analysis.ts`, which no other step touches, and it sequences before [#880] so that step's "does not lift the floor" constraint is written against the amended §11.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by [#880] (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1385,6 +1388,25 @@ It prompts under the very `external_directory_read: {"*": "allow"}` recipe [#800
 
 Release: independent
 
+#### [#963] An execution-modifier wrapper inherits the inner command's verdict
+
+**Cause:** `INDIRECTION_WRAPPER_NAMES` conflates two classes [#490] floored uniformly — wrappers that change *what* runs, *as whom*, or *with which operands* (`sudo`, `doas`, `env`, `xargs`, `parallel`, `rush`, `rust-parallel`, `find -exec`, `fd -x`, `watch`) and wrappers that change only *how* the same visible command runs (`time`, `timeout`, `nice`, `stdbuf`, `setsid`).
+The floor's reason — a wrapper hides the command that should be gated — is false for the second class whatever the inner command's effect: every operand is on the command line, and the wrapper adds no privilege, environment, or argument feed.
+ADR 0013 §11 keys transparency on the *inner command* (a pure-reader-core head word), so `time pnpm run lint` asks under `<indirection-bash-wrapper>` while `pnpm run lint` resolves by its own rules; `resolveWrapperUnit` already computes the inherited verdict when `floorExemption` holds, so only the admission bar is missing.
+
+- **Smell:** Category C (an exemption the gate already implements is admitted by one proof — argument-independence — when a second, per-wrapper proof would license it just as soundly).
+- **Target:** `src/access-intent/bash/wrapper-analysis.ts` — the second class split out of `INDIRECTION_WRAPPER_NAMES`, and `isTransparentWrapper` admitting a unit whose outermost wrapper is in it whenever `unwrapIndirection` peels cleanly (no opaque payload, `layers ≥ 1`); `test/access-intent/bash/wrapper-analysis.test.ts` and the `bash-command.ts` gate tests; ADR 0013 §11 gains the wrapper-keyed clause; the `wrapper-analysis.ts` entry here and the `<indirection-bash-wrapper>` paragraph in `docs/configuration.md` follow.
+- **Constraint:** package-audited per wrapper, never user-declared — the clause does not widen what [#880] keeps outside the floor.
+  A nested first-class wrapper (`time sudo …`) stops the peel at `sudo`, which keeps its floor.
+  `/usr/bin/time`'s `-o`/`--output`/`-a`/`--append` write a file, so their presence refuses the exemption; `nohup` (a tty-conditional `nohup.out`) and `flock` (creates its lock-file operand) stay floored.
+  The `writesViaRedirect` refusal exists because §11's exemption *classifies* the unit as read; this clause inherits the inner verdict instead, and the plan verifies that redirect analysis on a wrapper unit is independent of the floor before dropping it for this class.
+  The metamorphic pin (`time ${cmd}` never loosens the verdict) keeps holding, since the unit's verdict becomes exactly the unwrapped command's.
+- **Outcome:** `time pnpm run lint >/tmp/lintout.txt 2>&1` resolves as `pnpm run lint` does, redirect gated by the path surfaces as for the unwrapped command; `time sudo rm -rf x` and `timeout 5 bash -c '…'` still floor.
+- **Commit type:** `feat:`.
+- **Impact 3 / Risk 2 / Priority 12.**
+
+Release: independent
+
 #### [#880] `commandEffects` — the user declares what their own tools do
 
 **Cause:** ADR 0013 §7 gives the deterministic layer three effect sources and the package ships two; without the third, every subcommand- or option-dependent reader (`git log`, `sed -n`, `strings`) is unproven, consults both directional surfaces, and asks on `_write` for a read — the largest measured population left after the core (`git` 92 and `sed` 24 of 388 recent asks, the latter net of the read-only share [#924] moves into the core — what remains for a declaration is `sed -i` and the scripts the parser cannot classify).
@@ -1444,7 +1466,8 @@ flowchart TD
     S863 -.-> S609["#609<br/>Redirect destinations by role"]
     S859["#859<br/>.. as a whole segment"] -.-> S957["#957<br/>A quoted --flag=value is still a flag"]
     S957 -.-> S609
-    S924["#924<br/>sed/awk presumed readers"] -.-> S880["#880<br/>commandEffects"]
+    S924["#924<br/>sed/awk presumed readers"] -.-> S963["#963<br/>Execution-modifier wrappers inherit the verdict"]
+    S963 -.-> S880["#880<br/>commandEffects"]
     S880 --> S881["#881<br/>Blame reaches the ask"]
     S609 -.-> S881
     S881 -.-> S882["#882<br/>May a link dismiss a nonexistent-path ask?"]
@@ -1454,6 +1477,7 @@ The section order under `### Steps` is the order they are meant to land, and the
 The diagram is laid out by dependency instead, so its shape and the working sequence answer different questions.
 [#945], [#863], [#859], and [#957] are one-file fixes in `token-collection.ts` and `token-classification.ts`; landing them before [#609] keeps the role thread's diff about the role, and [#609]'s `TokenRole` then has a `script` value to absorb [#863]'s table entries into if the plan chooses.
 [#924] and [#880] both edit `command-effects.ts`, so they sequence rather than parallelize — [#924] first, because core relief needs no configuration from the user and narrows the population a declaration has to cover.
+[#963] sits between them: it owns `wrapper-analysis.ts` alone and amends ADR 0013 §11, which [#880]'s "does not lift the floor" constraint cites, so landing it first lets [#880] be written against the final clause.
 [#881] stamps the deciding token's provenance onto the payload from the same `worstEntry` [#609] gives a role, so landing [#609] first means [#881] reads one shape rather than two.
 [#881] hard-depends on [#880] only for its teaching sentence, which names the config key.
 [#882]'s deliberation can start any time; only its code half, if any, waits on [#881]'s request-core vehicle.
@@ -1462,8 +1486,8 @@ The diagram is laid out by dependency instead, so its shape and the working sequ
 
 - **Track A — role-carrying projection:** [#945] → [#863] → [#859] → [#957] → [#609].
   Owns `src/access-intent/bash/token-collection.ts`, `token-classification.ts`, `bash-path-resolver.ts`, and the bash-path tests.
-- **Track B — proven and declared effects, and blame:** [#924] → [#880] → [#881].
-  [#924] owns `command-effects.ts` and the pure-reader core section of `docs/configuration.md`; [#880] owns `src/config/` and re-enters `command-effects.ts`; [#881] owns `src/presentation/` and the two bash path gates.
+- **Track B — proven and declared effects, and blame:** [#924] → [#963] → [#880] → [#881].
+  [#924] owns `command-effects.ts` and the pure-reader core section of `docs/configuration.md`; [#963] owns `wrapper-analysis.ts` and ADR 0013 §11; [#880] owns `src/config/` and re-enters `command-effects.ts`; [#881] owns `src/presentation/` and the two bash path gates.
   [#881] touches `bash-path.ts` / `bash-external-directory.ts`, which Track A's [#609] also edits — sequence [#881] after [#609], not concurrently.
 - **Track C — the judgment lane:** [#882], a deliberation first; its code half touches `authority/delegation-envelope.ts`, `authority/permission-forwarding.ts`, and the payload core [#881] owns, so it lands after [#881].
 
@@ -1611,4 +1635,6 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#956]: https://github.com/gotgenes/pi-packages/issues/956
 [#959]: https://github.com/gotgenes/pi-packages/pull/959
 [#962]: https://github.com/gotgenes/pi-packages/issues/962
+[#963]: https://github.com/gotgenes/pi-packages/issues/963
+[#490]: https://github.com/gotgenes/pi-packages/issues/490
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
