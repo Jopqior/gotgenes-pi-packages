@@ -14,7 +14,8 @@
 //     its second parent must be contained in the just-fetched upstream/main.
 //   - The selected upstream release is the highest *stable* release whose
 //     peeled commit is contained in that upstream parent — not the newest
-//     advertised tag — and its manifest must agree with the tag version.
+//     advertised tag — and its manifest must agree with the tag version
+//     (verified with the shared evidence check the offline decision uses).
 //   - The upstream parent must descend from the previously incorporated
 //     upstream tip, and no in-scope core commits may follow the selected
 //     release (unreleased source, tests, shipped docs, or metadata block
@@ -28,16 +29,18 @@
 // idempotent, and conflicting evidence is an error. The operator commits the
 // state update before the next release prediction.
 
-import { execFileSync, spawnSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { isCoreScopePath } from "./core-sync.mjs";
 import {
-  CORE_PACKAGE,
-  CORE_TAG_PREFIX,
-  readCoreSyncState,
-} from "./core-sync-state.mjs";
+  changedCoreFiles,
+  coreCommitsBetween,
+  isAncestorOf,
+  runGit,
+  verifyUpstreamReleaseManifest,
+} from "./core-sync-evidence.mjs";
+import { CORE_TAG_PREFIX, readCoreSyncState } from "./core-sync-state.mjs";
 import {
   CoreSyncError,
   compareVersions,
@@ -47,62 +50,15 @@ import {
 
 /**
  * @param {string} repo
- * @param {...string} args
- * @returns {string}
- */
-function git(repo, ...args) {
-  try {
-    return execFileSync("git", args, {
-      cwd: repo,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-    }).trim();
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new CoreSyncError(`git ${args.join(" ")} failed: ${detail}`);
-  }
-}
-
-/**
- * @param {string} repo
- * @param {...string} args
- * @returns {boolean} whether git exited 0
- */
-function gitSucceeds(repo, ...args) {
-  const result = spawnGit(repo, args);
-  return result.status === 0;
-}
-
-/**
- * @param {string} repo
- * @param {string[]} args
- */
-function spawnGit(repo, args) {
-  const result = spawnSync("git", args, {
-    cwd: repo,
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  return { status: result.status ?? 1, stdout: String(result.stdout ?? "") };
-}
-
-/**
- * @param {string} repo
- * @param {string} ancestor
- * @param {string} descendant
- * @returns {boolean}
- */
-function isAncestor(repo, ancestor, descendant) {
-  return gitSucceeds(repo, "merge-base", "--is-ancestor", ancestor, descendant);
-}
-
-/**
- * @param {string} repo
  * @param {string} oid
  * @returns {boolean}
  */
 function commitExists(repo, oid) {
-  return gitSucceeds(repo, "cat-file", "-e", `${oid}^{commit}`);
+  const result = spawnSync("git", ["cat-file", "-e", `${oid}^{commit}`], {
+    cwd: repo,
+    encoding: "utf8",
+  });
+  return result.status === 0;
 }
 
 /**
@@ -114,7 +70,7 @@ function commitExists(repo, oid) {
  * @returns {Map<string, string>} version → peeled commit OID
  */
 function lsRemoteStableReleases(repo) {
-  const listing = git(
+  const listing = runGit(
     repo,
     "ls-remote",
     "--tags",
@@ -164,62 +120,6 @@ function lsRemoteStableReleases(repo) {
 }
 
 /**
- * Core-scope commits in `from..to`, from real history.
- *
- * @param {string} repo
- * @param {string} from
- * @param {string} to
- * @returns {string[]} commit OIDs touching core scope
- */
-function coreCommitsBetween(repo, from, to) {
-  const output = git(
-    repo,
-    "log",
-    "--format=%H",
-    "--name-only",
-    `${from}..${to}`,
-    "--",
-    `packages/${CORE_PACKAGE}/`,
-  );
-  /** @type {string[]} */
-  const commits = [];
-  let current = null;
-  let currentTouchesCore = false;
-  const flush = () => {
-    if (current !== null && currentTouchesCore) {
-      commits.push(current);
-    }
-  };
-  for (const line of output.split("\n")) {
-    if (/^[0-9a-f]{40}$/.test(line)) {
-      flush();
-      current = line;
-      currentTouchesCore = false;
-    } else if (line && current !== null) {
-      if (isCoreScopePath(line)) {
-        currentTouchesCore = true;
-      }
-    }
-  }
-  flush();
-  return commits;
-}
-
-/**
- * Core-scope files changed between two revisions.
- *
- * @param {string} repo
- * @param {string} from
- * @param {string} to
- * @returns {string[]}
- */
-function changedCoreFiles(repo, from, to) {
-  return git(repo, "diff", "--name-only", from, to)
-    .split("\n")
-    .filter((file) => file && isCoreScopePath(file));
-}
-
-/**
  * @param {string} repo
  */
 function recordSync(repo, options) {
@@ -238,13 +138,13 @@ function recordSync(repo, options) {
 
   let merge;
   try {
-    merge = git(repo, "rev-parse", "--verify", `${options.merge}^{commit}`);
+    merge = runGit(repo, "rev-parse", "--verify", `${options.merge}^{commit}`);
   } catch {
     throw new CoreSyncError(
       `cannot resolve merge '${options.merge}' in ${repo}`,
     );
   }
-  const parents = git(repo, "rev-list", "--parents", "-n", "1", merge)
+  const parents = runGit(repo, "rev-list", "--parents", "-n", "1", merge)
     .split(/\s+/)
     .slice(1);
   if (parents.length !== 2) {
@@ -252,13 +152,13 @@ function recordSync(repo, options) {
       `merge ${merge} has ${parents.length} parents; a core sync is a genuine two-parent merge`,
     );
   }
-  if (!isAncestor(repo, merge, "HEAD")) {
+  if (!isAncestorOf(repo, merge, "HEAD")) {
     throw new CoreSyncError(
       `merge ${merge} is not an ancestor of HEAD; complete and commit the merge before recording it`,
     );
   }
   const [forkParent, upstreamParent] = parents;
-  if (!isAncestor(repo, upstreamParent, "upstream/main")) {
+  if (!isAncestorOf(repo, upstreamParent, "upstream/main")) {
     throw new CoreSyncError(
       `merge ${merge}'s upstream parent ${upstreamParent} is not contained in upstream/main`,
     );
@@ -270,7 +170,7 @@ function recordSync(repo, options) {
   /** @type {{ version: string, commit: string } | null} */
   let selected = null;
   for (const [version, oid] of candidates) {
-    if (!commitExists(repo, oid) || !isAncestor(repo, oid, upstreamParent)) {
+    if (!commitExists(repo, oid) || !isAncestorOf(repo, oid, upstreamParent)) {
       continue;
     }
     if (!selected || compareVersions(version, selected.version) > 0) {
@@ -284,40 +184,16 @@ function recordSync(repo, options) {
     );
   }
 
-  let manifest;
-  try {
-    manifest = git(
-      repo,
-      "show",
-      `${selected.commit}:packages/${CORE_PACKAGE}/package.json`,
-    );
-  } catch {
-    throw new CoreSyncError(
-      `upstream release ${selected.version} (${selected.commit}) has no packages/${CORE_PACKAGE}/package.json`,
-    );
-  }
-  let manifestVersion;
-  try {
-    manifestVersion = JSON.parse(manifest).version;
-  } catch {
-    throw new CoreSyncError(
-      `upstream release ${selected.version} (${selected.commit}) has a malformed core manifest`,
-    );
-  }
-  if (manifestVersion !== selected.version) {
-    throw new CoreSyncError(
-      `upstream release tag ${selected.version} points at a manifest claiming ${JSON.stringify(manifestVersion)}`,
-    );
-  }
+  verifyUpstreamReleaseManifest(repo, selected);
 
   // The merged upstream history must descend from everything already
   // incorporated: the last release's tip, or the last recorded sync's.
   let previousTip = state.releases[state.releases.length - 1].upstreamTip;
   if (state.syncs.length > 0) {
     const lastSync = state.syncs[state.syncs.length - 1];
-    previousTip = git(repo, "rev-parse", `${lastSync.merge}^2`);
+    previousTip = runGit(repo, "rev-parse", `${lastSync.merge}^2`);
   }
-  if (!isAncestor(repo, previousTip, upstreamParent)) {
+  if (!isAncestorOf(repo, previousTip, upstreamParent)) {
     throw new CoreSyncError(
       `merge ${merge}'s upstream history does not descend from the previously incorporated tip ${previousTip}`,
     );

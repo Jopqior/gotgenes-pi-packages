@@ -27,9 +27,11 @@
 // query the upstream remote) is `record-core-sync.mjs`'s job, invoked through
 // `scripts/upstream-sync.sh`.
 //
-// The value algebra and error contract live in `core-sync-values.mjs`, the
-// state schema and reader in `core-sync-state.mjs`; this module owns the
-// decision itself, the local-Git evidence checks, and the git-cliff adapter.
+// Module ownership: the value algebra and shared error live in
+// `core-sync-values.mjs`, the state schema and reader in
+// `core-sync-state.mjs`, local-Git evidence checks in
+// `core-sync-evidence.mjs`, and the git-cliff adapter in
+// `core-sync-cliff.mjs`. This module owns the decision and the CLI.
 //
 // Library use: tests and `prepare-release.sh` import the exported functions.
 // CLI use (what `next_tag` in lib.sh runs):
@@ -41,157 +43,28 @@
 // empty stdout and exit status 0 when nothing is releasable. Any evidence
 // failure prints `error: <diagnostic>` to stderr and exits nonzero.
 
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { forkLevelFromWindow } from "./core-sync-cliff.mjs";
 import {
-  CORE_PACKAGE,
-  CORE_TAG_PREFIX,
-  readCoreSyncState,
-} from "./core-sync-state.mjs";
+  isCoreScopePath,
+  requireAncestor,
+  requireCommitObject,
+  runGit,
+} from "./core-sync-evidence.mjs";
+import { CORE_TAG_PREFIX, readCoreSyncState } from "./core-sync-state.mjs";
 import {
   CoreSyncError,
   combineLevels,
   compareVersions,
   incrementVersion,
   levelFromVersions,
-  parseStrictSemVer,
 } from "./core-sync-values.mjs";
 
 /** @typedef {import("./core-sync-state.mjs").CoreSyncRecord} CoreSyncRecord */
 /** @typedef {import("./core-sync-state.mjs").UpstreamRelease} UpstreamRelease */
-/** @typedef {{ currentTag: string, nextTag: string | null, upstream: UpstreamRelease, upstreamTip: string, upstreamLevel: import("./core-sync-values.mjs").ReleaseLevel, forkLevel: import("./core-sync-values.mjs").ReleaseLevel }} CoreReleaseDecision */
-
-/**
- * Run `git` inside `repo` and return its stripped stdout.
- *
- * @param {string} repo repository path
- * @param {...string} args
- * @returns {string}
- */
-export function runGit(repo, ...args) {
-  try {
-    return execFileSync("git", args, {
-      cwd: repo,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-    }).trim();
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    const stderr =
-      typeof error === "object" && error !== null && "stderr" in error
-        ? String(/** @type {{ stderr?: unknown }} */ (error).stderr).trim()
-        : "";
-    throw new CoreSyncError(
-      `git ${args.join(" ")} failed in ${repo}: ${stderr || detail}`,
-    );
-  }
-}
-
-/**
- * @param {string} repo
- * @param {string} oid
- */
-function requireCommitObject(repo, oid) {
-  try {
-    execFileSync("git", ["cat-file", "-e", `${oid}^{commit}`], {
-      cwd: repo,
-      encoding: "utf8",
-      stdio: ["ignore", "ignore", "pipe"],
-    });
-  } catch {
-    throw new CoreSyncError(
-      `object ${oid} is missing or not a commit in ${repo}. ` +
-        "If this is a shallow or partial clone, fetch history through the normal sync flow (scripts/upstream-sync.sh) — never an ad-hoc tag fetch.",
-    );
-  }
-}
-
-/**
- * @param {string} repo
- * @param {string} ancestor
- * @param {string} descendant
- * @returns {boolean}
- */
-function isAncestorOf(repo, ancestor, descendant) {
-  try {
-    execFileSync("git", ["merge-base", "--is-ancestor", ancestor, descendant], {
-      cwd: repo,
-      encoding: "utf8",
-      stdio: ["ignore", "ignore", "pipe"],
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * @param {string} repo
- * @param {string} ancestor
- * @param {string} descendant
- * @param {string} what
- */
-function requireAncestor(repo, ancestor, descendant, what) {
-  if (!isAncestorOf(repo, ancestor, descendant)) {
-    throw new CoreSyncError(
-      `${what}: ${ancestor} is not an ancestor of ${descendant}`,
-    );
-  }
-}
-
-/**
- * Whether a repository path is inside the core package's release scope.
- * Mirrors `cliff_args` scoping: internal working docs and the package's own
- * changelog are excluded, everything else under `packages/pi-subagents/`
- * counts — including tests, shipped docs, and metadata, which must never be
- * waved through as "just docs".
- *
- * @param {string} file a repository-relative path
- * @returns {boolean}
- */
-export function isCoreScopePath(file) {
-  const prefix = `packages/${CORE_PACKAGE}/`;
-  if (!file.startsWith(prefix)) {
-    return false;
-  }
-  if (file === `packages/${CORE_PACKAGE}/CHANGELOG.md`) {
-    return false;
-  }
-  const relative = file.slice(prefix.length);
-  return !["plans", "retro", "architecture", "decisions", "assets"].some(
-    (sub) => relative === `docs/${sub}` || relative.startsWith(`docs/${sub}/`),
-  );
-}
-
-/**
- * Run `git-cliff` with the forwarded scoping arguments and return its stdout.
- *
- * @param {string} repo
- * @param {string[]} cliffArgs
- * @param {...string} extra
- * @returns {string}
- */
-function runGitCliff(repo, cliffArgs, ...extra) {
-  try {
-    return execFileSync("git-cliff", [...cliffArgs, ...extra], {
-      cwd: repo,
-      encoding: "utf8",
-      maxBuffer: 64 * 1024 * 1024,
-    });
-  } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    const stderr =
-      typeof error === "object" && error !== null && "stderr" in error
-        ? String(/** @type {{ stderr?: unknown }} */ (error).stderr).trim()
-        : "";
-    throw new CoreSyncError(
-      `git-cliff ${extra.join(" ")} failed: ${stderr || detail}`,
-    );
-  }
-}
+/** @typedef {import("./core-sync-values.mjs").ReleaseLevel} ReleaseLevel */
+/** @typedef {{ currentTag: string, nextTag: string | null, upstream: UpstreamRelease, upstreamTip: string, upstreamLevel: ReleaseLevel, forkLevel: ReleaseLevel }} CoreReleaseDecision */
 
 /**
  * Derive the next core release tag from verified evidence.
@@ -319,8 +192,7 @@ export function decideCoreRelease(input) {
 
   // One comparison across the whole window: baseline versus the final
   // verified target. Deferred intermediate releases never sum.
-  let upstreamLevel =
-    /** @type {import("./core-sync-values.mjs").ReleaseLevel} */ ("none");
+  let upstreamLevel = /** @type {ReleaseLevel} */ ("none");
   let upstreamTarget = release.upstream;
   let upstreamTip = release.upstreamTip;
   let previousVersion = release.upstream.version;
@@ -356,109 +228,15 @@ export function decideCoreRelease(input) {
     }
   }
 
-  let forkLevel = /** @type {import("./core-sync-values.mjs").ReleaseLevel} */ (
-    "none"
-  );
   const currentVersion = input.currentTag.slice(CORE_TAG_PREFIX.length);
-  const contextExport = runGitCliff(
+  const forkLevel = forkLevelFromWindow({
     repo,
-    input.cliffArgs,
-    "--context",
-    `${peeled}..HEAD`,
-  );
-  /** @type {unknown} */
-  let contextJson;
-  try {
-    contextJson = JSON.parse(contextExport);
-  } catch (error) {
-    throw new CoreSyncError(
-      `git-cliff context for ${input.currentTag}..HEAD is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-  if (!Array.isArray(contextJson) || contextJson.length === 0) {
-    // An empty window: no commits at all since the release.
-    forkLevel = "none";
-  } else {
-    /** @type {{ version: unknown, commits: unknown[] }[]} */
-    const entries = [];
-    for (const [index, entry] of contextJson.entries()) {
-      if (typeof entry !== "object" || entry === null) {
-        throw new CoreSyncError(
-          `git-cliff context entry ${index} is not an object`,
-        );
-      }
-      const record = /** @type {Record<string, unknown>} */ (entry);
-      if (record.version !== null && record.version !== undefined) {
-        throw new CoreSyncError(
-          `unexpected release boundary ${JSON.stringify(record.version)} inside the ${input.currentTag}..HEAD window`,
-        );
-      }
-      if (!Array.isArray(record.commits)) {
-        throw new CoreSyncError(
-          `git-cliff context entry ${index} has no commits array`,
-        );
-      }
-      entries.push(record);
-    }
-    const first = /** @type {Record<string, unknown>} */ (contextJson[0]);
-    const previous = first.previous;
-    if (typeof previous !== "object" || previous === null) {
-      throw new CoreSyncError(
-        `git-cliff context for ${input.currentTag}..HEAD is not anchored at a previous release; refusing an unbounded walk`,
-      );
-    }
-    const previousVersionInContext = /** @type {Record<string, unknown>} */ (
-      previous
-    ).version;
-    if (previousVersionInContext !== input.currentTag) {
-      throw new CoreSyncError(
-        `git-cliff context anchored at ${JSON.stringify(previousVersionInContext)} instead of ${input.currentTag}; later tag metadata leaked into the window`,
-      );
-    }
-    const retained = entries.map((entry) => ({
-      ...entry,
-      commits: entry.commits.filter((commit) => {
-        if (typeof commit !== "object" || commit === null) {
-          return false;
-        }
-        const id = /** @type {Record<string, unknown>} */ (commit).id;
-        return typeof id === "string" && !upstreamOwned.has(id);
-      }),
-    }));
-    const contextDir = mkdtempSync(path.join(tmpdir(), "core-sync-context-"));
-    try {
-      const contextFile = path.join(contextDir, "context.json");
-      writeFileSync(contextFile, `${JSON.stringify(retained)}\n`);
-      const forkNextTag = runGitCliff(
-        repo,
-        input.cliffArgs,
-        "--from-context",
-        contextFile,
-        "--bumped-version",
-      ).trim();
-      if (!forkNextTag) {
-        throw new CoreSyncError(
-          "git-cliff produced no version from the filtered core context",
-        );
-      }
-      if (!forkNextTag.startsWith(CORE_TAG_PREFIX)) {
-        throw new CoreSyncError(
-          `git-cliff produced a non-core tag from the filtered context: ${forkNextTag}`,
-        );
-      }
-      const forkNextVersion = forkNextTag.slice(CORE_TAG_PREFIX.length);
-      if (!parseStrictSemVer(forkNextVersion)) {
-        throw new CoreSyncError(
-          `git-cliff produced a non-SemVer version from the filtered context: ${forkNextTag}`,
-        );
-      }
-      if (compareVersions(forkNextVersion, currentVersion) > 0) {
-        forkLevel = levelFromVersions(currentVersion, forkNextVersion);
-      }
-    } finally {
-      rmSync(contextDir, { recursive: true, force: true });
-    }
-  }
+    cliffArgs: input.cliffArgs,
+    range: `${peeled}..HEAD`,
+    currentTag: input.currentTag,
+    currentVersion,
+    upstreamOwned,
+  });
 
   const forkContribution = combineLevels(
     forkLevel,
