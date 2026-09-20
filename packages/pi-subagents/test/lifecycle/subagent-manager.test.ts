@@ -2033,6 +2033,43 @@ describe("SubagentManager — spawn selection threading", () => {
       expect(factory).not.toHaveBeenCalled();
     });
 
+    it("cancels an admitted late-registered selection after a no-provider acknowledgement", async () => {
+      const scope = new SpawnSelectionScope();
+      const firstGate = Promise.withResolvers<SubagentSession>();
+      const factory = vi.fn((_params: CreateSubagentSessionParams) => firstGate.promise);
+      const { manager } = createManager({
+        createSubagentSession: factory,
+        getMaxConcurrent: () => 1,
+        selectionScope: scope,
+      });
+      bgSpawn(manager, "first");
+      const secondId = bgSpawn(manager, "second");
+      const record = manager.getRecord(secondId);
+      if (!record) throw new Error("Expected the queued record");
+      await expect(manager.waitForSpawnSelection(secondId)).resolves.toEqual({ kind: "not-required" });
+
+      const entered = Promise.withResolvers<undefined>();
+      const answer = Promise.withResolvers<SpawnSelection | undefined>();
+      const select = vi.fn(() => {
+        entered.resolve(undefined);
+        return answer.promise;
+      });
+      scope.register({ select });
+      firstGate.resolve(toSubagentSession(createSubagentSessionStub()));
+      await entered.promise;
+      expect(record.awaitingSelection).toBe(true);
+
+      await manager.dispose();
+      await record.promise;
+      expect(record.status).toBe("stopped");
+      expect(record.awaitingSelection).toBe(false);
+      await expect(record.waitForSpawnSelection()).resolves.toEqual({ kind: "not-required" });
+      answer.resolve({ model: catalogueModels[0], thinkingLevel: "off" });
+      await answer.promise;
+      expect(record.selectedPair).toBeUndefined();
+      expect(factory).toHaveBeenCalledTimes(1);
+    });
+
     it("settles a queued record's selection when the manager is disposed", async () => {
       const select = vi.fn().mockResolvedValue({
         model: catalogueModels[0],

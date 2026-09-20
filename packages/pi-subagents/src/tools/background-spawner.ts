@@ -56,8 +56,8 @@ export async function spawnBackground(
 
   // The startup boundary: hold this result through concurrency admission and
   // any required model/thinking selection. The selected pair (if any) is on
-  // the record; workspace preparation and session creation happen after this
-  // returns.
+  // the record; this wait does not depend on workspace preparation or session
+  // creation finishing.
   const selection = await manager.waitForSpawnSelection(id, signal);
   const record = manager.getRecord(id);
 

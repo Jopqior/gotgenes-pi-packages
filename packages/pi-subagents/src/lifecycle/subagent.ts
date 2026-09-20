@@ -699,11 +699,12 @@ export class Subagent {
 
 	/**
 	 * Manager teardown: stop an unfinished initial startup so its wait settles
-	 * before the record loses reachability. A no-op once selection settled or
-	 * none was required — confirmed children keep the existing disposal path.
+	 * before the record loses reachability. A provider registered after a
+	 * no-provider acknowledgement can still open a selection gate at admission.
+	 * Confirmed children keep the existing disposal path.
 	 */
 	cancelInitialSelection(): boolean {
-		if (this.selectionSettled || !this.isSpawnSelectionRequired()) return false;
+		if (!this.awaitingSelection && (this.selectionSettled || !this.isSpawnSelectionRequired())) return false;
 		this.stopForStartupCancellation();
 		return true;
 	}
