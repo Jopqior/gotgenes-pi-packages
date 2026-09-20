@@ -223,6 +223,9 @@ The operator additionally authorized coordinated publication of `@jopqior/pi-sub
 A published selector's caret range cannot admit a new core major; its source `workspace:^` dependency acquires the updated range when packed after the core version is assigned.
 Dispatch both packages together, inspect the packed dependency, and publish no other package without further approval.
 
+The coordinated dispatch above is the historical requirement of the [#14] release, when the selector still declared a `workspace:^` core dependency.
+The selector now declares its core compatibility as a peer dependency that is independent of core releases, so a core release alone no longer requires a selector release; the selector README's release policy ([#15]) is the current guidance.
+
 ## Core sync evidence
 
 `@jopqior/pi-subagents` is the core package: its fork versions advance through merges of `upstream/main`, so the repository-wide Conventional Commit classification of an integration merge cannot decide its release level.
@@ -319,3 +322,5 @@ The first data row lands in [#3] as `1.0.0 ← 21.7.0`.
 | 2026-09-19T14:03:45Z | edb35ee28535aac4e12431e47e440f6933911834 | pi-subagents-v21.7.3        | 0408aa5ff9d9811d98df17dde436e7fd45a5a3ad |
 
 [#3]: https://github.com/Jopqior/gotgenes-pi-packages/issues/3
+[#14]: https://github.com/Jopqior/gotgenes-pi-packages/issues/14
+[#15]: https://github.com/Jopqior/gotgenes-pi-packages/issues/15

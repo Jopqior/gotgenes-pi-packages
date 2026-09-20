@@ -62,6 +62,13 @@ Setups that already install and load both packages in that order need no change.
 Selector changes and compatibility-declaration changes each require a selector release.
 A core release alone does not.
 
+### Maintainer verification
+
+`pnpm run verify:core-compatibility` in this package reproduces the packed-compatibility checks behind this policy.
+It packs the real selector, asserts the packed manifest contract, and repacks an isolated workspace copy across a changed sibling core version to show the public peer range is unchanged.
+It installs the tarball into disposable consumers with every published core and the pinned Pi host packages, type-checks the packed source against each core, and exercises the Pi loader matrix, including the negative rows and a labeled synthetic incompatible-service row.
+The command needs network access to npmjs.org, builds every fixture in a temporary directory it removes afterwards, and stays out of the Vitest suite.
+
 ## Behavior
 
 Every **new** run in an enabled root's in-process tree opens one `/model`-style form: model, thinking, and Submit.
