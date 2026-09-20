@@ -360,6 +360,13 @@ function loadedPaths(resultJson) {
   );
 }
 
+// The missing-module diagnostic is observed from the loader, not inferred:
+// resolving the selector's static import reports the complete core package
+// name in quotes. The quoted boundary also keeps the selector's own name,
+// which extends the core name, from matching.
+const MISSING_MODULE_PATTERN =
+  /Cannot find module ['"]@jopqior\/pi-subagents['"]/;
+
 export function assertPositiveLoad(
   resultJson,
   { coreEntry, selectorEntry, label },
@@ -382,11 +389,13 @@ export function assertPositiveLoad(
 }
 
 /**
- * Negative-row shape for the missing-package case: no extension loads and
- * the single collected error names the missing core package. Also applied
- * to a positive result as a control, where it must be rejected.
+ * Negative-row shape for the missing-package case: no extension loads, the
+ * single collected error carries the observed missing-module diagnostic for
+ * the complete core package name, and the error is attributed to the
+ * selector entry. Also applied to a positive result as a control, where it
+ * must be rejected.
  */
-export function assertMissingPackageLoad(resultJson, label) {
+export function assertMissingPackageLoad(resultJson, { selectorEntry, label }) {
   assert.deepEqual(
     [...loadedPaths(resultJson)],
     [],
@@ -397,10 +406,16 @@ export function assertMissingPackageLoad(resultJson, label) {
     1,
     `${label}: exactly one loader error`,
   );
+  const [error] = resultJson.errors;
+  assert.equal(
+    resolve(error.path),
+    resolve(selectorEntry),
+    `${label}: the error must be attributed to the selector entry`,
+  );
   assert.match(
-    resultJson.errors[0].error,
-    /@jopqior\/pi-subagents/,
-    `${label}: the error names the missing core package`,
+    error.error,
+    MISSING_MODULE_PATTERN,
+    `${label}: the error must be the missing-module diagnostic for the complete core package name`,
   );
 }
 
@@ -481,6 +496,7 @@ export async function main() {
 
     // Positive rows: one consumer per published core.
     const positiveResults = new Map();
+    const positiveConsumers = new Map();
     for (const coreVersion of CORE_VERSIONS) {
       const consumer = installConsumer(join(root, `consumer-${coreVersion}`), {
         selectorTarball: realTarball,
@@ -496,6 +512,7 @@ export async function main() {
         label: `positive[${coreVersion}]`,
       });
       positiveResults.set(coreVersion, resultJson);
+      positiveConsumers.set(coreVersion, consumer);
 
       const tsconfigPath = join(consumer.dir, "tsconfig.verify.json");
       writeFileSync(
@@ -535,7 +552,11 @@ export async function main() {
     // resolution, so a green negative row is evidence and not a vacuous pass.
     const controlPositive = positiveResults.get(CORE_VERSIONS[0]);
     assert.throws(
-      () => assertMissingPackageLoad(controlPositive, "control"),
+      () =>
+        assertMissingPackageLoad(controlPositive, {
+          selectorEntry: positiveConsumers.get(CORE_VERSIONS[0]).selectorEntry,
+          label: "control",
+        }),
       `control: the missing-package assertion rejects a core-installed result`,
     );
     console.log("PASS control");
@@ -552,7 +573,10 @@ export async function main() {
     );
     assertMissingPackageLoad(
       runLoaderProbe(missingConsumer, [missingConsumer.selectorEntry]),
-      "missing-package",
+      {
+        selectorEntry: missingConsumer.selectorEntry,
+        label: "missing-package",
+      },
     );
     console.log("PASS missing-package");
 
@@ -563,15 +587,15 @@ export async function main() {
 
     // Core installed but not loaded before the selector: the initialization
     // error identifies the required package and load order.
-    assertConfigurationErrorLoad(
-      runLoaderProbe(negativeConsumer, [negativeConsumer.selectorEntry]),
-      {
-        coreEntry: negativeConsumer.coreEntry,
-        selectorEntry: negativeConsumer.selectorEntry,
-        label: "missing-service",
-        expectCoreLoaded: false,
-      },
-    );
+    const missingServiceResult = runLoaderProbe(negativeConsumer, [
+      negativeConsumer.selectorEntry,
+    ]);
+    assertConfigurationErrorLoad(missingServiceResult, {
+      coreEntry: negativeConsumer.coreEntry,
+      selectorEntry: negativeConsumer.selectorEntry,
+      label: "missing-service",
+      expectCoreLoaded: false,
+    });
     console.log("PASS missing-service");
 
     assertConfigurationErrorLoad(
@@ -604,6 +628,59 @@ export async function main() {
       },
     );
     console.log("PASS synthetic-incompatible-service (synthetic fixture)");
+
+    // Regression controls for the missing-package assertion: a
+    // missing-service configuration error, a selector-name-only diagnostic,
+    // and a wrong error entry must all be rejected.
+    assert.throws(
+      () =>
+        assertMissingPackageLoad(missingServiceResult, {
+          selectorEntry: negativeConsumer.selectorEntry,
+          label: "control-missing-service",
+        }),
+      "control: the missing-service configuration error must not satisfy the missing-package assertion",
+    );
+    console.log("PASS control-missing-service");
+
+    const selectorNameOnly = {
+      errors: [
+        {
+          path: negativeConsumer.selectorEntry,
+          error:
+            "Failed to load extension: Cannot find module '@jopqior/pi-subagents-model-selector'",
+        },
+      ],
+      extensions: [],
+    };
+    assert.throws(
+      () =>
+        assertMissingPackageLoad(selectorNameOnly, {
+          selectorEntry: negativeConsumer.selectorEntry,
+          label: "control-selector-name-only",
+        }),
+      "control: a selector-name-only diagnostic must not satisfy the missing-package assertion",
+    );
+    console.log("PASS control-selector-name-only");
+
+    const wrongEntry = {
+      errors: [
+        {
+          path: negativeConsumer.coreEntry,
+          error:
+            "Failed to load extension: Cannot find module '@jopqior/pi-subagents'",
+        },
+      ],
+      extensions: [],
+    };
+    assert.throws(
+      () =>
+        assertMissingPackageLoad(wrongEntry, {
+          selectorEntry: negativeConsumer.selectorEntry,
+          label: "control-wrong-entry",
+        }),
+      "control: a missing-module diagnostic on the wrong entry must not satisfy the missing-package assertion",
+    );
+    console.log("PASS control-wrong-entry");
 
     console.log(
       `verify-core-compatibility: all rows passed (selector ${selectorVersion})`,
