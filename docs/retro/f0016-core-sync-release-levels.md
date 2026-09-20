@@ -46,3 +46,33 @@ No implementation, upstream synchronization, push, tag rewrite, or publication w
 - `scripts/release/lib.sh`: a general per-package policy registry is speculative while only fork core needs the exception.
 - `scripts/upstream-sync.sh`: optional extraction of tag-display formatting or usage parsing is not needed before adding the recording mode.
 - `docs/upstream-sync.md`: generating historical Markdown tables from state would add a separate documentation mechanism; keep automated state authoritative and verify overlapping historical rows.
+
+## Stage: Implementation — TDD (2026-09-20T05:28:14Z)
+
+### Session summary
+
+Completed all seven planned steps in separate commits, from `test: share release repository fixtures (#16)` through `docs: explain verified upstream core release classification (#16)`.
+Core release prediction now combines verified upstream version advancement with fork-owned changes, completed syncs can record reviewed provenance, and release preparation persists correspondence with its artifacts.
+The root suite increased from 160 to 230 passing tests; package suites, type checks, root lint, and dead-code checks passed, and the independent pre-completion review returned WARN with no blocking findings.
+
+### Observations
+
+- The operator stopped the first implementation agent after step 5; a fresh agent completed steps 6–7 without redoing the committed work.
+  The implementation report in `/tmp/issue16-implementation-report.md` is supplemental session evidence, not a tracked operating contract.
+- The real-history regression isolates both objects and refs, restores only the historical fork baseline, and verifies the counterfactual patch without rewriting published history.
+  The current core and model-selector predictors still report nothing pending.
+- Upstream ownership uses the difference between the sync merge's first and second parents, rather than treating every ancestor of the upstream parent as newly imported.
+  Recorded integrations require the upstream side to be the second parent, matching the sync script's topology and rejecting inverted provenance.
+- The preparation tests exercise actual release commits and tags against disposable local bare remotes, including correspondence read-back, sibling-only isolation, and mixed-selection failure before writes.
+  No actual repository tag, changelog, remote publication, or GitHub state was changed.
+- Mutation deviation: deleting the added core evidence preflight did not kill the blocked mixed-selection case because the existing predictor call independently validates the same evidence.
+  A supplemental mutation that silently discards a failed prediction killed that case; omitting the added preflight instead killed the state-persistence and subsequent-window cases.
+  The parity failure pin similarly needed a success-looking tag, rather than empty output, because empty output already fails parity.
+- Root lint initially exhausted the default Node heap during the baseline.
+  It passed with `NODE_OPTIONS=--max-old-space-size=8192`, also used for final checks and independent review; no repository memory setting was changed.
+- Pre-completion reviewer: WARN.
+  The reviewer noted that the existing `AGENTS.md` predictor summary mentions tag-or-empty output without mentioning nonzero blocked-evidence exits; the releasing skill and sync handbook document those errors.
+  It also could not render the unchanged README Mermaid diagrams because Chromium lacked a usable sandbox; this change edits only README prose.
+- All planned implementation steps are complete; no package architecture or roadmap changes were needed.
+  Next is `/sync-worktree 16` followed by `/ship 16` at the root, subject to the operator's disposition of the review warnings and normal landing checks.
+  No publication is authorized by this repository-tooling change.
