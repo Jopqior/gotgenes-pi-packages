@@ -76,3 +76,37 @@ The root suite increased from 160 to 230 passing tests; package suites, type che
 - All planned implementation steps are complete; no package architecture or roadmap changes were needed.
   Next is `/sync-worktree 16` followed by `/ship 16` at the root, subject to the operator's disposition of the review warnings and normal landing checks.
   No publication is authorized by this repository-tooling change.
+
+## Stage: Quality Revision Planning (2026-09-20T06:28:49Z)
+
+### Session summary
+
+Revised `docs/plans/f0016-core-sync-release-levels.md` for a measured quality revision: four offline evidence-contract violations (loose cliff-context parsing, no offline manifest verification, no offline unreleased-tail check, no offline sync-chain continuity check) documented with probe provenance and measured outputs, a module-ownership design for the fixes, and a new nine-commit revision `## TDD Order`.
+The original seven steps are preserved verbatim under `## Original TDD Order (completed; historical)`; the plan's `## Revision Status` records that shipping is paused and the prior WARN is not a current readiness verdict.
+Only the plan and this retro were edited; no production code, test, package manifest, tag, or CI change was made.
+The parent session reviewed the probe logs and corrected the draft's scratch-copy claim and mutation predictions before preparing the documentation commit.
+The previous next-step guidance (`/sync-worktree 16` then `/ship 16`) is suspended pending operator confirmation of the revision.
+
+### Observations
+
+- The diagnostic probes' provenance is recorded in the plan: real issue-14 objects with scratch-forged state for the manifest probe; synthetic scratch graphs for the cliff-tamper, tail, and discontinuity probes; the cliff tampering is a PATH adapter, not an observed vendor regression; one deterministic trial per case with bracketing controls.
+  Probe viability does not implement or prove the fixes, and unverified review-path semantic checks are recorded as limits, not established defects.
+- The diagnostic draft's HEAD string was malformed and was not copied; the plan's probe provenance uses the object resolved by `git rev-parse` at `docs(retro): add TDD stage notes for issue #16`.
+- The tidy assessment was accepted in full and folded into the revision order: an instance-owned core-sync scenario helper, an independent sync network fixture with the recording tests moved to their own file, production module extraction leaving a thin decision-plus-CLI and a recorder that keeps network and write, a pure schema test against a temporary directory rather than a Git repository, and independent CLI and preparation test files.
+- Module-ownership decisions are documented in the plan rather than left to the implementing session: the pure module is `core-sync-values.mjs` because the algebra throws the shared error class; `CoreSyncError` lives on that leaf; the OID predicate is owned by `state` and consumed by the cliff parser without a duplicated regex; `state` never imports `evidence`; the `cliff_args` helper stays the only scoping authority and `isCoreScopePath` the only Node path predicate.
+- A scratch-copy coupling was verified in source before planning around it: `copyReleaseScripts` copies only named files and the preparation fixture runs scratch copies as processes, so the extraction commit must copy the new transitive `.mjs` modules in the same commit.
+- Killing-mutation phrasing from the draft was corrected: a mutation restores the unsafe behavior and must make the new rejecting tests RED; the plan states this per equivalence class with named failing tests for each fix.
+- Fix B's fixture updates land in the same commit as the fix, with deliberate failure classes preserved by valid fixture construction — a manifest-consistent forged baseline keeps the regression class, and a manifest-consistent substituted commit keeps the containment class — rather than relaxed assertions.
+- Commits in this entry are named by subject, not SHA; the original seven implementation commits are likewise named by subject in the plan's historical order.
+
+#### Deferred tidyings
+
+- Byte-identical incidental child-process diagnostics after adapter sharing: not promised; keep separate adapters until a targeted fix.
+- Preparation-path semantic claims the probes did not measure: not established defects; no scope added.
+- Double-prediction optimization, CI version pins, package changes, state-schema changes, and LOC targets: excluded by the revision's scope note.
+
+A fresh read-only plan review initially returned FAIL for a manual release fixture omitted from the manifest migration, test imports not explicitly migrated with module extraction, and mutations blocked by the new parser before reaching the intended filter.
+The plan now names the manual merge-resolution fixture, moves imports in the extraction commit, and pairs each parser/filter mutation with its input class; delta re-review returned PASS for those corrections.
+This is a plan-review result, not implementation approval or a replacement for the future pre-completion review.
+
+The TDD phase status is pending approval: implementation of the revision `## TDD Order` starts only after the operator confirms it.

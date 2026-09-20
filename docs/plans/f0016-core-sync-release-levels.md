@@ -5,6 +5,15 @@ issue_title: "Derive fork core sync releases from upstream version changes"
 
 # Derive core sync releases from verified upstream versions
 
+## Revision Status
+
+**Status:** quality revision planned; not implemented; ship paused.
+
+Post-implementation probes measured four violations of this plan's stated evidence contract, each a silent acceptance with exit status 0 where the plan promises strict failure; the `## Quality Revision Evidence (2026-09-20)` section records the provenance and measured outputs.
+No production code, test, package manifest, tag, or CI change for the revision has been made; implementation awaits operator confirmation.
+The prior pre-completion WARN predates those measurements and is not a current readiness verdict for `/ship`.
+The seven original steps below are completed history under `## Original TDD Order (completed; historical)`; the `## TDD Order` section near the end of this document is the revision order and the only order a new `/tdd-plan` session should execute.
+
 ## Release Recommendation
 
 **Release:** ship independently
@@ -324,7 +333,10 @@ The existing test files were opened, not inferred from names; their Git/git-clif
 The quantitative safety invariant is byte-identical local tag refs across recording, asserted with names and object IDs before/after, not merely equal tag counts.
 No latency or token-budget improvement is claimed.
 
-## TDD Order
+## Original TDD Order (completed; historical)
+
+All seven steps landed in separate commits on `issue-16-core-sync-release-plan`, from `test: share release repository fixtures (#16)` through `docs: explain verified upstream core release classification (#16)`.
+They are preserved as completed history: the contract gaps measured afterwards are addressed by the revision `## TDD Order` section, and a new `/tdd-plan` session must not re-execute anything here.
 
 1. **Prepare scratch-repository reuse.**
    Move release-suite Git setup and process helpers into an instance-owned fixture, parameterizing the package only where needed.
@@ -379,6 +391,228 @@ No latency or token-budget improvement is claimed.
    Run `pnpm run check`, `pnpm run lint`, `pnpm run test`, and the required pre-completion review before handing off to `/ship`.
    Commit: `docs: explain verified upstream core release classification (#16)`.
 
+## Quality Revision Evidence (2026-09-20)
+
+Diagnostic probes ran after those seven steps completed, against git `2.53.0`, git-cliff `2.14.1`, and Node `v24.20.0`, on the working repository at branch `issue-16-core-sync-release-plan`, resolved HEAD `2b4eee38b0658c67d0ce51294f1c9a3d81fd9032`, clean tree.
+The code under test was the real `scripts/release/core-sync.mjs` (CLI and `decideCoreRelease`) and `scripts/release/record-core-sync.mjs`, each invoked as a real child process.
+Determinism: one trial per case, with fixed inputs (real repository objects or a fixed synthetic graph), pinned tool versions, and a bracketing control around every tampered case; there is no stochastic or cached source, so a repeated trial re-runs byte-identical commands.
+Raw logs are ephemeral session evidence under `/tmp/issue16-probes/logs/` and are deliberately not imported into this document; the measured outputs below are the durable record.
+
+### Provenance
+
+- Probe 2 used real [#14] objects: a `git clone --shared --no-checkout --no-tags` of the working repository checked out at the actual integration merge `0408aa5ff9d9811d98df17dde436e7fd45a5a3ad`, with only the historical baseline tag `pi-subagents-v1.0.2` (`788f64093ce023e12ac491355563004f1610142f`) restored inside the scratch clone.
+  The forged state values were written only into that scratch clone; no ref or file of the working repository changed.
+- Probes 1, 3a, and 3b used synthetic scratch Git graphs under `/tmp`: the repository contains exactly one recorded sync, so no real malformed tail or discontinuous chain exists to reuse.
+- The git-cliff tampering is synthetic, injected through a PATH adapter in the disposable child invocation; the real git-cliff `2.14.1` emitted valid context shapes in every observation made here, so this is not a vendor regression claim.
+  The residual risk of future version drift is exactly what the strict parser below converts into a loud failure.
+- Probe viability is not correctness: the probes establish mechanisms on these inputs; they implement nothing and prove no fix.
+
+### Measured contract violations
+
+The yardstick is this plan's own stated contract; each row was measured false of the implementation as it stands.
+
+| #   | Stated contract                                      | Probe | Measured implementation behavior                                                                                                                                                       | Verdict           |
+| --- | ---------------------------------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| 1   | Strict readers reject inconsistent manifest versions | 2     | Offline reader accepts a sync record claiming `22.0.0` at the `21.7.3` commit and prints `pi-subagents-v2.0.0`, exit 0                                                                 | Disproved         |
+| 2   | Fail closed on unreleased upstream core changes      | 3a    | Only the recorder refuses; the predictor prints `pi-subagents-v1.0.1` with exit 0 under a network-refusing git stub                                                                    | Disproved offline |
+| 3   | Validate each intermediate sync's ancestry           | 3b    | Per-sync containment and monotone versions pass, but a hand-recorded sync on a divergent upstream line is accepted: `pi-subagents-v1.0.1`, exit 0                                      | Disproved offline |
+| 4   | No arbitrary git-cliff context shape is accepted     | 1     | A non-array context collapses to the empty-window branch and malformed commit entries are silently filtered, discarding a retained fork `feat!:` commit: `pi-subagents-v1.0.1`, exit 0 | Disproved         |
+
+### Probe 1 — cliff-context adapter (synthetic tampering)
+
+Scratch graph F records one `21.7.0`→`21.7.1` sync plus a retained `feat(pi-subagents)!: fork break`; the true decision is `pi-subagents-v2.0.0`.
+The clean-PATH control prints `pi-subagents-v2.0.0` with exit 0 (`forkLevel: major` under `--json`), and the untampered `--context` export is a top-level JSON array anchored at `previous.version = pi-subagents-v1.0.0` with full 40-hex commit ids.
+
+| Tamper case   | Delivered context shape                                  | Measured stdout       | Status | Verdict   |
+| ------------- | -------------------------------------------------------- | --------------------- | ------ | --------- |
+| `wrap`        | `{"releases": <real array>}` (non-array top level)       | `pi-subagents-v1.0.1` | 0      | fail-open |
+| `wrap --json` | same shape                                               | `forkLevel: "none"`   | 0      | fail-open |
+| `badid`       | breaking commit `id: 42` (a number)                      | `pi-subagents-v1.0.1` | 0      | fail-open |
+| `noid`        | breaking commit `id` field deleted                       | `pi-subagents-v1.0.1` | 0      | fail-open |
+| `strentry`    | breaking commit replaced by the string `"not-an-object"` | `pi-subagents-v1.0.1` | 0      | fail-open |
+
+The mechanism was read in the current `scripts/release/core-sync.mjs`: `!Array.isArray(contextJson) || contextJson.length === 0` collapses a non-array into the legitimate empty-window case, and the retained-commits filter silently drops entries that are not objects or whose `id` is not a string.
+Every tampered case is the silent-major-loss shape the policy exists to prevent: a retained fork breaking commit discarded, exit 0, lowered tag.
+A neighboring-shape control already fails closed: a stray release boundary inside the window exits 1.
+
+### Probe 2 — offline manifest correspondence (real objects)
+
+| Scratch state change                                   | Measured stdout       | Status | Verdict               |
+| ------------------------------------------------------ | --------------------- | ------ | --------------------- |
+| none (control)                                         | `pi-subagents-v1.0.3` | 0      | correct               |
+| sync record claims `22.0.0` at the `21.7.3` commit     | `pi-subagents-v2.0.0` | 0      | accepted (wrong)      |
+| baseline record claims `21.6.0` at the `21.7.0` commit | `pi-subagents-v1.1.0` | 0      | accepted (wrong)      |
+| baseline record claims `21.9.0` at the `21.7.0` commit | empty stdout          | 1      | rejected (regression) |
+
+The version-regression guard is the only check that fires: any mismatched value that stays monotone is accepted, because the offline path never reads a manifest anywhere while the recorder checks manifests at record time only.
+Fix viability was measured on the same real objects: both manifests claim exactly the recorded versions (`21.7.0` at `b3b6159…`, `21.7.3` at `f918568…`); the in-scope core tail from `f918568…` to the recorded `upstreamTip` `edb35ee…` is empty under the production scope predicate and the recorder's own algorithm; `0408aa5f^2` equals that recorded tip; the release-record tail `b3b6159…0452133…` is core-empty; `0452133…` is an ancestor of `edb35ee…`.
+These observations support applying the proposed manifest, tail, and ancestry checks to the existing correspondence; they do not substitute for executing the revised implementation against both real-history controls.
+A read-only control on the real repository — `core-sync.mjs --repo . --current pi-subagents-v2.0.0` — exits 0 with empty stdout and leaves the worktree clean.
+
+### Probe 3a — unreleased upstream core tail (synthetic graph)
+
+One sync whose upstream parent contains an in-scope core commit after the selected `21.7.1` release, with the upstream side modeled as a disposable local bare remote.
+The recorder refuses with exit 1, `error: unreleased upstream core changes follow 21.7.1: <oid>`, leaving state and tags unchanged.
+The predictor accepts under a network-refusing git PATH stub: `pi-subagents-v1.0.1`, exit 0.
+A stray local upstream tag is rejected by the existing release-boundary guard (control, exit 1).
+
+### Probe 3b — sync ancestry chain discontinuity (synthetic graph)
+
+Two real two-parent merges whose upstream lines diverged before the first — `merge-base(U1, U2)` is the pre-branch marker, not `U1` — while versions stay monotone `21.7.0`→`21.7.1`→`21.7.2`.
+The recorder records the first sync and refuses the second: exit 1, upstream history does not descend from the previously incorporated tip.
+The predictor blocks the second merge while it is unrecorded (fail-closed control, exit 1), but once the discontinuous pair is hand-recorded it accepts: `pi-subagents-v1.0.1`, `upstreamLevel: "patch"`, exit 0.
+The wrong acceptance is reachable only through a state entry the recorder would refuse — a forged, hand-merged, or stale record the offline reader currently trusts.
+
+### Evidence limits
+
+- The cliff tampering is synthetic PATH-adapter mutation; no real git-cliff version is claimed to emit these shapes, and the residual version-drift risk is what the strict parser makes loud.
+- One deterministic trial per case with bracketing controls; no stochastic or cached source was involved.
+- Recorder probes invoke `record-core-sync.mjs` directly against a local bare remote; the sync wrapper's upstream-identity and fetch safeguards, and their tests, were not re-exercised.
+- The discontinuity and unreleased-tail histories are synthetic because the repository contains exactly one recorded sync; no real malformed history exists to reuse.
+- Unverified review-path semantic checks — claims the probes did not measure — are not established defects; this revision records that limit rather than claiming complete evidence validation or adding scope.
+
+## Quality Revision Design
+
+Two lanes landed as separate commits: semantics-preserving extraction first, because it creates the module owners the fixes need; then four small correctness fixes restoring the contract measured broken above; then documentation and full verification.
+Out of scope: package changes, state-schema changes, CI version pins, release-tooling defaults, a general framework, double-prediction optimization, published-tag edits, and LOC targets.
+Every fix adds read-only `git`/`git-cliff` calls over evidence the predictor already loads.
+
+### Module ownership
+
+| Module (scripts/release/)       | Owns                                                                                                                                                                                                                           | Imports                 |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------- |
+| `core-sync-values.mjs` (new)    | Pure algebra: `CoreSyncError`, `isReleaseLevel`, `parseStrictSemVer`, `compareVersions`, `levelFromVersions`, `combineLevels`, `incrementVersion`                                                                              | none (leaf)             |
+| `core-sync-state.mjs` (new)     | The committed evidence document: `CORE_PACKAGE`, `CORE_TAG_PREFIX`, `isFullOid`, `validateCoreSyncState`, `readCoreSyncState`                                                                                                  | values                  |
+| `core-sync-evidence.mjs` (new)  | Local-Git evidence: `runGit`, `requireCommitObject`, `isAncestorOf`, `requireAncestor`, `isCoreScopePath`, plus shared checks `readManifestVersion`, `verifyUpstreamReleaseManifest`, `coreCommitsBetween`, `changedCoreFiles` | values, state           |
+| `core-sync-cliff.mjs` (new)     | The git-cliff contract: `runGitCliff`, context export, strict `parseCliffContext`, upstream-owned filtering, `--from-context` bump                                                                                             | values, state           |
+| `core-sync.mjs` (shrunk)        | Decision orchestration `decideCoreRelease` and the CLI (`main`, argv parsing, `--json`)                                                                                                                                        | all four above          |
+| `record-core-sync.mjs` (edited) | Online recording: `ls-remote` tag resolution, review binding, deterministic writer; drops its duplicated git helpers and inline manifest/tail checks                                                                           | values, state, evidence |
+
+Ownership decisions, made once here so the implementing session does not re-litigate them:
+
+- The pure module is named `core-sync-values.mjs`, not `core-sync-levels.mjs`, because `compareVersions` and `levelFromVersions` throw the shared `CoreSyncError`, so the module owns the version/level value algebra plus the error contract, which `levels` under-describes.
+- `CoreSyncError` lives on that leaf module: every other module already imports the algebra (state validates versions; evidence and cliff throw on process failure; the decision composes all of it), so the leaf owner keeps the import graph acyclic with one moved export.
+  The alternative — the class in `state` — would force the pure algebra to import `state` for the error while `state` imports the algebra for `parseStrictSemVer`, a cycle.
+- The OID predicate is owned by `core-sync-state.mjs` as an exported `isFullOid`, with `requireOid` staying private to state validation; the strict cliff parse consumes the predicate from `state` (`cliff → state`, no reverse edge), so no raw OID regex is duplicated anywhere.
+- The constants `CORE_PACKAGE` and `CORE_TAG_PREFIX` live in `state`; `evidence` imports them for `isCoreScopePath` (`evidence → state`, the allowed edge); `state` never imports `evidence`.
+- Evidence checks return values or throw `CoreSyncError`; none writes into a caller-owned bag.
+  The existing boolean/throwing duality is deliberate and preserved: `isAncestorOf` stays boolean because a missing candidate is a legitimate negative answer for guard-style questions, while `requireCommitObject` and `requireAncestor` throw for required-evidence validation; the split must not collapse one into the other.
+- The recorder keeps its network half (`ls-remote`), review binding, and the deterministic writer, and imports the shared modules.
+  Contract-pinned recorder diagnostics — the messages the sync tests assert, such as the unreleased-tail and continuity refusals — must survive verbatim.
+  Where sharing an adapter would change an unpinned incidental child-process diagnostic, keep the recorder's own adapter until a targeted fix; this revision does not promise byte-identical incidental diagnostics.
+
+### Path authority stays single-sourced
+
+The `cliff_args` helper in `scripts/release/lib.sh` remains the only producer of the scoping argument array, forwarded verbatim after `--`, and `isCoreScopePath` remains the only Node-side core path predicate, mirroring that scoping as its doc comment states.
+Fixes B–D reuse `evidence` helpers backed by `isCoreScopePath` and introduce no new include/exclude list.
+The extraction step asserts this: the new modules contain no `--include-path`/`--exclude-path` literals and no second path predicate; tests keep sourcing the real `lib.sh` for the scoping array (`repo.cliffArgs`) rather than duplicating it; the moved core-scope-path tests keep pinning the mirror relationship.
+
+### Scratch copies move with the modules (verified in source)
+
+The `copyReleaseScripts` helper in `test/release/helpers/git-repository.mjs` copies only the explicitly named files, and `core_sync_cli` in `lib.sh` resolves the CLI relative to the sourced `lib.sh`.
+The preparation fixture `makeReleasableRepository` runs a copied core CLI, so the module-extraction commit must add every new `.mjs` dependency to that `copyReleaseScripts` call in the same commit — otherwise the copied `core-sync.mjs` imports modules the scratch lacks and the preparation tests fail with a module-not-found error.
+The generic `demo` prediction/parity tests also execute copied shell scripts, but do not load the core CLI and do not need those modules.
+The historical fixture sources the real `lib.sh` with the scratch as cwd, so it is unaffected.
+The only current importers of `core-sync.mjs` are `record-core-sync.mjs` and `test/release/core-sync.test.mjs`; `core-sync-history.test.mjs` and `prepare-release.sh` drive the CLI as a process; no re-export barrel is added.
+
+### Test partition
+
+| File                                                    | Class                      | Contents                                                                                                                                   |
+| ------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `test/release/helpers/core-sync-scenario.mjs` (new)     | shared scenario fixture    | The instance-owned core-sync release scenario: baseline history, `syncUpstream`, `writeCoreSyncState`, `decide`, recorded-sync bookkeeping |
+| `test/upstream-sync/helpers/upstream-network.mjs` (new) | shared network fixture     | The local bare-upstream remote wrapper extracted from `merge.test.mjs`, independent of the release suite's fixture                         |
+| `test/upstream-sync/record-core-sync.test.mjs` (new)    | recording (moved)          | The `--record-core-sync` describe moved out of `merge.test.mjs`, assertions unchanged                                                      |
+| `test/release/core-sync-values.test.mjs` (new)          | pure, no Git, no git-cliff | The moved level-mapping and algebra tests                                                                                                  |
+| `test/release/core-sync-state.test.mjs` (new)           | schema, no Git             | The moved state-schema tests; `readCoreSyncState` file cases use a temporary directory, not a Git repository                               |
+| `test/release/core-sync-cliff.test.mjs` (new)           | adapter                    | Context export, strict-parse unit cases on JSON literals, `--from-context` bump, and the synthetic PATH-tamper process cases               |
+| `test/release/core-sync-cli.test.mjs` (new)             | CLI contract               | The moved decision-CLI tests: stdout/stderr/exit status, `--help`, `--json`                                                                |
+| `test/release/core-sync-preparation.test.mjs` (new)     | preparation                | The moved release-preparation describe with its scratch script copies and local-only origin                                                |
+| `test/release/core-sync.test.mjs` (existing)            | decision integration       | Window derivation, evidence failures, shared entry point, offline prediction, plus the new fix reds                                        |
+| `test/release/core-sync-history.test.mjs` (existing)    | real history               | The existing counterfactual control, plus the fix-B red against real objects                                                               |
+
+Do not unify the release scenario fixture with the sync suite's network fixture: they test different boundaries, as the original assessment already recorded.
+
+## TDD Order
+
+This order covers only the quality revision; the completed original order above is history and must not be re-executed.
+Each behavior fix is its own commit with its own Red/Green cycle; a killing mutation restores the unsafe behavior and must turn the new rejecting tests RED — the mutation is then reverted, and a mutation whose red does not return means the probe was hollow.
+The extraction and partition steps are mechanical: no new test claim, no behavior change, existing acceptance preserved throughout, including the currently loose cliff-context parsing until step 5 fixes it.
+
+1. **Extract the core-sync scenario fixture.**
+   Move the `core-sync.test.mjs` scenario machinery — baseline `beforeEach` history, `syncUpstream`, `writeCoreSyncState`, `decide`, and the recorded-sync bookkeeping — into an instance-owned `test/release/helpers/core-sync-scenario.mjs`.
+   Keep every existing test's act and assertion visible and unchanged; the full root suite stays green.
+   Commit: `test: share the core sync release scenario fixture (#16)`.
+
+2. **Extract the sync network fixture and move the recording tests.**
+   Extract the local bare-upstream remote wrapper from `test/upstream-sync/merge.test.mjs` into `test/upstream-sync/helpers/upstream-network.mjs`, and move the `--record-core-sync` describe into `test/upstream-sync/record-core-sync.test.mjs` in the same commit — one logical test partition with no assertion change.
+   The sync suite's status, merge, guard, and fetch-protection tests stay in `merge.test.mjs` and stay green.
+   Commit: `test: split the upstream sync network fixture and recording tests (#16)`.
+
+3. **Split the production modules.**
+   Extract `core-sync-values.mjs`, `core-sync-state.mjs`, `core-sync-evidence.mjs`, and `core-sync-cliff.mjs` from `core-sync.mjs` per the ownership table, shrink `core-sync.mjs` to `decideCoreRelease` plus the CLI, and repoint `record-core-sync.mjs` at the shared modules.
+   Behavior-preserving: every existing test stays green with unchanged expectations, including the recorder's pinned diagnostics and the currently loose context parsing.
+   Redirect every existing test import from `core-sync.mjs` to its new owner in this same commit; do not wait for step 4 to move the describes, and do not add transitional barrel exports.
+   Update the preparation fixture's `copyReleaseScripts` call to copy the new transitive `.mjs` modules in this same commit, per the verified scratch-copy coupling.
+   This step may split into two commits — pure and state first, evidence and cliff second — if that keeps each diff reviewable; the `copyReleaseScripts` update lands with whichever commit first makes `core-sync.mjs` import a sibling module.
+   Verify the import graph is acyclic as documented and that no new path authority appeared (no include/exclude literals, no second path predicate).
+   Commit: `refactor: split core sync modules by ownership (#16)` (or the two-commit split above).
+
+4. **Partition the release tests.**
+   Move the existing describes into the focused files per the test-partition table — pure algebra, schema against a temporary directory rather than a Git repository, cliff adapter, CLI, preparation — leaving decision integration in `core-sync.test.mjs`.
+   Mechanical moves only: no new claims, no relaxed assertions; the full root suite stays green.
+   Commit: `test: partition core sync release tests by concern (#16)`.
+
+5. **Fix A — strict cliff-context shapes.**
+   Red (new, named): unit cases in `core-sync-cliff.test.mjs` — "rejects a non-array top-level context", "rejects a non-object context entry", "rejects a commit that is not an object", "rejects a commit id that is not a string", "rejects a commit id that is not full 40-hex" — plus process cases labeled synthetic — "fails closed when the context top level is not an array (synthetic PATH tamper)", "fails closed when a commit id is malformed (synthetic PATH tamper)", "fails closed when a commit entry is not an object (synthetic PATH tamper)" — each asserting nonzero status, `error:` on stderr, and empty stdout.
+   Separate genuinely new reds from existing invariant pins: the current implementation already rejects a non-object context entry, and already checks the `previous` anchor and release boundaries.
+   Those tests and the empty-array success case must remain green initially; explicitly mutate their existing guards or empty-array handling to establish discrimination rather than claiming new Red evidence.
+   The clean-PATH control "keeps a retained fork breaking commit major" still prints `pi-subagents-v2.0.0` with exit 0.
+   Green: `parseCliffContext` throws `CoreSyncError` on every malformed shape above, reusing `isFullOid` from `state`; filtering then removes only commits whose well-formed id is upstream-owned.
+   Killing mutations must reach the acceptance path, not a downstream branch already protected by the parser: restore the non-array-to-empty normalization (kills the wrap tests); separately remove the parser rejection for a non-object commit or missing/non-string id AND restore its silent filter drop (kills that class's process and parser tests).
+   Separately weaken the full-OID predicate to a string-only check (kills the malformed-string OID unit test; do not claim a process-level downgrade unless the fixture demonstrates one).
+   For existing invariant pins, remove each corresponding context-entry, anchor, or boundary guard in isolation; reject empty arrays to kill their success pin.
+   Restore and rerun between mutations; a test outside the assigned equivalence class need not fail.
+   Tests must state that the tampering is synthetic and that the real git-cliff has not been observed emitting these shapes.
+   Commit: `fix: reject malformed git-cliff context shapes (#16)`.
+
+6. **Fix B — offline manifest correspondence.**
+   Same-commit fixture truth: the scenario fixture's baseline and every `syncUpstream` release commit now carry `packages/pi-subagents/package.json` claiming exactly the recorded version, so synthetic fixtures model the recorder-verified shape the real objects already have.
+   Migrate hand-built recorded releases too: the existing "counts a reviewed breaking merge resolution as fork major" test bypasses `syncUpstream`, so its upstream release commit must write the matching `21.7.1` manifest before recording its OID; retain its major assertion and intended conflict-resolution behavior.
+   Enumerate all direct recorded-sync constructions during this step to avoid leaving another positive fixture with a mismatched inherited manifest.
+   Existing deliberate failure classes stay one-invalid-property each, preserved by valid construction rather than relaxed assertions: the version-regression test forges a manifest-consistent baseline (manifest and record both claim the higher version) so regression remains the only failing property, and the containment test gives its substituted commit a manifest claiming the recorded version so containment remains the only failing property.
+   Valid construction makes each class independent of the order in which the new and old checks run.
+   Red (new, named): in `core-sync-history.test.mjs`, "blocks a recorded upstream version that contradicts the release manifest (real issue-14 objects)" — scratch state claiming `22.0.0` at the `21.7.3` commit must fail closed naming the manifest claim, while the existing control still prints `pi-subagents-v1.0.3`; in `core-sync.test.mjs`, "blocks a sync whose recorded release commit lacks a manifest".
+   Green: `decideCoreRelease` verifies via the shared `verifyUpstreamReleaseManifest` that the current release record and every window sync record's manifest exists and claims exactly the recorded version; the recorder's inline check is replaced by the same function with identical diagnostics so its existing tests stay green.
+   Also pin the baseline independently: "blocks a baseline version that contradicts its upstream manifest" uses the measured `21.6.0` claim at the `21.7.0` commit and expects a manifest diagnostic, not a regression error.
+   Killing mutations, each making its named rejecting tests fail: omit sync manifest validation (kills the sync mismatch and missing-manifest cases); omit baseline validation (kills the baseline mismatch case); weaken equality to manifest existence (kills the mismatched-version cases while the missing-manifest case stays green).
+   Restore and rerun after each mutation; a rejecting test that remains green under the mutation assigned to it is a finding, not success.
+   Commit: `fix: verify upstream release manifests offline (#16)`.
+
+7. **Fix C — offline unreleased-tail check.**
+   Build the custom tail graph from probe 3a: a hand-recorded sync whose upstream parent contains an in-scope commit after the selected release.
+   Red (new, named): "blocks unreleased in-scope core commits after the recorded sync release" (fail closed naming the tail oid) and "blocks unreleased core commits after the current release record's upstream release" (the baseline span), with the control "still derives a patch when the recorded tails are empty" printing `pi-subagents-v1.0.1`.
+   The in-scope tail cases must include a hidden-test path and a shipped-docs path, and an internal-docs-only tail stays allowed — the scope boundary is exercised, not assumed.
+   Green: for each window sync, `coreCommitsBetween(repo, sync.upstream.commit, upstreamParent)` must be empty, and the release record's `upstream.commit → upstreamTip` span gets the same check, both reusing the shared `evidence` helper the recorder already uses.
+   Killing mutation, leaving the new rejecting tests RED: bypass the tail checks (the measured `pi-subagents-v1.0.1` acceptance returns).
+   Measured safety on real evidence: both real spans are core-empty, so the committed state and the historical counterfactual stay green.
+   Commit: `fix: block unreleased upstream core tails offline (#16)`.
+
+8. **Fix D — offline sync-chain continuity.**
+   Build the branched graph from probe 3b: two monotone-version syncs on divergent upstream lines, the second hand-recorded.
+   Red (new, named): "blocks a window whose first sync does not descend from the release record's upstream tip" and "blocks a window whose later sync does not descend from the previous sync's upstream parent", with the control "still derives a patch over recorder-written continuous state".
+   Green: walking window syncs in ancestry order, each sync's upstream parent must descend from the previous sync's upstream parent, and the first must descend from the release record's `upstreamTip` — the recorder's `previousTip` rule enforced at read time.
+   Killing mutation, leaving the new rejecting tests RED: drop the continuity ancestry check (the measured `pi-subagents-v1.0.1` acceptance returns).
+   Commit: `fix: verify sync chain ancestry offline (#16)`.
+
+9. **Document and verify.**
+   State in `docs/upstream-sync.md` — and in `.pi/skills/releasing/SKILL.md` only where its wording implies otherwise — that offline prediction verifies manifest correspondence, unreleased tails, and sync-chain ancestry from committed evidence.
+   Then run `pnpm run check`, root `pnpm run lint` with the measured heap workaround if needed, `pnpm run test`, `pnpm fallow dead-code`, and the read-only real-repository prediction (expected: empty stdout, exit 0 — the measured control), and re-run the historical counterfactual control (`pi-subagents-v1.0.3`).
+   Dispatch a fresh pre-completion reviewer with an explicit mandate to re-derive malformed-input cases, local evidence consistency, module ownership, fixture isolation, and copied-module completeness; do not reuse the earlier WARN as a readiness verdict.
+   Dry-run any new command examples; no new code test claims in this step.
+   Commit: `docs: document offline evidence verification (#16)`.
+
+Preserved gates, re-verified across this order's steps: the current real correspondence predicts nothing pending; the historical counterfactual stays `pi-subagents-v1.0.3`; fork-owned breaks still dominate; multiple syncs still never sum; the root suite, the offline-prediction stub, tag-namespace isolation, and preparation's no-partial-write snapshots all stay in force.
+
 ## Risks and Mitigations
 
 - Provenance review cannot mechanically determine whether a conflict resolution is a semantic fork API break.
@@ -400,9 +634,10 @@ No latency or token-budget improvement is claimed.
 
 ## Open Questions
 
-No operator decision remains open.
+At original planning time no operator decision remained open.
 No new follow-up issue is required: selector compatibility is already tracked in [#15], and speculative release-framework/general test-fixture work is excluded rather than promised.
 If implementation reveals a materially different state model or requires an upstream-level override, stop and return to the decision gate instead of weakening the selected fail-closed policy.
+The 2026-09-20 quality revision reopens one decision: the operator must confirm implementing the revision `## TDD Order` before a `/tdd-plan` session runs it, and landing stays paused until then.
 
 [#11]: https://github.com/Jopqior/gotgenes-pi-packages/issues/11
 [#13]: https://github.com/Jopqior/gotgenes-pi-packages/issues/13
