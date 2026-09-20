@@ -32,17 +32,18 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-
+import { isCoreScopePath } from "./core-sync.mjs";
 import {
   CORE_PACKAGE,
   CORE_TAG_PREFIX,
+  readCoreSyncState,
+} from "./core-sync-state.mjs";
+import {
   CoreSyncError,
   compareVersions,
-  isCoreScopePath,
   isReleaseLevel,
   parseStrictSemVer,
-  readCoreSyncState,
-} from "./core-sync.mjs";
+} from "./core-sync-values.mjs";
 
 /**
  * @param {string} repo

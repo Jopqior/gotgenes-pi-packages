@@ -20,12 +20,16 @@
 //     themselves) removed from its context, combined with the reviewed
 //     fork-core levels of those merges.
 //
-// The module is offline: it reads only local Git objects and the committed
+// The decision is offline: it reads only local Git objects and the committed
 // state file, and shells out to real `git` and `git-cliff`. Missing,
 // inconsistent, or ambiguous evidence is an error — never a default level and
 // never the silent no-release success path. Recording new evidence (which may
 // query the upstream remote) is `record-core-sync.mjs`'s job, invoked through
 // `scripts/upstream-sync.sh`.
+//
+// The value algebra and error contract live in `core-sync-values.mjs`, the
+// state schema and reader in `core-sync-state.mjs`; this module owns the
+// decision itself, the local-Git evidence checks, and the git-cliff adapter.
 //
 // Library use: tests and `prepare-release.sh` import the exported functions.
 // CLI use (what `next_tag` in lib.sh runs):
@@ -38,389 +42,27 @@
 // failure prints `error: <diagnostic>` to stderr and exits nonzero.
 
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import {
+  CORE_PACKAGE,
+  CORE_TAG_PREFIX,
+  readCoreSyncState,
+} from "./core-sync-state.mjs";
+import {
+  CoreSyncError,
+  combineLevels,
+  compareVersions,
+  incrementVersion,
+  levelFromVersions,
+  parseStrictSemVer,
+} from "./core-sync-values.mjs";
 
-export const CORE_PACKAGE = "pi-subagents";
-export const CORE_TAG_PREFIX = `${CORE_PACKAGE}-v`;
-
-/** @typedef {"none" | "patch" | "minor" | "major"} ReleaseLevel */
-/** @typedef {{ version: string, commit: string }} UpstreamRelease */
-/** @typedef {{ level: ReleaseLevel, rationale: string, paths: string[] }} ForkCoreContribution */
-/** @typedef {{ forkTag: string, upstream: UpstreamRelease, upstreamTip: string }} CoreReleaseRecord */
-/** @typedef {{ merge: string, upstream: UpstreamRelease, forkCore: ForkCoreContribution }} CoreSyncRecord */
-/** @typedef {{ schemaVersion: 1, releases: CoreReleaseRecord[], syncs: CoreSyncRecord[] }} CoreSyncState */
-/** @typedef {{ currentTag: string, nextTag: string | null, upstream: UpstreamRelease, upstreamTip: string, upstreamLevel: ReleaseLevel, forkLevel: ReleaseLevel }} CoreReleaseDecision */
-
-/** Error whose message is a complete, actionable diagnostic for the operator. */
-export class CoreSyncError extends Error {}
-
-const LEVEL_ORDER = ["none", "patch", "minor", "major"];
-
-/**
- * @param {unknown} value
- * @returns {value is ReleaseLevel}
- */
-export function isReleaseLevel(value) {
-  return typeof value === "string" && LEVEL_ORDER.includes(value);
-}
-
-/**
- * Parse a strict stable SemVer version: three numeric parts, no prerelease or
- * build suffix, no leading zeros. Upstream and fork release tags in this
- * policy are always stable releases.
- *
- * @param {unknown} value
- * @returns {{ major: number, minor: number, patch: number } | null}
- */
-export function parseStrictSemVer(value) {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(value);
-  if (!match) {
-    return null;
-  }
-  const parts = [match[1], match[2], match[3]];
-  if (parts.some((part) => part.length > 1 && part.startsWith("0"))) {
-    return null;
-  }
-  return {
-    major: Number(parts[0]),
-    minor: Number(parts[1]),
-    patch: Number(parts[2]),
-  };
-}
-
-/**
- * @param {string} a
- * @param {string} b
- * @returns {number} -1, 0, or 1
- */
-export function compareVersions(a, b) {
-  const left = parseStrictSemVer(a);
-  const right = parseStrictSemVer(b);
-  if (!left || !right) {
-    throw new CoreSyncError(`invalid SemVer in comparison: ${a} vs ${b}`);
-  }
-  for (const part of /** @type {("major" | "minor" | "patch")[]} */ ([
-    "major",
-    "minor",
-    "patch",
-  ])) {
-    if (left[part] !== right[part]) {
-      return left[part] < right[part] ? -1 : 1;
-    }
-  }
-  return 0;
-}
-
-/**
- * The upstream contribution of moving an incorporated upstream release from
- * `baseline` to `target`: the single SemVer step between them, regardless of
- * how many intermediate upstream releases the window skipped.
- *
- * @param {string} baseline
- * @param {string} target
- * @returns {ReleaseLevel}
- */
-export function levelFromVersions(baseline, target) {
-  const comparison = compareVersions(target, baseline);
-  if (comparison < 0) {
-    throw new CoreSyncError(
-      `upstream release regressed: ${target} precedes ${baseline}`,
-    );
-  }
-  if (comparison === 0) {
-    return "none";
-  }
-  const base = parseStrictSemVer(baseline);
-  const goal = parseStrictSemVer(target);
-  if (!base || !goal) {
-    throw new CoreSyncError(
-      `invalid SemVer in mapping: ${baseline} or ${target}`,
-    );
-  }
-  if (goal.major > base.major) {
-    return "major";
-  }
-  if (goal.minor > base.minor) {
-    return "minor";
-  }
-  return "patch";
-}
-
-/**
- * @param {...ReleaseLevel} levels
- * @returns {ReleaseLevel}
- */
-export function combineLevels(...levels) {
-  return levels.reduce(
-    (highest, level) =>
-      LEVEL_ORDER.indexOf(level) > LEVEL_ORDER.indexOf(highest)
-        ? level
-        : highest,
-    /** @type {ReleaseLevel} */ ("none"),
-  );
-}
-
-/**
- * @param {string} version a strict stable SemVer version
- * @param {ReleaseLevel} level
- * @returns {string}
- */
-export function incrementVersion(version, level) {
-  const parsed = parseStrictSemVer(version);
-  if (!parsed) {
-    throw new CoreSyncError(`invalid SemVer to increment: ${version}`);
-  }
-  switch (level) {
-    case "none":
-      return version;
-    case "patch":
-      return `${parsed.major}.${parsed.minor}.${parsed.patch + 1}`;
-    case "minor":
-      return `${parsed.major}.${parsed.minor + 1}.0`;
-    case "major":
-      return `${parsed.major + 1}.0.0`;
-  }
-}
-
-/**
- * Whether a repository path is inside the core package's release scope.
- * Mirrors `cliff_args` scoping: internal working docs and the package's own
- * changelog are excluded, everything else under `packages/pi-subagents/`
- * counts — including tests, shipped docs, and metadata, which must never be
- * waved through as "just docs".
- *
- * @param {string} file a repository-relative path
- * @returns {boolean}
- */
-export function isCoreScopePath(file) {
-  const prefix = `packages/${CORE_PACKAGE}/`;
-  if (!file.startsWith(prefix)) {
-    return false;
-  }
-  if (file === `packages/${CORE_PACKAGE}/CHANGELOG.md`) {
-    return false;
-  }
-  const relative = file.slice(prefix.length);
-  return !["plans", "retro", "architecture", "decisions", "assets"].some(
-    (sub) => relative === `docs/${sub}` || relative.startsWith(`docs/${sub}/`),
-  );
-}
-
-const OID_PATTERN = /^[0-9a-f]{40}$/;
-
-/**
- * @param {unknown} value
- * @param {string} what
- * @returns {string}
- */
-function requireOid(value, what) {
-  if (typeof value !== "string" || !OID_PATTERN.test(value)) {
-    throw new CoreSyncError(
-      `${what} is not a full 40-hex object ID: ${JSON.stringify(value)}`,
-    );
-  }
-  return value;
-}
-
-/**
- * @param {unknown} value
- * @param {string} what
- * @returns {UpstreamRelease}
- */
-function requireUpstreamRelease(value, what) {
-  if (typeof value !== "object" || value === null) {
-    throw new CoreSyncError(`${what} must be an object`);
-  }
-  const record = /** @type {Record<string, unknown>} */ (value);
-  rejectUnknownKeys(record, ["version", "commit"], what);
-  if (!parseStrictSemVer(record.version)) {
-    throw new CoreSyncError(
-      `${what}.version is not a strict stable SemVer version: ${JSON.stringify(record.version)}`,
-    );
-  }
-  return {
-    version: /** @type {string} */ (record.version),
-    commit: requireOid(record.commit, `${what}.commit`),
-  };
-}
-
-/**
- * @param {Record<string, unknown>} record
- * @param {string[]} allowed
- * @param {string} what
- */
-function rejectUnknownKeys(record, allowed, what) {
-  for (const key of Object.keys(record)) {
-    if (!allowed.includes(key)) {
-      throw new CoreSyncError(`unknown ${what} field '${key}'`);
-    }
-  }
-}
-
-/**
- * Strictly validate a parsed core-sync state document. Rejects unknown schema
- * versions, unknown fields, malformed tags/versions/OIDs, duplicate entries,
- * and fork-core contributions whose recorded paths contradict their level.
- *
- * @param {unknown} value
- * @returns {CoreSyncState}
- */
-export function validateCoreSyncState(value) {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new CoreSyncError("core sync state must be a JSON object");
-  }
-  const document = /** @type {Record<string, unknown>} */ (value);
-  rejectUnknownKeys(document, ["schemaVersion", "releases", "syncs"], "state");
-  if (document.schemaVersion !== 1) {
-    throw new CoreSyncError(
-      `unsupported core sync state schema version: ${JSON.stringify(document.schemaVersion)} (expected 1)`,
-    );
-  }
-  if (!Array.isArray(document.releases) || !Array.isArray(document.syncs)) {
-    throw new CoreSyncError(
-      "core sync state 'releases' and 'syncs' must be arrays",
-    );
-  }
-
-  /** @type {CoreReleaseRecord[]} */
-  const releases = [];
-  const seenReleaseTags = new Set();
-  for (const [index, entry] of document.releases.entries()) {
-    const what = `releases[${index}]`;
-    if (typeof entry !== "object" || entry === null) {
-      throw new CoreSyncError(`${what} must be an object`);
-    }
-    const record = /** @type {Record<string, unknown>} */ (entry);
-    rejectUnknownKeys(record, ["forkTag", "upstream", "upstreamTip"], what);
-    if (
-      typeof record.forkTag !== "string" ||
-      !record.forkTag.startsWith(CORE_TAG_PREFIX) ||
-      !parseStrictSemVer(record.forkTag.slice(CORE_TAG_PREFIX.length))
-    ) {
-      throw new CoreSyncError(
-        `${what}.forkTag is not a ${CORE_TAG_PREFIX}<SemVer> tag: ${JSON.stringify(record.forkTag)}`,
-      );
-    }
-    if (seenReleaseTags.has(record.forkTag)) {
-      throw new CoreSyncError(`duplicate release record for ${record.forkTag}`);
-    }
-    seenReleaseTags.add(record.forkTag);
-    releases.push({
-      forkTag: record.forkTag,
-      upstream: requireUpstreamRelease(record.upstream, `${what}.upstream`),
-      upstreamTip: requireOid(record.upstreamTip, `${what}.upstreamTip`),
-    });
-  }
-
-  /** @type {CoreSyncRecord[]} */
-  const syncs = [];
-  const seenMerges = new Set();
-  for (const [index, entry] of document.syncs.entries()) {
-    const what = `syncs[${index}]`;
-    if (typeof entry !== "object" || entry === null) {
-      throw new CoreSyncError(`${what} must be an object`);
-    }
-    const record = /** @type {Record<string, unknown>} */ (entry);
-    rejectUnknownKeys(record, ["merge", "upstream", "forkCore"], what);
-    const merge = requireOid(record.merge, `${what}.merge`);
-    if (seenMerges.has(merge)) {
-      throw new CoreSyncError(`duplicate sync record for merge ${merge}`);
-    }
-    seenMerges.add(merge);
-    const forkCore = record.forkCore;
-    if (typeof forkCore !== "object" || forkCore === null) {
-      throw new CoreSyncError(`${what}.forkCore must be an object`);
-    }
-    const contribution = /** @type {Record<string, unknown>} */ (forkCore);
-    rejectUnknownKeys(
-      contribution,
-      ["level", "rationale", "paths"],
-      `${what}.forkCore`,
-    );
-    if (!isReleaseLevel(contribution.level)) {
-      throw new CoreSyncError(
-        `${what}.forkCore.level is not a release level: ${JSON.stringify(contribution.level)}`,
-      );
-    }
-    if (
-      typeof contribution.rationale !== "string" ||
-      !contribution.rationale.trim()
-    ) {
-      throw new CoreSyncError(
-        `${what}.forkCore.rationale must be a non-empty string`,
-      );
-    }
-    if (!Array.isArray(contribution.paths)) {
-      throw new CoreSyncError(`${what}.forkCore.paths must be an array`);
-    }
-    /** @type {string[]} */
-    const paths = [];
-    for (const [pathIndex, file] of contribution.paths.entries()) {
-      if (
-        typeof file !== "string" ||
-        !file.startsWith(`packages/${CORE_PACKAGE}/`)
-      ) {
-        throw new CoreSyncError(
-          `${what}.forkCore.paths[${pathIndex}] is not a core package path: ${JSON.stringify(file)}`,
-        );
-      }
-      paths.push(file);
-    }
-    if (contribution.level !== "none" && paths.length === 0) {
-      throw new CoreSyncError(
-        `${what}.forkCore records level ${contribution.level} with no changed core paths`,
-      );
-    }
-    if (contribution.level === "none" && paths.length > 0) {
-      throw new CoreSyncError(
-        `${what}.forkCore records level none with changed core paths`,
-      );
-    }
-    syncs.push({
-      merge,
-      upstream: requireUpstreamRelease(record.upstream, `${what}.upstream`),
-      forkCore: {
-        level: contribution.level,
-        rationale: contribution.rationale,
-        paths,
-      },
-    });
-  }
-
-  return { schemaVersion: 1, releases, syncs };
-}
-
-/**
- * Read and strictly validate the state document at `statePath`.
- *
- * @param {string} statePath
- * @returns {CoreSyncState}
- */
-export function readCoreSyncState(statePath) {
-  let raw;
-  try {
-    raw = readFileSync(statePath, "utf8");
-  } catch (error) {
-    throw new CoreSyncError(
-      `cannot read core sync state ${statePath}: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (error) {
-    throw new CoreSyncError(
-      `core sync state ${statePath} is not valid JSON: ${error instanceof Error ? error.message : String(error)}`,
-    );
-  }
-  return validateCoreSyncState(parsed);
-}
+/** @typedef {import("./core-sync-state.mjs").CoreSyncRecord} CoreSyncRecord */
+/** @typedef {import("./core-sync-state.mjs").UpstreamRelease} UpstreamRelease */
+/** @typedef {{ currentTag: string, nextTag: string | null, upstream: UpstreamRelease, upstreamTip: string, upstreamLevel: import("./core-sync-values.mjs").ReleaseLevel, forkLevel: import("./core-sync-values.mjs").ReleaseLevel }} CoreReleaseDecision */
 
 /**
  * Run `git` inside `repo` and return its stripped stdout.
@@ -498,6 +140,30 @@ function requireAncestor(repo, ancestor, descendant, what) {
       `${what}: ${ancestor} is not an ancestor of ${descendant}`,
     );
   }
+}
+
+/**
+ * Whether a repository path is inside the core package's release scope.
+ * Mirrors `cliff_args` scoping: internal working docs and the package's own
+ * changelog are excluded, everything else under `packages/pi-subagents/`
+ * counts — including tests, shipped docs, and metadata, which must never be
+ * waved through as "just docs".
+ *
+ * @param {string} file a repository-relative path
+ * @returns {boolean}
+ */
+export function isCoreScopePath(file) {
+  const prefix = `packages/${CORE_PACKAGE}/`;
+  if (!file.startsWith(prefix)) {
+    return false;
+  }
+  if (file === `packages/${CORE_PACKAGE}/CHANGELOG.md`) {
+    return false;
+  }
+  const relative = file.slice(prefix.length);
+  return !["plans", "retro", "architecture", "decisions", "assets"].some(
+    (sub) => relative === `docs/${sub}` || relative.startsWith(`docs/${sub}/`),
+  );
 }
 
 /**
@@ -653,7 +319,8 @@ export function decideCoreRelease(input) {
 
   // One comparison across the whole window: baseline versus the final
   // verified target. Deferred intermediate releases never sum.
-  let upstreamLevel = /** @type {ReleaseLevel} */ ("none");
+  let upstreamLevel =
+    /** @type {import("./core-sync-values.mjs").ReleaseLevel} */ ("none");
   let upstreamTarget = release.upstream;
   let upstreamTip = release.upstreamTip;
   let previousVersion = release.upstream.version;
@@ -689,7 +356,9 @@ export function decideCoreRelease(input) {
     }
   }
 
-  let forkLevel = /** @type {ReleaseLevel} */ ("none");
+  let forkLevel = /** @type {import("./core-sync-values.mjs").ReleaseLevel} */ (
+    "none"
+  );
   const currentVersion = input.currentTag.slice(CORE_TAG_PREFIX.length);
   const contextExport = runGitCliff(
     repo,

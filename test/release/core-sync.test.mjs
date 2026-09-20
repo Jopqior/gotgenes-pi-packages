@@ -10,17 +10,18 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-
+import { isCoreScopePath } from "../../scripts/release/core-sync.mjs";
+import {
+  readCoreSyncState,
+  validateCoreSyncState,
+} from "../../scripts/release/core-sync-state.mjs";
 import {
   combineLevels,
   compareVersions,
   incrementVersion,
-  isCoreScopePath,
   levelFromVersions,
   parseStrictSemVer,
-  readCoreSyncState,
-  validateCoreSyncState,
-} from "../../scripts/release/core-sync.mjs";
+} from "../../scripts/release/core-sync-values.mjs";
 import {
   BASE_TAG,
   createCoreSyncScenario,
@@ -873,6 +874,8 @@ describe("release preparation", () => {
       "next-version.sh",
       "prepare-release.sh",
       "core-sync.mjs",
+      "core-sync-values.mjs",
+      "core-sync-state.mjs",
     );
     repo.writeManifest("pi-subagents", "1.0.0");
     repo.writeChangelog(
