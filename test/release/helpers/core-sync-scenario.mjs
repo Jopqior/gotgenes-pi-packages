@@ -24,17 +24,27 @@ const NONE_CONTRIBUTION = {
  *
  *   - `pi-subagents-v0.9.0` on an initial core commit (pre-baseline history
  *     the bounded walk must never see),
- *   - the baseline upstream release `21.7.0` (its commit is both the recorded
- *     upstream release and the recorded upstream tip),
+ *   - the baseline upstream release (default `21.7.0`; its commit is both the
+ *     recorded upstream release and the recorded upstream tip, and it is a
+ *     release-bump commit whose tree carries the core manifest claiming
+ *     exactly the recorded version),
  *   - `pi-subagents-v1.0.0` on an out-of-scope release-marker commit, the
  *     shape of a docs-only publish.
  *
  * Tests mutate `baseUpstream` and `recordedSyncs` in place — forge evidence —
  * and `writeCoreSyncState` serializes exactly what those references hold.
  *
+ * Every recorded upstream release commit — the baseline's and every
+ * `syncUpstream`'s — carries `packages/pi-subagents/package.json` claiming
+ * exactly the recorded version, the recorder-verified shape the real objects
+ * have. Fixture truth: a manifest mismatch in a test is always a deliberate
+ * forge of exactly one property, never an inherited accident.
+ *
+ * @param {{ baselineUpstreamVersion?: string }} [options]
  * @returns {CoreSyncScenario}
  */
-export function createCoreSyncScenario() {
+export function createCoreSyncScenario(options = {}) {
+  const baselineUpstreamVersion = options.baselineUpstreamVersion ?? "21.7.0";
   const repo = createScratchReleaseRepository({ pkg: "pi-subagents" });
   const coreArgs = () => repo.cliffArgs("pi-subagents");
   let syncCounter = 0;
@@ -50,8 +60,15 @@ export function createCoreSyncScenario() {
     "feat(pi-subagents): shape the core",
     "packages/pi-subagents/src/b.ts",
   );
+  repo.writeManifest("pi-subagents", baselineUpstreamVersion);
+  repo.git("add", "packages/pi-subagents/package.json");
+  repo.git(
+    "commit",
+    "-m",
+    `chore(pi-subagents): release ${baselineUpstreamVersion}`,
+  );
   const baseCommit = repo.gitOut("rev-parse", "HEAD");
-  const baseUpstream = { version: "21.7.0", commit: baseCommit };
+  const baseUpstream = { version: baselineUpstreamVersion, commit: baseCommit };
   const baseUpstreamTip = baseCommit;
   repo.commitOutOfScope("docs: release marker");
   repo.git("tag", "-a", BASE_TAG, "-m", "core v1.0.0");
@@ -107,8 +124,10 @@ export function createCoreSyncScenario() {
   }
 
   /**
-   * Commit `files` on a new upstream branch and merge it into main with a real
-   * two-parent merge, recording the reviewed sync entry.
+   * Commit `files` on a new upstream branch, close it with a release-bump
+   * commit whose tree carries the manifest claiming exactly `version`, merge
+   * it into main with a real two-parent merge, and record the reviewed sync
+   * entry. The recorded upstream release commit is the release-bump commit.
    *
    * @param {{
    *   version: string,
@@ -129,6 +148,16 @@ export function createCoreSyncScenario() {
     ]) {
       repo.commitInScope(change.message, change.file);
     }
+    repo.writeManifest("pi-subagents", options.version);
+    repo.git("add", "packages/pi-subagents/package.json");
+    // An equal-version sync re-marks the already-claimed release with an
+    // empty bump commit; a new version carries a real manifest change.
+    repo.git(
+      "commit",
+      "--allow-empty",
+      "-m",
+      `chore(pi-subagents): release ${options.version}`,
+    );
     const releaseCommit = repo.gitOut("rev-parse", "HEAD");
     repo.git("checkout", "main");
     repo.git(

@@ -80,6 +80,72 @@ function nextTag(pkg, tag) {
   return result;
 }
 
+/**
+ * Run `next_tag` expecting failure, capturing the process result —
+ * `execFileSync` throws on nonzero status with stdout/stderr attached.
+ *
+ * @param {string} pkg
+ * @param {string} tag
+ * @returns {{ status: number, stdout: string, stderr: string }}
+ */
+function failingNextTag(pkg, tag) {
+  try {
+    nextTag(pkg, tag);
+  } catch (error) {
+    const failure =
+      /** @type {{ status?: number, stdout?: unknown, stderr?: unknown }} */ (
+        error
+      );
+    return {
+      status: failure.status ?? 1,
+      stdout: typeof failure.stdout === "string" ? failure.stdout : "",
+      stderr: typeof failure.stderr === "string" ? failure.stderr : "",
+    };
+  }
+  throw new Error("expected next_tag to fail, but it exited 0");
+}
+
+/**
+ * Write the fixture's core sync state, defaulting to the verified
+ * correspondence. Tests forge exactly one invalid property at a time
+ * through the overrides; the real manifests at the pinned upstream commits
+ * claim exactly the recorded versions, so a version forgery is the only
+ * inconsistent property.
+ *
+ * @param {{ releases?: unknown[], syncs?: unknown[] }} [overrides]
+ */
+function writeFixtureState(overrides = {}) {
+  writeFileSync(
+    path.join(fixtureRepo, "scripts", "release", "core-sync-state.json"),
+    `${JSON.stringify(
+      {
+        schemaVersion: 1,
+        releases: overrides.releases ?? [
+          {
+            forkTag: HISTORICAL_BASELINE_TAG,
+            upstream: HISTORICAL_UPSTREAM_RELEASE,
+            upstreamTip: HISTORICAL_UPSTREAM_TIP,
+          },
+        ],
+        syncs: overrides.syncs ?? [
+          {
+            merge: INTEGRATION_MERGE,
+            upstream: INTEGRATED_UPSTREAM_RELEASE,
+            forkCore: {
+              level: "none",
+              rationale:
+                "integration carried upstream 21.7.x compatibility work; resolutions kept fork identity",
+              paths: [],
+            },
+          },
+        ],
+      },
+      null,
+      2,
+    )}\n`,
+  );
+}
+
 beforeEach(() => {
   const scratch = mkdtempSync(path.join(tmpdir(), "core-sync-history-"));
   fixtureRepo = path.join(scratch, "repo");
@@ -108,35 +174,7 @@ beforeEach(() => {
   mkdirSync(path.join(fixtureRepo, "scripts", "release"), {
     recursive: true,
   });
-  writeFileSync(
-    path.join(fixtureRepo, "scripts", "release", "core-sync-state.json"),
-    `${JSON.stringify(
-      {
-        schemaVersion: 1,
-        releases: [
-          {
-            forkTag: HISTORICAL_BASELINE_TAG,
-            upstream: HISTORICAL_UPSTREAM_RELEASE,
-            upstreamTip: HISTORICAL_UPSTREAM_TIP,
-          },
-        ],
-        syncs: [
-          {
-            merge: INTEGRATION_MERGE,
-            upstream: INTEGRATED_UPSTREAM_RELEASE,
-            forkCore: {
-              level: "none",
-              rationale:
-                "integration carried upstream 21.7.x compatibility work; resolutions kept fork identity",
-              paths: [],
-            },
-          },
-        ],
-      },
-      null,
-      2,
-    )}\n`,
-  );
+  writeFixtureState();
 });
 
 afterEach(() => {
@@ -161,5 +199,64 @@ describe("core release policy against the real issue-14 history", () => {
   it("sees only the historical baseline tag in the fixture", () => {
     expect(gitInFixture("tag")).toBe(HISTORICAL_BASELINE_TAG);
     expect(gitInFixture("rev-parse", "HEAD")).toBe(INTEGRATION_MERGE);
+  });
+
+  it("blocks a recorded upstream version that contradicts the release manifest (real issue-14 objects)", () => {
+    // The real 21.7.3 release commit's manifest claims 21.7.3. A record
+    // claiming 22.0.0 at that commit is forged provenance whose mismatch
+    // implies a major; the offline decision must name the manifest claim,
+    // not accept it.
+    writeFixtureState({
+      syncs: [
+        {
+          merge: INTEGRATION_MERGE,
+          upstream: {
+            version: "22.0.0",
+            commit: INTEGRATED_UPSTREAM_RELEASE.commit,
+          },
+          forkCore: {
+            level: "none",
+            rationale: "forged version over the real 21.7.3 release commit",
+            paths: [],
+          },
+        },
+      ],
+    });
+
+    const failure = failingNextTag("pi-subagents", HISTORICAL_BASELINE_TAG);
+
+    expect(failure.status).not.toBe(0);
+    expect(failure.stdout).toBe("");
+    expect(failure.stderr).toMatch(
+      /upstream release tag 22\.0\.0 points at a manifest claiming "21\.7\.3"/,
+    );
+  });
+
+  it("blocks a baseline version that contradicts its upstream manifest", () => {
+    // The real 21.7.0 release commit's manifest claims 21.7.0. A baseline
+    // record claiming 21.6.0 stays monotone against the window sync, so the
+    // manifest correspondence — not the version-regression guard — must be
+    // what rejects it.
+    writeFixtureState({
+      releases: [
+        {
+          forkTag: HISTORICAL_BASELINE_TAG,
+          upstream: {
+            version: "21.6.0",
+            commit: HISTORICAL_UPSTREAM_RELEASE.commit,
+          },
+          upstreamTip: HISTORICAL_UPSTREAM_TIP,
+        },
+      ],
+    });
+
+    const failure = failingNextTag("pi-subagents", HISTORICAL_BASELINE_TAG);
+
+    expect(failure.status).not.toBe(0);
+    expect(failure.stdout).toBe("");
+    expect(failure.stderr).toMatch(
+      /upstream release tag 21\.6\.0 points at a manifest claiming "21\.7\.0"/,
+    );
+    expect(failure.stderr).not.toMatch(/behind the already-incorporated/);
   });
 });

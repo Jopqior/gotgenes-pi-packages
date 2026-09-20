@@ -51,6 +51,7 @@ import {
   requireAncestor,
   requireCommitObject,
   runGit,
+  verifyUpstreamReleaseManifest,
 } from "./core-sync-evidence.mjs";
 import { CORE_TAG_PREFIX, readCoreSyncState } from "./core-sync-state.mjs";
 import {
@@ -119,6 +120,10 @@ export function decideCoreRelease(input) {
     peeled,
     `release ${input.currentTag} does not incorporate its recorded upstream tip`,
   );
+  // The recorded correspondence must name a real upstream release: the core
+  // manifest at the recorded commit has to claim exactly the recorded
+  // version. Tag names alone prove nothing; this is the binding check.
+  verifyUpstreamReleaseManifest(repo, release.upstream);
 
   // Every two-parent commit in the window that changes core paths must be a
   // recorded, reviewed sync. Fork work lands linearly, so an unrecorded
@@ -181,6 +186,9 @@ export function decideCoreRelease(input) {
         mergeParents.get(merge)
       );
       requireCommitObject(repo, sync.upstream.commit);
+      // The recorded upstream release must be that release: the manifest at
+      // the recorded commit claims exactly the recorded version.
+      verifyUpstreamReleaseManifest(repo, sync.upstream);
       requireAncestor(
         repo,
         sync.upstream.commit,

@@ -238,6 +238,11 @@ describe("window derivation", () => {
       "feat(pi-subagents): upstream edits shared core",
       "packages/pi-subagents/shared.txt",
     );
+    // The hand-built release commit carries the matching release manifest,
+    // exactly as every `syncUpstream` release commit does.
+    repo.writeManifest("pi-subagents", "21.7.1");
+    repo.git("add", "packages/pi-subagents/package.json");
+    repo.git("commit", "-m", "chore(pi-subagents): release 21.7.1");
     const releaseCommit = repo.gitOut("rev-parse", "HEAD");
     repo.git("checkout", "main");
     repo.commitInScope(
@@ -363,6 +368,36 @@ describe("evidence failures", () => {
     );
   });
 
+  it("blocks a sync whose recorded release commit lacks a manifest", () => {
+    // Valid construction of exactly one invalid property: the recorded
+    // release commit is a real, contained, continuous, tail-free commit on
+    // its upstream line whose tree simply dropped the manifest.
+    syncUpstream({ version: "21.7.1" });
+    const branch = uniqueUpstreamBranch();
+    repo.git("checkout", "-b", branch);
+    repo.git("rm", "packages/pi-subagents/package.json");
+    repo.git("commit", "-m", "chore(pi-subagents): drop the release manifest");
+    const manifestless = repo.gitOut("rev-parse", "HEAD");
+    repo.git("checkout", "main");
+    repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", branch);
+    recordedSyncs.push({
+      merge: repo.gitOut("rev-parse", "HEAD"),
+      upstream: { version: "21.7.2", commit: manifestless },
+      forkCore: {
+        level: "none",
+        rationale: "upstream-only integration; no fork core resolution",
+        paths: [],
+      },
+    });
+    writeCoreSyncState();
+
+    expect(errorOf(() => decide()).message).toMatch(
+      new RegExp(
+        `upstream release 21\\.7\\.2 \\(${manifestless}\\) has no packages/pi-subagents/package\\.json`,
+      ),
+    );
+  });
+
   it("blocks an unrecorded core-affecting merge with the recording command", () => {
     const branch = uniqueUpstreamBranch();
     repo.git("checkout", "-b", branch);
@@ -391,13 +426,23 @@ describe("evidence failures", () => {
   });
 
   it("blocks a regressing recorded upstream version", () => {
-    baseUpstream.version = "21.7.1";
-    syncUpstream({ version: "21.7.0" });
-    writeCoreSyncState();
+    // Forged manifest-consistently: the baseline scenario is created with
+    // its baseline manifest and record both claiming 21.7.1, so the version
+    // regression — syncing 21.7.0 behind an already-incorporated 21.7.1 —
+    // is the only failing property, whichever check runs first.
+    const forged = createCoreSyncScenario({
+      baselineUpstreamVersion: "21.7.1",
+    });
+    try {
+      forged.syncUpstream({ version: "21.7.0" });
+      forged.writeCoreSyncState();
 
-    expect(errorOf(() => decide()).message).toMatch(
-      /behind the already-incorporated/,
-    );
+      expect(errorOf(() => forged.decide()).message).toMatch(
+        /behind the already-incorporated/,
+      );
+    } finally {
+      forged.dispose();
+    }
   });
 
   it("blocks when a release boundary appears inside the window", () => {
