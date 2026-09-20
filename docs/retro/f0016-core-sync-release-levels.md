@@ -183,3 +183,19 @@ This repository-tooling change authorizes no package publication; landing and th
 - The issue branch is checked out in the root checkout rather than a separate registered worktree; the branch-name gate passed, and this sync does not check out or modify `main`.
 - The planning-stage commit citation now uses its subject so a rebase cannot leave a stale SHA.
 - This entry is a sync breadcrumb only; run `/ship 16` from the root on `main`, then the final `/retro 16`.
+
+## Stage: Ship (2026-09-20T12:57:12Z)
+
+### Session summary
+
+Fast-forwarded `issue-16-core-sync-release-plan` onto root `main` after fetching and pulling successfully with zero unpushed root commits.
+Root lint passed with `NODE_OPTIONS=--max-old-space-size=8192`, and the dead-code gate reported no findings on the landed tree.
+Push and CI verification remain pending at this breadcrumb commit; issue closure follows successful CI.
+
+### Observations
+
+- The complete landing range touches no package paths, so version prediction and release dispatch are skipped; no npm publication is authorized or needed.
+- The plan and retro identify no adopted PR or co-shipped issue to close; issue 15 remains separate.
+- Only the root checkout is registered as a worktree, matching the peer's sync note.
+  After successful CI, remove only the merged issue branch rather than trying to remove the root checkout.
+- The final interactive retrospective remains `/retro 16` at the root on `main`.
