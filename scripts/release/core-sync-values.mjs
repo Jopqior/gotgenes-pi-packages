@@ -24,8 +24,9 @@ export function isReleaseLevel(value) {
 
 /**
  * Parse a strict stable SemVer version: three numeric parts, no prerelease or
- * build suffix, no leading zeros. Upstream and fork release tags in this
- * policy are always stable releases.
+ * build suffix, no leading zeros, and each part within the safe integer
+ * range — beyond it, distinct versions would compare equal. Upstream and fork
+ * release tags in this policy are always stable releases.
  *
  * @param {unknown} value
  * @returns {{ major: number, minor: number, patch: number } | null}
@@ -42,10 +43,14 @@ export function parseStrictSemVer(value) {
   if (parts.some((part) => part.length > 1 && part.startsWith("0"))) {
     return null;
   }
+  const numbers = parts.map((part) => Number(part));
+  if (numbers.some((number) => !Number.isSafeInteger(number))) {
+    return null;
+  }
   return {
-    major: Number(parts[0]),
-    minor: Number(parts[1]),
-    patch: Number(parts[2]),
+    major: numbers[0],
+    minor: numbers[1],
+    patch: numbers[2],
   };
 }
 
@@ -135,10 +140,38 @@ export function incrementVersion(version, level) {
     case "none":
       return version;
     case "patch":
-      return `${parsed.major}.${parsed.minor}.${parsed.patch + 1}`;
+      return `${parsed.major}.${parsed.minor}.${safeSuccessor(
+        parsed.patch,
+        version,
+        "patch",
+      )}`;
     case "minor":
-      return `${parsed.major}.${parsed.minor + 1}.0`;
+      return `${parsed.major}.${safeSuccessor(
+        parsed.minor,
+        version,
+        "minor",
+      )}.0`;
     case "major":
-      return `${parsed.major + 1}.0.0`;
+      return `${safeSuccessor(parsed.major, version, "major")}.0.0`;
   }
+}
+
+/**
+ * The one-step successor of a version segment, failing closed when the
+ * addition itself would leave the safe integer range — a parsed boundary
+ * version is valid, but it has no representable successor.
+ *
+ * @param {number} value
+ * @param {string} version the full version being incremented
+ * @param {"major" | "minor" | "patch"} part the segment being incremented
+ * @returns {number}
+ */
+function safeSuccessor(value, version, part) {
+  const next = value + 1;
+  if (!Number.isSafeInteger(next)) {
+    throw new CoreSyncError(
+      `cannot increment ${version}: ${part} ${value} would exceed the safe integer range`,
+    );
+  }
+  return next;
 }

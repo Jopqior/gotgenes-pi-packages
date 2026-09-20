@@ -95,3 +95,61 @@ describe("level mapping", () => {
     expect(isCoreScopePath("docs/upstream-sync.md")).toBe(false);
   });
 });
+
+describe("safe integer bounds", () => {
+  const max = `${Number.MAX_SAFE_INTEGER}`;
+  const belowMax = `${Number.MAX_SAFE_INTEGER - 1}`;
+
+  it("parses each segment at the safe limit and rejects beyond it", () => {
+    expect(parseStrictSemVer(`${max}.0.0`)).toEqual({
+      major: Number.MAX_SAFE_INTEGER,
+      minor: 0,
+      patch: 0,
+    });
+    expect(parseStrictSemVer(`1.${max}.0`)).toEqual({
+      major: 1,
+      minor: Number.MAX_SAFE_INTEGER,
+      patch: 0,
+    });
+    expect(parseStrictSemVer(`1.0.${max}`)).toEqual({
+      major: 1,
+      minor: 0,
+      patch: Number.MAX_SAFE_INTEGER,
+    });
+    // 2**53 is exactly representable, but the longer digit forms it absorbs
+    // are not — both must reject rather than alias distinct versions.
+    expect(parseStrictSemVer("9007199254740992.0.0")).toBeNull();
+    expect(parseStrictSemVer("1.9007199254740992.0")).toBeNull();
+    expect(parseStrictSemVer("9007199254740993.0.0")).toBeNull();
+  });
+
+  it("fails closed when comparing or mapping beyond the safe limit", () => {
+    expect(() => compareVersions("9007199254740992.0.0", "1.0.0")).toThrow(
+      /invalid SemVer in comparison/,
+    );
+    // `levelFromVersions` validates through `compareVersions` first, so an
+    // out-of-range target surfaces the comparison diagnostic, not mapping's.
+    expect(() => levelFromVersions("1.0.0", "9007199254740992.0.0")).toThrow(
+      /invalid SemVer in comparison/,
+    );
+  });
+
+  it("rejects increments that would leave the safe integer range", () => {
+    expect(() => incrementVersion(`${max}.0.0`, "major")).toThrow(
+      /safe integer/,
+    );
+    expect(() => incrementVersion(`1.${max}.0`, "minor")).toThrow(
+      /safe integer/,
+    );
+    expect(() => incrementVersion(`1.2.${max}`, "patch")).toThrow(
+      /safe integer/,
+    );
+  });
+
+  it("keeps one-below-limit increments safe and none unchanged", () => {
+    expect(incrementVersion(`1.2.${belowMax}`, "patch")).toBe(`1.2.${max}`);
+    expect(incrementVersion(`1.${belowMax}.0`, "minor")).toBe(`1.${max}.0`);
+    expect(incrementVersion(`${belowMax}.0.0`, "major")).toBe(`${max}.0.0`);
+    expect(incrementVersion(`1.2.${max}`, "none")).toBe(`1.2.${max}`);
+  });
+});
