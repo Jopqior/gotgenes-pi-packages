@@ -56,6 +56,25 @@ Adding one of those subdirectories needs no configuration edit; adding a differe
 Commits that only touch excluded paths do not trigger releases, and neither do files outside the package tree.
 A package's own `CHANGELOG.md` is excluded too, so a release commit never re-enters the next changelog.
 
+## Core package release levels
+
+`pi-subagents` is the exception to direct git-cliff derivation: its history advances through upstream merges, so the integration merge's own commit type says nothing about the fork's independent version.
+Its next tag comes from verified upstream correspondence in `scripts/release/core-sync-state.json` — the SemVer distance between the incorporated upstream releases, combined with git-cliff's view of fork-owned commits and each recorded merge's reviewed fork-core contribution.
+`next-version.sh pi-subagents` applies that policy offline and prints the same `<pkg>-v<version>` contract as every other package.
+
+Evidence failures are strict errors, not "nothing to release": a nonzero exit means record the missing sync or fix the state, never that the package is quiet.
+There is no override flag.
+After merging upstream, record the reviewed evidence before dispatching a core release:
+
+```bash
+./scripts/upstream-sync.sh --record-core-sync <merge> --fork-level <none|patch|minor|major> --rationale "<text>"
+```
+
+A blocked core in a multi-package dispatch fails the whole run before any write.
+`prepare-release.sh` appends the core release's correspondence to the state file with the release artifacts, and publishing only siblings leaves core state untouched.
+The changelog still lists upstream entries in full — the policy filters commits only to compute the level.
+See `docs/upstream-sync.md` for the mapping rule, blocking cases, and recording procedure; explicit dispatch itself is unchanged.
+
 ## A package's first release
 
 A brand-new package's **first** release is a manual, operator-chosen step. npm Trusted Publishing cannot create a package that does not exist, so `publish` 404s; and `next-version.sh` refuses an untagged package rather than inventing a first version, because this repo's packages opened at 1.0.0, 0.2.0, and 0.1.0 with no convention to infer.
