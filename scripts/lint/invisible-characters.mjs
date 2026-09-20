@@ -61,13 +61,45 @@ const REPORT_ONLY = new Set([
 const REPAIRABLE = new Set([0x200b, 0xfeff]);
 
 /**
+ * The visible text a mangled character leaves behind, and what it stood for.
+ *
+ * Measured across all 1764 session transcripts under `~/.pi/agent/sessions`:
+ * 122 form feeds, of which 65 are followed by `erence2` and 4 by `erence6`.
+ * The em-dash row is confirmed against the repaired file -- the transcript
+ * reads "like `awk` [FF]erence2 but `gawk`" where the commit reads an em dash.
+ *
+ * 51 of the 122 carry no residue at all, which is why detection keys on the
+ * character and only the suggestion keys on this table.
+ */
+const RESIDUE_SUGGESTIONS = new Map([
+  ["erence2", { codePoint: 0x2014, name: "em dash" }],
+  ["erence6", { codePoint: 0x2026, name: "ellipsis" }],
+]);
+
+/**
+ * The character a residue identifies, or null when it identifies none.
+ *
+ * `residue` is the rest of the line after the invisible character, so a row
+ * matches as a prefix -- `coherence2` is ordinary prose, not a signature.
+ *
+ * @param {string} residue
+ * @returns {{codePoint: number, name: string} | null}
+ */
+export function suggestedCharacter(residue) {
+  for (const [signature, character] of RESIDUE_SUGGESTIONS) {
+    if (residue.startsWith(signature)) return character;
+  }
+  return null;
+}
+
+/**
  * Every stray invisible character in `text`, in reading order.
  *
  * `column` counts code points rather than UTF-16 units, so an astral
  * character earlier on the line does not skew the position.
  *
  * @param {string} text
- * @returns {{line: number, column: number, codePoint: number, repairable: boolean}[]}
+ * @returns {{line: number, column: number, codePoint: number, repairable: boolean, suggestion: {codePoint: number, name: string} | null}[]}
  */
 export function findInvisibleCharacters(text) {
   const findings = [];
@@ -79,7 +111,13 @@ export function findInvisibleCharacters(text) {
       const codePoint = character.codePointAt(0);
       const repairable = REPAIRABLE.has(codePoint);
       if (!repairable && !REPORT_ONLY.has(codePoint)) continue;
-      findings.push({ line: index + 1, column, codePoint, repairable });
+      findings.push({
+        line: index + 1,
+        column,
+        codePoint,
+        repairable,
+        suggestion: suggestedCharacter([...line].slice(column).join("")),
+      });
     }
   }
   return findings;
@@ -101,16 +139,30 @@ export function isBinary(buffer) {
 /**
  * One finding rendered as a `path:line:column: U+XXXX` line.
  *
+ * When the trailing residue identifies the character that was mangled, the
+ * line names it -- but only as a suggestion, since repairing it needs the
+ * surrounding sentence and this tool never rewrites it.
+ *
  * @param {string} path
- * @param {{line: number, column: number, codePoint: number}} finding
+ * @param {{line: number, column: number, codePoint: number, suggestion?: {codePoint: number, name: string} | null}} finding
  * @returns {string}
  */
 export function formatFinding(path, finding) {
-  const codePoint = finding.codePoint
-    .toString(16)
-    .toUpperCase()
-    .padStart(4, "0");
-  return `${path}:${finding.line}:${finding.column}: U+${codePoint}`;
+  const position = `${path}:${finding.line}:${finding.column}`;
+  const found = `U+${hex(finding.codePoint)}`;
+  if (!finding.suggestion) return `${position}: ${found}`;
+  const { codePoint, name } = finding.suggestion;
+  return `${position}: ${found} (did you mean U+${hex(codePoint)} ${name}?)`;
+}
+
+/**
+ * A code point as at least four uppercase hexadecimal digits.
+ *
+ * @param {number} codePoint
+ * @returns {string}
+ */
+function hex(codePoint) {
+  return codePoint.toString(16).toUpperCase().padStart(4, "0");
 }
 
 /**

@@ -5,6 +5,7 @@ import {
   formatFinding,
   isBinary,
   scanFiles,
+  suggestedCharacter,
 } from "../../scripts/lint/invisible-characters.mjs";
 
 // Every fixture builds its invisible characters from escapes. A literal byte
@@ -20,9 +21,13 @@ const BYTE_ORDER_MARK = String.fromCodePoint(0xfeff);
 const NON_BREAKING_SPACE = String.fromCodePoint(0x00a0);
 
 /** A finding with the fields a caller reads, for `toEqual` comparison. */
-function finding(line, column, codePoint, repairable) {
-  return { line, column, codePoint, repairable };
+function finding(line, column, codePoint, repairable, suggestion = null) {
+  return { line, column, codePoint, repairable, suggestion };
 }
+
+/** The em dash and ellipsis the #863 corpus maps its two residues to. */
+const EM_DASH = { codePoint: 0x2014, name: "em dash" };
+const ELLIPSIS = { codePoint: 0x2026, name: "ellipsis" };
 
 describe("findInvisibleCharacters", () => {
   describe("characters that are never repairable", () => {
@@ -108,6 +113,12 @@ describe("findInvisibleCharacters", () => {
       ).toEqual([finding(1, 1, 0x0c, false), finding(1, 3, 0x200b, true)]);
     });
 
+    it("carries the suggestion its trailing residue identifies", () => {
+      expect(findInvisibleCharacters(`x${FORM_FEED}erence2 y`)).toEqual([
+        finding(1, 2, 0x0c, false, EM_DASH),
+      ]);
+    });
+
     it("counts a column in code points, not UTF-16 units", () => {
       // The emoji is one code point but two UTF-16 units, so a UTF-16 index
       // would report column 3 for a character that is second on the line.
@@ -149,6 +160,42 @@ describe("formatFinding", () => {
     expect(formatFinding("a.ts", finding(1, 2, 0x200b, true))).toBe(
       "a.ts:1:2: U+200B",
     );
+  });
+
+  it("names the intended character when the residue identifies one", () => {
+    expect(formatFinding("a.ts", finding(2, 5, 0x0c, false, EM_DASH))).toBe(
+      "a.ts:2:5: U+000C (did you mean U+2014 em dash?)",
+    );
+  });
+
+  it("names an ellipsis the same way", () => {
+    expect(formatFinding("a.ts", finding(2, 5, 0x0c, false, ELLIPSIS))).toBe(
+      "a.ts:2:5: U+000C (did you mean U+2026 ellipsis?)",
+    );
+  });
+});
+
+describe("suggestedCharacter", () => {
+  it("maps the em-dash residue observed 65 times in the #863 corpus", () => {
+    expect(suggestedCharacter("erence2 but `gawk` has its own")).toEqual(
+      EM_DASH,
+    );
+  });
+
+  it("maps the ellipsis residue observed 4 times in the #863 corpus", () => {
+    expect(suggestedCharacter("erence6'`, `node -p '1+1'`")).toEqual(ELLIPSIS);
+  });
+
+  it("suggests nothing when the residue matches no row", () => {
+    expect(suggestedCharacter(" but `gawk` has its own")).toBe(null);
+  });
+
+  it("suggests nothing at the end of a line", () => {
+    expect(suggestedCharacter("")).toBe(null);
+  });
+
+  it("does not match a residue that merely contains a row", () => {
+    expect(suggestedCharacter("coherence2")).toBe(null);
   });
 });
 
