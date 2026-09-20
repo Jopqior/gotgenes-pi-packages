@@ -9,7 +9,7 @@ issue_title: "Derive fork core sync releases from upstream version changes"
 
 ### Session summary
 
-Committed `docs/plans/f0016-core-sync-release-levels.md` as `9c68173e0e3c643ab09e6581184f08605a96df6f` on `issue-16-core-sync-release-plan` after a successful fast-forward-only pull reported the checkout current.
+Committed `docs/plans/f0016-core-sync-release-levels.md` as `docs: plan upstream-derived core sync releases (#16)` on `issue-16-core-sync-release-plan` after a successful fast-forward-only pull reported the checkout current.
 The plan covers verified upstream correspondence, separate fork-core classification, one shared offline predictor, release-time state persistence, and real-Git regression tests.
 No implementation, upstream synchronization, push, tag rewrite, or publication was performed.
 
@@ -168,3 +168,18 @@ The root suite increased from 264 to 270 passing tests, and fresh delta pre-comp
 - These two operator-approved fixes extend the revision order and supersede the prior entry's retained WARN disposition.
   No package changes, GitHub mutations, pushes, or publication occurred.
   Next remains `/sync-worktree 16`, followed by `/ship 16` at the root.
+
+## Stage: Sync (worktree) (2026-09-20T12:51:20Z)
+
+### Session summary
+
+Root lint passed with `NODE_OPTIONS=--max-old-space-size=4096` after the default heap exhausted memory; `pnpm fallow dead-code` passed with no findings.
+This repository-tooling change authorizes no package publication; landing and the final `/retro 16` remain the root session's responsibility.
+
+**Peer session transcript:** `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-09-20T12-48-20-208Z_01a0bedc-3eef-732d-a73a-22834b7cec7f.jsonl` — read with `read_session_file` for message-level verification.
+
+### Observations
+
+- The issue branch is checked out in the root checkout rather than a separate registered worktree; the branch-name gate passed, and this sync does not check out or modify `main`.
+- The planning-stage commit citation now uses its subject so a rebase cannot leave a stale SHA.
+- This entry is a sync breadcrumb only; run `/ship 16` from the root on `main`, then the final `/retro 16`.
