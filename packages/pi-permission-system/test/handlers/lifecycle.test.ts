@@ -6,7 +6,10 @@ import {
 } from "#src/handlers/lifecycle";
 import type { ServiceLifecycle } from "#src/service/service-lifecycle";
 
-import { makeCtx } from "#test/helpers/handler-fixtures";
+import {
+  makeConfigIssueReporter,
+  makeCtx,
+} from "#test/helpers/handler-fixtures";
 import {
   makeLogger,
   makeRealResolver,
@@ -39,12 +42,14 @@ function makeSetup(opts?: { configIssues?: string[] }) {
   // not reach-through to session.logger.
   const logger = makeLogger();
   const audit = { writeSummary: vi.fn<(logger: unknown) => void>() };
+  const configIssues = makeConfigIssueReporter();
   const handler = new SessionLifecycleHandler(
     session,
     resolver,
     serviceLifecycle,
     logger,
     audit,
+    configIssues,
   );
   return {
     handler,
@@ -56,6 +61,7 @@ function makeSetup(opts?: { configIssues?: string[] }) {
     configStore,
     serviceLifecycle,
     audit,
+    configIssues,
   };
 }
 
@@ -179,6 +185,27 @@ describe("handleSessionStart", () => {
     });
     await handler.handleSessionStart({ reason: "startup" }, makeCtx());
     expect(callOrder).toEqual(["resetForNewSession", "refreshConfig"]);
+  });
+
+  describe("config issues", () => {
+    it("reports them, so one present before the session starts is shown", async () => {
+      const { handler, configIssues } = makeSetup();
+      await handler.handleSessionStart({ reason: "startup" }, makeCtx());
+      expect(configIssues.report).toHaveBeenCalledOnce();
+    });
+
+    it("reports after the config is refreshed, not before", async () => {
+      const callOrder: string[] = [];
+      const { handler, configStore, configIssues } = makeSetup();
+      vi.spyOn(configStore, "refresh").mockImplementation(() => {
+        callOrder.push("refreshConfig");
+      });
+      configIssues.report.mockImplementation(() => {
+        callOrder.push("report");
+      });
+      await handler.handleSessionStart({ reason: "startup" }, makeCtx());
+      expect(callOrder).toEqual(["refreshConfig", "report"]);
+    });
   });
 });
 

@@ -33,6 +33,7 @@ import {
 import { SubagentDetection } from "#src/authority/subagent-detection";
 import { subscribeSubagentLifecycle } from "#src/authority/subagent-lifecycle-events";
 import { getSubagentSessionRegistry } from "#src/authority/subagent-registry";
+import { ConfigIssueReporter } from "#src/config/config-issue-reporter";
 import { registerPermissionSystemCommand } from "#src/config/config-modal";
 import { getGlobalConfigPath } from "#src/config/config-paths";
 import { ConfigStore } from "#src/config/config-store";
@@ -305,12 +306,19 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
   };
 
   const audit = new DecisionAudit();
+  // Reads the store's issue list and tells the operator what is new, through
+  // the logger's warn sink rather than a ctx parameter — which is what the
+  // factory-time priming refresh lacked, so every config issue already on disk
+  // was recorded as delivered and never shown (#933). Driven at session_start
+  // and on every turn; the latch keeps an unchanged issue quiet.
+  const configIssueReporter = new ConfigIssueReporter(configStore, logger);
   const lifecycle = new SessionLifecycleHandler(
     session,
     resolver,
     serviceLifecycle,
     logger,
     audit,
+    configIssueReporter,
   );
   const turnPrep = new SessionTurnPrep(
     session,
@@ -318,6 +326,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
       void warmBashParser();
     },
     serviceLifecycle,
+    configIssueReporter,
   );
   const agentPrep = new AgentPrepHandler(
     turnPrep,

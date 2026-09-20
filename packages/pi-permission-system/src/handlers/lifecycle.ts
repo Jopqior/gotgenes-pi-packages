@@ -1,4 +1,5 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ConfigIssueReporting } from "#src/config/config-issue-reporter";
 import { PERMISSION_SYSTEM_STATUS_KEY } from "#src/config/status";
 import type { DecisionSummaryWriter } from "#src/logging/decision-audit";
 import type { SessionLogger } from "#src/logging/session-logger";
@@ -36,6 +37,9 @@ export const UNTRUSTED_PROJECT_MESSAGE =
  *   the ready event; `teardown` unsubscribes all session listeners and unpublishes
  * - `logger` — injected directly; replaces the former `session.logger` reach-through
  * - `audit` — per-session decision counters; its summary is written on shutdown
+ * - `configIssues` — reports what is wrong with the extension config, latched
+ *   per issue; driven here and on every turn, so an issue already on disk when
+ *   the session opens is shown rather than swallowed (#933)
  */
 export class SessionLifecycleHandler {
   constructor(
@@ -44,6 +48,7 @@ export class SessionLifecycleHandler {
     private readonly serviceLifecycle: ServiceLifecycle,
     private readonly logger: SessionLogger,
     private readonly audit: DecisionSummaryWriter,
+    private readonly configIssues: ConfigIssueReporting,
   ) {}
 
   handleSessionStart(
@@ -58,6 +63,9 @@ export class SessionLifecycleHandler {
     this.session.resetForNewSession(ctx, projectTrusted);
     this.session.refreshConfig(ctx, projectTrusted);
     this.session.logResolvedConfigPaths();
+    // The config was just re-read above, and the session is activated, so a
+    // warning has a UI to reach.
+    this.configIssues.report();
     if (!projectTrusted) {
       this.warnProjectUntrusted(ctx, "session_start");
     }

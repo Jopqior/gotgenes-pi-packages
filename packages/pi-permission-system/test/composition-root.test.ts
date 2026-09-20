@@ -2137,11 +2137,17 @@ describe("configured permission-dialog hotkeys reach the inline dialog", () => {
     ctx: unknown;
     render: () => string[];
     press: (data: string) => void;
+    notified: string[];
   } {
     let component:
       | { render(width: number): string[]; handleInput(data: string): void }
       | undefined;
-    const base = makeBaseCtx(cwd, "tui-session") as {
+    const notified: string[] = [];
+    const base = makeBaseCtx(cwd, "tui-session", {
+      notify: (message: string): void => {
+        notified.push(message);
+      },
+    }) as {
       ui: Record<string, unknown>;
     };
     const ctx = {
@@ -2175,6 +2181,7 @@ describe("configured permission-dialog hotkeys reach the inline dialog", () => {
       press: (data) => {
         component?.handleInput(data);
       },
+      notified,
     };
   }
 
@@ -2233,17 +2240,15 @@ describe("configured permission-dialog hotkeys reach the inline dialog", () => {
     const pi = makeFakePi({ toolNames: ["demo", "quiet"] });
     piPermissionSystemExtension(pi as unknown as ExtensionAPI);
 
-    const { ctx, render, press } = makeTuiCtx(cwd);
+    const { ctx, render, press, notified } = makeTuiCtx(cwd);
     await fireSessionStart(pi, ctx);
 
+    // The operator is told, in the session that has a UI to tell (#933).
     expect(
-      readDebugLog().filter(
-        (entry) =>
-          entry.event === "config.loaded" &&
-          typeof entry.warning === "string" &&
-          entry.warning.includes('permissionDialogKeys.deny: "j"'),
-      ).length,
-    ).toBeGreaterThan(0);
+      notified.filter((message) =>
+        message.includes('permissionDialogKeys.deny: "j"'),
+      ),
+    ).toHaveLength(1);
 
     // The scope was not rejected: `*: allow` still allows, so a tool the config
     // does not name never prompts at all.
@@ -2267,5 +2272,62 @@ describe("configured permission-dialog hotkeys reach the inline dialog", () => {
     expect((await decision).block).toBe(true);
 
     rmSync(cwd, { recursive: true, force: true });
+  });
+
+  // #933: a config issue that exists before the session starts reached the
+  // debug log and nothing else, because the factory-time priming refresh
+  // recorded the warning as delivered while having no ctx to deliver it.
+  describe("a config issue present at session start", () => {
+    it("is shown by session_start alone, before the first turn", async () => {
+      // The shape `detectPermissiveBashFallback` exists to flag.
+      writeGlobalConfig({ permission: { "*": "allow" } });
+
+      const cwd = mkdtempSync(join(tmpdir(), "pi-perm-warn-start-cwd-"));
+      const pi = makeFakePi({ toolNames: ["demo"] });
+      piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+      // No before_agent_start: that fires when the operator submits a prompt,
+      // so session_start must carry the warning on its own.
+      const { ctx, notified } = makeTuiCtx(cwd);
+      await fireSessionStart(pi, ctx);
+
+      expect(
+        notified.filter((message) =>
+          message.includes("bash commands silently inherit 'allow'"),
+        ),
+      ).toHaveLength(1);
+
+      rmSync(cwd, { recursive: true, force: true });
+    });
+
+    it("is shown once, however many turns follow", async () => {
+      // The shape `detectPermissiveBashFallback` exists to flag.
+      writeGlobalConfig({ permission: { "*": "allow" } });
+
+      const cwd = mkdtempSync(join(tmpdir(), "pi-perm-warn-cwd-"));
+      const pi = makeFakePi({ toolNames: ["demo"] });
+      piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+      const { ctx, notified } = makeTuiCtx(cwd);
+      await fireSessionStart(pi, ctx);
+      await pi.fire(
+        "before_agent_start",
+        { systemPrompt: "", systemPromptOptions: { cwd } },
+        ctx,
+      );
+      await pi.fire(
+        "before_agent_start",
+        { systemPrompt: "", systemPromptOptions: { cwd } },
+        ctx,
+      );
+
+      expect(
+        notified.filter((message) =>
+          message.includes("bash commands silently inherit 'allow'"),
+        ),
+      ).toHaveLength(1);
+
+      rmSync(cwd, { recursive: true, force: true });
+    });
   });
 });
