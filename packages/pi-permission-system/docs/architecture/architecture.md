@@ -1210,6 +1210,15 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   `redirectMayWriteFile` proves a write for a `/dev/null` destination, so appending `2>/dev/null` to a read-only pipeline withholds [#803]'s `core-reader` exemption and floors the unit to `ask` — measured against every `<indirection-bash-wrapper>` prompt in the local review log since 2026-09-16, all of them proven core readers.
   The cause is a missing device row in `redirect-analysis.ts`'s effect proof, not the phase's role loss at projection; the two touch different modules and different seams.
   One interaction to carry forward: [#609] makes a bare creating redirect reach `path_write`, which would newly project `> /dev/null` as a write destination, so the same device fact is needed on the path surface once that step lands.
+- [#955] — filed by this session; out of scope for the roadmap.
+  `computeExtensionPaths` puts bare `agentDir` in `piInfrastructureDirs`, so `auth.json`, `mcp-oauth/`, and `trust.json` are auto-allowed reads, and the bypass returns from `describeExternalDirectoryGate` ahead of policy resolution, so an explicit `external_directory_read` `deny` on those paths never fires.
+  The cause is the breadth of a `config/` path list and the ordering of a `handlers/gates/` short-circuit, not a token role lost at projection; no step in this phase produces or consumes what it needs.
+  Small and self-contained, so a cheap independent candidate for any phase.
+- [#956] — filed by this session; deferred to a later phase, behind [#955].
+  The infrastructure read bypass gates on `READ_ONLY_PATH_BEARING_TOOLS`, a tool-name stand-in for "this access is a read" that predates the direction proof, so `read ~/.pi/agent/npm/…` is auto-allowed while `bash: ls` on the same directory prompts.
+  It is real roadmap work — the fix consumes the `TokenEffect` this phase's spine is about — but it is a *consumer* of that proof rather than part of the role loss, which is the same posture [#952] carries.
+  It is also blocked: widening the bypass to `bash` widens the `deny` override in [#955] to a surface that can compose a read into a pipeline.
+  Distinct from [#800], which asked for read-only relief across *any* external directory and closed on the `external_directory_read` rule; this is the narrower case where the package has already declared the path needs no prompt and only one surface honors it.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by [#880] (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1562,4 +1571,6 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#946]: https://github.com/gotgenes/pi-packages/issues/946
 [#951]: https://github.com/gotgenes/pi-packages/issues/951
 [#952]: https://github.com/gotgenes/pi-packages/issues/952
+[#955]: https://github.com/gotgenes/pi-packages/issues/955
+[#956]: https://github.com/gotgenes/pi-packages/issues/956
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
