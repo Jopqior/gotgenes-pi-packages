@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-model-selector-v1.0.3...pi-subagents-model-selector-v2.0.0) (2026-09-20)
+
+
+### Features
+
+* **pi-subagents-model-selector:** **breaking:** decouple core compatibility from core releases ([9fbb3c6](https://github.com/Jopqior/gotgenes-pi-packages/commit/9fbb3c64f2bb92ee1e3d3c76c4b2e5c8f3ba2512)), closes [#15](https://github.com/Jopqior/gotgenes-pi-packages/issues/15)
+
+### Documentation
+
+* clarify independent selector release policy ([a8a95b4](https://github.com/Jopqior/gotgenes-pi-packages/commit/a8a95b465db99cd9c87afe70ec05c678e415797a)), closes [#15](https://github.com/Jopqior/gotgenes-pi-packages/issues/15)
+* distinguish selector failure modes and verified core floor ([f8954c4](https://github.com/Jopqior/gotgenes-pi-packages/commit/f8954c4c387546b45d9a7a3a016ffc8073e96b0f)), closes [#15](https://github.com/Jopqior/gotgenes-pi-packages/issues/15)
+
 ## [1.0.3](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-model-selector-v1.0.2...pi-subagents-model-selector-v1.0.3) (2026-09-19)
 
 

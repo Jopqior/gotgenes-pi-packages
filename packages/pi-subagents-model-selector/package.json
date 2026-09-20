@@ -1,6 +1,6 @@
 {
   "name": "@jopqior/pi-subagents-model-selector",
-  "version": "1.0.3",
+  "version": "2.0.0",
   "description": "Pi extension that asks for model and thinking before every new pi-subagents run.",
   "type": "module",
   "imports": {
