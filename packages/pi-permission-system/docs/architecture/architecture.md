@@ -1126,6 +1126,7 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#957] — filed by [#863]'s planning; adopted as a new step, after [#859] and ahead of [#609].
   A quoted `--flag='value'` on any pattern-first command bypasses the flag table, so `grep --regexp='/etc/passwd' f.txt` raises an `external_directory` ask for a file `grep` never opens.
   Measured population over 7937 corpus commands is 0 real invocations, so it makes no claim on the phase's relief budget; it is adopted anyway because it is the same over-surface family as [#863] and [#859], it lands in the same file and the same walker, and leaving it open would have [#609] rewire that walker's roles around a known gap.
+  Adopted knowing ADR 0009 already declined the wider form of this fix: the step's substance is the amendment that admits the narrower one, not the ten lines of code.
 - [#880] — filed for the `commandEffects` step; the unfiled remainder of staging slice 2 (ADR 0013 §7).
 - [#881] — filed for the blame-threading step (staging slice 5), recast from a UX slice into a `fix:` by the measurement above.
 - [#800] — **close as completed** with the config recipe: `external_directory_read: {"*": "allow"}` plus the pure-reader core delivers what it asks for `cat`/`ls`/`find`/`grep`, and [#880] covers the non-core readers it names (`strings`, `file`) by declaration.
@@ -1332,8 +1333,12 @@ The argument never reaches `classifyPatternCommandFlag`, falls through to the po
 - **Smell:** Category C (the role vocabulary exists and is consulted for one spelling of the same argument but not the other).
 - **Target:** `src/access-intent/bash/token-collection.ts` — classify a `-`-leading argument of any node type, but act only on the recognized directives (`end-of-flags`, `consume-next`, `inline-value`) and let `regular-flag` fall through to today's positional handling.
   Dropping the type guard outright is the wrong fix: an unrecognized quoted `-`-leading argument would stop spending a pattern positional, so `sd '-old' '-new' file.txt` would join the already-broken unquoted spelling and drop `file.txt` — ADR 0009's unrecoverable direction.
-- **Outcome:** `grep --regexp='/etc/passwd' f.txt` projects `f.txt` alone, matching what the unquoted spelling already does; `node --eval='// x'` projects nothing, closing [#863]'s recorded residual.
+  Also `docs/decisions/0009-bash-path-projection-completeness-contract.md` — the step **overturns a recorded declination**, so it amends rather than merely implements: § "What the projection deliberately omits" already names this mechanism (`rg -g'!docs'`) and declines "widening flag detection to quoted tokens" on exactly the `sd` objection above.
+  That declination priced the naive widening; the narrow lever preserves `regular-flag` fall-through and so does not pay it, and [#863] is the evidence that the bullet's "over-surfaces, therefore recoverable" reasoning under-prices the cost.
+- **Outcome:** `grep --regexp='/etc/passwd' f.txt` projects `f.txt` alone, matching what the unquoted spelling already does; `node --eval='// x'` projects nothing, closing the residual [#863] records; ADR 0009's residual bullet is narrowed to the glued-quoted form (`rg -g'!docs'`) the narrow mechanism genuinely cannot reach.
 - **Commit type:** `fix:`.
+- **Risk note:** the amendment is the step's real content; the code change is ten lines.
+  Plan it as an ADR question first.
 - **Impact 2 / Risk 2 / Priority 8.**
 
 Release: independent
