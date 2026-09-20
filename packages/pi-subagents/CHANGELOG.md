@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [21.7.4](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.3...pi-subagents-v21.7.4) (2026-09-20)
+
+
+### Bug Fixes
+
+* **pi-subagents:** recognize pi ≥0.86's section-shaped prompt in the tail anchors ([b580282](https://github.com/gotgenes/pi-packages/commit/b580282588476c2e74e3771ada47cb73186af0fa)), closes [#958](https://github.com/gotgenes/pi-packages/issues/958)
+
+### Documentation
+
+* **pi-subagents:** record when the 0.85 project-context offset goes dead ([bdc32f5](https://github.com/gotgenes/pi-packages/commit/bdc32f5704c07a363a617aed29ed6efc01219c63)), closes [#959](https://github.com/gotgenes/pi-packages/issues/959)
+
 ## [21.7.3](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.2...pi-subagents-v21.7.3) (2026-09-18)
 
 
