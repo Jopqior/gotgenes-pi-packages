@@ -90,6 +90,25 @@ export type SteerOutcome =
 	| { kind: "rejected"; status: SubagentStatus };
 
 /**
+ * How a record's initial spawn selection ended — the one-shot milestone between
+ * spawn and session creation, independent of public status and of the whole-run
+ * promise (`Subagent.promise` spans the whole run; a background caller must not
+ * await it to learn whether selection finished).
+ *
+ * A discriminated value rather than a reconstruction from `awaitingSelection ===
+ * false`: the absence of that activity can mean queued, cancelled, failed, or
+ * successfully selected.
+ *
+ * Internal lifecycle API — SubagentManager consumes it on behalf of the
+ * spawning tool; it is never re-exported through the service boundary.
+ */
+export type SpawnSelectionOutcome =
+	| { kind: "not-required" }
+	| { kind: "selected" }
+	| { kind: "stopped" }
+	| { kind: "failed"; error: string };
+
+/**
  * The execution machinery a Subagent needs to run. A single mandatory
  * collaborator: production (SubagentManager.spawn) always supplies it, so run()
  * needs no "not configured" guards. The genuinely-optional behavior knobs stay
@@ -201,6 +220,12 @@ export class Subagent {
 	private readonly execution: SubagentExecution;
 	private readonly listeners = new RunListeners();
 	private readonly workspaceBracket: WorkspaceBracket;
+	/**
+	 * The initial spawn selection's one-shot milestone, created at construction
+	 * and settled exactly once by whichever transition owns it. Never reset: a
+	 * resume re-enters a session whose selection already ended.
+	 */
+	private readonly selectionOutcome = Promise.withResolvers<SpawnSelectionOutcome>();
 
 	subagentSession?: SubagentSession;
 
@@ -468,6 +493,10 @@ export class Subagent {
 			// The chooser finished, but the run may have aborted or the lease
 			// closed while it was open.
 			this.assertSelectionLive(gate.signal);
+			// The selection milestone: the pair is validated and the run is live.
+			// Downstream work (workspace preparation, the factory) may only proceed
+			// past this point, never before it.
+			this.selectionOutcome.resolve({ kind: "selected" });
 		}
 		let cwd: string | undefined;
 		if (this.workspaceBracket.hasProvider()) {
@@ -569,6 +598,33 @@ export class Subagent {
 		const run = this._promise;
 		if (!run || !this.isActive()) return;
 		await settleOrAbort(run, signal);
+	}
+
+	/**
+	 * Wait for this record's initial spawn selection to settle, then report how
+	 * it ended. A record whose scope holds no provider at wait time answers
+	 * `not-required` immediately — it does not wait for admission or session
+	 * creation, and a provider registered later cannot retroactively hold the
+	 * answer. A record still queued behind admission with a provider in force
+	 * stays pending until its admitted run selects, is stopped, or fails.
+	 */
+	waitForSpawnSelection(): Promise<SpawnSelectionOutcome> {
+		if (!this.isSpawnSelectionRequired()) {
+			this.selectionOutcome.resolve({ kind: "not-required" });
+		}
+		// Resolving an already-settled deferred is a no-op, so a provider that
+		// vanished after a completed selection cannot rewrite the outcome here:
+		// the settled value is always read before the current provider is consulted.
+		return this.selectionOutcome.promise;
+	}
+
+	/**
+	 * Whether this record still owes an initial selection: a gate is in flight
+	 * (its run latched a provider), or the retained scope currently holds one.
+	 */
+	private isSpawnSelectionRequired(): boolean {
+		if (this.awaitingSelection) return true;
+		return this.execution.selectionScope?.activeSelectionProvider() !== undefined;
 	}
 
 	/**
@@ -708,10 +764,13 @@ export class Subagent {
 	 * transition. No listener release: nothing is wired before run().
 	 * The record leaves the active set here, so the thunk the limiter runs when
 	 * the slot finally frees no-ops on guardedRun()'s guard — one notification.
+	 * The selection outcome settles here too: a queued stop never runs a provider,
+	 * so no later transition would otherwise resolve the wait.
 	 */
 	stopQueued(): void {
 		this.state.stopQueued();
 		this.execution.observer?.onRunFinished?.(this);
+		this.selectionOutcome.resolve({ kind: "stopped" });
 	}
 
 	/**
@@ -809,13 +868,15 @@ export class Subagent {
 		await disposeQuietly(session, "child session release");
 	}
 
-	/** Fail a run: mark error, release listeners, best-effort workspace dispose, notify observer. */
+	/** Fail a run: mark error, release listeners, best-effort workspace dispose, notify observer, settle the selection outcome. */
 	failRun(err: unknown): void {
 		this.markError(err);
 		this.clearPendingQuestion();
 		this.listeners.release();
 		this.disposeWorkspaceQuietly("error");
 		this.execution.observer?.onRunFinished?.(this);
+		// markError above recorded the formatted message this outcome reports.
+		this.selectionOutcome.resolve({ kind: "failed", error: this.error ?? "" });
 	}
 
 	/**
@@ -831,6 +892,7 @@ export class Subagent {
 		this.listeners.release();
 		this.disposeWorkspaceQuietly("stopped");
 		this.execution.observer?.onRunFinished?.(this);
+		this.selectionOutcome.resolve({ kind: "stopped" });
 	}
 
 	/**
