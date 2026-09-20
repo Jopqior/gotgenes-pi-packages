@@ -135,6 +135,87 @@ Both follow-ups carry `Co-authored-by: George Harker <george@george-graphics.co.
   npm's `latest` lagged the successful `publish` job by about a minute — the tag and changelog land first, so a version check immediately after a green run reads stale.
 
 [#890]: https://github.com/gotgenes/pi-packages/issues/890
+
+## Stage: Final Retrospective (2026-09-20T22:15:52Z)
+
+### Session summary
+
+One session ran the whole lifecycle for [#958]: PR review, decision gate, follow-up commits pushed to the contributor's fork branch, rebase merge, issue close, and the v21.7.4 release.
+The `/pr-review` Verify gate confirmed a third-party report rather than refuting it, which is the less common outcome, and the evidence it produced also surfaced a second defect in the same file and two adjacent ones in sibling packages ([#961], [#962]).
+The direction landed on `adopt-as-is`, the rarer of `/pr-review`'s branches, with two non-behavioral nits pushed onto the contributor's own branch rather than onto `main` afterward.
+
+### Observations
+
+#### What went well
+
+- **Generating prompt bytes from the published dist beat every hand fixture.**
+  The repo pins `@earendil-works/pi-coding-agent@0.84.4`, so nothing in the tree can produce a 0.86 prompt.
+  A scratch `pnpm install` of `0.86.1` into `/tmp/pi086-probe` and a five-line `gen.mjs` calling `buildSystemPrompt` produced the real bytes, which then fed a throwaway vitest against current `main`.
+  That is the `reproduction` skill's organic-data-over-fixtures principle applied to an SDK version the repo does not pin, and it is the reason the review could say "verified against real 0.86.1 bytes" rather than "verified against my reading of the renderer".
+- **Re-running the contributor's killing-mutation claim caught nothing, which is the point.**
+  `git show main:packages/pi-subagents/src/session/prompts.ts > …`, run the suite, `git checkout` to restore: 5 of 7 new tests failed, exactly as the PR body said.
+  A claim that survives independent reproduction is worth more in the close comment than one repeated from the PR.
+- **The Verify gate found more than it was pointed at.**
+  The dangling unclosed `<skills>` tag on *every* 0.86 child, relocated or not, is not in the issue or the PR body; it fell out of printing the actual child prompt instead of asserting against it.
+  The same run of evidence produced [#961] and [#962].
+- **Verification ran incrementally, not at the end.**
+  The full gate (`check`, `lint`, package suite) ran after the first nit edit and again after the second, before each commit, rather than once before the push.
+
+#### What caused friction (agent side)
+
+- `missing-context` — wrote an import the package's own `exports` map forbids, two calls after reading that map.
+  `jq -r '… (.exports|tostring)'` had already printed `{".": …, "./rpc-entry": …, "./client": …, "./experimental/plugin": …}`, and `gen.mjs` still imported `@earendil-works/pi-coding-agent/dist/core/system-prompt.js`.
+  Impact: one failed `node` run plus a `perl -pi` fix, 2 extra tool calls.
+  The fact was in context and unused, which is the failure mode worth naming rather than the missing lookup.
+- `rabbit-hole` — chased an apparent `main` / `origin/main` divergence that did not exist.
+  `git fetch origin main` updated the remote ref mid-sequence, so `git log -1 origin/main` and `git log main..origin/main` were read against different states and looked contradictory; a later `git rev-parse --short main origin/main` failed with `Needed a single revision` while each ref resolved individually.
+  Impact: 4 consecutive tool calls, no rework.
+  `git status -sb` answered it in one line (`ahead 3`) and should have been the first call, not the fifth.
+- `other` — `ci_find`'s default 120 s timeout expired on a fork PR whose run had not been created yet.
+  The run appeared at roughly 4 minutes and passed.
+  Impact: one 125 s timeout plus a hand-rolled 6 × 20 s polling loop, 3 extra tool calls.
+  During that window `statusCheckRollup` was `[]` and `actions/runs?head_sha=…` returned `total_count: 0`, which is indistinguishable from "awaiting approval" without knowing the latency.
+- `other` — two portability misses, one call each: `cat -A` (GNU-only; BSD `cat` rejects it) and `gh pr diff <n> -- <path>` (accepts at most one argument).
+  Impact: 2 tool calls, no rework.
+- `other` — the `gh-fork` remote added inside the `/tmp/pr-959` worktree appeared in the root checkout, after an earlier `git remote remove gh-fork` in the root had succeeded.
+  A worktree shares the repository config.
+  Impact: one extra cleanup step.
+
+#### What caused friction (user side)
+
+- **The redirecting question outperformed a correction.**
+  "Can we directly modify the PR to add our commits?"
+  surfaced `maintainerCanModify: true`, a capability the session had not checked and that `.pi/prompts/pr-review.md` does not mention.
+  It changed the landing shape from "merge, then fix on `main`" to "fix on the contributor's branch, then rebase-merge", which is strictly better and cost one question.
+- **The note attached to an `ask_user` answer pre-empted a round.**
+  "Make follow up commits on top to fix what we don't like" answered the next gate before it was asked.
+- Opportunity, minor: the execution gate offered "here" versus "hand off", was answered "hand off", and then reversed with "Let's do it in this session" one turn later.
+  The recorded landing plan had to be corrected by a Ship stage entry.
+  A single "land it now" instruction at the direction gate would have skipped both.
+
+### Diagnostic details
+
+- **Model-performance correlation** — every turn ran on `anthropic/claude-opus-5`; no subagent was dispatched.
+  Appropriate for a session that was almost entirely judgment (defect verification, design evaluation, three decision gates).
+  The one candidate for delegation, the `../pi` trace for `buildSystemPrompt`, was 2 greps and 1 read of a known file, which the `code-design` skill explicitly keeps inline.
+  No mismatch found.
+- **Escalation-delay tracking** — two sequences: 4 consecutive calls on the phantom git divergence, and ~5 on the absent CI run.
+  Neither had a subagent answer; the first wanted a different first command, the second wanted a longer timeout.
+- **Unused-tool detection** — `colgrep` was never called.
+  The exploration was exact-symbol throughout (`buildSystemPrompt`, `Current working directory:`, `available_skills`), which is grep's half of the decision table, so this is a correct omission rather than a gap.
+- **Feedback-loop gap analysis** — no gap.
+  `pnpm run check`, `pnpm run lint`, and the package suite ran after each of the two source edits and before each commit, and CI was watched to completion on the PR head, on `main`, and on the release run.
+
+### Changes made
+
+1. `.pi/prompts/pr-review.md` — replaced the fork-CI paragraph.
+   It asserted that fork runs sit at `action_required` until approved, which did not hold: an already-approved fork runs later pushes automatically.
+   The new text names both causes of an empty `statusCheckRollup` (awaiting approval, or not yet created), gives the `actions/runs?head_sha=` query that tells them apart, and directs `ci_find` to `timeout: 300` on a fork PR.
+2. `.pi/prompts/pr-review.md` — added the maintainer-edit push as direction 2's third ending, gated on `gh pr view --json maintainerCanModify` reporting `true`, with the note that a `git push --dry-run` reporting `Everything up-to-date` is not evidence of write access.
+3. `packages/pi-subagents/docs/retro/0958-section-shaped-prompt-anchors.md` — this Final Retrospective stage entry.
+
+Considered and not landed: an `AGENTS.md` addition for either prompt change (both fail admission question 2 — they fire at a `/pr-review` step), a `worktrees` note that a worktree shares repository config, a `shell-traps` note that `cat -A` is GNU-only, and promoting the generate-bytes-from-the-published-dist pattern into `reproduction`, which its organic-data rule already covers.
+
 [#918]: https://github.com/gotgenes/pi-packages/issues/918
 [#959]: https://github.com/gotgenes/pi-packages/pull/959
 [#961]: https://github.com/gotgenes/pi-packages/issues/961

@@ -33,9 +33,12 @@ Stop after recording the decision and handing off; do not start implementation h
    Check the `@gotgenes/*` extensions this repo actually runs under — including ones outside this monorepo, such as `pi-anthropic-auth` — for something that already mitigates it.
    A defect we are immune to is still real; its priority and its owner are not the same (Refs #883).
 
-A fork PR's workflow runs sit at `action_required` until a maintainer approves them, so `statusCheckRollup` is usually **empty** — absent checks mean *not run*, never *passed*.
-Do not read `mergeable`/`mergeStateStatus` as evidence of a green build.
-Approve the run (`gh api -X POST repos/gotgenes/pi-packages/actions/runs/<id>/approve`) or run the checks yourself per the Verify gate below.
+A fork PR's `statusCheckRollup` is often **empty**, for two indistinguishable reasons: the run awaits maintainer approval, or it has not been created yet (~4 minutes on a fork-branch push in #959).
+Absent checks mean *not run*, never *passed*; do not read `mergeable`/`mergeStateStatus` as evidence of a green build.
+Tell them apart with `gh api "repos/gotgenes/pi-packages/actions/runs?head_sha=<sha>" --jq .total_count`: `0` is not-yet-created, and an `action_required` run needs `gh api -X POST repos/gotgenes/pi-packages/actions/runs/<id>/approve`.
+Call `ci_find` with `timeout: 300` on a fork PR, not the 120 s default.
+An already-approved fork runs later pushes automatically, so do not wait on an approval that is not pending.
+Running the checks yourself per the Verify gate below settles it regardless of which reason applies.
 
 ## Verify the defect (required gate — do this before evaluating the diff)
 
@@ -184,7 +187,9 @@ Then hand off based on the decision:
 
 1. **Simplified design** — commit the triage note (`docs(pr-review): triage PR #$1 → adopt-with-simplified-design`), then tell the operator to run `/plan-issue #<issue>` — the issue number the note is keyed to, not `#$1`.
    `/plan-issue` reads this retro note as prior context: the direction is already decided here, so its Decide gate is satisfied — it should plan around the recorded decision rather than re-litigate it.
-2. **Adopt as-is** — produce a focused review checklist (correctness, convention fit, test coverage, behavior-change/breaking call-out, attribution) and either request changes on the PR or proceed to merge per the operator's call.
+2. **Adopt as-is** — produce a focused review checklist (correctness, convention fit, test coverage, behavior-change/breaking call-out, attribution), then land it per the operator's call: request changes, merge as-is, or push your own fixes onto the contributor's branch and `gh pr merge --rebase`.
+   That third ending needs `gh pr view $1 --json maintainerCanModify` to report `true`; it keeps `main` correct at every commit and preserves per-commit authorship.
+   `maintainerCanModify` is the evidence — a `git push --dry-run` reporting `Everything up-to-date` is not.
 3. **Decline / defer** — commit the triage note, then close the PR with a comment that credits `@<login>`, explains the reasoning, and (if the problem is real) points at a tracked follow-up.
 
 Commit the triage note before stopping: `git add <retro-file> && git commit -m "docs(pr-review): triage PR #$1 → <decision>"` (e.g. `adopt-as-is`, `decline`), matching the form in direction 1.
