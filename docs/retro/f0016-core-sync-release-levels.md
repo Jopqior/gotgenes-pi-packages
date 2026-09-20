@@ -110,3 +110,38 @@ The plan now names the manual merge-resolution fixture, moves imports in the ext
 This is a plan-review result, not implementation approval or a replacement for the future pre-completion review.
 
 The TDD phase status is pending approval: implementation of the revision `## TDD Order` starts only after the operator confirms it.
+
+## Stage: Implementation — TDD (2026-09-20T12:19:21Z)
+
+### Session summary
+
+The operator approved the quality revision, and all nine revision steps completed, with the production extraction split into two commits as permitted by the plan.
+Four correctness cycles added strict git-cliff context validation and offline manifest, unreleased-tail, and sync-chain checks; two further operator-approved TDD fixes closed blockers found by fresh review.
+The root suite increased from 230 to 264 passing tests, and the full workspace tests, type checks, root lint, and dead-code gate passed.
+
+### Observations
+
+- The initial implementation agent completed steps 1–5 before the operator stopped it.
+  A replacement was stopped for a model problem without leaving changes; a fresh agent completed steps 6–8.
+  The parent completed documentation, verification, review coordination, and these stage notes.
+- The scenario and network fixtures remain separate, and preparation copies include all four new transitive production modules.
+  Manifest fixture changes landed with the manifest fix, including the manual breaking-merge construction and independent regression/containment failures.
+  Equal-version fixture releases use an empty bump commit when their inherited manifest already matches.
+- The prescribed malformed-context, manifest, tail, and continuity mutations were exercised by input class and restored before commits.
+  The first agent's supplemental implementation log stopped after step 3; its session transcript contains step 5 mutation calls and reported outcomes rather than a complete durable raw-output log.
+  Subsequent independent review and full test runs verified the resulting tree without treating that incomplete log as a coverage premise.
+- Fresh pre-completion review initially returned FAIL despite green deterministic gates: quoted Git path output could hide non-ASCII or escaped core paths, and default Git log output omitted merge-only changes in a baseline tail.
+  The operator approved fixing both blockers, resulting in `fix: enumerate core paths losslessly in sync evidence (#16)` and `fix: account for merge changes in core tail enumeration (#16)`.
+  Those are the scope additions beyond the revision order.
+- The blocker fixes use NUL-delimited Git paths and first-parent merge diffs, with real-Git synthetic rejection tests and excluded-docs controls.
+  A window merge-only trial hit the existing unrecorded-merge guard before the tail check, so the dedicated tail regression targets the baseline span before the fork tag, where that guard cannot protect it.
+  An initial guard mutation crashed because it omitted an import; the corrected mutation restored the old acceptance path and was rerun.
+- The current real-repository predictor still exits successfully with empty stdout, and the isolated historical control still predicts `pi-subagents-v1.0.3`.
+  The parent reran the root suite after the delta review and measured 264 passing tests; lockfiles remain unchanged.
+  Root lint used the previously measured `NODE_OPTIONS=--max-old-space-size=8192` workaround without changing repository configuration.
+- Pre-completion reviewer: WARN.
+  Delta review independently reran all required gates and found both blocking gaps resolved.
+  Reviewer warnings retained outside the approved blocker fixes: `NONE_CONTRIBUTION` in the scenario helper shares a mutable object and `paths` array across instances; numeric SemVer comparison uses `Number` without rejecting fields beyond the safe integer range.
+- The releasing skill already points to the handbook's blocking rules and did not imply that recording exempts evidence from offline checks, so it was left unchanged.
+  No package runtime, manifest, architecture, roadmap, published tag, or changelog changed; no GitHub mutation, push, synchronization merge, or publication was performed.
+  Next is `/sync-worktree 16` in the peer session, then `/ship 16` at the root, with the remaining warnings visible for the operator's disposition.
