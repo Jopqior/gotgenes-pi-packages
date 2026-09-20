@@ -239,8 +239,8 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
   // on the null context but requires `session` to be bound.
   // No cwd or trust decision exists at factory init, so there is no project
   // scope to withhold from (fail closed); session_start reloads with the real
-  // cwd and trust decision. This load reports nothing to the operator " it
-  // cannot, and used to consume the warning by pretending it had (#933).
+  // cwd and trust decision. This load reports nothing to the operator: it
+  // cannot, and it used to consume the warning by pretending it had (#933).
   configStore.refresh(undefined, false);
 
   const configPath = getGlobalConfigPath(agentDir);

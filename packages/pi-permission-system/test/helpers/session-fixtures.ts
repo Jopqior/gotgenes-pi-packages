@@ -10,7 +10,6 @@
  * their own file (the vi.hoisted / vi.mock pattern from permission-session.test.ts)
  * since that mock is module-scoped.
  */
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { vi } from "vitest";
 
 import type { ResolvedAccessIntent } from "#src/access-intent/access-intent";

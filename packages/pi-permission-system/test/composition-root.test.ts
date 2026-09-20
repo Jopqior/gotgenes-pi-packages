@@ -43,7 +43,6 @@ import {
 } from "#src/authority/subagent-lifecycle-events";
 import { getSubagentSessionRegistry } from "#src/authority/subagent-registry";
 import {
-  DEBUG_LOG_FILENAME,
   getGlobalConfigPath,
   getGlobalLogsDir,
   REVIEW_LOG_FILENAME,
@@ -209,18 +208,6 @@ function readReviewLog(): { event: string }[] {
     .split("\n")
     .filter((line) => line.trim())
     .map((line) => JSON.parse(line) as { event: string });
-}
-
-/** Read the debug-log entries written under the stubbed agent dir. */
-function readDebugLog(): Record<string, unknown>[] {
-  const path = join(getGlobalLogsDir(agentDir), DEBUG_LOG_FILENAME);
-  if (!existsSync(path)) {
-    return [];
-  }
-  return readFileSync(path, "utf8")
-    .split("\n")
-    .filter((line) => line.trim())
-    .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
 /** Drive the registered `session_start` handler with a ctx. */
