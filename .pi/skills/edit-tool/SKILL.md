@@ -22,6 +22,7 @@ When an edit's `oldText` would span a decorative comment rule (a long run of `�
 When the rule line is itself the target (deleting a section header with its block), copy it from a fresh `Read` of that region — retyping the dash run is what fails the batch.
 When the rule line must be **rewritten** (a new label, so the padding changes), `Edit` has nothing to copy — write the line programmatically (`'─' * (78 - len(label))`).
 If you delete such a block by line number with `sed`, re-read the region afterward to confirm you did not remove an enclosing brace.
+An `oldText` spanning any non-ASCII character (an em-dash, a box-drawing rule, an ellipsis) must be copied from a fresh `Read`, never retyped: the character can be emitted as a bare newline, and the batch then fails on text you appear to have quoted correctly (Refs #933).
 
 ## Scripted substitutions
 

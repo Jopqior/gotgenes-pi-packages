@@ -153,3 +153,93 @@ A follow-up ([#953], the sibling policy-file-issue accumulation) is filed and di
 ### Observations
 
 Rebase onto local `main` is the next step; no conflicts anticipated — this branch's commits touch only `packages/pi-permission-system/` and `.pi/skills/package-pi-permission-system/SKILL.md`.
+
+## Stage: Final Retrospective (2026-09-20T16:50:49Z)
+
+### Session summary
+
+Issue #933 ran the full worktree lane across four stages: planning plus a Tidy First amendment and TDD in the peer session, then sync, then ship and this retrospective at the root.
+It landed as eight commits and released `pi-permission-system` v33.0.4, with CI and the release run green on the first attempt and no rework at any stage boundary.
+The retrospective's two findings are a measured non-ASCII dropout in authored prose that cost four repair rounds, and evidence that the `tidy-first-assessor` returns an empty verdict because of the question it is asked rather than the code it reads.
+
+### Observations
+
+#### What went well
+
+- **The Tidy First amendment is the strongest result in the issue, and it is measured rather than asserted.**
+  The amendment turned a five-step plan into seven by adding two preparatory `refactor:` commits.
+  The TDD stage then confirmed both predictions: tidying 1 deleted an ordering constraint the first plan had to pin with a comment and a killing mutation, and tidying 2 left `ctx` with a single reader so step 6's parameter removal was mechanical and `tsc` found every site.
+  A preparatory refactoring that is verified to have paid off after the fact is rare; this one is worth citing as the reference example.
+- **Mutation discipline caught a coverage claim the plan got wrong.**
+  The plan predicted that deleting the `session_start` drive would redden the end-to-end pin.
+  It did not, because that pin fires both moments and turn prep alone satisfies it.
+  Counting reds against the prediction, rather than accepting a green suite, is what surfaced the gap, and a `session_start`-only pin was added to cover the drive directly.
+- **The worktree convergence ran without a single retry.**
+  The ff-merge was predicted with `git merge-base --is-ancestor` before it was run, the one rebase conflict on `architecture.md` fell squarely under the add-only `[#N]:` exception and was resolved ascending, and the post-rebase `check` plus `test` confirmed the tree the root would actually merge.
+  The `/ship` lane then ran all thirteen steps with no correction.
+
+#### What caused friction (agent side)
+
+- `other`: **em-dash dropout in authored prose, at the tool-call boundary rather than in the `Edit` tool.**
+  Across the peer session's 24 markdown `newText`/`content` blocks, only 7 carried a literal em-dash, and 11 mid-sentence occurrences of a bare space-newline-space appear where one was intended.
+  Inspecting the raw session payload settles the mechanism: the heading arrived as `'## Stage: Implementation \n TDD'`, so the character was already gone when the model emitted the call, and the `Edit` tool applied faithfully what it was given.
+  The damage is silent, because the result is valid markdown that `rumdl` accepts: `"holds ot part of any batch"`, `"**PASS** ready for /ship"`, and a stage heading split across two paragraphs all passed lint.
+  Impact: four separate `python3` repair rounds across the TDD and sync stages, each preceded by a `sed`-based re-read to find the damage, for roughly 15 tool calls that produced no forward progress.
+  Both `claude-opus-5` and `claude-sonnet-5` hit it in the same session, so it is not model-specific.
+  This retrospective's own first append attempt failed the same way, in `oldText` this time, which is how the `edit-tool` half of the proposal below was found.
+  A related incident is already on file from #814 (stray CJK characters appearing in a test comment, caught only by re-reading), which makes this a recurrence class rather than a one-off.
+- `missing-context`: **the `tidy-first-assessor` asked only half the question.**
+  Dispatched during planning, it returned no preparatory commits and declined four candidates, each with defensible reasoning for the question its prompt poses.
+  Step 1 of its definition says it is looking for friction the change will hit, and the edit genuinely was easy at three lines.
+  The two tidyings that mattered were invisible to that question because they were design residue the fix would leave behind, not friction in the edit.
+  They surfaced only when the operator asked the main agent what disagreements it had with its own design.
+  Impact: no rework, but the plan was written, committed, and then rewritten from five steps to seven, and the second pass is where the issue's best work came from.
+- `other`: **an `Edit` mismatch rate of 12 rejections across 75 calls (16%) in the peer session.**
+  Only one of the twelve traces to the em-dash dropout above, an `architecture.md` tree line whose `oldText` carried the same corruption; the other eleven are ordinary stale-anchor mismatches.
+  Impact: added friction with no rework, since each retry succeeded after a `Read`.
+  Recorded as a measurement rather than a proposal, because there is no baseline for this repo to say whether 16% is anomalous.
+- `other`: **a self-inflicted status-reporting trap in the ship lane.**
+  I ran `pnpm run lint >/tmp/lint.log 2>&1 || tail -30 /tmp/lint.log; echo "lint exit: $?"`, where `$?` reports the status of the `||` compound and is therefore always zero.
+  Self-identified: I did not trust it and followed with `grep -c 'lint/'`, which is the check that actually held.
+  Impact: one wasted tool call and no rework, but the printed `lint exit: 0` would have been a false reassurance had I stopped there.
+
+#### What caused friction (user side)
+
+Both operator interventions in this issue were high-leverage, and neither was a correction.
+
+- At the planning gate, the operator answered a three-option fix-shape menu with a question about ownership rather than a selection.
+  That redirected the design from a three-line dedupe patch to the seam move that shipped.
+  The `clarification-gates` skill already reads a question-in-place-of-a-selection as a premature gate, and this instance confirms it: the grep that answered the question, 10 `ui.notify` sites with one session-lifecycle outlier, should have preceded the menu.
+- After the plan was committed, the operator asked what disagreements the agent had with its own design and whether it complected the system.
+  This produced the amendment and the two tidyings that the TDD stage then measured as paying off.
+  The opportunity is not that the operator should have said this earlier; it is that this question is generalizable and currently has no owner in the workflow.
+  The `tidy-first-assessor` is the natural home for it, which is the proposal below.
+
+### Diagnostic details
+
+- **Model-performance correlation**, attributed from the session transcripts rather than from the agent definitions.
+  Peer session: planning, the amendment, and all seven TDD steps ran on `anthropic/claude-opus-5`, which suits judgment-heavy design and mutation work; the sync stage ran on `anthropic/claude-sonnet-5` and handled a non-trivial rebase conflict correctly.
+  Root session: `/ship` on `claude-sonnet-5`, which is mechanical and appropriate, and this retrospective on `claude-opus-5`.
+  Both subagents ran on `claude-sonnet-5` per their definitions.
+  The `pre-completion-reviewer` (54 turns) independently re-derived all four mandated invariants and returned a clean PASS, which is strong work for the model.
+  The `tidy-first-assessor` (25 turns) returned an empty verdict whose cause the friction entry above attributes to its prompt rather than its model.
+  One session is not enough to separate those two explanations, so no model change is proposed.
+- **Escalation-delay tracking**: two sequences exceeded five consecutive calls on the same problem, both in the em-dash class.
+  Repairing the `architecture.md` module tree took roughly eight calls: a rejected `Edit`, a successful one that inserted stray blank lines, two `sed` reads, a `python3` repair, then re-verification.
+  Repairing the retro file's TDD stage notes took a similar run across three `python3` rounds, because each round fixed only the damage the previous re-read had revealed.
+  Neither warranted a subagent; the correct escalation was to stop retrying `Edit` and verify the written region once, comprehensively, which is what the proposal below encodes.
+- **Feedback-loop gap analysis**: no gap, and this is the counter-example worth recording.
+  Every TDD step ran `pnpm run check` plus the package suite before its commit, each step's mutations were executed and their reds counted against the plan's predictions, and `lint` warnings were counted with `grep -c 'lint/'` rather than trusted to the exit code, which surfaced two orphans that an exit code of zero would have hidden.
+  The `lint` and `fallow dead-code` gates then ran again at `/sync-worktree` and a third time at `/ship` on the post-merge tree.
+- **Unused-tool detection**: nothing notable.
+  No friction point in this issue would have been resolved by a subagent or search tool that was available and not dispatched.
+
+### Changes made
+
+1. `.pi/skills/markdown-conventions/SKILL.md`: added a `### Non-ASCII in authored prose` subsection stating that an em-dash in a `newText`/`content` body can arrive as a bare newline, that the result passes `rumdl`, and that the region should be scanned after writing with `rg -n --multiline ' \n [a-z]' <file>`.
+2. `.pi/skills/edit-tool/SKILL.md`: extended the anchoring guidance so an `oldText` spanning any non-ASCII character must be copied from a fresh `Read` rather than retyped.
+3. `.pi/agents/tidy-first-assessor.md`: added `## Step 2b: Ask what the change leaves behind`, which asks what the change leaves half-done alongside Step 2's question about what makes it easier, and routes the answer to a preparatory tidying or a filed follow-up.
+
+Both skill edits were themselves damaged on their first write, which is the finding reproducing under its own rule.
+The `edit-tool` sentence landed with literal `\u2502` and `\u2026` escapes instead of characters, and the `markdown-conventions` scan command landed with a backtick inside a single-backtick code span.
+The detection command was verified against a synthetic fixture before being written into the rule, and all four touched files were then scanned clean and pass `pnpm run lint` with zero warnings.

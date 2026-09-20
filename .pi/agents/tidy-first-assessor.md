@@ -65,6 +65,13 @@ Candidates, each tied to a specific friction the change will hit:
 
 Reject any candidate that does not trace to a specific friction in Step 1 — an untied "improvement" is scope creep.
 
+## Step 2b: Ask what the change leaves behind
+
+Step 2 asks what makes the imminent change *easier*.
+Also ask what the change leaves *half-done*: a parameter that survives with one reader, a field whose last consumer is going away, a name that will describe the old shape.
+A three-line edit can be frictionless and still leave the structure wrong.
+That residue is a preparatory tidying when landing it first makes the change smaller, and a filed follow-up when it changes behavior.
+
 ## Step 3: Sequence and size
 
 Order the tidyings so each leaves the tree green and the next builds on it.

@@ -32,6 +32,13 @@ The `pi-autoformat` extension reformats every file an `Edit`/`Write` touches, an
 - It also reads a numbered section citation (`§ *7. Verify CI*`) as a sentence end and splits it — cite the heading instead (`` the `## 7. Verify CI` section ``).
 - It also reads a leading `~` as strikethrough and rewrites a `~`-prefixed token (`(~:211)` → `(~~211)`), which `rumdl check` passes — write an approximate line reference as `line ~211`.
 
+### Non-ASCII in authored prose
+
+An em-dash in a `newText`/`content` body is unreliably emitted: it can arrive as a bare newline, splitting a sentence or a heading.
+The result is valid markdown that `rumdl` accepts, so no gate catches it.
+After writing prose, re-read the region and scan it with `rg -n --multiline ' \n [a-z]' <file>`, which reports the split sentence and the line it ran into.
+Prefer a colon, semicolon, or parentheses when the sentence allows it (Refs #814, #933).
+
 ### Code fences
 
 - Always specify a language on fenced code blocks (e.g., ` ```typescript `, ` ```bash `, ` ```jsonc `, ` ```text `); use `text` for plain output.
