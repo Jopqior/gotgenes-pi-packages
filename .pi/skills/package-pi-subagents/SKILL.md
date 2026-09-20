@@ -115,6 +115,9 @@ service-adapter ─wraps─→ SubagentManager
 - Typed API boundary - export `SubagentsService` via `Symbol.for()` accessors so other extensions can spawn agents without importing this package directly (done, #48).
 - **Spawn selection** — `registerSpawnSelectionProvider` is an optional generative seam.
   A companion can require a human model/thinking pair after admission and before workspace or session creation.
+  New background tool calls wait for admission and confirmed selection, not workspace/session/task completion; the public service's `spawn()` remains synchronous, and no-provider tools retain non-blocking queued acknowledgements.
+  The record owns a private one-shot selection outcome and startup cancellation listeners, detached at confirmation; cancellation must release queued or active selection even when the provider ignores abort.
+  Preserve this sequential tool boundary without promising serialization of parallel tools or independent-session dialogs.
   That pair overrides model/thinking arguments and `locked:` values for those two fields only; with no provider, ordinary resolution is unchanged.
   Pending selection is private activity (public status stays `running`) and is withheld from `SubagentRecord`.
   Capture the service instance at extension initialization; a child registration is `inherited` and must not replace the root.

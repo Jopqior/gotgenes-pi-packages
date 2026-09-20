@@ -66,7 +66,9 @@ subagent({
 ```
 
 Foreground agents block until complete and return results inline.
-Background agents return an ID immediately and notify you on completion.
+Background tools return an ID without waiting for the task and notify you on completion.
+With a [spawn-selection provider](#per-spawn-model-and-thinking-selection), a new background invocation first waits for concurrency admission and model/thinking confirmation.
+Without a provider, it returns immediately, including when queued.
 
 ## UI
 
@@ -120,17 +122,17 @@ The LLM receives structured `<task-notification>` XML for parsing, while the use
 
 Launch a sub-agent.
 
-| Parameter           | Type         | Required | Description                                                      |
-| ------------------- | ------------ | -------- | ---------------------------------------------------------------- |
-| `prompt`            | string       | yes      | The task for the agent                                           |
-| `description`       | string       | yes      | Short 3-5 word summary (shown in UI)                             |
-| `subagent_type`     | string       | yes      | Agent type (built-in or custom)                                  |
-| `model`             | string       | no       | Model — `provider/modelId` or fuzzy name (`"haiku"`, `"sonnet"`) |
-| `thinking`          | string       | no       | Thinking level: off, minimal, low, medium, high, xhigh, max      |
-| `max_turns`         | number       | no       | Max agentic turns. Omit for the agent's own limit                |
-| `run_in_background` | boolean      | no       | Run without blocking                                             |
-| `resume`            | string       | no       | Agent ID to resume a previous session                            |
-| `inherit_context`   | boolean      | no       | Fork parent conversation into agent                              |
+| Parameter           | Type    | Required | Description                                                      |
+| ------------------- | ------- | -------- | ---------------------------------------------------------------- |
+| `prompt`            | string  | yes      | The task for the agent                                           |
+| `description`       | string  | yes      | Short 3-5 word summary (shown in UI)                             |
+| `subagent_type`     | string  | yes      | Agent type (built-in or custom)                                  |
+| `model`             | string  | no       | Model — `provider/modelId` or fuzzy name (`"haiku"`, `"sonnet"`) |
+| `thinking`          | string  | no       | Thinking level: off, minimal, low, medium, high, xhigh, max      |
+| `max_turns`         | number  | no       | Max agentic turns. Omit for the agent's own limit                |
+| `run_in_background` | boolean | no       | Return before task completion; wait for required spawn selection |
+| `resume`            | string  | no       | Agent ID to resume a previous session                            |
+| `inherit_context`   | boolean | no       | Fork parent conversation into agent                              |
 
 These five parameters win over the agent file's own values, which fill whichever the call leaves unset.
 An agent file can withhold one with [`locked`](./docs/configuration.md#locking-fields-against-callers); the result then names the agent and the parameters it ignored.
@@ -252,7 +254,21 @@ Interactive model and thinking choice lives in a companion package, not this cor
 This fork's `@jopqior/pi-subagents-model-selector` registers a `SpawnSelectionProvider` so every new in-process run asks the operator before a workspace or child session is created.
 The selected pair overrides model and thinking defaults, explicit arguments, and `locked:` values for those two fields only.
 The `subagent` tool card names the selected pair.
-Installing this core without the companion leaves ordinary resolution unchanged.
+For a new background invocation, the tool waits for concurrency admission and the validated choice, then returns without waiting for workspace preparation, session creation, or task completion.
+Confirmation approves startup; it does not mean a child session or transcript already exists.
+Foreground invocations still wait for the entire run, and resume does not ask again.
+The public service's `spawn()` remains synchronous and returns an ID even while selection is pending.
+Installing this core without the companion leaves ordinary resolution and non-blocking background acknowledgements unchanged.
+
+Selection happens after admission, so a full concurrency limit can hold the parent behind a running sibling that needs further parent activity.
+Interrupt or cancel the pending startup to escape that dependency wait; there is no selection timeout or automatic approval.
+Cancelling the chooser, interrupting the tool before confirmation, closing the selection scope, or disposing an unfinished startup releases the wait without creating an unconfirmed child, even if the provider ignores abort.
+The tool's startup signal detaches at confirmation; subsequent interruption is governed by the existing background interruption policy.
+Selection cancellation or failure returns the agent ID and the startup outcome rather than a successful-launch acknowledgement.
+
+This protects a sequential parent continuation: a tool awaited before `ask_user` cannot finish while its required selection is pending.
+It does not serialize tool calls already executing in parallel, dialogs in independent sessions, or direct synchronous service callers.
+This changes the previous immediate-return tool contract when a provider is installed; no configuration migration is needed.
 See [`@jopqior/pi-subagents-model-selector`](../pi-subagents-model-selector/README.md) for load order, nested routing, and non-interactive refusal.
 
 ## Worktree Isolation
@@ -315,7 +331,8 @@ See `src/service/service.ts` for the full `SubagentsService` interface, the `Wor
 
 #### `spawn` contract
 
-`spawn` returns the new agent's id immediately — it never waits for the run.
+`spawn` returns the new agent's id synchronously — it never waits for admission, selection, or the run.
+The background `subagent` tool adds its own selection wait; that internal wait is not a service method or a public snapshot field.
 Use `getRecord(id)` to poll, `steer` to send a message, and the `subagents:completed` event to learn when it finished.
 
 The agent type is canonicalized, so `"explore"` and `"Explore"` reach the same agent.

@@ -164,6 +164,8 @@ classDiagram
         +resume(prompt, signal)
         +abort(): boolean
         +waitUntilSettled(signal): Promise~void~
+        +waitForSpawnSelection(signal): Promise~SpawnSelectionOutcome~
+        +cancelInitialSelection(): boolean
         +steer(message): Promise~SteerOutcome~
         +isSessionReady(): boolean
         +getConversation(): string | undefined
@@ -213,6 +215,7 @@ classDiagram
         -registry: SpawnTypeResolver
         +spawn(snapshot, type, prompt, config)
         +spawnAndWait(snapshot, type, prompt, config)
+        +waitForSpawnSelection(id, signal): Promise~SpawnSelectionOutcome~
         +resume(id, prompt, signal)
         +getRecord(id): Subagent
         +listAgents(): Subagent[]
@@ -288,39 +291,58 @@ Other terminal transitions guard against overwriting `stopped` — once an agent
 
 ## Execution flow
 
+The background tool and the public service share synchronous `spawn()`, which returns an ID independently of admission and task completion.
+Only the tool then awaits the record's initial selection outcome through the manager.
+The diagram shows a provider-enabled background call; admission can happen during `spawn()` when a slot is available.
+
 ```mermaid
 sequenceDiagram
     participant LLM as Parent LLM
     participant Tool as subagent tool
-    participant Spawn as spawn-config
     participant Mgr as SubagentManager
+    participant Gate as ConcurrencyLimiter
     participant Ag as Subagent
+    participant Chooser as Selection provider
     participant Factory as createSubagentSession
-    participant Asm as assembleSessionConfig
     participant Sub as SubagentSession
-    participant Child as Child session
 
-    LLM->>Tool: subagent(type, prompt, ...)
-    Tool->>Spawn: resolveSpawnConfig(params)
-    Spawn-->>Tool: ResolvedSpawnConfig
+    LLM->>Tool: background subagent(type, prompt, ...)
+    Note over Tool: resolveSpawnConfig and capture parent snapshot
     Tool->>Mgr: spawn(snapshot, type, prompt, config)
-    Mgr->>Ag: run()
-    Note over Ag: a registered provider selects model and thinking before workspace or factory
-    Ag->>Factory: createSubagentSession(params, deps)
-    Factory->>Asm: assembleSessionConfig(type, ctx, opts, env, registry, io)
-    Asm-->>Factory: SessionConfig
-    Factory->>Child: create session + bind extensions
-    Factory-->>Ag: SubagentSession (born complete)
-    Note over Ag: record-observer subscribes to session events
-    Ag->>Sub: runTurnLoop(prompt, opts)
-    Sub->>Child: prompt + drive turn loop
-    Child-->>Sub: result text
-    Sub-->>Ag: TurnLoopResult
-    Ag-->>Mgr: update Subagent
-    Mgr-->>Tool: Subagent
-    Tool-->>LLM: formatted result
-    Note over Mgr: disposeSession() fires `disposed` at cleanup (resume-detectable)
+    Mgr->>Gate: schedule record run
+    Mgr-->>Tool: ID synchronously
+    Tool->>Mgr: waitForSpawnSelection(id, tool signal)
+    Mgr->>Ag: waitForSpawnSelection(signal)
+    Gate->>Ag: run() after admission
+    Ag->>Chooser: select available model/thinking pair
+    Chooser-->>Ag: choice
+    Note over Ag: validate, check cancellation, apply pair, detach startup listeners
+    Ag-->>Tool: selected outcome via manager
+    par Parent continuation
+        Tool-->>LLM: confirmed startup acknowledgement and ID
+        Note over LLM: next sequential tool may now run
+    and Child startup and execution
+        Ag->>Ag: prepare workspace if configured
+        Ag->>Factory: createSubagentSession(params, deps)
+        Note over Factory: assemble config, create session, bind extensions
+        Factory-->>Ag: SubagentSession
+        Ag->>Sub: runTurnLoop(prompt, opts)
+        Sub-->>Ag: TurnLoopResult
+        Ag-->>Mgr: terminal observer notification
+        Note over Mgr: existing completion notification and result collection
+    end
 ```
+
+The `selected` outcome releases the tool wait before downstream awaits; it does not promise that workspace work begins after the parent resumes.
+With no provider at wait entry, `not-required` releases the tool immediately, even while the record is queued.
+Foreground uses `spawnAndWait()` and the whole-run promise, not the background selection boundary.
+
+The outcome (`not-required`, `selected`, `stopped`, or `failed`) is one-shot record state, retained across resume and excluded from the public service and snapshots.
+Queued stop settles it without admission; active cancellation races the provider, discarding late answers and observing late rejection.
+The tool signal and scope closure cancel unfinished startup, with listeners removed at settlement.
+Manager disposal cancels outstanding initial selection before clearing scheduled work and records, without changing confirmed-task shutdown policy.
+Admission remains FIFO and task-driven: a parent can wait behind a sibling that needs parent activity, so interruption remains the escape from that dependency wait.
+The boundary protects sequential parent continuation, not already-parallel tools or dialogs in independent sessions.
 
 ## Module organization
 
@@ -365,7 +387,7 @@ src/
 │   ├── create-subagent-session.ts  assembly factory: session creation, spawn-tool denylist, core child-tool install, binding; optional gated-run signal after loader awaits
 │   ├── subagent-session.ts         born-complete child session: turn loop, steer, shutdown-then-dispose teardown
 │   ├── turn-limits.ts              normalizeMaxTurns (turn-count policy)
-│   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); awaits a registered spawn-selection provider after admission and before workspace or session creation, then stamps the selected pair on the record; a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal, including a live run), which the resume choke point and every result carrier read rather than re-deriving; reports a resume's start as well as its end
+│   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); owns the one-shot initial-selection outcome and startup-only cancellation, racing provider abort after admission and confirming the selected pair before workspace/session creation; a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal, including a live run), which the resume choke point and every result carrier read rather than re-deriving; reports a resume's start as well as its end
 │   ├── subagent-state.ts           lifecycle status + metrics + result-delivery value object (transitions, accumulators, classification predicates); delivery carries a revocable carrier claim, a one-way consumption latch, and a per-run update ledger that renders only what no announcement delivered; private awaiting-selection activity, never a public status
 │   ├── run-listeners.ts            per-run observer-unsub and signal-detach handles
 │   ├── workspace-bracket.ts        child workspace prepare/dispose lifecycle; idempotent dispose, reports a torn-down workspace
@@ -395,7 +417,7 @@ src/
 │   ├── result-renderer.ts          pure per-status result rendering
 │   ├── spawn-config.ts             pure config resolution
 │   ├── foreground-runner.ts        foreground execution loop; projects private pending-selection activity; overlays tool-card modelName and thinking tags from the selected pair
-│   ├── background-spawner.ts       background spawn setup; submitted/waiting wording while selection is pending; overlays launch details from the selected pair
+│   ├── background-spawner.ts       background spawn setup; awaits initial selection through the manager, reports confirmed/cancelled/failed startup without waiting for child completion; overlays launch details from the selected pair
 │   ├── get-result-tool.ts          get_subagent_result tool
 │   ├── get-result-report.ts        pure get_subagent_result report formatter
 │   ├── get-result-renderer.ts      pure get_subagent_result line assembly for the collapsed and expanded TUI views
