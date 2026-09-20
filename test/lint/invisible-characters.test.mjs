@@ -4,6 +4,9 @@ import {
   findInvisibleCharacters,
   formatFinding,
   isBinary,
+  repairFiles,
+  repairInvisibleCharacters,
+  run,
   scanFiles,
   suggestedCharacter,
 } from "../../scripts/lint/invisible-characters.mjs";
@@ -196,6 +199,170 @@ describe("suggestedCharacter", () => {
 
   it("does not match a residue that merely contains a row", () => {
     expect(suggestedCharacter("coherence2")).toBe(null);
+  });
+});
+
+/** An in-memory stand-in for `readFileSync`/`writeFileSync`. */
+function memoryIo(tree) {
+  const files = { ...tree };
+  const writes = [];
+  return {
+    files,
+    writes,
+    readFile: (path) => files[path],
+    writeFile: (path, text) => {
+      files[path] = Buffer.from(text, "utf8");
+      writes.push(path);
+    },
+  };
+}
+
+describe("repairInvisibleCharacters", () => {
+  describe("characters it deletes", () => {
+    it("deletes a zero-width space", () => {
+      expect(
+        repairInvisibleCharacters(`posix/${ZERO_WIDTH_SPACE}win32`),
+      ).toEqual({ text: "posix/win32", removed: 1 });
+    });
+
+    it("deletes a byte order mark", () => {
+      expect(repairInvisibleCharacters(`${BYTE_ORDER_MARK}# Title`)).toEqual({
+        text: "# Title",
+        removed: 1,
+      });
+    });
+
+    it("counts every deletion", () => {
+      expect(
+        repairInvisibleCharacters(
+          `a${ZERO_WIDTH_SPACE}b${BYTE_ORDER_MARK}c${ZERO_WIDTH_SPACE}`,
+        ),
+      ).toEqual({ text: "abc", removed: 3 });
+    });
+  });
+
+  describe("characters it must leave alone", () => {
+    it("leaves a form feed in place, since deleting it strands the residue", () => {
+      expect(repairInvisibleCharacters(`awk ${FORM_FEED}erence2 gawk`)).toEqual(
+        {
+          text: `awk ${FORM_FEED}erence2 gawk`,
+          removed: 0,
+        },
+      );
+    });
+
+    it("leaves a zero-width joiner in place, since emoji sequences need it", () => {
+      expect(repairInvisibleCharacters(`a${ZERO_WIDTH_JOINER}b`)).toEqual({
+        text: `a${ZERO_WIDTH_JOINER}b`,
+        removed: 0,
+      });
+    });
+
+    it("leaves a zero-width non-joiner in place", () => {
+      expect(repairInvisibleCharacters(`a${ZERO_WIDTH_NON_JOINER}b`)).toEqual({
+        text: `a${ZERO_WIDTH_NON_JOINER}b`,
+        removed: 0,
+      });
+    });
+
+    it("leaves a non-breaking space in place", () => {
+      expect(
+        repairInvisibleCharacters(`e.g.${NON_BREAKING_SPACE}biome`),
+      ).toEqual({ text: `e.g.${NON_BREAKING_SPACE}biome`, removed: 0 });
+    });
+
+    it("returns clean text unchanged", () => {
+      expect(repairInvisibleCharacters("clean prose\n")).toEqual({
+        text: "clean prose\n",
+        removed: 0,
+      });
+    });
+  });
+});
+
+describe("repairFiles", () => {
+  it("writes the repaired text and names the file", () => {
+    const io = memoryIo({
+      "a.md": Buffer.from(`posix/${ZERO_WIDTH_SPACE}win32`, "utf8"),
+    });
+
+    expect(repairFiles(["a.md"], io)).toEqual({ repaired: ["a.md"] });
+    expect(io.files["a.md"].toString("utf8")).toBe("posix/win32");
+  });
+
+  it("does not write a file with nothing repairable", () => {
+    const io = memoryIo({ "a.md": Buffer.from(`x${FORM_FEED}`, "utf8") });
+
+    expect(repairFiles(["a.md"], io)).toEqual({ repaired: [] });
+    expect(io.writes).toEqual([]);
+  });
+
+  it("does not write a clean file", () => {
+    const io = memoryIo({ "a.md": Buffer.from("clean\n", "utf8") });
+
+    expect(repairFiles(["a.md"], io)).toEqual({ repaired: [] });
+    expect(io.writes).toEqual([]);
+  });
+
+  it("skips a binary file", () => {
+    const io = memoryIo({ "demo.mp4": Buffer.from([0x00, 0x0c]) });
+
+    expect(repairFiles(["demo.mp4"], io)).toEqual({ repaired: [] });
+    expect(io.writes).toEqual([]);
+  });
+
+  it("keeps a report-only character in the text it writes", () => {
+    const io = memoryIo({
+      "a.md": Buffer.from(`${ZERO_WIDTH_SPACE}x${FORM_FEED}y`, "utf8"),
+    });
+
+    expect(repairFiles(["a.md"], io)).toEqual({ repaired: ["a.md"] });
+    expect(io.files["a.md"].toString("utf8")).toBe(`x${FORM_FEED}y`);
+  });
+});
+
+describe("run", () => {
+  it("reports findings and fails without touching a file", () => {
+    const io = memoryIo({
+      "a.md": Buffer.from(`x${ZERO_WIDTH_SPACE}`, "utf8"),
+    });
+
+    expect(run({ paths: ["a.md"] }, io)).toEqual({
+      lines: ["a.md:1:2: U+200B"],
+      exitCode: 1,
+    });
+    expect(io.writes).toEqual([]);
+  });
+
+  it("succeeds once --fix has repaired everything it found", () => {
+    const io = memoryIo({
+      "a.md": Buffer.from(`posix/${ZERO_WIDTH_SPACE}win32`, "utf8"),
+    });
+
+    expect(run({ paths: ["a.md"], fix: true }, io)).toEqual({
+      lines: ["repaired a.md"],
+      exitCode: 0,
+    });
+  });
+
+  it("still fails under --fix when a report-only finding remains", () => {
+    const io = memoryIo({
+      "a.md": Buffer.from(`${ZERO_WIDTH_SPACE}x${FORM_FEED}erence2`, "utf8"),
+    });
+
+    expect(run({ paths: ["a.md"], fix: true }, io)).toEqual({
+      lines: [
+        "repaired a.md",
+        "a.md:1:2: U+000C (did you mean U+2014 em dash?)",
+      ],
+      exitCode: 1,
+    });
+  });
+
+  it("succeeds on a clean tree", () => {
+    const io = memoryIo({ "a.md": Buffer.from("clean\n", "utf8") });
+
+    expect(run({ paths: ["a.md"] }, io)).toEqual({ lines: [], exitCode: 0 });
   });
 });
 

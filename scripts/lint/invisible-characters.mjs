@@ -14,12 +14,13 @@
 // the visible half of the corruption behind and deleting a zero-width joiner
 // would break an emoji sequence. Only the unambiguous ones are repairable.
 //
-// Usage: node scripts/lint/invisible-characters.mjs [paths...]
+// Usage: node scripts/lint/invisible-characters.mjs [--fix] [paths...]
 //
-// With no paths it enumerates `git ls-files -z` itself.
+// With no paths it enumerates `git ls-files -z` itself. `--fix` deletes the
+// repairable characters and still fails on the rest.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -188,6 +189,73 @@ export function scanFiles(paths, readFile) {
 }
 
 /**
+ * `text` with every repairable character deleted.
+ *
+ * A report-only character is left exactly where it is. Deleting a form feed
+ * would strand its visible residue, which is the trap #863 recorded: the
+ * confirming grep then passes on a file that is still wrong.
+ *
+ * @param {string} text
+ * @returns {{text: string, removed: number}}
+ */
+export function repairInvisibleCharacters(text) {
+  const characters = [...text];
+  const kept = characters.filter(
+    (character) => !REPAIRABLE.has(character.codePointAt(0)),
+  );
+  return { text: kept.join(""), removed: characters.length - kept.length };
+}
+
+/**
+ * Repair every file that has something repairable, and name those rewritten.
+ *
+ * A file with nothing to delete is not rewritten at all, so a repair run
+ * leaves no incidental diff.
+ *
+ * @param {string[]} paths
+ * @param {{readFile: (path: string) => Buffer, writeFile: (path: string, text: string) => void}} io
+ * @returns {{repaired: string[]}}
+ */
+export function repairFiles(paths, io) {
+  const repaired = [];
+  for (const path of paths) {
+    const buffer = io.readFile(path);
+    if (isBinary(buffer)) continue;
+    const { text, removed } = repairInvisibleCharacters(
+      buffer.toString("utf8"),
+    );
+    if (removed === 0) continue;
+    io.writeFile(path, text);
+    repaired.push(path);
+  }
+  return { repaired };
+}
+
+/**
+ * The whole command: repair when asked, then report whatever is left.
+ *
+ * Repairing never satisfies the gate on its own -- the scan runs afterwards
+ * over the rewritten files, so a report-only finding still fails.
+ *
+ * @param {{paths: string[], fix?: boolean}} request
+ * @param {{readFile: (path: string) => Buffer, writeFile: (path: string, text: string) => void}} io
+ * @returns {{lines: string[], exitCode: number}}
+ */
+export function run({ paths, fix = false }, io) {
+  const lines = [];
+  if (fix) {
+    for (const path of repairFiles(paths, io).repaired) {
+      lines.push(`repaired ${path}`);
+    }
+  }
+  const { findings } = scanFiles(paths, io.readFile);
+  for (const finding of findings) {
+    lines.push(formatFinding(finding.path, finding));
+  }
+  return { lines, exitCode: findings.length === 0 ? 0 : 1 };
+}
+
+/**
  * Every tracked file that exists on disk.
  *
  * A path staged for deletion is still tracked, so the existence filter keeps
@@ -204,27 +272,28 @@ function trackedFiles() {
 
 /**
  * @param {string[]} argv
- * @returns {{paths: string[]}}
+ * @returns {{fix: boolean, paths: string[]}}
  */
 function parseArgs(argv) {
-  const paths = [];
+  const options = { fix: false, paths: [] };
   for (const argument of argv) {
-    if (argument.startsWith("--")) {
+    if (argument === "--fix") options.fix = true;
+    else if (argument.startsWith("--")) {
       throw new Error(`unknown option: ${argument}`);
-    }
-    paths.push(argument);
+    } else options.paths.push(argument);
   }
-  return { paths };
+  return options;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const { paths } = parseArgs(process.argv.slice(2));
-  const { findings } = scanFiles(
-    paths.length > 0 ? paths : trackedFiles(),
-    readFileSync,
+  const { fix, paths } = parseArgs(process.argv.slice(2));
+  const { lines, exitCode } = run(
+    { paths: paths.length > 0 ? paths : trackedFiles(), fix },
+    {
+      readFile: readFileSync,
+      writeFile: (path, text) => writeFileSync(path, text, "utf8"),
+    },
   );
-  for (const finding of findings) {
-    process.stdout.write(`${formatFinding(finding.path, finding)}\n`);
-  }
-  process.exitCode = findings.length === 0 ? 0 : 1;
+  for (const line of lines) process.stdout.write(`${line}\n`);
+  process.exitCode = exitCode;
 }
