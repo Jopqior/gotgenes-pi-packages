@@ -38,3 +38,37 @@ No implementation or publication was performed; the next stage is `/tdd-plan`.
 - `test/composition-root.test.ts`: do not extract its fake service for reuse by real-package verification; that would weaken the new test boundary.
 - `src/index.ts`: do not refactor static imports, capability guards, or lifecycle hooks for this metadata change.
 - `src/model-selector.ts`, `src/selection-labels.ts`, and selection fixtures: unrelated cleanup would not reduce the packaging change.
+
+## Stage: Implementation — TDD (2026-09-20T14:56:40Z)
+
+### Session summary
+
+Completed all three planned steps: decoupled the selector's core dependency contract, added reproducible packed compatibility verification, and reconciled current release guidance.
+The manifest cycle observed Red before Green; the characterization harness and subsequent isolation/diagnostic fixes were verified with killing mutations.
+Selector Vitest tests increased from 61 to 68, and the repository total increased from 7484 to 7491; the final compatibility command reported 14 passing rows.
+
+### Observations
+
+- Required core peer `>=1.0.0` and registry development dependency `^1.0.0` replace the ordinary workspace dependency; the lockfile resolves development core `1.0.2` from the registry.
+  The breaking commit documents explicit core installation and loading before the selector.
+  Selector runtime source, core source, package versions, and generated changelogs remain unchanged.
+- Real packed consumers passed installation, source type checking, and public Pi loader initialization against published cores `1.0.0`, `1.0.1`, `1.0.2`, and `2.0.0`.
+  Real and isolated packing retained the peer floor across a synthetic sibling version change; negative rows exercised missing package, missing service, reversed load order, and a synthetic incompatible service.
+  The matrix does not certify future core majors or interactive spawning.
+- Manifest mutations each killed their intended assertion.
+  Harness mutations exercised dependency packing, missing registration capability, removed capability guards, and silent returns; installed-core mutations used copies to avoid modifying pnpm store hardlinks.
+  The old workspace-contract packing mutation needed installation of its disposable workspace before pnpm could resolve the workspace protocol.
+- Parent inspection found a fixed temporary root contrary to the planned per-run isolation.
+  The additional commit `test(pi-subagents-model-selector): isolate verification run roots` uses unique temporary directories and adds regression tests for uniqueness and cleanup, with separate killing mutations.
+  Probe directory paths are constructed explicitly because recursive directory creation returns `undefined` when the directory already exists.
+- The initial pre-completion review returned WARN: README overstated future compatibility and conflated missing-package loading with initialization errors; the missing-package assertion accepted an overly broad package-name prefix.
+  Follow-up commits distinguish those failure modes and maintenance-policy limits, and require the observed missing-module diagnostic, full core package name, and selector error-entry path.
+  Additional controls reject actual missing-service results, selector-name-only diagnostics, and wrong-entry diagnostics; mutations of the diagnostic and entry checks were rejected.
+- Pre-completion reviewer: PASS on the corrective delta after the initial full-scope WARN review.
+  Both reviews independently reran repository check, lint, tests, and dead-code gates; reviewers did not rerun the network matrix.
+  Implementation reran the matrix from a clean tree and inspected its final output.
+- Root lint exceeded Node's default heap during baseline verification.
+  Baseline and final lint passed with command-local `NODE_OPTIONS=--max-old-space-size=8192`; repository memory configuration was not changed.
+- No publishing, pushing, tagging, or issue closure was performed.
+  All planned steps are complete; the additional isolation and review-fix commits are the implementation-order deviation.
+  Next is `/sync-worktree 15`, then root-session `/ship 15`.
