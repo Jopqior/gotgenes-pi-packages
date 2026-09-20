@@ -317,8 +317,12 @@ describe("nested human selection and lifecycle isolation", () => {
       expect(provider.select).toHaveBeenCalledTimes(1);
       expect(tree.manager.getRecord(secondId)?.status).toBe("queued");
 
+      // The aborted record's wait settles on the abort alone — the provider
+      // has not answered — and the freed slot admits the queued run before
+      // any provider cooperation.
+      const firstWait = tree.manager.waitForSpawnSelection(firstId);
       expect(tree.manager.abort(firstId)).toBe(true);
-      provider.resolve(0, { model: rootModels[0], thinkingLevel: "off" });
+      await expect(firstWait).resolves.toEqual({ kind: "stopped" });
       await vi.waitFor(() => expect(provider.select).toHaveBeenCalledTimes(2));
       expect(provider.select).toHaveBeenNthCalledWith(
         2,
@@ -335,6 +339,12 @@ describe("nested human selection and lifecycle isolation", () => {
       await tree.manager.waitForAll();
       expect(tree.factory).toHaveBeenCalledTimes(1);
       expect(tree.manager.getRecord(firstId)?.status).toBe("stopped");
+
+      // A late answer for the cancelled first spawn is dropped whole.
+      provider.resolve(0, { model: rootModels[0], thinkingLevel: "off" });
+      await Promise.resolve();
+      expect(tree.manager.getRecord(firstId)?.status).toBe("stopped");
+      expect(tree.factory).toHaveBeenCalledTimes(1);
     });
 
     it("aborting a queued record never opens a dialog for it", async () => {
@@ -363,6 +373,52 @@ describe("nested human selection and lifecycle isolation", () => {
       );
       expect(tree.factory).toHaveBeenCalledTimes(1);
       expect(tree.manager.getRecord(firstId)?.status).toBe("completed");
+    });
+
+    it("closing a child handle settles its spawns' waits while the root stays live", async () => {
+      const rootScope = new SpawnSelectionScope();
+      const root = makeTree(rootScope, makeCtx(rootModels));
+      const provider = heldProvider();
+      providers.push(provider);
+      root.service.registerSpawnSelectionProvider({ select: provider.select });
+
+      const childHandle = await rootScope.constructChild(async () =>
+        captureInheritedSelectionScope(),
+      );
+      const child = makeTree(childHandle!, makeCtx(childModels), 1);
+
+      const childFirst = child.service.spawn("general-purpose", "child first", {
+        description: "child first",
+      });
+      const childSecond = child.service.spawn("general-purpose", "child second", {
+        description: "child second",
+      });
+      // Only the admitted child spawn reached the chooser.
+      expect(provider.select).toHaveBeenCalledTimes(1);
+      expect(child.manager.getRecord(childSecond)?.status).toBe("queued");
+
+      const firstWait = child.manager.waitForSpawnSelection(childFirst);
+      const secondWait = child.manager.waitForSpawnSelection(childSecond);
+
+      // The child subtree closes; the root lease stays active.
+      childHandle!.close();
+      await expect(firstWait).resolves.toEqual({ kind: "stopped" });
+      await expect(secondWait).resolves.toEqual({ kind: "stopped" });
+      expect(child.factory).not.toHaveBeenCalled();
+      expect(rootScope.activeProvider).toBeDefined();
+
+      // The root's own spawn still selects and runs normally.
+      const rootId = root.service.spawn("general-purpose", "root live", {
+        description: "root live",
+      });
+      provider.resolve(1, { model: rootModels[0], thinkingLevel: "off" });
+      await root.manager.waitForAll();
+      expect(root.manager.getRecord(rootId)?.status).toBe("completed");
+
+      // Late answers for the closed child's spawns create no children.
+      provider.resolve(0, { model: childModels[0], thinkingLevel: "off" });
+      await child.manager.waitForAll();
+      expect(child.factory).not.toHaveBeenCalled();
     });
   });
 

@@ -1849,4 +1849,239 @@ describe("SubagentManager — spawn selection threading", () => {
     await manager.waitForAll();
     expect(select).toHaveBeenCalledTimes(2);
   });
+
+  // The background tool's startup boundary: wait for a record's initial
+  // selection by id, with the caller's signal as a startup-only lever.
+  describe("spawn selection waits", () => {
+    /** A held provider whose single in-flight answer the test settles late. */
+    function heldSelect() {
+      const { promise, resolve } = Promise.withResolvers<SpawnSelection | undefined>();
+      return { select: vi.fn(() => promise), resolve };
+    }
+
+    function bgSpawn(mgr: SubagentManager, prompt: string): string {
+      return mgr.spawn(snapshotWithCatalogue(), "general-purpose", prompt, {
+        description: prompt,
+        background: { kind: "explicit", isBackground: true },
+      });
+    }
+
+    it("rejects the wait for an unknown id", async () => {
+      const { manager } = createManager();
+      await expect(manager.waitForSpawnSelection("nope")).rejects.toThrow(/unknown/i);
+    });
+
+    it("reports a selected spawn before the task runs", async () => {
+      const select = vi.fn().mockResolvedValue({
+        model: catalogueModels[0],
+        thinkingLevel: "off",
+      } satisfies SpawnSelection);
+      const gate = Promise.withResolvers<SubagentSession>();
+      const factory = vi.fn((_params: CreateSubagentSessionParams) => gate.promise);
+      const { manager } = createManager({
+        createSubagentSession: factory,
+        selectionScope: scopeWithProvider(select),
+      });
+
+      const id = bgSpawn(manager, "test");
+      await expect(manager.waitForSpawnSelection(id)).resolves.toEqual({ kind: "selected" });
+      // The wait spans selection only: the factory call may already be in
+      // flight (settlement continues synchronously into startup), but no
+      // session is ready and the record is still running.
+      expect(manager.getRecord(id)?.isSessionReady()).toBe(false);
+      expect(manager.getRecord(id)?.status).toBe("running");
+
+      gate.resolve(toSubagentSession(createSubagentSessionStub()));
+      await manager.waitForAll();
+      expect(factory).toHaveBeenCalledTimes(1);
+    });
+
+    it("holds a queued record's wait until admission, then reports its selection", async () => {
+      const select = vi.fn().mockResolvedValue({
+        model: catalogueModels[0],
+        thinkingLevel: "off",
+      } satisfies SpawnSelection);
+      const firstGate = Promise.withResolvers<SubagentSession>();
+      const factory = vi.fn((_params: CreateSubagentSessionParams) => firstGate.promise);
+      const { manager } = createManager({
+        createSubagentSession: factory,
+        getMaxConcurrent: () => 1,
+        selectionScope: scopeWithProvider(select),
+      });
+
+      const firstId = bgSpawn(manager, "first");
+      await manager.waitForSpawnSelection(firstId);
+      const secondId = bgSpawn(manager, "second");
+      expect(manager.getRecord(secondId)?.status).toBe("queued");
+
+      let settled = false;
+      const secondWait = manager.waitForSpawnSelection(secondId).then((value) => {
+        settled = true;
+        return value;
+      });
+      await Promise.resolve();
+      expect(settled).toBe(false);
+
+      firstGate.resolve(toSubagentSession(createSubagentSessionStub()));
+      await manager.waitForAll();
+      await expect(secondWait).resolves.toEqual({ kind: "selected" });
+      expect(select).toHaveBeenCalledTimes(2);
+      expect(factory).toHaveBeenCalledTimes(2);
+    });
+
+    it("settles a queued record's wait stopped when abort stops the queue entry", async () => {
+      const select = vi.fn().mockResolvedValue({
+        model: catalogueModels[0],
+        thinkingLevel: "off",
+      } satisfies SpawnSelection);
+      const firstGate = Promise.withResolvers<SubagentSession>();
+      const factory = vi.fn((_params: CreateSubagentSessionParams) => firstGate.promise);
+      const { manager } = createManager({
+        createSubagentSession: factory,
+        getMaxConcurrent: () => 1,
+        selectionScope: scopeWithProvider(select),
+      });
+
+      const firstId = bgSpawn(manager, "first");
+      await manager.waitForSpawnSelection(firstId);
+      const secondId = bgSpawn(manager, "second");
+      const wait = manager.waitForSpawnSelection(secondId);
+
+      expect(manager.abort(secondId)).toBe(true);
+      await expect(wait).resolves.toEqual({ kind: "stopped" });
+      // No dialog for the record that never reached admission.
+      expect(select).toHaveBeenCalledTimes(1);
+    });
+
+    it("settles a queued record's wait stopped when the wait signal aborts", async () => {
+      const select = vi.fn().mockResolvedValue({
+        model: catalogueModels[0],
+        thinkingLevel: "off",
+      } satisfies SpawnSelection);
+      const firstGate = Promise.withResolvers<SubagentSession>();
+      const factory = vi.fn((_params: CreateSubagentSessionParams) => firstGate.promise);
+      const { manager } = createManager({
+        createSubagentSession: factory,
+        getMaxConcurrent: () => 1,
+        selectionScope: scopeWithProvider(select),
+      });
+
+      const firstId = bgSpawn(manager, "first");
+      await manager.waitForSpawnSelection(firstId);
+      const secondId = bgSpawn(manager, "second");
+      const startup = new AbortController();
+      let settled = false;
+      const wait = manager.waitForSpawnSelection(secondId, startup.signal).then((value) => {
+        settled = true;
+        return value;
+      });
+      await Promise.resolve();
+      expect(settled).toBe(false);
+
+      startup.abort();
+      await expect(wait).resolves.toEqual({ kind: "stopped" });
+      expect(select).toHaveBeenCalledTimes(1);
+
+      // When the slot frees, the stopped record's thunk no-ops.
+      firstGate.resolve(toSubagentSession(createSubagentSessionStub()));
+      await manager.waitForAll();
+      expect(manager.getRecord(secondId)?.status).toBe("stopped");
+      expect(factory).toHaveBeenCalledTimes(1);
+    });
+
+    it("settles queued and in-flight waits when the lease revokes", async () => {
+      const held = heldSelect();
+      const scope = new SpawnSelectionScope();
+      scope.register({ select: held.select });
+      const factory = createBlockingFactory();
+      const { manager } = createManager({
+        createSubagentSession: factory,
+        getMaxConcurrent: () => 1,
+        selectionScope: scope,
+      });
+
+      const firstId = bgSpawn(manager, "first");
+      const secondId = bgSpawn(manager, "second");
+      const firstWait = manager.waitForSpawnSelection(firstId);
+      const secondWait = manager.waitForSpawnSelection(secondId);
+
+      scope.revoke();
+      await expect(firstWait).resolves.toEqual({ kind: "stopped" });
+      await expect(secondWait).resolves.toEqual({ kind: "stopped" });
+
+      // Late chooser answers create no children.
+      held.resolve({ model: catalogueModels[0], thinkingLevel: "off" });
+      await manager.waitForAll();
+      expect(held.select).toHaveBeenCalledTimes(1);
+      expect(factory).not.toHaveBeenCalled();
+    });
+
+    it("settles an in-flight selection when the manager is disposed", async () => {
+      const held = heldSelect();
+      const { manager, createSubagentSession: factory } = createManager({
+        selectionScope: scopeWithProvider(held.select),
+      });
+      const id = bgSpawn(manager, "test");
+      const wait = manager.waitForSpawnSelection(id);
+
+      await manager.dispose();
+      await expect(wait).resolves.toEqual({ kind: "stopped" });
+      expect(manager.getRecord(id)).toBeUndefined();
+
+      held.resolve({ model: catalogueModels[0], thinkingLevel: "off" });
+      await Promise.resolve();
+      expect(factory).not.toHaveBeenCalled();
+    });
+
+    it("settles a queued record's selection when the manager is disposed", async () => {
+      const select = vi.fn().mockResolvedValue({
+        model: catalogueModels[0],
+        thinkingLevel: "off",
+      } satisfies SpawnSelection);
+      const firstGate = Promise.withResolvers<SubagentSession>();
+      const factory = vi.fn((_params: CreateSubagentSessionParams) => firstGate.promise);
+      const { manager } = createManager({
+        createSubagentSession: factory,
+        getMaxConcurrent: () => 1,
+        selectionScope: scopeWithProvider(select),
+      });
+
+      const firstId = bgSpawn(manager, "first");
+      await manager.waitForSpawnSelection(firstId);
+      const secondId = bgSpawn(manager, "second");
+      const wait = manager.waitForSpawnSelection(secondId);
+
+      await manager.dispose();
+      await expect(wait).resolves.toEqual({ kind: "stopped" });
+      expect(select).toHaveBeenCalledTimes(1);
+      // Only the already-admitted first record ever reached the factory; the
+      // queued record's cancelled selection created no child.
+      expect(factory).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not bind a confirmed child to the wait signal", async () => {
+      const select = vi.fn().mockResolvedValue({
+        model: catalogueModels[0],
+        thinkingLevel: "off",
+      } satisfies SpawnSelection);
+      const gate = Promise.withResolvers<SubagentSession>();
+      const factory = vi.fn((_params: CreateSubagentSessionParams) => gate.promise);
+      const { manager } = createManager({
+        createSubagentSession: factory,
+        selectionScope: scopeWithProvider(select),
+      });
+
+      const id = bgSpawn(manager, "test");
+      const startup = new AbortController();
+      await expect(manager.waitForSpawnSelection(id, startup.signal)).resolves.toEqual({
+        kind: "selected",
+      });
+
+      // An interrupt after confirmation leaves the child work active.
+      startup.abort();
+      gate.resolve(toSubagentSession(createSubagentSessionStub()));
+      await manager.waitForAll();
+      expect(manager.getRecord(id)?.status).toBe("completed");
+    });
+  });
 });

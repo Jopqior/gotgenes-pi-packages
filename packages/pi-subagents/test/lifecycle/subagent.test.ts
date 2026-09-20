@@ -2053,9 +2053,9 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 		};
 	}
 
-	/** A provider whose selection stays pending until the test resolves it. */
+	/** A provider whose selection stays pending until the test settles it. */
 	function gatedSelection() {
-		const { promise, resolve } = Promise.withResolvers<SpawnSelection | undefined>();
+		const { promise, resolve, reject } = Promise.withResolvers<SpawnSelection | undefined>();
 		let handedSignal: AbortSignal | undefined;
 		const select = vi.fn((_request: SpawnSelectionRequest, signal: AbortSignal) => {
 			handedSignal = signal;
@@ -2066,6 +2066,7 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 			provider,
 			select,
 			resolve,
+			reject,
 			handedSignal: (): AbortSignal => {
 				if (handedSignal === undefined) {
 					throw new Error("select has not been called");
@@ -2285,15 +2286,35 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 		const { agent, factory } = arrangeGatedAgent({ provider, observer: { onRunFinished } });
 
 		agent.start();
+		const wait = agent.waitForSpawnSelection();
 		expect(agent.abort()).toBe(true);
+		// The wait settles on the abort itself — the provider has not answered yet.
+		await expect(wait).resolves.toEqual({ kind: "stopped" });
+
 		// The dialog finished anyway — the post-selection recheck must refuse it.
 		resolve({ model: gateModels[0], thinkingLevel: "off" });
 		await agent.promise;
 
 		expect(agent.status).toBe("stopped");
+		expect(agent.selectedPair).toBeUndefined();
 		expect(factory).not.toHaveBeenCalled();
 		expect(onRunFinished).toHaveBeenCalledOnce();
-		await expect(agent.waitForSpawnSelection()).resolves.toEqual({ kind: "stopped" });
+	});
+
+	it("applies no pair when cancellation lands as the provider answers", async () => {
+		const { provider, resolve } = gatedSelection();
+		const { agent, factory } = arrangeGatedAgent({ provider });
+
+		agent.start();
+		// The answer and the abort land in one turn, abort last: the liveness
+		// recheck must run before the pair is applied to the record.
+		resolve({ model: gateModels[0], thinkingLevel: "off" });
+		agent.abort();
+		await agent.promise;
+
+		expect(agent.status).toBe("stopped");
+		expect(agent.selectedPair).toBeUndefined();
+		expect(factory).not.toHaveBeenCalled();
 	});
 
 	it("cancels the run when the root lease is revoked while the selection is pending", async () => {
@@ -2301,13 +2322,17 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 		const { agent, factory, scope } = arrangeGatedAgent({ provider });
 
 		agent.start();
+		const wait = agent.waitForSpawnSelection();
 		scope.revoke();
+		// The wait settles on the closure itself — the provider has not answered.
+		await expect(wait).resolves.toEqual({ kind: "stopped" });
+
 		resolve({ model: gateModels[0], thinkingLevel: "off" });
 		await agent.promise;
 
 		expect(agent.status).toBe("stopped");
+		expect(agent.selectedPair).toBeUndefined();
 		expect(factory).not.toHaveBeenCalled();
-		await expect(agent.waitForSpawnSelection()).resolves.toEqual({ kind: "stopped" });
 	});
 
 	it("does not prepare a workspace for a selection that resolved after the run aborted", async () => {
@@ -2541,6 +2566,214 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 			await agent.resume("continue");
 			await expect(agent.waitForSpawnSelection()).resolves.toEqual({ kind: "selected" });
 			expect(select).toHaveBeenCalledTimes(1);
+		});
+	});
+
+	// The spawning tool's signal is a startup-only cancellation lever: it holds
+	// through admission and selection, detaches at settlement, and never binds
+	// the confirmed background task. Every case here reads
+	// waitForSpawnSelection(signal) at the record that owns the selection.
+	describe("startup selection waiting", () => {
+		it("aborts the in-flight selection when the wait signal fires, without provider cooperation", async () => {
+			const { provider } = gatedSelection();
+			const onRunFinished = vi.fn();
+			const { agent, factory } = arrangeGatedAgent({ provider, observer: { onRunFinished } });
+			const startup = new AbortController();
+
+			agent.start();
+			let settled = false;
+			const wait = agent.waitForSpawnSelection(startup.signal).then((value) => {
+				settled = true;
+				return value;
+			});
+			await Promise.resolve();
+			expect(settled).toBe(false);
+
+			startup.abort();
+			await expect(wait).resolves.toEqual({ kind: "stopped" });
+			expect(agent.status).toBe("stopped");
+			expect(provider.select).toHaveBeenCalledTimes(1);
+			expect(factory).not.toHaveBeenCalled();
+			expect(onRunFinished).toHaveBeenCalledOnce();
+		});
+
+		it("drops a provider answer that arrives after cancellation", async () => {
+			const { provider, resolve } = gatedSelection();
+			const onRunFinished = vi.fn();
+			const { agent, factory } = arrangeGatedAgent({ provider, observer: { onRunFinished } });
+
+			agent.start();
+			const wait = agent.waitForSpawnSelection();
+			agent.abort();
+			await expect(wait).resolves.toEqual({ kind: "stopped" });
+
+			// The chooser answers late with a valid pair; the cancelled run must
+			// not apply it, prepare a workspace, or create a child.
+			resolve({ model: gateModels[0], thinkingLevel: "off" });
+			await agent.promise;
+			expect(agent.selectedPair).toBeUndefined();
+			expect(factory).not.toHaveBeenCalled();
+			expect(onRunFinished).toHaveBeenCalledOnce();
+			await expect(agent.waitForSpawnSelection()).resolves.toEqual({ kind: "stopped" });
+		});
+
+		it("swallows a provider rejection that arrives after cancellation", async () => {
+			const { provider, reject } = gatedSelection();
+			const { agent, factory } = arrangeGatedAgent({ provider });
+
+			agent.start();
+			const wait = agent.waitForSpawnSelection();
+			agent.abort();
+			await expect(wait).resolves.toEqual({ kind: "stopped" });
+
+			// The chooser fails late — the cancelled startup must not fail the
+			// record again, and the rejection must not escape unhandled.
+			reject(new Error("chooser exploded"));
+			await agent.promise;
+			expect(agent.status).toBe("stopped");
+			expect(agent.error).toBeUndefined();
+			expect(factory).not.toHaveBeenCalled();
+		});
+
+		it("stops a queued startup immediately when the wait signal is already aborted", async () => {
+			const { provider } = gatedSelection();
+			const scope = new SpawnSelectionScope();
+			scope.register(provider);
+			const agent = createRunnableAgent({ selectionScope: scope, snapshot: snapshotWithCatalogue() });
+			const startup = new AbortController();
+			startup.abort();
+
+			await expect(agent.waitForSpawnSelection(startup.signal)).resolves.toEqual({ kind: "stopped" });
+			expect(agent.status).toBe("stopped");
+			expect(provider.select).not.toHaveBeenCalled();
+
+			agent.start();
+			await agent.promise;
+			expect(agent.status).toBe("stopped");
+		});
+
+		it("stops a queued startup when the wait signal aborts before admission", async () => {
+			const { provider } = gatedSelection();
+			const scope = new SpawnSelectionScope();
+			scope.register(provider);
+			const agent = createRunnableAgent({ selectionScope: scope, snapshot: snapshotWithCatalogue() });
+			const startup = new AbortController();
+
+			let settled = false;
+			const wait = agent.waitForSpawnSelection(startup.signal).then((value) => {
+				settled = true;
+				return value;
+			});
+			await Promise.resolve();
+			expect(settled).toBe(false);
+
+			startup.abort();
+			await expect(wait).resolves.toEqual({ kind: "stopped" });
+			expect(agent.status).toBe("stopped");
+			expect(provider.select).not.toHaveBeenCalled();
+
+			agent.start();
+			await agent.promise;
+			expect(agent.status).toBe("stopped");
+		});
+
+		it("detaches the startup signal at confirmation, so a later interrupt cannot stop the confirmed run", async () => {
+			const { provider, resolve } = gatedSelection();
+			const workspace = makeWorkspace("/ws");
+			const prepareGate = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
+			const wsProvider: WorkspaceProvider = {
+				prepare: vi.fn(() => prepareGate.promise.then(() => workspace)),
+			};
+			const { agent, factory } = arrangeGatedAgent({ provider, workspaceProvider: wsProvider });
+			const startup = new AbortController();
+
+			agent.start();
+			const wait = agent.waitForSpawnSelection(startup.signal);
+			resolve({ model: gateModels[0], thinkingLevel: "off" });
+			await expect(wait).resolves.toEqual({ kind: "selected" });
+
+			// An interrupt after confirmation no longer reaches the startup: the
+			// confirmed child proceeds and completes.
+			startup.abort();
+			prepareGate.resolve();
+			await agent.promise;
+			expect(agent.status).toBe("completed");
+			expect(factory).toHaveBeenCalledTimes(1);
+		});
+
+		it("answers stopped, not not-required, when the scope closed before the wait", async () => {
+			const { provider } = gatedSelection();
+			const scope = new SpawnSelectionScope();
+			scope.register(provider);
+			scope.revoke();
+			const agent = createRunnableAgent({ selectionScope: scope, snapshot: snapshotWithCatalogue() });
+
+			await expect(agent.waitForSpawnSelection()).resolves.toEqual({ kind: "stopped" });
+			expect(agent.status).toBe("stopped");
+			expect(provider.select).not.toHaveBeenCalled();
+
+			agent.start();
+			await agent.promise;
+			expect(agent.status).toBe("stopped");
+		});
+
+		it("settles a queued record's wait when the scope closes before admission", async () => {
+			const { provider, resolve } = gatedSelection();
+			const scope = new SpawnSelectionScope();
+			scope.register(provider);
+			const agent = createRunnableAgent({ selectionScope: scope, snapshot: snapshotWithCatalogue() });
+
+			let settled = false;
+			const wait = agent.waitForSpawnSelection().then((value) => {
+				settled = true;
+				return value;
+			});
+			await Promise.resolve();
+			expect(settled).toBe(false);
+
+			scope.revoke();
+			await expect(wait).resolves.toEqual({ kind: "stopped" });
+			expect(provider.select).not.toHaveBeenCalled();
+			expect(agent.status).toBe("stopped");
+
+			// A late provider answer must not resurrect the startup.
+			resolve({ model: gateModels[0], thinkingLevel: "off" });
+			await Promise.resolve();
+			expect(agent.status).toBe("stopped");
+		});
+
+		it("cancelInitialSelection stops a queued startup so its wait settles", async () => {
+			const { provider } = gatedSelection();
+			const scope = new SpawnSelectionScope();
+			scope.register(provider);
+			const agent = createRunnableAgent({ selectionScope: scope, snapshot: snapshotWithCatalogue() });
+
+			const wait = agent.waitForSpawnSelection();
+			expect(agent.cancelInitialSelection()).toBe(true);
+			await expect(wait).resolves.toEqual({ kind: "stopped" });
+			expect(provider.select).not.toHaveBeenCalled();
+			expect(agent.status).toBe("stopped");
+		});
+
+		it("cancelInitialSelection is a no-op once selection has settled", async () => {
+			const { provider, resolve } = gatedSelection();
+			const workspace = makeWorkspace("/ws");
+			const prepareGate = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
+			const wsProvider: WorkspaceProvider = {
+				prepare: vi.fn(() => prepareGate.promise.then(() => workspace)),
+			};
+			const { agent } = arrangeGatedAgent({ provider, workspaceProvider: wsProvider });
+
+			agent.start();
+			resolve({ model: gateModels[0], thinkingLevel: "off" });
+			await expect(agent.waitForSpawnSelection()).resolves.toEqual({ kind: "selected" });
+
+			// A confirmed child keeps the existing disposal path: no shutdown
+			// here, only the untouched startup would have been cancelled.
+			expect(agent.cancelInitialSelection()).toBe(false);
+			prepareGate.resolve();
+			await agent.promise;
+			expect(agent.status).toBe("completed");
 		});
 	});
 });

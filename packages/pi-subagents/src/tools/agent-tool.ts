@@ -4,6 +4,7 @@ import { Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import type { SpawnSelectionOutcome } from "#src/lifecycle/subagent";
 import type {
 	AgentSpawnConfig,
 	ResumeCallOptions,
@@ -29,6 +30,7 @@ import { GLYPHS } from "#src/ui/glyphs";
 /** Narrow manager interface — only the methods the Agent tool calls. */
 export interface AgentToolManager {
 	spawn: (snapshot: ParentSnapshot, type: string, prompt: string, opts: AgentSpawnConfig) => string;
+	waitForSpawnSelection: (id: string, signal?: AbortSignal) => Promise<SpawnSelectionOutcome>;
 	spawnAndWait: (snapshot: ParentSnapshot, type: string, prompt: string, opts: Omit<AgentSpawnConfig, "background">) => Promise<Subagent>;
 	resume: (id: string, prompt: string, options: ResumeCallOptions) => Promise<ResumeOutcome>;
 	getRecord: (id: string) => Subagent | undefined;
@@ -100,11 +102,12 @@ export class AgentTool {
 			);
 		}
 
-		// ---- Background execution ----
+		// ---- Background execution — the tool signal is a startup-only lever ----
 		if (config.execution.runInBackground) {
 			return spawnBackground(
 				this.manager,
 				{ config, snapshot, parentSession, settings: this.settings },
+				signal,
 			);
 		}
 
@@ -214,7 +217,7 @@ ${guidelines}
 				run_in_background: Type.Optional(
 					Type.Boolean({
 						description:
-							"Set to true to run in background. Returns agent ID immediately. You will be notified when it completes. Omit to use the agent's own default.",
+							"Set to true to run in background. When a spawn-selection provider is registered, the call waits for a concurrency slot and the operator's model/thinking choice before returning; otherwise it returns the agent ID immediately. Either way it returns before the background task completes, and you will be notified when it does. Omit to use the agent's own default.",
 					}),
 				),
 				resume: Type.Optional(

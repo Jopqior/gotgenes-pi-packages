@@ -1,4 +1,5 @@
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import type { SpawnSelectionOutcome } from "#src/lifecycle/subagent";
 import type { AgentSpawnConfig } from "#src/lifecycle/subagent-manager";
 import { renderSpawnNotes, textResult } from "#src/tools/helpers";
 import type { ResolvedSpawnConfig } from "#src/tools/spawn-config";
@@ -8,6 +9,7 @@ import { type AgentDetails, overlaySpawnPresentation } from "#src/ui/display";
 /** Narrow manager interface for the background spawner. */
 export interface BackgroundManagerDeps {
   spawn(snapshot: ParentSnapshot, type: string, prompt: string, opts: AgentSpawnConfig): string;
+  waitForSpawnSelection(id: string, signal?: AbortSignal): Promise<SpawnSelectionOutcome>;
   getRecord(id: string): Subagent | undefined;
 }
 
@@ -20,12 +22,18 @@ export interface BackgroundParams {
 }
 
 /**
- * Spawn a background agent and return the tool result immediately.
- * Owns: launch message formatting.
+ * Spawn a background agent and return the tool result once its initial
+ * selection settled — never waiting for the child's task. Owns: launch
+ * message formatting and the selected/stopped/failed startup classification.
+ *
+ * `signal` is a startup-only cancellation lever: it reaches the record's
+ * selection wait and is detached there at settlement, so it never binds the
+ * confirmed background task.
  */
-export function spawnBackground(
+export async function spawnBackground(
   manager: BackgroundManagerDeps,
   params: BackgroundParams,
+  signal?: AbortSignal,
 ) {
   const { identity, execution, presentation, notes } = params.config;
 
@@ -46,11 +54,24 @@ export function spawnBackground(
     return textResult(err instanceof Error ? err.message : String(err));
   }
 
+  // The startup boundary: hold this result through concurrency admission and
+  // any required model/thinking selection. The selected pair (if any) is on
+  // the record; workspace preparation and session creation happen after this
+  // returns.
+  const selection = await manager.waitForSpawnSelection(id, signal);
   const record = manager.getRecord(id);
 
+  if (selection.kind === "stopped") {
+    return textResult(
+      `Agent ${id} did not start: the model/thinking selection was cancelled before startup, so no background work is running for it.`,
+    );
+  }
+  if (selection.kind === "failed") {
+    return textResult(`Agent ${id} did not start: model/thinking selection failed. ${selection.error}`);
+  }
+
   const isQueued = record?.status === "queued";
-  const isAwaitingSelection = record?.awaitingSelection === true;
-  const launchVerb = isQueued ? "queued" : isAwaitingSelection ? "submitted" : "started";
+  const launchVerb = isQueued ? "queued" : "started";
   // Annotated rather than inlined into the call: `textResult` is generic over its
   // details, so an inline literal would define the type instead of being checked
   // against it.
@@ -76,8 +97,8 @@ export function spawnBackground(
       (isQueued
         ? `Position: queued (max ${params.settings.maxConcurrent} concurrent)\n`
         : "") +
-      (isAwaitingSelection && !isQueued
-        ? `Awaiting model/thinking selection.\n`
+      (selection.kind === "selected"
+        ? `Model/thinking selection confirmed — background startup is proceeding.\n`
         : "") +
       `\nYou will be notified when this agent completes.\n` +
       `Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n` +

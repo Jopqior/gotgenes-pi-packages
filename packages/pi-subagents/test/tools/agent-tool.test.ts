@@ -1,5 +1,6 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
+import type { SpawnSelectionOutcome } from "#src/lifecycle/subagent";
 import { AgentTool } from "#src/tools/agent-tool";
 import {
 	createToolDeps,
@@ -60,6 +61,18 @@ describe("AgentTool", () => {
 		expect(def.description).toContain(
 			"When a spawn-selection provider is registered, the subagent tool still accepts model and thinking, but the operator's choice after the call overrides those arguments and any agent locks for those two fields.",
 		);
+	});
+
+	it("states the conditional selection wait in the background parameter description", () => {
+		const def = makeTool(createToolDeps()).toToolDefinition();
+		const runInBackground = (def.parameters as { properties: Record<string, { description: string }> })
+			.properties.run_in_background;
+		expect(runInBackground.description).toContain(
+			"When a spawn-selection provider is registered, the call waits for a concurrency slot and the operator's model/thinking choice before returning",
+		);
+		expect(runInBackground.description).toContain("it returns before the background task completes");
+		// The unconditional immediate-return contract is gone.
+		expect(runInBackground.description).not.toMatch(/Returns agent ID immediately/);
 	});
 
 	it("lists the built-in agent guidelines in registry order", () => {
@@ -423,6 +436,61 @@ describe("AgentTool — background execution", () => {
 		});
 		const spawnOpts = (deps.manager.spawn as ReturnType<typeof vi.fn>).mock.calls[0][3];
 		expect(spawnOpts.parentSession?.toolCallId).toBe("tc-1");
+	});
+
+	it("forwards the tool's signal to the background selection wait", async () => {
+		const deps = createToolDeps();
+		deps.manager.getRecord = vi.fn().mockReturnValue(createTestSubagent({ status: "running" }));
+		const controller = new AbortController();
+		await makeTool(deps).execute(
+			"tc-1",
+			{
+				prompt: "do something",
+				description: "bg task",
+				subagent_type: "general-purpose",
+				run_in_background: true,
+			},
+			controller.signal,
+			vi.fn(),
+			makeCtx(),
+		);
+		expect(deps.manager.waitForSpawnSelection).toHaveBeenCalledWith("agent-1", controller.signal);
+	});
+
+	it("returns the background result only after the selection wait settles", async () => {
+		const deps = createToolDeps();
+		deps.manager.getRecord = vi.fn().mockReturnValue(createTestSubagent({ status: "running" }));
+		const gate = Promise.withResolvers<SpawnSelectionOutcome>();
+		deps.manager.waitForSpawnSelection = vi.fn((_id: string, _signal?: AbortSignal) => gate.promise);
+
+		let returned = false;
+		const pending = execute(deps, {
+			prompt: "do something",
+			description: "bg task",
+			subagent_type: "general-purpose",
+			run_in_background: true,
+		}).then((result) => {
+			returned = true;
+			return result;
+		});
+		await Promise.resolve();
+		expect(returned).toBe(false);
+
+		gate.resolve({ kind: "not-required" });
+		const result = await pending;
+		expect(returned).toBe(true);
+		expect(result.content[0].text).toContain("agent-1");
+	});
+
+	it("does not touch the selection wait on the foreground path", async () => {
+		const deps = createToolDeps();
+		deps.manager.spawnAndWait = vi.fn().mockResolvedValue(createTestSubagent({ result: "Task complete." }));
+		await execute(deps, {
+			prompt: "do task",
+			description: "fg task",
+			subagent_type: "general-purpose",
+		});
+		expect(deps.manager.waitForSpawnSelection).not.toHaveBeenCalled();
 	});
 });
 

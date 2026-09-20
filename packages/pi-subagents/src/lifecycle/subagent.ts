@@ -24,7 +24,7 @@ import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import { WorkspaceBracket } from "#src/lifecycle/workspace-bracket";
 import { subscribeSubagentObserver } from "#src/observation/record-observer";
 import type { RunConfig } from "#src/runtime";
-import type { SpawnSelectionProvider } from "#src/service/service";
+import type { SpawnSelection, SpawnSelectionProvider } from "#src/service/service";
 import {
 	readSelectionChoices,
 	type ValidatedSpawnSelection,
@@ -226,6 +226,10 @@ export class Subagent {
 	 * resume re-enters a session whose selection already ended.
 	 */
 	private readonly selectionOutcome = Promise.withResolvers<SpawnSelectionOutcome>();
+	/** True once the one-shot selection outcome has settled. */
+	private selectionSettled = false;
+	/** Detachers for the startup-only cancellation listeners waitForSpawnSelection() armed. */
+	private readonly startupDetachers = new Set<() => void>();
 
 	subagentSession?: SubagentSession;
 
@@ -439,21 +443,26 @@ export class Subagent {
 		provider: SpawnSelectionProvider;
 		signal: AbortSignal;
 	}): Promise<ValidatedSpawnSelection> {
+		// A signal that closed before the call must not reach the provider at all.
+		this.assertSelectionLive(gate.signal);
 		const registry = this.execution.snapshot.modelRegistry;
 		const choices = readSelectionChoices(registry);
-		const outcome = await gate.provider.select(
-			{
-				agentId: this.id,
-				agentType: this.type,
-				description: this.description,
-				availableModels: choices,
-			},
+		const answer = await raceProviderCancellation(
+			gate.provider.select(
+				{
+					agentId: this.id,
+					agentType: this.type,
+					description: this.description,
+					availableModels: choices,
+				},
+				gate.signal,
+			),
 			gate.signal,
 		);
-		if (outcome === undefined) {
+		if (answer === undefined) {
 			throw new SelectionCancelledError();
 		}
-		return validateSpawnSelection(outcome, choices, registry);
+		return validateSpawnSelection(answer, choices, registry);
 	}
 
 	private applySelectedPair(pair: { model: Model<any>; thinkingLevel: ThinkingLevel }): void {
@@ -486,17 +495,17 @@ export class Subagent {
 			this.state.markAwaitingSelection();
 			try {
 				selected = await this.obtainSelection(gate);
+				// Before the pair is applied: an abort or closure that raced the
+				// provider's answer must not leave a confirmed pair behind.
+				this.assertSelectionLive(gate.signal);
 				this.applySelectedPair(selected);
 			} finally {
 				this.state.clearAwaitingSelection();
 			}
-			// The chooser finished, but the run may have aborted or the lease
-			// closed while it was open.
-			this.assertSelectionLive(gate.signal);
 			// The selection milestone: the pair is validated and the run is live.
 			// Downstream work (workspace preparation, the factory) may only proceed
 			// past this point, never before it.
-			this.selectionOutcome.resolve({ kind: "selected" });
+			this.settleSelectionOutcome({ kind: "selected" });
 		}
 		let cwd: string | undefined;
 		if (this.workspaceBracket.hasProvider()) {
@@ -607,24 +616,96 @@ export class Subagent {
 	 * creation, and a provider registered later cannot retroactively hold the
 	 * answer. A record still queued behind admission with a provider in force
 	 * stays pending until its admitted run selects, is stopped, or fails.
+	 *
+	 * `signal` is a startup-only cancellation lever for the spawning tool: it
+	 * cancels the selection (queued records stop; admitted ones abort), and it
+	 * detaches at settlement, so an interrupt after confirmation never reaches
+	 * the confirmed background task.
 	 */
-	waitForSpawnSelection(): Promise<SpawnSelectionOutcome> {
+	waitForSpawnSelection(signal?: AbortSignal): Promise<SpawnSelectionOutcome> {
+		// The settled value is read before the current provider is consulted, so
+		// a vanished provider cannot rewrite the outcome or re-arm cancellation.
+		if (this.selectionSettled) return this.selectionOutcome.promise;
 		if (!this.isSpawnSelectionRequired()) {
-			this.selectionOutcome.resolve({ kind: "not-required" });
+			this.settleSelectionOutcome({ kind: "not-required" });
+			return this.selectionOutcome.promise;
 		}
-		// Resolving an already-settled deferred is a no-op, so a provider that
-		// vanished after a completed selection cannot rewrite the outcome here:
-		// the settled value is always read before the current provider is consulted.
+		this.attachStartupCancellation(signal);
 		return this.selectionOutcome.promise;
 	}
 
 	/**
 	 * Whether this record still owes an initial selection: a gate is in flight
 	 * (its run latched a provider), or the retained scope currently holds one.
+	 * A scope whose closure signal has already fired counts too — a revoked
+	 * root or a closed child handle is not a never-configured root, so the
+	 * requirement outlives the provider the scope no longer reports.
 	 */
 	private isSpawnSelectionRequired(): boolean {
+		const scope = this.execution.selectionScope;
+		if (!scope) return false;
+		if (scope.closureSignal.aborted) return true;
 		if (this.awaitingSelection) return true;
-		return this.execution.selectionScope?.activeSelectionProvider() !== undefined;
+		return scope.activeSelectionProvider() !== undefined;
+	}
+
+	/**
+	 * Arm the startup-only cancellation listeners: the caller's signal and the
+	 * scope's closure, whichever fires first stops the startup. Already-fired
+	 * sources dispatch immediately instead of attaching.
+	 */
+	private attachStartupCancellation(signal?: AbortSignal): void {
+		const closure = this.execution.selectionScope?.closureSignal;
+		if (signal?.aborted || closure?.aborted) {
+			this.stopForStartupCancellation();
+			return;
+		}
+		const watch = (source: AbortSignal) => {
+			const detachController = new AbortController();
+			const detach = () => detachController.abort();
+			this.startupDetachers.add(detach);
+			source.addEventListener("abort", () => {
+				this.startupDetachers.delete(detach);
+				detach();
+				this.stopForStartupCancellation();
+			}, { once: true, signal: detachController.signal });
+		};
+		if (signal) watch(signal);
+		if (closure) watch(closure);
+	}
+
+	/**
+	 * Cancel the startup the wait was holding: a queued record stops without
+	 * admission, an admitted one aborts — the run's own gate turns that into a
+	 * selection cancellation.
+	 */
+	private stopForStartupCancellation(): void {
+		if (this.status === "queued") this.stopQueued();
+		else this.abort();
+	}
+
+	/**
+	 * Settle the one-shot outcome, detaching the startup listeners synchronously:
+	 * an interrupt landing in the same instant as settlement is a whole-run
+	 * concern, not a startup cancellation.
+	 */
+	private settleSelectionOutcome(outcome: SpawnSelectionOutcome): void {
+		this.selectionSettled = true;
+		const detachers = [...this.startupDetachers];
+		this.startupDetachers.clear();
+		for (const detach of detachers) detach();
+		this.selectionOutcome.resolve(outcome);
+	}
+
+	/**
+	 * Manager teardown: stop an unfinished initial startup so its wait settles
+	 * before the record loses reachability. A no-op once selection settled or
+	 * none was required — confirmed children keep the existing disposal path.
+	 */
+	cancelInitialSelection(): boolean {
+		if (this.selectionSettled || !this.isSpawnSelectionRequired()) return false;
+		this.stopForStartupCancellation();
+		return true;
 	}
 
 	/**
@@ -770,7 +851,7 @@ export class Subagent {
 	stopQueued(): void {
 		this.state.stopQueued();
 		this.execution.observer?.onRunFinished?.(this);
-		this.selectionOutcome.resolve({ kind: "stopped" });
+		this.settleSelectionOutcome({ kind: "stopped" });
 	}
 
 	/**
@@ -876,7 +957,7 @@ export class Subagent {
 		this.disposeWorkspaceQuietly("error");
 		this.execution.observer?.onRunFinished?.(this);
 		// markError above recorded the formatted message this outcome reports.
-		this.selectionOutcome.resolve({ kind: "failed", error: this.error ?? "" });
+		this.settleSelectionOutcome({ kind: "failed", error: this.error ?? "" });
 	}
 
 	/**
@@ -892,7 +973,7 @@ export class Subagent {
 		this.listeners.release();
 		this.disposeWorkspaceQuietly("stopped");
 		this.execution.observer?.onRunFinished?.(this);
-		this.selectionOutcome.resolve({ kind: "stopped" });
+		this.settleSelectionOutcome({ kind: "stopped" });
 	}
 
 	/**
@@ -970,4 +1051,34 @@ function settleOrAbort(run: Promise<void>, signal: AbortSignal): Promise<void> {
 		signal.addEventListener("abort", () => { resolve(); }, { once: true, signal: detach.signal });
 	});
 	return Promise.race([run, interrupted]).finally(() => { detach.abort(); });
+}
+
+/**
+ * Settle with the provider's answer, or throw `SelectionCancelledError` once
+ * `signal` closes — whichever comes first. A provider that ignores abort must
+ * not hold the run, the spawning tool, or the concurrency slot: the losing
+ * promise is drained, so its late rejection is swallowed and its late answer
+ * is dropped whole — cancellation has already ended this run.
+ */
+function raceProviderCancellation(
+	answer: Promise<SpawnSelection | undefined>,
+	signal: AbortSignal,
+): Promise<SpawnSelection | undefined> {
+	if (signal.aborted) {
+		observeQuietly(answer);
+		return Promise.reject(new SelectionCancelledError());
+	}
+	const detach = new AbortController();
+	const cancelled = new Promise<never>((_resolve, reject) => {
+		signal.addEventListener("abort", () => {
+			observeQuietly(answer);
+			reject(new SelectionCancelledError());
+		}, { once: true, signal: detach.signal });
+	});
+	return Promise.race([answer, cancelled]).finally(() => detach.abort());
+}
+
+/** Drain a provider promise whose result will never be used. */
+function observeQuietly(answer: Promise<SpawnSelection | undefined>): void {
+	answer.catch(() => {});
 }

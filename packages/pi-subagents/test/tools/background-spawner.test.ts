@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import type { SpawnSelectionOutcome } from "#src/lifecycle/subagent";
 import { type BackgroundParams, spawnBackground } from "#src/tools/background-spawner";
 import { createToolDeps } from "#test/helpers/make-deps";
+import { makeModel } from "#test/helpers/make-model";
 import { createResolvedSpawnConfig } from "#test/helpers/make-spawn-config";
 import { createTestSubagent } from "#test/helpers/make-subagent";
 import { createMockSession, createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
@@ -26,6 +28,19 @@ function makeParams(overrides: Partial<BackgroundParams> = {}): BackgroundParams
   };
 }
 
+type Deps = ReturnType<typeof createToolDeps>;
+
+/** A deps fixture whose manager reports `outcome` from the selection wait. */
+function makeDepsWithOutcome(outcome: SpawnSelectionOutcome, record?: ReturnType<typeof createTestSubagent>): Deps {
+  const deps = createToolDeps();
+  deps.manager.spawn = vi.fn().mockReturnValue("bg-sel");
+  deps.manager.waitForSpawnSelection = vi.fn(
+    (_id: string, _signal?: AbortSignal): Promise<SpawnSelectionOutcome> => Promise.resolve(outcome),
+  );
+  deps.manager.getRecord = vi.fn().mockReturnValue(record ?? createTestSubagent({ status: "running" }));
+  return deps;
+}
+
 describe("spawnBackground", () => {
   /**
    * The door declares a commitment rather than a default, because
@@ -36,10 +51,10 @@ describe("spawnBackground", () => {
    * make a caller's explicit override win, so a silent flip to "default" must
    * fail here rather than in that issue's work.
    */
-  it("commits explicitly to background rather than deferring to frontmatter", () => {
+  it("commits explicitly to background rather than deferring to frontmatter", async () => {
     const { manager } = createToolDeps();
 
-    spawnBackground(manager, makeParams());
+    await spawnBackground(manager, makeParams());
 
     expect(manager.spawn).toHaveBeenCalledWith(
       expect.anything(), // snapshot
@@ -49,16 +64,44 @@ describe("spawnBackground", () => {
     );
   });
 
-  it("passes parentSession.toolCallId to manager.spawn", () => {
+  it("passes parentSession.toolCallId to manager.spawn", async () => {
     const { manager } = createToolDeps();
-    spawnBackground(manager, makeParams({ parentSession: { toolCallId: "tc-99" } }));
+    await spawnBackground(manager, makeParams({ parentSession: { toolCallId: "tc-99" } }));
     const spawnOpts = (manager.spawn as ReturnType<typeof vi.fn>).mock.calls[0][3];
     expect(spawnOpts.parentSession?.toolCallId).toBe("tc-99");
   });
 
-  it("returns text result with agent ID and description", () => {
+  it("forwards the tool signal to the manager's selection wait", async () => {
     const { manager } = createToolDeps();
-    const result = spawnBackground(
+    const controller = new AbortController();
+    await spawnBackground(manager, makeParams(), controller.signal);
+    expect(manager.waitForSpawnSelection).toHaveBeenCalledWith("agent-1", controller.signal);
+  });
+
+  it("holds the result until the manager's selection wait settles", async () => {
+    const deps = createToolDeps();
+    const gate = Promise.withResolvers<SpawnSelectionOutcome>();
+    deps.manager.waitForSpawnSelection = vi.fn((_id: string, _signal?: AbortSignal) => gate.promise);
+    deps.manager.getRecord = vi.fn().mockReturnValue(createTestSubagent({ status: "running" }));
+
+    let returned = false;
+    const pending = spawnBackground(deps.manager, makeParams()).then((result) => {
+      returned = true;
+      return result;
+    });
+    await Promise.resolve();
+    // The tool has not returned while the selection is pending.
+    expect(returned).toBe(false);
+
+    gate.resolve({ kind: "not-required" });
+    const result = await pending;
+    expect(returned).toBe(true);
+    expect(result.content[0].text).toContain("agent-1");
+  });
+
+  it("returns text result with agent ID and description", async () => {
+    const { manager } = createToolDeps();
+    const result = await spawnBackground(
       manager,
       makeParams({
         config: makeConfig({ description: "my task" }),
@@ -68,66 +111,79 @@ describe("spawnBackground", () => {
     expect(result.content[0].text).toContain("my task");
   });
 
-  it("mentions 'queued' in result when record status is queued", () => {
-    const deps = createToolDeps({
-      manager: {
-        ...createToolDeps().manager,
-        spawn: vi.fn().mockReturnValue("bg-2"),
-        getRecord: vi.fn().mockReturnValue(createTestSubagent({ status: "queued" })),
-      },
-    });
-    const result = spawnBackground(deps.manager, makeParams({ settings: { maxConcurrent: 4 } }));
+  it("mentions 'queued' in result when record status is queued", async () => {
+    const deps = makeDepsWithOutcome({ kind: "not-required" }, createTestSubagent({ status: "queued" }));
+    const result = await spawnBackground(deps.manager, makeParams({ settings: { maxConcurrent: 4 } }));
     expect(result.content[0].text).toContain("queued");
     expect(result.content[0].text).toContain("max 4 concurrent");
   });
 
-  it("mentions 'started' in result when record is running", () => {
+  it("mentions 'started' in result when record is running", async () => {
     const { manager } = createToolDeps();
-    const result = spawnBackground(manager, makeParams());
+    const result = await spawnBackground(manager, makeParams());
     expect(result.content[0].text).toContain("started");
   });
 
-  it("does not claim the child session started while selection is pending", () => {
+  it("renders the confirmed pair when selection completed, without pending-selection wording", async () => {
+    const selectedModel = makeModel({ id: "claude-haiku", name: "Claude Haiku" });
     const record = createTestSubagent({
       status: "running",
       completedAt: undefined,
-      awaitingSelection: true,
+      selectedPair: { model: selectedModel, thinkingLevel: "off" },
     });
-    const deps = createToolDeps({
-      manager: {
-        ...createToolDeps().manager,
-        spawn: vi.fn().mockReturnValue("bg-pending"),
-        getRecord: vi.fn().mockReturnValue(record),
-      },
-    });
+    const deps = makeDepsWithOutcome({ kind: "selected" }, record);
     const config = makeConfig({ model: "gpt-5.5" });
     config.presentation.detailBase.tags = ["thinking: high", "inherit context"];
-    const result = spawnBackground(deps.manager, makeParams({ config }));
+
+    const result = await spawnBackground(deps.manager, makeParams({ config }));
     const text = result.content[0].text;
-    expect(text).not.toContain("Agent started");
-    expect(text).toContain("Agent submitted in background.");
-    expect(text).toContain("Awaiting model/thinking selection");
-    expect(result.details?.modelName).toBeUndefined();
-    expect(result.details?.tags).toEqual(["inherit context"]);
+    // Selection is confirmed: the caller's proposed model never appears as the choice.
+    expect(text).not.toContain("gpt-5.5");
+    expect(text).not.toContain("Awaiting model/thinking selection");
+    expect(text).toContain("Agent started in background.");
+    expect(text).toContain("selection confirmed");
+    // The confirmed pair is the presented one.
+    expect(result.details?.modelName).toBe("haiku");
+    expect(result.details?.tags).toEqual(["thinking: off", "inherit context"]);
   });
 
-  it("includes output file path in result when present", () => {
+  it("reports a cancelled selection as a startup that produced no running child", async () => {
+    const deps = makeDepsWithOutcome({ kind: "stopped" });
+    const config = makeConfig({ model: "gpt-5.5" });
+    const result = await spawnBackground(deps.manager, makeParams({ config }));
+    const text = result.content[0].text;
+    expect(text).toContain("bg-sel");
+    expect(text).toContain("did not start");
+    expect(text).toContain("cancelled");
+    // Not a background success: nothing to be notified about.
+    expect(text).not.toContain("You will be notified");
+    // The caller's proposed model is not advertised as a confirmed choice.
+    expect(text).not.toContain("gpt-5.5");
+    expect(result.details).toBeUndefined();
+  });
+
+  it("reports a failed selection with the recorded error", async () => {
+    const deps = makeDepsWithOutcome({ kind: "failed", error: "catalogue exploded" });
+    const result = await spawnBackground(deps.manager, makeParams());
+    const text = result.content[0].text;
+    expect(text).toContain("bg-sel");
+    expect(text).toContain("catalogue exploded");
+    expect(text).not.toContain("You will be notified");
+    expect(result.details).toBeUndefined();
+  });
+
+  it("includes output file path in result when present", async () => {
+    const deps = createToolDeps();
     const record = createTestSubagent({ status: "running" });
     record.subagentSession = toSubagentSession(createSubagentSessionStub(createMockSession(), "/sessions/bg.jsonl"));
-    const deps = createToolDeps({
-      manager: {
-        ...createToolDeps().manager,
-        spawn: vi.fn().mockReturnValue("bg-3"),
-        getRecord: vi.fn().mockReturnValue(record),
-      },
-    });
-    const result = spawnBackground(deps.manager, makeParams());
+    deps.manager.getRecord = vi.fn().mockReturnValue(record);
+    const result = await spawnBackground(deps.manager, makeParams());
     expect(result.content[0].text).toContain("/sessions/bg.jsonl");
   });
 
-  it("leads the result with the spawn's notes", () => {
+  it("leads the result with the spawn's notes", async () => {
     const { manager } = createToolDeps();
-    const result = spawnBackground(
+    const result = await spawnBackground(
       manager,
       makeParams({ config: makeConfig({ fellBack: true, rawType: "unknown-type" }) }),
     );
@@ -136,21 +192,17 @@ describe("spawnBackground", () => {
     );
   });
 
-  it("leads the result with the launch message when there are no notes", () => {
+  it("leads the result with the launch message when there are no notes", async () => {
     const { manager } = createToolDeps();
-    const result = spawnBackground(manager, makeParams());
+    const result = await spawnBackground(manager, makeParams());
     expect(result.content[0].text).toMatch(/^Agent (started|queued) in background\./);
   });
 
-  it("returns error text when manager.spawn throws", () => {
-    const deps = createToolDeps({
-      manager: {
-        ...createToolDeps().manager,
-        spawn: vi.fn().mockImplementation(() => { throw new Error("spawn failed"); }),
-        getRecord: vi.fn(),
-      },
-    });
-    const result = spawnBackground(deps.manager, makeParams());
+  it("returns error text when manager.spawn throws", async () => {
+    const deps = createToolDeps();
+    deps.manager.spawn = vi.fn().mockImplementation(() => { throw new Error("spawn failed"); });
+    deps.manager.getRecord = vi.fn();
+    const result = await spawnBackground(deps.manager, makeParams());
     expect(result.content[0].text).toContain("spawn failed");
   });
 });

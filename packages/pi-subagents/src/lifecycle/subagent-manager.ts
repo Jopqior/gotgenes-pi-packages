@@ -14,7 +14,7 @@ import type { ConcurrencyLimiter } from "#src/lifecycle/concurrency-limiter";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { SelectionScopeHandle } from "#src/lifecycle/selection-scope";
-import { type ResumeRefusal, Subagent, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
+import { type ResumeRefusal, type SpawnSelectionOutcome, Subagent, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
 import type { SubagentSession } from "#src/lifecycle/subagent-session";
 import { SubagentState } from "#src/lifecycle/subagent-state";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
@@ -424,6 +424,21 @@ export class SubagentManager {
     return this.agents.get(id);
   }
 
+  /**
+   * Wait for a spawn's initial selection to settle and report how it ended —
+   * the background tool's startup boundary. The caller's signal cancels the
+   * startup itself (a queued record stops; an admitted one aborts its
+   * selection); it is not forwarded to the background task. Rejects for an id
+   * no record answers to.
+   */
+  waitForSpawnSelection(id: string, signal?: AbortSignal): Promise<SpawnSelectionOutcome> {
+    const record = this.agents.get(id);
+    if (!record) {
+      return Promise.reject(new Error(`Unknown subagent "${id}" — no record has a spawn selection to wait for.`));
+    }
+    return record.waitForSpawnSelection(signal);
+  }
+
   listAgents(): Subagent[] {
     return [...this.agents.values()].sort(
       (a, b) => b.startedAt - a.startedAt,
@@ -537,6 +552,11 @@ export class SubagentManager {
    */
   async dispose(): Promise<void> {
     clearInterval(this.sweepInterval);
+    // Settle every unfinished initial selection before the records lose
+    // reachability: a queued record stops without admission, an admitted one
+    // cancels its in-flight selection. Confirmed children keep the existing
+    // disposal path — no shutdown-policy change.
+    for (const record of this.agents.values()) record.cancelInitialSelection();
     // Drop pending thunks
     this.limiter.clear();
     const teardowns = [...this.agents.values()].map(record => record.disposeSession());

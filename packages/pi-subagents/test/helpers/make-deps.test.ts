@@ -11,6 +11,11 @@ describe("createToolDeps", () => {
 			expect(manager.spawn(STUB_SNAPSHOT, "general-purpose", "prompt", { description: "test", background: { kind: "explicit", isBackground: true } })).toBe("agent-1");
 		});
 
+		it("waitForSpawnSelection resolves not-required by default", async () => {
+			const { manager } = createToolDeps();
+			await expect(manager.waitForSpawnSelection("id-1")).resolves.toEqual({ kind: "not-required" });
+		});
+
 		it("spawnAndWait resolves to a completed record", async () => {
 			const { manager } = createToolDeps();
 			const record = await manager.spawnAndWait(STUB_SNAPSHOT, "general-purpose", "prompt", { description: "test" });
@@ -77,6 +82,7 @@ describe("createToolDeps", () => {
 			const { manager } = createToolDeps();
 			const bgManager: BackgroundManagerDeps = manager;
 			expect(bgManager.spawn).toBeTypeOf("function");
+			expect(bgManager.waitForSpawnSelection).toBeTypeOf("function");
 			expect(bgManager.getRecord).toBeTypeOf("function");
 		});
 
