@@ -74,6 +74,15 @@ Same root cause, different code paths, both verified live and both deliberately 
 Merge [#959] as the implementation of [#958], then land follow-up commits on top for the two nits above (the `tailStart` naming collision and the dead-arm note on `projectContextStart`).
 This departs from the usual adopt-with-simplified-design default because the diff already is the simplified design: it is minimal, convention-fitting, independently verified against real 0.86.1 bytes, and carries a test suite with a confirmed killing mutation.
 
+**Landing plan.**
+The PR has `maintainerCanModify: true` and is a single commit on `georgeharker:pi-subagents-086-section-anchors`, so the follow-ups are pushed **to that branch** rather than to `main` after the fact.
+The PR then rebase-merges (`gh pr merge --rebase`), which keeps `main` linear, preserves per-commit authorship, and never puts the nits on `main` at all.
+A fork PR's workflow runs sit at `action_required`, so each push needs a maintainer approval before CI reports.
+The first real push is also what confirms the write actually lands: `maintainerCanModify` is the evidence, and a `git push --dry-run` that reports `Everything up-to-date` is not.
+A PR comment should say what we pushed and why, so the branch edit is not a surprise.
+
+Execution is handed to a fresh session rather than done here; this session's scope ends at the recorded decision.
+
 **Non-goals**, each tracked elsewhere: the `renderProjectContext` block-shape drift ([#961]), the pi-permission-system tool-surface anchors ([#962]), and the `pi-nocd` doc-comment staleness (not filed; doc-only).
 The companion `pi-claude-bridge` change the PR describes is external and moves on its own schedule.
 
