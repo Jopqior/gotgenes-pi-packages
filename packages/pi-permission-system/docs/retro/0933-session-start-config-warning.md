@@ -47,3 +47,50 @@ The Tidy-First assessor recommended no preparatory commits and declined four can
 - `src/config/config-issue-reporter.ts` vs `src/authority/authorizer-chain-audit.ts` — merging the two warn-once latches into a shared base; same shape, different semantics (the audit never re-arms, the reporter re-warns after an issue returns).
 
 Two corrections it returned that the plan absorbed: `docs/architecture/architecture.md:934`'s `lifecycle.ts` entry already omits `logger`, the existing fourth dep, independent of this issue (folded into step 3); and `ConfigStore.getConfigIssues()` will share a name with `PermissionResolver.getConfigIssues(agentName?)`, recorded as an Open Question rather than a rename in scope.
+
+## Stage: Planning — amendment (2026-09-20T15:36:25Z)
+
+### Session summary
+
+After the plan was committed, the operator asked what disagreements I had with my own design and whether it complected the system.
+Answering that honestly surfaced five smells the first pass left behind; running them through Tidy First's four bins turned two into preparatory `refactor:` steps, one into a filed follow-up ([#953]), one into a delivery-shape correction, and one into a deliberate "tidy never".
+The plan was rewritten from five steps to seven and recommitted; the roadmap disposition for [#953] was recorded against Phase 15 as out of scope.
+
+### Observations
+
+- **The Tidy-First assessor answers the question it is asked.**
+  Its "no preparatory tidying" verdict was correct for the question — friction in the edit — and the edit was already easy.
+  The smells that mattered were *design residue* the fix would leave behind, which only became visible once I was asked to disagree with the settled design.
+  Asking the assessor a second question ("what does the change leave half-done?") may be worth adding to its prompt.
+- **Tidying 1 — activate before refresh.**
+  `handleSessionStart`'s `refreshConfig` → `resetForNewSession` order was pinned by a characterization test with no recorded rationale (traced through #331, #341, #644 — the last says only "preserved").
+  Spiked the swap: 4522 green, one red (the pin).
+  Every side effect of `resetForNewSession` was read before adopting; `configureForCwd` reads no extension config and the authorizer chain is read per ask.
+  Adopted; the pin is inverted with its reason.
+  This removed the ordering constraint and killing mutation the first plan carried, and left both drivers with the same `refresh → report` shape.
+- **Tidying 2 — status sync leaves the load.**
+  `ctx` on `ConfigStore.refresh` gated two UI side-effects, not one; the first plan removed the notify and left the status sync, keeping the smell's shape.
+  Moved to `PermissionSession.refreshConfig`, the point both drivers already call, rather than duplicated into two handlers (#746's rule).
+  Sequenced so `ctx` stays on `refresh` until the removal step — deleting it earlier would take the old notify with it and open a delivery gap.
+- **The Non-Goal I wrote was inconsistent with the operator's own principle.**
+  "Don't unify the policy-issue loop" was justified by "it would newly re-warn policy issues mid-session" — which is exactly what the operator had just said must happen for config issues.
+  Tidy First's answer: it changes behavior, so it is not a tidying and cannot ride the fix; file it.
+  Filed as [#953] with the agent-name question and the `getPolicyIssues` rename attached.
+- **Per-issue notification was a UX change hiding in a `fix:`.**
+  Corrected to latch per issue, deliver one joined message per report — today's one-notification UX with a finer latch.
+  Pure structure.
+- **Tidy never:** a `warnOnce` primitive on `SessionLogger`.
+  Fourth hand-rolled latch, but the logger is untouched by this change, so tidying it makes nothing easier.
+  The fifth instance pays for it.
+- **Ownership question at the first gate.**
+  The operator answered the fix-shape gate with "who really wants to own this behavior?"
+  — a question, not a selection, which the `clarification-gates` skill reads as a premature gate.
+  It was: the option set assumed the store owned notification.
+  The grep that answered it (10 `ui.notify` sites; one session-lifecycle outlier) should have preceded the gate.
+
+#### Deferred tidyings
+
+- `src/logging/session-logger.ts` — no tell-once affordance on `SessionLogger.warn`; four consumers hand-roll a latch (`PermissionSessionLogger.reported`, `AuthorizerChainAudit`, `ChildNodeAudit`, `ConfigIssueReporter`).
+  Not touched by this change; revisit at the fifth.
+
+[#953]: https://github.com/gotgenes/pi-packages/issues/953
