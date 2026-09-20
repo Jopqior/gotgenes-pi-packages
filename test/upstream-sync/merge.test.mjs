@@ -1,479 +1,61 @@
-import { execFileSync, spawnSync } from "node:child_process";
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
+import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-const repoRoot = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../..",
-);
-const scriptPath = path.join(repoRoot, "scripts", "upstream-sync.sh");
-const realGit = execFileSync("which", ["git"], { encoding: "utf8" }).trim();
-const githubUpstream = "git@github.com:gotgenes/pi-packages.git";
-const mergeMessage = "chore: merge upstream/main";
-const refuseHint =
-  "run ./scripts/upstream-sync.sh to fetch and print ahead/behind without merging";
+import {
+  baseGitEnv,
+  createUpstreamNetwork,
+  githubUpstream,
+  mergeMessage,
+  realGit,
+  refuseHint,
+} from "./helpers/upstream-network.mjs";
 
-const gitWrapperSource = [
-  "#!/usr/bin/env node",
-  '"use strict";',
-  'const { spawnSync } = require("node:child_process");',
-  'const { appendFileSync } = require("node:fs");',
-  "",
-  "const realGit = process.env.UPSTREAM_SYNC_TEST_REAL_GIT;",
-  "const logFile = process.env.UPSTREAM_SYNC_TEST_GIT_LOG;",
-  "const upstreamBare = process.env.UPSTREAM_SYNC_TEST_UPSTREAM_BARE;",
-  "const args = process.argv.slice(2);",
-  "",
-  'appendFileSync(logFile, JSON.stringify(args) + "\\n");',
-  "",
-  "function rewrite(input) {",
-  "  const cmd = input[0];",
-  '  if (cmd !== "fetch" && cmd !== "ls-remote") {',
-  "    return input;",
-  "  }",
-  "  return input.map((arg) => {",
-  '    if (arg === "upstream") {',
-  "      return upstreamBare;",
-  "    }",
-  '    if (cmd === "fetch" && arg === "main") {',
-  '      return "+refs/heads/main:refs/remotes/upstream/main";',
-  "    }",
-  "    return arg;",
-  "  });",
-  "}",
-  "",
-  'const result = spawnSync(realGit, rewrite(args), { stdio: "inherit" });',
-  "const code = result.status === null ? 1 : result.status;",
-  "if (",
-  "  code === 0 &&",
-  '  args[0] === "fetch" &&',
-  "  process.env.UPSTREAM_SYNC_TEST_INJECT_TAG",
-  ") {",
-  '  spawnSync(realGit, ["tag", process.env.UPSTREAM_SYNC_TEST_INJECT_TAG], {',
-  '    stdio: "inherit",',
-  "  });",
-  "}",
-  "process.exit(code);",
-  "",
-].join("\n");
-
-const baseGitEnv = {
-  ...process.env,
-  GIT_CONFIG_GLOBAL: "/dev/null",
-  GIT_CONFIG_SYSTEM: "/dev/null",
-  GIT_AUTHOR_NAME: "Test",
-  GIT_AUTHOR_EMAIL: "test@example.com",
-  GIT_COMMITTER_NAME: "Test",
-  GIT_COMMITTER_EMAIL: "test@example.com",
-  GIT_TERMINAL_PROMPT: "0",
-  LC_ALL: "C",
-  LANG: "C",
-};
-
-/** @type {string | undefined} */
-let scratch;
-
-/**
- * @param {string} cwd
- * @param {string[]} args
- * @param {{ allowFail?: boolean }} [options]
- */
-function git(cwd, args, options = {}) {
-  const result = spawnSync(realGit, args, {
-    cwd,
-    encoding: "utf8",
-    env: baseGitEnv,
-  });
-  if ((result.status ?? 1) !== 0 && !options.allowFail) {
-    throw new Error(
-      `git ${args.join(" ")} in ${cwd} exited ${result.status}\n${result.stderr}\n${result.stdout}`,
-    );
-  }
-  return result;
-}
-
-/**
- * @param {string} cwd
- */
-function configureRepo(cwd) {
-  git(cwd, ["config", "user.name", "Test"]);
-  git(cwd, ["config", "user.email", "test@example.com"]);
-  git(cwd, ["config", "commit.gpgsign", "false"]);
-  git(cwd, ["config", "core.hooksPath", "/dev/null"]);
-}
-
-/**
- * @param {string} cwd
- * @param {string} rev
- */
-function revParse(cwd, rev) {
-  return git(cwd, ["rev-parse", rev]).stdout.trim();
-}
-
-/**
- * @param {string} cwd
- * @param {string} [rev]
- */
-function parentsOf(cwd, rev = "HEAD") {
-  const line = git(cwd, ["log", "-1", "--format=%P", rev]).stdout.trim();
-  return line === "" ? [] : line.split(" ");
-}
-
-/**
- * @param {string} cwd
- */
-function gitDir(cwd) {
-  return path.resolve(cwd, git(cwd, ["rev-parse", "--git-dir"]).stdout.trim());
-}
-
-/**
- * @param {string} cwd
- */
-function indexTree(cwd) {
-  return git(cwd, ["write-tree"]).stdout.trim();
-}
-
-/**
- * @param {string} directory
- * @returns {Record<string, string> | null}
- */
-function snapshotDir(directory) {
-  if (!existsSync(directory)) {
-    return null;
-  }
-  /** @type {Record<string, string>} */
-  const files = {};
-  /**
-   * @param {string} current
-   * @param {string} prefix
-   */
-  function walk(current, prefix) {
-    for (const entry of readdirSync(current, { withFileTypes: true })) {
-      const relative = prefix === "" ? entry.name : `${prefix}/${entry.name}`;
-      const full = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        walk(full, relative);
-      } else if (entry.isFile()) {
-        files[relative] = readFileSync(full, "utf8");
-      }
-    }
-  }
-  walk(directory, "");
-  return files;
-}
-
-/**
- * @param {string} cwd
- * @param {string} name
- */
-function readGitStateFile(cwd, name) {
-  const filePath = path.join(gitDir(cwd), name);
-  return existsSync(filePath) ? readFileSync(filePath, "utf8") : null;
-}
-
-/**
- * @param {string} upstreamBare
- * @param {string} message
- * @param {Record<string, string>} files
- */
-function advanceUpstream(upstreamBare, message, files) {
-  if (scratch === undefined) {
-    throw new Error("scratch directory is not initialized");
-  }
-  const dir = path.join(scratch, "build", "upstream-advance");
-  if (existsSync(dir)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-  git(scratch, ["clone", upstreamBare, dir]);
-  configureRepo(dir);
-  commit(dir, message, files);
-  git(dir, ["push", "origin", "main"]);
-  return revParse(dir, "HEAD");
-}
-
-/**
- * Advance upstream main through named steps, tagging release commits along
- * the way. Each step commits its files; a step with a `tag` also cuts the
- * named upstream release tag (annotated or lightweight) at that commit.
- *
- * @param {string} upstreamBare
- * @param {{ message: string, files: Record<string, string>, tag?: { name: string, annotated?: boolean } }[]} steps
- * @returns {string[]} the commit OIDs of each step
- */
-function advanceUpstreamReleases(upstreamBare, steps) {
-  if (scratch === undefined) {
-    throw new Error("scratch directory is not initialized");
-  }
-  const dir = path.join(scratch, "build", "upstream-releases");
-  if (existsSync(dir)) {
-    rmSync(dir, { recursive: true, force: true });
-  }
-  git(scratch, ["clone", upstreamBare, dir]);
-  configureRepo(dir);
-  const oids = [];
-  for (const step of steps) {
-    commit(dir, step.message, step.files);
-    const oid = revParse(dir, "HEAD");
-    oids.push(oid);
-    if (step.tag) {
-      if (step.tag.annotated) {
-        git(dir, [
-          "tag",
-          "-a",
-          step.tag.name,
-          "-m",
-          `release ${step.tag.name}`,
-        ]);
-      } else {
-        git(dir, ["tag", step.tag.name]);
-      }
-    }
-  }
-  git(dir, ["push", "origin", "main"]);
-  git(dir, ["push", "--tags", "origin"]);
-  return oids;
-}
-
-/**
- * @param {string} cwd
- * @param {Record<string, string>} files
- */
-function writeFiles(cwd, files) {
-  for (const [relative, content] of Object.entries(files)) {
-    const filePath = path.join(cwd, relative);
-    mkdirSync(path.dirname(filePath), { recursive: true });
-    writeFileSync(filePath, content);
-  }
-}
-
-/**
- * @param {string} cwd
- * @param {string} message
- * @param {Record<string, string>} files
- */
-function commit(cwd, message, files) {
-  writeFiles(cwd, files);
-  git(cwd, ["add", "-A"]);
-  git(cwd, ["commit", "-m", message]);
-}
-
-/**
- * @param {string} cwd
- * @param {string[]} args
- * @param {NodeJS.ProcessEnv} [extraEnv]
- */
-function runScript(cwd, args, extraEnv = {}) {
-  if (scratch === undefined) {
-    throw new Error("scratch directory is not initialized");
-  }
-  const result = spawnSync("bash", [scriptPath, ...args], {
-    cwd,
-    encoding: "utf8",
-    env: {
-      ...baseGitEnv,
-      PATH: `${path.join(scratch, "bin")}${path.delimiter}${process.env.PATH}`,
-      UPSTREAM_SYNC_TEST_REAL_GIT: realGit,
-      UPSTREAM_SYNC_TEST_GIT_LOG: path.join(scratch, "git-args.jsonl"),
-      UPSTREAM_SYNC_TEST_UPSTREAM_BARE: path.join(
-        scratch,
-        "remotes",
-        "gotgenes",
-        "pi-packages.git",
-      ),
-      ...extraEnv,
-    },
-  });
-  return {
-    status: result.status ?? 1,
-    stdout: result.stdout,
-    stderr: result.stderr,
-  };
-}
-
-/**
- * @returns {{ args: string[] }[]}
- */
-function recordedInvocations() {
-  if (scratch === undefined) {
-    throw new Error("scratch directory is not initialized");
-  }
-  const logPath = path.join(scratch, "git-args.jsonl");
-  if (!existsSync(logPath)) {
-    return [];
-  }
-  return readFileSync(logPath, "utf8")
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => ({ args: JSON.parse(line) }));
-}
-
-/**
- * @returns {string[][]}
- */
-function recordedFetches() {
-  return recordedInvocations()
-    .map((entry) => entry.args)
-    .filter((args) => args[0] === "fetch");
-}
-
-/**
- * @param {string} scratchDir
- * @param {"divergent" | "conflict" | "already-integrated" | "empty-upstream"} topology
- */
-function materializeNetwork(scratchDir, topology) {
-  const upstreamBare = path.join(
-    scratchDir,
-    "remotes",
-    "gotgenes",
-    "pi-packages.git",
-  );
-  const originBare = path.join(
-    scratchDir,
-    "remotes",
-    "Jopqior",
-    "gotgenes-pi-packages.git",
-  );
-  const seed = path.join(scratchDir, "build", "seed");
-  const work = path.join(scratchDir, "work");
-
-  mkdirSync(upstreamBare, { recursive: true });
-  mkdirSync(originBare, { recursive: true });
-  mkdirSync(seed, { recursive: true });
-  git(upstreamBare, ["init", "--bare", "-b", "main"]);
-  git(originBare, ["init", "--bare", "-b", "main"]);
-
-  git(seed, ["init", "-b", "main"]);
-  configureRepo(seed);
-  commit(seed, "chore: shared base", {
-    "README.md": "base\n",
-    "shared.txt": "base\n",
-    "unrelated.txt": "keep\n",
-  });
-  git(seed, ["remote", "add", "upstream-bare", upstreamBare]);
-  git(seed, ["remote", "add", "origin-bare", originBare]);
-  git(seed, ["push", "upstream-bare", "main"]);
-  git(seed, ["push", "origin-bare", "main"]);
-
-  if (topology === "already-integrated") {
-    git(seed, ["checkout", "-B", "main"]);
-    commit(seed, "feat: upstream advance", {
-      "upstream-only.txt": "from upstream\n",
-    });
-    git(seed, ["tag", "pi-subagents-v1.0.0"]);
-    git(seed, ["tag", "pi-subagents-v21.7.0"]);
-    git(seed, ["push", "upstream-bare", "main"]);
-    git(seed, ["push", "--tags", "upstream-bare"]);
-    commit(seed, "feat: fork-only change", {
-      "fork-only.txt": "from fork\n",
-    });
-    git(seed, ["push", "origin-bare", "main"]);
-  } else if (topology === "core-sync") {
-    git(seed, ["checkout", "-B", "upstream-line"]);
-    commit(seed, "feat(pi-subagents): upstream release 21.7.0", {
-      "packages/pi-subagents/package.json": `${JSON.stringify(
-        { name: "@gotgenes/pi-subagents", version: "21.7.0" },
-        null,
-        2,
-      )}\n`,
-      "packages/pi-subagents/src/core.ts": "export const core = 1;\n",
-    });
-    git(seed, ["tag", "-a", "pi-subagents-v21.7.0", "-m", "upstream 21.7.0"]);
-    git(seed, ["push", "upstream-bare", "HEAD:main"]);
-    git(seed, ["push", "--tags", "upstream-bare"]);
-    const releaseOid = revParse(seed, "pi-subagents-v21.7.0^{}");
-    git(seed, ["checkout", "main"]);
-    commit(seed, "feat: fork-only change", {
-      "fork-only.txt": "from fork\n",
-      "scripts/release/core-sync-state.json": `${JSON.stringify(
-        {
-          schemaVersion: 1,
-          releases: [
-            {
-              forkTag: "pi-subagents-v1.0.0",
-              upstream: { version: "21.7.0", commit: releaseOid },
-              upstreamTip: releaseOid,
-            },
-          ],
-          syncs: [],
-        },
-        null,
-        2,
-      )}\n`,
-    });
-    git(seed, ["tag", "pi-subagents-v1.0.0"]);
-    git(seed, ["push", "origin-bare", "main"]);
-    git(seed, ["push", "origin-bare", "refs/tags/pi-subagents-v1.0.0"]);
-  } else {
-    git(seed, ["checkout", "-B", "upstream-line"]);
-    if (topology === "empty-upstream") {
-      git(seed, ["commit", "--allow-empty", "-m", "chore: empty upstream"]);
-    } else if (topology === "conflict") {
-      commit(seed, "feat: upstream shared edit", {
-        "shared.txt": "upstream side\n",
-        "upstream-only.txt": "from upstream\n",
-      });
-    } else {
-      commit(seed, "feat: upstream-only change", {
-        "upstream-only.txt": "from upstream\n",
-      });
-    }
-    git(seed, ["tag", "pi-subagents-v1.0.0"]);
-    git(seed, ["tag", "pi-subagents-v21.7.0"]);
-    git(seed, ["push", "upstream-bare", "HEAD:main"]);
-    git(seed, ["push", "--tags", "upstream-bare"]);
-
-    git(seed, ["checkout", "main"]);
-    if (topology === "conflict") {
-      commit(seed, "feat: fork shared edit", {
-        "shared.txt": "fork side\n",
-        "fork-only.txt": "from fork\n",
-      });
-    } else {
-      commit(seed, "feat: fork-only change", {
-        "fork-only.txt": "from fork\n",
-      });
-    }
-    git(seed, ["push", "origin-bare", "main"]);
-  }
-
-  git(scratchDir, ["clone", originBare, work]);
-  configureRepo(work);
-  return { work, originBare, upstreamBare };
-}
+/** @type {ReturnType<typeof createUpstreamNetwork>} */
+let net;
+let materializeNetwork;
+let runScript;
+let git;
+let revParse;
+let parentsOf;
+let gitDir;
+let indexTree;
+let snapshotDir;
+let readGitStateFile;
+let writeFiles;
+let advanceUpstream;
+let recordedFetches;
+let recordedInvocations;
 
 beforeEach(() => {
-  scratch = mkdtempSync(path.join(tmpdir(), "upstream-sync-"));
-  mkdirSync(path.join(scratch, "bin"), { recursive: true });
-  const wrapperPath = path.join(scratch, "bin", "git");
-  writeFileSync(wrapperPath, gitWrapperSource);
-  chmodSync(wrapperPath, 0o755);
-  writeFileSync(path.join(scratch, "git-args.jsonl"), "");
+  net = createUpstreamNetwork();
+  ({
+    materializeNetwork,
+    runScript,
+    git,
+    revParse,
+    parentsOf,
+    gitDir,
+    indexTree,
+    snapshotDir,
+    readGitStateFile,
+    writeFiles,
+    advanceUpstream,
+    recordedFetches,
+    recordedInvocations,
+  } = net);
 });
 
 afterEach(() => {
-  if (scratch !== undefined) {
-    rmSync(scratch, { recursive: true, force: true });
-  }
-  scratch = undefined;
+  net.dispose();
 });
 
 describe("upstream-sync.sh", () => {
   describe("status", () => {
     it("fetches without changing HEAD", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
       const before = revParse(work, "HEAD");
 
       const result = runScript(work, []);
@@ -492,7 +74,7 @@ describe("upstream-sync.sh", () => {
 
   describe("--merge", () => {
     it("creates a two-parent merge with first-parent fork content", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "divergent");
+      const { work, upstreamBare } = materializeNetwork("divergent");
       const before = revParse(work, "HEAD");
       const upstreamMain = revParse(upstreamBare, "refs/heads/main");
 
@@ -520,7 +102,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("is a no-op when upstream is already integrated", () => {
-      const { work } = materializeNetwork(scratch, "already-integrated");
+      const { work } = materializeNetwork("already-integrated");
       const before = revParse(work, "HEAD");
 
       const result = runScript(work, ["--merge"]);
@@ -532,7 +114,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("merges a second upstream advance then no-ops a repeat", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "divergent");
+      const { work, upstreamBare } = materializeNetwork("divergent");
       const forkHead = revParse(work, "HEAD");
       const upstreamFirst = revParse(upstreamBare, "refs/heads/main");
 
@@ -576,7 +158,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("merges a fresh clone that has no private sync refs", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
       expect(
         git(work, ["rev-parse", "--verify", "refs/sync/upstream-main"], {
           allowFail: true,
@@ -595,7 +177,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("leaves MERGE_HEAD so git merge --continue can finish a conflict", () => {
-      const { work } = materializeNetwork(scratch, "conflict");
+      const { work } = materializeNetwork("conflict");
       const before = revParse(work, "HEAD");
 
       const result = runScript(work, ["--merge"]);
@@ -633,7 +215,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("leaves MERGE_HEAD so git merge --abort restores the pre-merge HEAD", () => {
-      const { work } = materializeNetwork(scratch, "conflict");
+      const { work } = materializeNetwork("conflict");
       const before = revParse(work, "HEAD");
       const beforeTree = revParse(work, "HEAD^{tree}");
 
@@ -652,430 +234,9 @@ describe("upstream-sync.sh", () => {
     });
   });
 
-  describe("--record-core-sync", () => {
-    /**
-     * @param {string} work
-     * @returns {string}
-     */
-    const statePathOf = (work) =>
-      path.join(work, "scripts", "release", "core-sync-state.json");
-
-    /**
-     * @param {string} work
-     */
-    const readState = (work) =>
-      JSON.parse(readFileSync(statePathOf(work), "utf8"));
-
-    /**
-     * Merge upstream into the work repo through the script and return the
-     * resulting merge commit OID.
-     *
-     * @param {string} work
-     * @returns {string}
-     */
-    const mergeUpstream = (work) => {
-      const result = runScript(work, ["--merge"]);
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("record its reviewed core sync evidence");
-      return revParse(work, "HEAD");
-    };
-
-    it("records verified sync evidence after a completed merge", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "core-sync");
-      const merge = mergeUpstream(work);
-      const releaseOid = revParse(
-        upstreamBare,
-        "refs/tags/pi-subagents-v21.7.0^{}",
-      );
-      const stateBefore = readState(work);
-
-      const result = runScript(work, [
-        "--record-core-sync",
-        merge,
-        "--fork-level",
-        "none",
-        "--rationale",
-        "upstream-only integration; resolutions kept fork identity",
-      ]);
-
-      expect(result.status).toBe(0);
-      expect(result.stdout).toContain("recorded sync");
-      const state = readState(work);
-      expect(state.releases).toEqual(stateBefore.releases);
-      expect(state.syncs).toEqual([
-        {
-          merge,
-          upstream: { version: "21.7.0", commit: releaseOid },
-          forkCore: {
-            level: "none",
-            rationale:
-              "upstream-only integration; resolutions kept fork identity",
-            paths: [],
-          },
-        },
-      ]);
-      expect(result.stdout).toContain(
-        "Commit the state update before the next release prediction",
-      );
-    });
-
-    it("leaves the local tag namespace byte-identical across recording", () => {
-      const { work } = materializeNetwork(scratch, "core-sync");
-      const merge = mergeUpstream(work);
-      const tagsBefore = git(work, [
-        "for-each-ref",
-        "--format=%(refname) %(objectname)",
-        "refs/tags",
-      ]).stdout;
-
-      const result = runScript(work, [
-        "--record-core-sync",
-        merge,
-        "--fork-level",
-        "none",
-        "--rationale",
-        "upstream-only integration",
-      ]);
-
-      expect(result.status).toBe(0);
-      expect(
-        git(work, [
-          "for-each-ref",
-          "--format=%(refname) %(objectname)",
-          "refs/tags",
-        ]).stdout,
-      ).toBe(tagsBefore);
-      expect(tagsBefore.trim()).toBe(
-        `refs/tags/pi-subagents-v1.0.0 ${revParse(work, "refs/tags/pi-subagents-v1.0.0")}`,
-      );
-    });
-
-    it("selects the contained release, not a newer release advertised after the merge", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "core-sync");
-      // The merge incorporated 21.7.0; upstream then cut 21.7.1 before the
-      // operator recorded the sync. The fetch makes 21.7.1's objects local,
-      // but it is not contained in the merge's upstream parent, so recording
-      // must still bind 21.7.0.
-      const merge = mergeUpstream(work);
-      advanceUpstreamReleases(upstreamBare, [
-        {
-          message: "feat(pi-subagents): upstream release 21.7.1",
-          files: {
-            "packages/pi-subagents/package.json": `${JSON.stringify(
-              { name: "@gotgenes/pi-subagents", version: "21.7.1" },
-              null,
-              2,
-            )}\n`,
-            "packages/pi-subagents/src/feature.ts":
-              "export const feature = 1;\n",
-          },
-          tag: { name: "pi-subagents-v21.7.1", annotated: true },
-        },
-      ]);
-
-      const result = runScript(work, [
-        "--record-core-sync",
-        merge,
-        "--fork-level",
-        "none",
-        "--rationale",
-        "upstream-only integration",
-      ]);
-
-      expect(result.status).toBe(0);
-      const [sync] = readState(work).syncs;
-      expect(sync.upstream.version).toBe("21.7.0");
-      expect(sync.upstream.commit).toBe(
-        revParse(upstreamBare, "refs/tags/pi-subagents-v21.7.0^{}"),
-      );
-    });
-
-    it("records a lightweight-tagged release by its commit", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "core-sync");
-      const [releaseOid] = advanceUpstreamReleases(upstreamBare, [
-        {
-          message: "feat(pi-subagents): upstream release 21.7.1",
-          files: {
-            "packages/pi-subagents/package.json": `${JSON.stringify(
-              { name: "@gotgenes/pi-subagents", version: "21.7.1" },
-              null,
-              2,
-            )}\n`,
-            "packages/pi-subagents/src/feature.ts":
-              "export const feature = 1;\n",
-          },
-          tag: { name: "pi-subagents-v21.7.1" },
-        },
-      ]);
-      const merge = mergeUpstream(work);
-
-      const result = runScript(work, [
-        "--record-core-sync",
-        merge,
-        "--fork-level",
-        "none",
-        "--rationale",
-        "upstream-only integration",
-      ]);
-
-      expect(result.status).toBe(0);
-      const [sync] = readState(work).syncs;
-      expect(sync.upstream).toEqual({ version: "21.7.1", commit: releaseOid });
-      // The recorded OID is the release commit itself, reachable by ancestry.
-      expect(
-        git(work, ["merge-base", "--is-ancestor", releaseOid, `${merge}^2`], {
-          allowFail: true,
-        }).status,
-      ).toBe(0);
-    });
-
-    it("records an explicit reviewed fork resolution level and its paths", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "core-sync");
-      advanceUpstreamReleases(upstreamBare, [
-        {
-          message: "feat(pi-subagents): upstream edits shared core",
-          files: {
-            "packages/pi-subagents/package.json": `${JSON.stringify(
-              { name: "@gotgenes/pi-subagents", version: "21.7.1" },
-              null,
-              2,
-            )}\n`,
-            "packages/pi-subagents/src/core.ts": "export const core = 2;\n",
-          },
-          tag: { name: "pi-subagents-v21.7.1", annotated: true },
-        },
-      ]);
-      writeFiles(work, {
-        "packages/pi-subagents/src/core.ts": "export const core = 'fork';\n",
-      });
-      git(work, ["add", "-A"]);
-      git(work, ["commit", "-m", "feat(pi-subagents): fork edits shared core"]);
-      const conflicted = runScript(work, ["--merge"]);
-      expect(conflicted.status).toBe(1);
-      expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(true);
-      writeFileSync(
-        path.join(work, "packages/pi-subagents/src/core.ts"),
-        "export const core = 'resolved-combined';\n",
-      );
-      git(work, ["add", "-A"]);
-      const continued = spawnSync(realGit, ["merge", "--continue"], {
-        cwd: work,
-        encoding: "utf8",
-        env: { ...baseGitEnv, GIT_EDITOR: "true" },
-      });
-      expect(continued.status).toBe(0);
-      const merge = revParse(work, "HEAD");
-
-      const result = runScript(work, [
-        "--record-core-sync",
-        merge,
-        "--fork-level",
-        "patch",
-        "--rationale",
-        "resolution combined both sides of the shared core module",
-      ]);
-
-      expect(result.status).toBe(0);
-      const [sync] = readState(work).syncs;
-      expect(sync.forkCore.level).toBe("patch");
-      expect(sync.forkCore.paths).toEqual([
-        "packages/pi-subagents/src/core.ts",
-      ]);
-      expect(result.stdout).toContain("packages/pi-subagents/src/core.ts");
-    });
-
-    it("refuses an unreviewed record: the review inputs are required", () => {
-      const { work } = materializeNetwork(scratch, "core-sync");
-      const merge = mergeUpstream(work);
-      const stateBefore = readFileSync(statePathOf(work), "utf8");
-
-      const result = runScript(work, ["--record-core-sync", merge]);
-
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("--fork-level is required");
-      expect(result.stderr).toContain("--rationale is required");
-      expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
-    });
-
-    it("refuses recording while a merge is still in progress", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "core-sync");
-      advanceUpstreamReleases(upstreamBare, [
-        {
-          message: "feat(pi-subagents): upstream edits shared core",
-          files: {
-            "packages/pi-subagents/package.json": `${JSON.stringify(
-              { name: "@gotgenes/pi-subagents", version: "21.7.1" },
-              null,
-              2,
-            )}\n`,
-            "packages/pi-subagents/src/core.ts": "export const core = 2;\n",
-          },
-          tag: { name: "pi-subagents-v21.7.1", annotated: true },
-        },
-      ]);
-      writeFiles(work, {
-        "packages/pi-subagents/src/core.ts": "export const core = 'fork';\n",
-      });
-      git(work, ["add", "-A"]);
-      git(work, ["commit", "-m", "feat(pi-subagents): fork edits shared core"]);
-      const conflicted = runScript(work, ["--merge"]);
-      expect(conflicted.status).toBe(1);
-      const mergeHeadBefore = readGitStateFile(work, "MERGE_HEAD");
-      const stateBefore = readFileSync(statePathOf(work), "utf8");
-
-      const result = runScript(work, [
-        "--record-core-sync",
-        "HEAD",
-        "--fork-level",
-        "none",
-        "--rationale",
-        "should not be recorded",
-      ]);
-
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("a merge is already in progress");
-      expect(readGitStateFile(work, "MERGE_HEAD")).toBe(mergeHeadBefore);
-      expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
-    });
-
-    it("refuses unreleased upstream core changes after the selected release", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "core-sync");
-      advanceUpstreamReleases(upstreamBare, [
-        {
-          message: "feat(pi-subagents): upstream release 21.7.1",
-          files: {
-            "packages/pi-subagents/package.json": `${JSON.stringify(
-              { name: "@gotgenes/pi-subagents", version: "21.7.1" },
-              null,
-              2,
-            )}\n`,
-          },
-          tag: { name: "pi-subagents-v21.7.1", annotated: true },
-        },
-        {
-          message: "feat(pi-subagents): unreleased core change",
-          files: {
-            "packages/pi-subagents/src/unreleased.ts":
-              "export const pending = 1;\n",
-          },
-        },
-      ]);
-      const merge = mergeUpstream(work);
-      const stateBefore = readFileSync(statePathOf(work), "utf8");
-
-      const result = runScript(work, [
-        "--record-core-sync",
-        merge,
-        "--fork-level",
-        "none",
-        "--rationale",
-        "upstream-only integration",
-      ]);
-
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("unreleased upstream core changes");
-      expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
-    });
-
-    it("allows internal-doc-only upstream tails under the exclusion policy", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "core-sync");
-      advanceUpstreamReleases(upstreamBare, [
-        {
-          message: "feat(pi-subagents): upstream release 21.7.1",
-          files: {
-            "packages/pi-subagents/package.json": `${JSON.stringify(
-              { name: "@gotgenes/pi-subagents", version: "21.7.1" },
-              null,
-              2,
-            )}\n`,
-          },
-          tag: { name: "pi-subagents-v21.7.1", annotated: true },
-        },
-        {
-          message: "docs(pi-subagents): internal plan note after the release",
-          files: {
-            "packages/pi-subagents/docs/plans/next.md": "internal note\n",
-          },
-        },
-      ]);
-      const merge = mergeUpstream(work);
-
-      const result = runScript(work, [
-        "--record-core-sync",
-        merge,
-        "--fork-level",
-        "none",
-        "--rationale",
-        "upstream-only integration",
-      ]);
-
-      expect(result.status).toBe(0);
-      expect(readState(work).syncs[0].upstream.version).toBe("21.7.1");
-    });
-
-    it("treats an identical re-record as idempotent and a conflicting one as an error", () => {
-      const { work } = materializeNetwork(scratch, "core-sync");
-      const merge = mergeUpstream(work);
-      const review = [
-        "--fork-level",
-        "none",
-        "--rationale",
-        "upstream-only integration",
-      ];
-      runScript(work, ["--record-core-sync", merge, ...review]);
-      const recorded = readFileSync(statePathOf(work), "utf8");
-      // The operator commits the state update before any re-run: recording
-      // writes a tracked file, and the recording preconditions require a
-      // clean tree.
-      git(work, ["add", "scripts/release/core-sync-state.json"]);
-      git(work, [
-        "commit",
-        "-m",
-        "chore: record core sync evidence for upstream 21.7.0",
-      ]);
-
-      const again = runScript(work, ["--record-core-sync", merge, ...review]);
-
-      expect(again.status).toBe(0);
-      expect(again.stdout).toContain("already recorded");
-      expect(readFileSync(statePathOf(work), "utf8")).toBe(recorded);
-
-      const conflicting = runScript(work, [
-        "--record-core-sync",
-        merge,
-        "--fork-level",
-        "none",
-        "--rationale",
-        "a different review conclusion",
-      ]);
-
-      expect(conflicting.status).toBe(1);
-      expect(conflicting.stderr).toContain("a different record already exists");
-      expect(readFileSync(statePathOf(work), "utf8")).toBe(recorded);
-    });
-
-    it("refuses a merge that cannot be resolved", () => {
-      const { work } = materializeNetwork(scratch, "core-sync");
-      const stateBefore = readFileSync(statePathOf(work), "utf8");
-
-      const result = runScript(work, [
-        "--record-core-sync",
-        "0".repeat(40),
-        "--fork-level",
-        "none",
-        "--rationale",
-        "nothing to see",
-      ]);
-
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("cannot resolve merge");
-      expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
-    });
-  });
-
   describe("guards", () => {
     it("accepts an existing SSH upstream remote", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
       git(work, ["remote", "add", "upstream", githubUpstream]);
 
       const result = runScript(work, []);
@@ -1087,7 +248,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("refuses a different upstream repository before fetching", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
       git(work, [
         "remote",
         "add",
@@ -1102,7 +263,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("refuses a non-main branch without merging", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
       git(work, ["checkout", "-b", "feature"]);
       const before = revParse(work, "HEAD");
 
@@ -1122,7 +283,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("refuses a non-fork origin without merging", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
       git(work, [
         "remote",
         "set-url",
@@ -1144,7 +305,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("refuses an unrelated dirty worktree that git merge would otherwise accept", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
       writeFileSync(path.join(work, "unrelated.txt"), "dirty worktree\n");
       const before = revParse(work, "HEAD");
 
@@ -1170,7 +331,7 @@ describe("upstream-sync.sh", () => {
       // Measured on git 2.53.0: merge itself also refuses every staged
       // unrelated-path variant probed. This pin is the script-owned
       // diagnostic plus unchanged HEAD/index, not Git accepting the merge.
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
       writeFileSync(path.join(work, "unrelated.txt"), "dirty index\n");
       git(work, ["add", "unrelated.txt"]);
       const before = revParse(work, "HEAD");
@@ -1193,7 +354,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("refuses an in-progress merge without mutating MERGE_HEAD", () => {
-      const { work } = materializeNetwork(scratch, "empty-upstream");
+      const { work } = materializeNetwork("empty-upstream");
       const fetched = runScript(work, []);
       expect(fetched.status).toBe(0);
       git(work, [
@@ -1224,12 +385,12 @@ describe("upstream-sync.sh", () => {
     });
 
     it("refuses an in-progress rebase without clearing rebase-apply", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
       writeFiles(work, { "am.txt": "v1\n" });
       git(work, ["add", "am.txt"]);
       git(work, ["commit", "-m", "test: am base"]);
       const patch = git(work, ["format-patch", "-1", "--stdout"]).stdout;
-      const patchPath = path.join(scratch, "am.patch");
+      const patchPath = path.join(net.scratch, "am.patch");
       writeFileSync(patchPath, patch);
       git(work, ["reset", "--hard", "HEAD~1"]);
       writeFiles(work, { "am.txt": "v3\n" });
@@ -1272,8 +433,8 @@ describe("upstream-sync.sh", () => {
     });
 
     it("refuses an in-progress rebase-merge without clearing rebase-merge", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
-      const editor = path.join(scratch, "rebase-editor.sh");
+      const { work } = materializeNetwork("divergent");
+      const editor = path.join(net.scratch, "rebase-editor.sh");
       writeFileSync(editor, "#!/bin/sh\nprintf 'break\\n' > \"$1\"\n");
       chmodSync(editor, 0o755);
       spawnSync(realGit, ["rebase", "-i", "HEAD~1"], {
@@ -1321,7 +482,7 @@ describe("upstream-sync.sh", () => {
 
   describe("fetch protections", () => {
     it("records an explicit fetch --no-tags of upstream main", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
 
       runScript(work, []);
 
@@ -1339,7 +500,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("refuses when the local tag set changes during fetch", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
       const before = revParse(work, "HEAD");
       const tagsBefore = git(work, ["tag"]).stdout;
 
@@ -1363,7 +524,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("does not import colliding upstream tag names", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "divergent");
+      const { work, upstreamBare } = materializeNetwork("divergent");
       const forkOid = revParse(work, "HEAD");
       const upstreamV1 = revParse(
         upstreamBare,
@@ -1390,7 +551,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("sets remote.upstream.pushurl to DISABLE", () => {
-      const { work } = materializeNetwork(scratch, "divergent");
+      const { work } = materializeNetwork("divergent");
 
       const result = runScript(work, []);
 
@@ -1407,7 +568,7 @@ describe("upstream-sync.sh", () => {
     });
 
     it("prints the newest upstream pi-subagents tag from ls-remote", () => {
-      const { work, upstreamBare } = materializeNetwork(scratch, "divergent");
+      const { work, upstreamBare } = materializeNetwork("divergent");
       const peeled = revParse(upstreamBare, "refs/tags/pi-subagents-v21.7.0");
 
       const result = runScript(work, []);
