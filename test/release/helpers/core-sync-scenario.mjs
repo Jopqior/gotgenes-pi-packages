@@ -13,11 +13,20 @@ import { createScratchReleaseRepository } from "./git-repository.mjs";
 /** The fork release tag the scenario's decision window starts from. */
 export const BASE_TAG = "pi-subagents-v1.0.0";
 
-const NONE_CONTRIBUTION = {
-  level: "none",
-  rationale: "upstream-only integration; no fork core resolution",
-  paths: [],
-};
+/**
+ * A fresh none contribution per call: default `syncUpstream` records must not
+ * share one object (or one `paths` array), or forging one record's `forkCore`
+ * in place would silently reforge every other default record.
+ *
+ * @returns {{ level: "none", rationale: string, paths: string[] }}
+ */
+function noneContribution() {
+  return {
+    level: "none",
+    rationale: "upstream-only integration; no fork core resolution",
+    paths: [],
+  };
+}
 
 /**
  * Create the baseline history and the decision helpers around it:
@@ -172,7 +181,7 @@ export function createCoreSyncScenario(options = {}) {
     recordedSyncs.push({
       merge,
       upstream: { version: options.version, commit: releaseCommit },
-      forkCore: options.forkCore ?? NONE_CONTRIBUTION,
+      forkCore: options.forkCore ?? noneContribution(),
     });
     return { merge, releaseCommit, upstreamParent };
   }
