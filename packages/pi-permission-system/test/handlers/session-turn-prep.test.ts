@@ -53,7 +53,7 @@ describe("SessionTurnPrep.prepare", () => {
     const ctx = makeCtx();
     const { turnPrep, configStore } = makeTurnPrep();
     turnPrep.prepare(ctx);
-    expect(configStore.refresh).toHaveBeenCalledWith(ctx, true);
+    expect(configStore.refresh).toHaveBeenCalledWith(ctx.cwd, true);
   });
 
   it("withholds the project scope when the project is untrusted", () => {
@@ -62,7 +62,7 @@ describe("SessionTurnPrep.prepare", () => {
     });
     const { turnPrep, configStore } = makeTurnPrep();
     turnPrep.prepare(ctx);
-    expect(configStore.refresh).toHaveBeenCalledWith(ctx, false);
+    expect(configStore.refresh).toHaveBeenCalledWith(ctx.cwd, false);
   });
 
   it("announces the node as ready, on the same ctx", () => {

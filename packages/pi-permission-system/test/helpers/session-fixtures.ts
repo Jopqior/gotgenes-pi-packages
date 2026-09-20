@@ -63,9 +63,7 @@ export function makeConfigStore(
         .mockReturnValue({ ...DEFAULT_EXTENSION_CONFIG }),
     refresh:
       overrides.refresh ??
-      vi.fn<
-        (ctx: ExtensionContext | undefined, projectTrusted: boolean) => void
-      >(),
+      vi.fn<(cwd: string | undefined, projectTrusted: boolean) => void>(),
     logResolvedPaths: overrides.logResolvedPaths ?? vi.fn<() => void>(),
   };
 }

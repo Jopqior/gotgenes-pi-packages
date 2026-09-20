@@ -218,7 +218,7 @@ export class PermissionSession implements ToolCallGateInputs {
     ctx: ExtensionContext | undefined,
     projectTrusted: boolean,
   ): void {
-    this.configStore.refresh(ctx, projectTrusted);
+    this.configStore.refresh(ctx?.cwd, projectTrusted);
     if (ctx?.hasUI) {
       syncPermissionSystemStatus(ctx, this.configStore.current());
     }

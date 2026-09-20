@@ -72,7 +72,7 @@ describe("handleSessionStart", () => {
     const ctx = makeCtx();
     const { handler, configStore } = makeSetup();
     await handler.handleSessionStart({ reason: "startup" }, ctx);
-    expect(configStore.refresh).toHaveBeenCalledWith(ctx, true);
+    expect(configStore.refresh).toHaveBeenCalledWith(ctx.cwd, true);
   });
 
   it("calls resetForNewSession with ctx, trusted", async () => {
@@ -95,7 +95,7 @@ describe("handleSessionStart", () => {
       const { handler, configStore, session } = makeSetup();
       const spy = vi.spyOn(session, "resetForNewSession");
       await handler.handleSessionStart({ reason: "startup" }, ctx);
-      expect(configStore.refresh).toHaveBeenCalledWith(ctx, false);
+      expect(configStore.refresh).toHaveBeenCalledWith(ctx.cwd, false);
       expect(spy).toHaveBeenCalledWith(ctx, false);
     });
 

@@ -349,14 +349,14 @@ describe("PermissionSession", () => {
       const { session, configStore } = createSession();
       const ctx = makeCtx();
       session.refreshConfig(ctx, true);
-      expect(configStore.refresh).toHaveBeenCalledWith(ctx, true);
+      expect(configStore.refresh).toHaveBeenCalledWith(ctx.cwd, true);
     });
 
     it("refreshConfig forwards projectTrusted=false when untrusted", () => {
       const { session, configStore } = createSession();
       const ctx = makeCtx();
       session.refreshConfig(ctx, false);
-      expect(configStore.refresh).toHaveBeenCalledWith(ctx, false);
+      expect(configStore.refresh).toHaveBeenCalledWith(ctx.cwd, false);
     });
 
     describe("status-bar sync", () => {

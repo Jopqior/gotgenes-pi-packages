@@ -237,8 +237,10 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
   // refresh() must run after `session` is assigned: a debug-write IO failure
   // triggers the logger's notify sink — `session.notify(m)` — which no-ops
   // on the null context but requires `session` to be bound.
-  // No ctx/trust decision exists at factory init, so withhold the project
-  // scope (fail closed); session_start reloads with the real trust decision.
+  // No cwd or trust decision exists at factory init, so there is no project
+  // scope to withhold from (fail closed); session_start reloads with the real
+  // cwd and trust decision. This load reports nothing to the operator " it
+  // cannot, and used to consume the warning by pretending it had (#933).
   configStore.refresh(undefined, false);
 
   const configPath = getGlobalConfigPath(agentDir);

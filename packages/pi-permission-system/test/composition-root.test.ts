@@ -2329,5 +2329,34 @@ describe("configured permission-dialog hotkeys reach the inline dialog", () => {
 
       rmSync(cwd, { recursive: true, force: true });
     });
+
+    it("is shown on the next turn when it appears mid-session", async () => {
+      writeGlobalConfig({ permission: { "*": "ask" } });
+
+      const cwd = mkdtempSync(join(tmpdir(), "pi-perm-warn-mid-cwd-"));
+      const pi = makeFakePi({ toolNames: ["demo"] });
+      piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+      const { ctx, notified } = makeTuiCtx(cwd);
+      await fireSessionStart(pi, ctx);
+      expect(notified).toEqual([]);
+
+      // The operator breaks their config while the session is live; it is
+      // re-read on every before_agent_start.
+      writeGlobalConfig({ permission: { "*": "allow" } });
+      await pi.fire(
+        "before_agent_start",
+        { systemPrompt: "", systemPromptOptions: { cwd } },
+        ctx,
+      );
+
+      expect(
+        notified.filter((message) =>
+          message.includes("bash commands silently inherit 'allow'"),
+        ),
+      ).toHaveLength(1);
+
+      rmSync(cwd, { recursive: true, force: true });
+    });
   });
 });
