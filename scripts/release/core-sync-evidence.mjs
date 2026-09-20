@@ -180,6 +180,13 @@ export function verifyUpstreamReleaseManifest(repo, release) {
  * lowercase hex characters at the repository root would still be mistaken
  * for a commit id — the same limitation the previous line-based parser had.
  *
+ * `--diff-merges=first-parent` makes a merge commit's own change visible:
+ * the default omits merge diffs entirely, so a merge whose first-parent
+ * diff carries core content — an upstream conflict resolution, or core
+ * work arriving only through the second parent — sat in a tail with no
+ * file names and read as empty. First parent is the same convention the
+ * unrecorded-merge guard and the recorder's review binding already use.
+ *
  * @param {string} repo
  * @param {string} from
  * @param {string} to
@@ -192,6 +199,7 @@ export function coreCommitsBetween(repo, from, to) {
     "--format=%H",
     "--name-only",
     "-z",
+    "--diff-merges=first-parent",
     `${from}..${to}`,
     "--",
     `packages/${CORE_PACKAGE}/`,

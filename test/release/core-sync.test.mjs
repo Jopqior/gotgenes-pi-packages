@@ -731,6 +731,92 @@ describe("unreleased upstream tails", () => {
       upstreamLevel: "patch",
     });
   });
+
+  it("blocks a merge-only core change in the current release record's upstream span", () => {
+    // The span's only core content is the merge's own first-parent diff: a
+    // conflict resolution that adds a core source file alongside the excluded
+    // doc it resolved. git log lists a merge with no file names unless merge
+    // diffs are requested, so the span must fail closed on merge changes.
+    // (Inside the decision window an unrecorded core-affecting merge is
+    // already blocked by the unrecorded-merge guard; the baseline span is
+    // the surface only this check protects.)
+    repo.commitInScope(
+      "docs(pi-subagents): baseline plan note",
+      "packages/pi-subagents/docs/plans/baseline-note.md",
+    );
+    const side = uniqueUpstreamBranch();
+    repo.git("checkout", "-b", side);
+    repo.commitInScope(
+      "docs(pi-subagents): side plan note",
+      "packages/pi-subagents/docs/plans/baseline-note.md",
+    );
+    repo.git("checkout", "main");
+    repo.commitInScope(
+      "docs(pi-subagents): main plan rewrite",
+      "packages/pi-subagents/docs/plans/baseline-note.md",
+    );
+    const mergeResult = spawnSync(
+      "git",
+      ["merge", "--no-ff", "--no-commit", side],
+      { cwd: repo.dir, encoding: "utf8" },
+    );
+    expect(mergeResult.status).not.toBe(0);
+    writeFileSync(
+      path.join(repo.dir, "packages/pi-subagents/docs/plans/baseline-note.md"),
+      "resolved internal note\n",
+    );
+    writeFileSync(
+      path.join(repo.dir, "packages/pi-subagents/resolution-only.ts"),
+      "core content added by the resolution\n",
+    );
+    repo.git("add", "-A");
+    repo.git("commit", "-m", "chore: merge upstream/main");
+    const merge = repo.gitOut("rev-parse", "HEAD");
+    repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", merge);
+    writeCoreSyncState({
+      releases: [
+        {
+          forkTag: BASE_TAG,
+          upstream: baseUpstream,
+          upstreamTip: merge,
+        },
+      ],
+    });
+
+    const error = errorOf(() => decide());
+
+    expect(error.message).toMatch(
+      /unreleased upstream core changes follow 21\.7\.0/,
+    );
+    expect(error.message).toContain(merge);
+  });
+
+  it("still allows a merge whose first-parent diff only touches excluded core docs", () => {
+    // Positive control: merge changes count through the same scope predicate
+    // as regular commits, so a resolution confined to internal working docs
+    // never blocks a release.
+    const side = uniqueUpstreamBranch();
+    repo.git("checkout", "-b", side);
+    repo.commitInScope(
+      "docs(pi-subagents): control plan note",
+      "packages/pi-subagents/docs/plans/control-note.md",
+    );
+    repo.git("checkout", "main");
+    repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", side);
+    const merge = repo.gitOut("rev-parse", "HEAD");
+    repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", merge);
+    writeCoreSyncState({
+      releases: [
+        {
+          forkTag: BASE_TAG,
+          upstream: baseUpstream,
+          upstreamTip: merge,
+        },
+      ],
+    });
+
+    expect(decide()).toMatchObject({ nextTag: null, forkLevel: "none" });
+  });
 });
 
 describe("shared entry point", () => {
