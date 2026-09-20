@@ -44,12 +44,23 @@ Or load from a checkout:
 
 If the core is missing, failed to load, or lacks `registerSpawnSelectionProvider`, this extension throws a configuration error at initialization and does not activate.
 
-### Upgrading across a core major
+### Core compatibility
 
-Upgrade both packages together when the core changes major version.
-The published selector declares a caret dependency on the core version it was packaged against; that range does not admit the next major, even when the spawn-selection API remains compatible.
-In this workspace the dependency is `workspace:^`: pnpm converts it to the core's version range when packing, so a coordinated release must version both packages before packing the selector.
-Maintainers should verify the packed dependency range against the derived core version and name both packages in the release dispatch.
+The selector declares `@jopqior/pi-subagents` as a required peer dependency with a floor of `>=1.0.0`.
+The floor describes the spawn-selection API the selector needs, independently of the core version used for development, so developing against one core version does not move the published range.
+Any installed core within the range works when it is loaded before the selector.
+
+### Migrating to the peer dependency
+
+This version is breaking: the core moved from an ordinary dependency to a required peer.
+Installing only the selector no longer downloads the core, because Pi installs packages with peer resolution disabled.
+Install the core explicitly and list it before the selector in `.pi/settings.json`, exactly as the instructions above show.
+Setups that already install and load both packages in that order need no change.
+
+### Release policy
+
+Selector changes and compatibility-declaration changes each require a selector release.
+A core release alone does not.
 
 ## Behavior
 

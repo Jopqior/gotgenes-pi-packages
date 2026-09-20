@@ -11,7 +11,7 @@
     "src"
   ],
   "scripts": {
-    "check": "pnpm --dir ../pi-subagents run build:types && tsc --noEmit",
+    "check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint:md": "rumdl check .",
@@ -52,16 +52,15 @@
   "peerDependencies": {
     "@earendil-works/pi-ai": ">=0.84.4",
     "@earendil-works/pi-coding-agent": ">=0.84.4",
-    "@earendil-works/pi-tui": ">=0.84.4"
-  },
-  "dependencies": {
-    "@jopqior/pi-subagents": "workspace:^"
+    "@earendil-works/pi-tui": ">=0.84.4",
+    "@jopqior/pi-subagents": ">=1.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
     "@earendil-works/pi-ai": "0.84.4",
     "@earendil-works/pi-coding-agent": "0.84.4",
     "@earendil-works/pi-tui": "0.84.4",
+    "@jopqior/pi-subagents": "^1.0.0",
     "@types/node": "catalog:",
     "rumdl": "catalog:",
     "typescript": "catalog:",
