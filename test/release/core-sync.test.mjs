@@ -1,7 +1,6 @@
 import { spawnSync } from "node:child_process";
 import {
   chmodSync,
-  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -15,7 +14,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   combineLevels,
   compareVersions,
-  decideCoreRelease,
   incrementVersion,
   isCoreScopePath,
   levelFromVersions,
@@ -23,27 +21,32 @@ import {
   readCoreSyncState,
   validateCoreSyncState,
 } from "../../scripts/release/core-sync.mjs";
-import { createScratchReleaseRepository } from "./helpers/git-repository.mjs";
+import {
+  BASE_TAG,
+  createCoreSyncScenario,
+} from "./helpers/core-sync-scenario.mjs";
 
-/** @type {ReturnType<typeof createScratchReleaseRepository>} */
+/** @type {ReturnType<typeof createCoreSyncScenario>} */
+let scenario;
+/** @type {ReturnType<typeof createCoreSyncScenario>["repo"]} */
 let repo;
-/** @type {{ version: string, commit: string }} */
+/** @type {ReturnType<typeof createCoreSyncScenario>["recordedSyncs"]} */
+let recordedSyncs;
+/** @type {ReturnType<typeof createCoreSyncScenario>["baseUpstream"]} */
 let baseUpstream;
 /** @type {string} */
 let baseUpstreamTip;
-let syncCounter = 0;
-/** @type {{ merge: string, upstream: { version: string, commit: string }, forkCore: { level: string, rationale: string, paths: string[] } }[]} */
-let recordedSyncs = [];
+/** @type {ReturnType<typeof createCoreSyncScenario>["writeCoreSyncState"]} */
+let writeCoreSyncState;
+/** @type {ReturnType<typeof createCoreSyncScenario>["decide"]} */
+let decide;
+/** @type {ReturnType<typeof createCoreSyncScenario>["syncUpstream"]} */
+let syncUpstream;
+/** @type {ReturnType<typeof createCoreSyncScenario>["uniqueUpstreamBranch"]} */
+let uniqueUpstreamBranch;
 
-const BASE_TAG = "pi-subagents-v1.0.0";
 const repoRoot = path.resolve(import.meta.dirname, "../..");
 const CORE_ARGS = () => repo.cliffArgs("pi-subagents");
-
-const NONE_CONTRIBUTION = {
-  level: "none",
-  rationale: "upstream-only integration; no fork core resolution",
-  paths: [],
-};
 
 /**
  * @param {string} message
@@ -58,106 +61,20 @@ function errorOf(fn) {
   throw new Error("expected the call to throw, but it returned");
 }
 
-/**
- * @param {{ releases?: unknown[], syncs?: unknown[] }} [overrides]
- */
-function writeCoreSyncState(overrides = {}) {
-  mkdirSync(path.join(repo.dir, "scripts", "release"), { recursive: true });
-  writeFileSync(
-    path.join(repo.dir, "scripts", "release", "core-sync-state.json"),
-    `${JSON.stringify(
-      {
-        schemaVersion: 1,
-        releases: overrides.releases ?? [
-          {
-            forkTag: BASE_TAG,
-            upstream: baseUpstream,
-            upstreamTip: baseUpstreamTip,
-          },
-        ],
-        syncs: overrides.syncs ?? recordedSyncs,
-      },
-      null,
-      2,
-    )}\n`,
-  );
-}
-
-/**
- * @param {string} currentTag
- */
-function decide(currentTag = BASE_TAG) {
-  return decideCoreRelease({
-    repo: repo.dir,
-    currentTag,
-    cliffArgs: CORE_ARGS(),
-  });
-}
-
-/**
- * Commit `files` on a new upstream branch and merge it into main with a real
- * two-parent merge, recording the reviewed sync entry.
- *
- * @param {{
- *   version: string,
- *   files?: { message: string, file: string }[],
- *   mergeMessage?: string,
- *   forkCore?: { level: string, rationale: string, paths: string[] },
- * }} options
- * @returns {{ merge: string, releaseCommit: string, upstreamParent: string }}
- */
-function syncUpstream(options) {
-  const branch = `upstream-${syncCounter++}`;
-  repo.git("checkout", "-b", branch);
-  for (const change of options.files ?? [
-    {
-      message: `feat(pi-subagents): upstream change ${options.version}`,
-      file: `packages/pi-subagents/up-${options.version}.txt`,
-    },
-  ]) {
-    repo.commitInScope(change.message, change.file);
-  }
-  const releaseCommit = repo.gitOut("rev-parse", "HEAD");
-  repo.git("checkout", "main");
-  repo.git(
-    "merge",
-    "--no-ff",
-    "-m",
-    options.mergeMessage ?? "chore: merge upstream/main",
-    branch,
-  );
-  const merge = repo.gitOut("rev-parse", "HEAD");
-  const upstreamParent = repo.gitOut("rev-parse", `${merge}^2`);
-  recordedSyncs.push({
-    merge,
-    upstream: { version: options.version, commit: releaseCommit },
-    forkCore: options.forkCore ?? NONE_CONTRIBUTION,
-  });
-  return { merge, releaseCommit, upstreamParent };
-}
-
 beforeEach(() => {
-  syncCounter = 0;
-  recordedSyncs = [];
-  repo = createScratchReleaseRepository({ pkg: "pi-subagents" });
-  repo.commitInScope(
-    "feat(pi-subagents)!: initial core",
-    "packages/pi-subagents/src/a.ts",
-  );
-  repo.git("tag", "pi-subagents-v0.9.0");
-  repo.commitInScope(
-    "feat(pi-subagents): shape the core",
-    "packages/pi-subagents/src/b.ts",
-  );
-  const baseCommit = repo.gitOut("rev-parse", "HEAD");
-  baseUpstream = { version: "21.7.0", commit: baseCommit };
-  baseUpstreamTip = baseCommit;
-  repo.commitOutOfScope("docs: release marker");
-  repo.git("tag", "-a", BASE_TAG, "-m", "core v1.0.0");
+  scenario = createCoreSyncScenario();
+  repo = scenario.repo;
+  recordedSyncs = scenario.recordedSyncs;
+  baseUpstream = scenario.baseUpstream;
+  baseUpstreamTip = scenario.baseUpstreamTip;
+  writeCoreSyncState = scenario.writeCoreSyncState;
+  decide = scenario.decide;
+  syncUpstream = scenario.syncUpstream;
+  uniqueUpstreamBranch = scenario.uniqueUpstreamBranch;
 });
 
 afterEach(() => {
-  repo.dispose();
+  scenario.dispose();
 });
 
 describe("level mapping", () => {
@@ -544,7 +461,7 @@ describe("window derivation", () => {
   });
 
   it("counts a reviewed breaking merge resolution as fork major", () => {
-    const branch = `upstream-${syncCounter++}`;
+    const branch = uniqueUpstreamBranch();
     repo.git("checkout", "-b", branch);
     repo.commitInScope(
       "feat(pi-subagents): upstream edits shared core",
@@ -676,7 +593,7 @@ describe("evidence failures", () => {
   });
 
   it("blocks an unrecorded core-affecting merge with the recording command", () => {
-    const branch = `upstream-${syncCounter++}`;
+    const branch = uniqueUpstreamBranch();
     repo.git("checkout", "-b", branch);
     repo.commitInScope(
       "feat(pi-subagents): unrecorded upstream change",
@@ -795,7 +712,7 @@ describe("shared entry point", () => {
   });
 
   it("fails closed at the entry point on unrecorded core merges", () => {
-    const branch = `upstream-${syncCounter++}`;
+    const branch = uniqueUpstreamBranch();
     repo.git("checkout", "-b", branch);
     repo.commitInScope(
       "feat(pi-subagents): unrecorded upstream change",
@@ -1088,7 +1005,7 @@ describe("release preparation", () => {
     // The sibling is named first, so its version is derived before the core's
     // evidence fails; the all-or-nothing contract is that even that derived
     // sibling version produces no write.
-    const branch = `upstream-${syncCounter++}`;
+    const branch = uniqueUpstreamBranch();
     repo.git("checkout", "-b", branch);
     repo.commitInScope(
       "feat(pi-subagents): unrecorded upstream change",
