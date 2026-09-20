@@ -1210,6 +1210,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   `redirectMayWriteFile` proves a write for a `/dev/null` destination, so appending `2>/dev/null` to a read-only pipeline withholds [#803]'s `core-reader` exemption and floors the unit to `ask` — measured against every `<indirection-bash-wrapper>` prompt in the local review log since 2026-09-16, all of them proven core readers.
   The cause is a missing device row in `redirect-analysis.ts`'s effect proof, not the phase's role loss at projection; the two touch different modules and different seams.
   One interaction to carry forward: [#609] makes a bare creating redirect reach `path_write`, which would newly project `> /dev/null` as a write destination, so the same device fact is needed on the path surface once that step lands.
+- [#953] — filed by [#933]'s planning; out of scope for the roadmap.
+  A policy-file issue is warned only at `session_start`, unlatched, while policy is re-read from file mtimes on any turn — so a policy file broken mid-session is rejected fail-closed and the operator is told nothing.
+  It is the sibling accumulation to [#933]'s, left out of that fix to keep it tight; the same `config/`–`handlers/` notification-lifecycle class, sharing no step's mechanism.
 - [#955] — filed by this session; out of scope for the roadmap.
   `computeExtensionPaths` puts bare `agentDir` in `piInfrastructureDirs`, so `auth.json`, `mcp-oauth/`, and `trust.json` are auto-allowed reads, and the bypass returns from `describeExternalDirectoryGate` ahead of policy resolution, so an explicit `external_directory_read` `deny` on those paths never fires.
   The cause is the breadth of a `config/` path list and the ordering of a `handlers/gates/` short-circuit, not a token role lost at projection; no step in this phase produces or consumes what it needs.
@@ -1571,6 +1574,7 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#946]: https://github.com/gotgenes/pi-packages/issues/946
 [#951]: https://github.com/gotgenes/pi-packages/issues/951
 [#952]: https://github.com/gotgenes/pi-packages/issues/952
+[#953]: https://github.com/gotgenes/pi-packages/issues/953
 [#955]: https://github.com/gotgenes/pi-packages/issues/955
 [#956]: https://github.com/gotgenes/pi-packages/issues/956
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
