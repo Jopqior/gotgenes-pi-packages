@@ -36,6 +36,7 @@ import {
   copyFileSync,
   cpSync,
   mkdirSync,
+  mkdtempSync,
   readdirSync,
   readFileSync,
   rmSync,
@@ -300,9 +301,9 @@ import { join } from "node:path";
 import { discoverAndLoadExtensions } from "@earendil-works/pi-coding-agent";
 
 const consumerRoot = import.meta.dirname;
-// mkdirSync(recursive) returns undefined for an existing directory on Node 24,
-// so the empty directories are constructed explicitly instead of from its
-// return value.
+// mkdirSync with recursive returns undefined when the directory already
+// exists, so the empty directories are constructed explicitly instead of
+// from its return value.
 const cwd = join(consumerRoot, "empty-cwd");
 const agentDir = join(consumerRoot, "empty-agent");
 mkdirSync(cwd, { recursive: true });
@@ -442,11 +443,22 @@ export function assertConfigurationErrorLoad(
   }
 }
 
-export async function main() {
-  const root = join(tmpdir(), "selector-core-compat-verification");
-  rmSync(root, { recursive: true, force: true });
-  mkdirSync(root, { recursive: true });
+/**
+ * Runs the callback with a unique temporary run root and removes it with its
+ * entire fixture tree afterwards, so concurrent invocations never share or
+ * delete each other's fixtures.
+ */
+export function withDisposableRoot(callback) {
+  const root = mkdtempSync(join(tmpdir(), "selector-core-compat-"));
   try {
+    return callback(root);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+}
+
+export async function main() {
+  return withDisposableRoot(async (root) => {
     // Pack the real package and pin its manifest contract.
     const realTarball = packSelectorInto(PACKAGE_ROOT, join(root, "pack-real"));
     const realPacked = extractPackedManifest(
@@ -528,7 +540,9 @@ export async function main() {
     );
     console.log("PASS control");
 
-    // Negative rows, each in a fresh consumer.
+    // Negative rows. The missing-package row uses its own consumer without
+    // the core; the three service-state rows share the consumer installed
+    // below and isolate from each other through a fresh probe process each.
     const missingConsumer = installConsumer(
       join(root, "consumer-missing-package"),
       {
@@ -594,9 +608,7 @@ export async function main() {
     console.log(
       `verify-core-compatibility: all rows passed (selector ${selectorVersion})`,
     );
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
+  });
 }
 
 if (
