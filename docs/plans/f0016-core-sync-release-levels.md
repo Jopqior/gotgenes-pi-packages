@@ -7,11 +7,11 @@ issue_title: "Derive fork core sync releases from upstream version changes"
 
 ## Revision Status
 
-**Status:** quality revision planned; not implemented; ship paused.
+**Status:** quality revision implemented; fresh pre-completion review pending; ship paused.
 
 Post-implementation probes measured four violations of this plan's stated evidence contract, each a silent acceptance with exit status 0 where the plan promises strict failure; the `## Quality Revision Evidence (2026-09-20)` section records the provenance and measured outputs.
-No production code, test, package manifest, tag, or CI change for the revision has been made; implementation awaits operator confirmation.
-The prior pre-completion WARN predates those measurements and is not a current readiness verdict for `/ship`.
+The operator confirmed the revision, and the revision TDD steps have been implemented without package manifest, published-tag, or CI changes.
+The prior pre-completion WARN predates those measurements and is not a current readiness verdict for `/ship`; the implementation stage notes record the fresh review outcome.
 The seven original steps below are completed history under `## Original TDD Order (completed; historical)`; the `## TDD Order` section near the end of this document is the revision order and the only order a new `/tdd-plan` session should execute.
 
 ## Release Recommendation
@@ -637,7 +637,8 @@ Preserved gates, re-verified across this order's steps: the current real corresp
 At original planning time no operator decision remained open.
 No new follow-up issue is required: selector compatibility is already tracked in [#15], and speculative release-framework/general test-fixture work is excluded rather than promised.
 If implementation reveals a materially different state model or requires an upstream-level override, stop and return to the decision gate instead of weakening the selected fail-closed policy.
-The 2026-09-20 quality revision reopens one decision: the operator must confirm implementing the revision `## TDD Order` before a `/tdd-plan` session runs it, and landing stays paused until then.
+The operator confirmed implementing the quality revision `## TDD Order` in the TDD session.
+Landing remains subject to the fresh pre-completion review and the normal worktree synchronization and ship gates.
 
 [#11]: https://github.com/Jopqior/gotgenes-pi-packages/issues/11
 [#13]: https://github.com/Jopqior/gotgenes-pi-packages/issues/13

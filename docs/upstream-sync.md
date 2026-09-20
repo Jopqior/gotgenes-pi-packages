@@ -257,7 +257,9 @@ Prediction and release preparation fail closed — nonzero exit with a diagnosti
 - a core-affecting merge in the unreleased window has no reviewed sync record;
 - a recorded sync is not a genuine two-parent merge whose upstream parent contains the recorded upstream release;
 - a recorded sync incorporates an upstream version behind the already-incorporated one;
-- upstream history after the selected release contains unreleased core changes — source, tests, shipped docs, or metadata (recording refuses these even when git-cliff would skip the commit type);
+- a baseline or window sync's recorded upstream version contradicts its release manifest, or that manifest is missing;
+- a sync's upstream parent does not descend from the previously incorporated upstream tip, starting with the current fork release's recorded tip;
+- upstream history between a recorded release and its incorporated tip contains unreleased core changes — source, tests, shipped docs, or metadata (both recording and offline prediction refuse these even when git-cliff would skip the commit type);
 - a recorded object is missing locally, as in a shallow or partial clone.
 
 There is deliberately no override flag.
@@ -289,7 +291,10 @@ The `--fork-level` review classifies what the conflict resolution itself did to 
 `scripts/release/prepare-release.sh` resolves and validates the core correspondence in its all-packages preflight, before any write, and the decision must agree with the prediction entry.
 When a core release is selected, it appends the release's verified correspondence to the state file in the same commit as the manifest and changelog.
 Publishing only a sibling leaves the core state untouched.
-After publication, the next window anchors at the recorded fork tag and upstream release, so prediction works offline from committed evidence alone.
+After publication, the next window anchors at the recorded fork tag and upstream release, so prediction works offline from committed evidence and local Git objects alone.
+Offline prediction revalidates the baseline and every window sync's release manifest, checks their incorporated tips for unreleased core changes, and verifies that successive upstream tips form a continuous ancestry chain.
+It also rejects malformed git-cliff context entries or commit IDs rather than silently discarding fork changes.
+Recording evidence does not exempt it from these read-time checks.
 
 ## Version correspondence
 
