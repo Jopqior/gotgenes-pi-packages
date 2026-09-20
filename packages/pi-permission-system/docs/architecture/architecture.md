@@ -1190,6 +1190,8 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#907] — out of scope for the roadmap; PR [#911] is its close target.
   A root interactive session stops serving forwarded permission requests because `ForwardingManager` reads the root's own inherited `PI_SUBAGENT_PARENT_SESSION` marker as subagent evidence — an `authority/` forwarding-lifecycle defect, not this phase's role loss.
 - [#909] — out of scope for the roadmap; a third-party request from the Pi Herdsman maintainer, landed as a breaking `feat!:`.
+- [#962] — filed by the `pi-subagents` PR [#959] review; out of scope for the roadmap, on [#890]'s precedent. pi 0.86 replaced the `Current working directory:` footer and the `Available tools:` / `Guidelines:` headers with `<cwd>`, `<tools>`, and `<rules>` sections, so `renderToolSurface` finds none of its three anchors and appends the narrowed block below Pi's unfiltered list instead of replacing it.
+  It is the same `exposure/` pass [#890] rewrote, which no step in this phase opens — the spine is token roles and declared effects — and the remedy is a prompt-shape question ([ADR 0014](../decisions/0014-tool-surface-is-node-local-prose.md)'s relocation under named sections), not a role-loss one.
   A subprocess child kept visible in its own pane adjudicated locally because `selectAuthorizer` tested `hasUI` before subagent detection — an `authority/` authority-selection dispatch, not this phase's role loss.
 - [#914] — filed by [#907]'s planning; out of scope for the roadmap.
   A Windows atomic-rename failure in `forwarding-io.ts`'s shared write helper drops heartbeat and forwarded-file writes; it is platform robustness in the same layer as [#907], sharing no step's mechanism.
@@ -1607,4 +1609,6 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#953]: https://github.com/gotgenes/pi-packages/issues/953
 [#955]: https://github.com/gotgenes/pi-packages/issues/955
 [#956]: https://github.com/gotgenes/pi-packages/issues/956
+[#959]: https://github.com/gotgenes/pi-packages/pull/959
+[#962]: https://github.com/gotgenes/pi-packages/issues/962
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
