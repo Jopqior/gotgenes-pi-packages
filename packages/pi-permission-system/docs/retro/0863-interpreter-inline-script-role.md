@@ -246,5 +246,43 @@ The assessor's one rejection (`scriptFlagsConfig(...)` factory) is a judgment ab
   Adopted as a Phase 15 step, after [#859] and ahead of [#609], with the ADR 0009 declination recorded on the step.
 
 [#609]: https://github.com/gotgenes/pi-packages/issues/609
-[#945]: https://github.com/gotgenes/pi-packages/issues/945
 [#957]: https://github.com/gotgenes/pi-packages/issues/957
+
+## Stage: Implementation — TDD (2026-09-20T17:49:16Z)
+
+### Session summary
+
+Executed all three TDD steps: the interpreter rows in `PATTERN_FIRST_COMMANDS` (`fix:`), the ADR 0009 amendment (`docs:`), and the roadmap/module-tree/compat-doc updates (`docs:`).
+Test count went 4540 → 4570 (+30) in `pi-permission-system`; all four gates green from the repo root (`check`, `lint`, `test`, `fallow dead-code`).
+Pre-completion reviewer returned **WARN** with no defect found — its single finding is that it could not re-derive the corpus measurement under its read-only mandate.
+
+### Observations
+
+- **All five predicted killing mutations behaved as planned, and two produced extra reds worth having.**
+  Deleting `["node", NODE_CONFIG]` reddened 12 (all `node`; `bun`/`python3`/`perl`/`ruby` stayed green).
+  Removing `patternPositionals: 0` reddened `node build.js /tmp/x` **and**, unpredicted, the `#957` pin — with the budget back at 1, the leaked `--eval=// x` token is spent as the pattern positional.
+  That is useful: it means the pin has two independent ways to fail, which is what makes it not vacuous.
+  Extending the `inline-value` push to `script` reddened `node --eval=//x` and left the spaced `node --eval "// x"` green, plus three pre-existing `#823` cases, since the mutation is on the shared branch.
+  Re-stamping hosted tokens with the enclosing effect reddened exactly two: my new attribution case and [#945]'s own.
+- **A sixth mutation was added for the `#957` pin, because the plan's five did not cover it.**
+  Deleting `child.type === "word"` from the flag branch — the narrow fix [#957] proposes — reddens the pin and one `#823` case.
+  Worth generalizing: a test that pins an *unfixed* gap has no Red step of its own when the gap already exists, so its discriminating mutation is the future fix, not a break of the code just written.
+- **Two spellings were asserted as current-behavior pins rather than omitted.**
+  `node --eval='// x'` still projects `["--eval=// x", "// x"]` ([#957]) and `perl -pe 's|a|b|' f.txt` still projects `["s|a|b|", "f.txt"]`.
+  Both carry a comment naming why; when either closes, the test fails and points at its issue instead of silently over-asserting the gap as intended.
+- **Deviation: the health-metric baseline row was not edited.**
+  The plan said "Interpreter script-role commands in `token-collection.ts` moves off its `0` baseline".
+  The `package-pi-permission-system` skill says a dated `Baseline (<date>)` column is a fixed phase-open snapshot recomputed at phase close, not a per-step value — so the row is unchanged and the current reading (6) went into the recompute-command line instead, alongside the `bun` the plan required.
+  The reviewer saw the deviation stated and passed the documentation check.
+- **Deviation: the roadmap step's `Outcome:` was rewritten, as the plan directed.**
+  It promised `measure-path-false-positives.mjs`'s monthly non-path column would read 0; that metric counts asks that actually *fired*, and it has no 2026-09 row at all.
+  Replaced with the collector-level figure, and the `Outcome:` now says explicitly why the monthly column is the wrong instrument here.
+- **The `Edit` tool mangled em-dashes twice, into the literal string `erence2`.**
+  Caught both times by reading the region back after the edit rather than trusting the write.
+  Both regions were repaired with a Python `str.replace`, and the remaining prose edits were written through Python with an `@M@` placeholder instead of the literal character.
+  A `grep -n 'erence'` over each touched file confirmed the repair.
+- **Pre-completion reviewer: WARN, no defect.**
+  It re-ran every flag row against the installed binaries itself (including `node -p t.js`'s source-evaluation behavior and `ruby -E` vs `perl -E`), mechanically re-derived that `positionalsSeen < 0` is unreachable so a zero budget cannot skip a positional, confirmed both residual pins execute with the literal arrays claimed, and rendered the Mermaid charts.
+  Its WARN is that it did not re-run the 7937-command corpus spike, which its read-only mandate excludes — disclosed rather than reported as verified.
+
+[#945]: https://github.com/gotgenes/pi-packages/issues/945
