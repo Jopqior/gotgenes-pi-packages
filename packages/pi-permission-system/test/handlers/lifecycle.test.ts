@@ -164,7 +164,11 @@ describe("handleSessionStart", () => {
     expect(serviceLifecycle.activate).toHaveBeenCalledWith(ctx);
   });
 
-  it("calls refreshConfig before resetForNewSession", async () => {
+  // `resetForNewSession` activates the session, which is what binds the
+  // context `PermissionSession.notify` delivers through. Refreshing after it
+  // means anything the config path reports — a debug-write IO failure, a
+  // config issue — has a UI to reach (#933).
+  it("calls resetForNewSession before refreshConfig", async () => {
     const callOrder: string[] = [];
     const { handler, session, configStore } = makeSetup();
     vi.spyOn(configStore, "refresh").mockImplementation(() => {
@@ -174,7 +178,7 @@ describe("handleSessionStart", () => {
       callOrder.push("resetForNewSession");
     });
     await handler.handleSessionStart({ reason: "startup" }, makeCtx());
-    expect(callOrder).toEqual(["refreshConfig", "resetForNewSession"]);
+    expect(callOrder).toEqual(["resetForNewSession", "refreshConfig"]);
   });
 });
 

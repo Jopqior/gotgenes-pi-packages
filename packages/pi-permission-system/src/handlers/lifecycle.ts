@@ -51,8 +51,12 @@ export class SessionLifecycleHandler {
     ctx: ExtensionContext,
   ): Promise<void> {
     const projectTrusted = ctx.isProjectTrusted();
-    this.session.refreshConfig(ctx, projectTrusted);
+    // Reset first: it activates the session, binding the context that
+    // `PermissionSession.notify` — and therefore `logger.warn` — delivers
+    // through. A refresh before activation has no UI to report into, which is
+    // how a config warning present at session start went unseen (#933).
     this.session.resetForNewSession(ctx, projectTrusted);
+    this.session.refreshConfig(ctx, projectTrusted);
     this.session.logResolvedConfigPaths();
     if (!projectTrusted) {
       this.warnProjectUntrusted(ctx, "session_start");
