@@ -96,6 +96,44 @@ Co-authored-by: George Harker <george@george-graphics.co.uk>
 The close comment on [#959] thanks @georgeharker by name and links the merged and follow-up SHAs.
 Never `Closes #959` in a commit message — reference it as `Refs #959` / `(#959)` so the curated close comment is not pre-empted.
 
+## Stage: Ship (2026-09-20T22:10:28Z)
+
+### Session summary
+
+The landing plan recorded at the end of the PR Review stage said execution would be handed to a fresh session; the operator chose to run it in the same one instead, so the plan itself is the only part of that entry that did not hold.
+The two follow-ups were pushed to the contributor's branch, CI went green, [#959] rebase-merged, [#958] closed with credit, and `pi-subagents` v21.7.4 published.
+
+### What landed
+
+| SHA on `main` | Author        | Commit                                                                              |
+| ------------- | ------------- | ----------------------------------------------------------------------------------- |
+| `b5802825`    | George Harker | `fix(pi-subagents): recognize pi ≥0.86's section-shaped prompt in the tail anchors` |
+| `1f283284`    | Chris Lasher  | `refactor(pi-subagents): name the cwd-anchored tail helper apart from its caller`   |
+| `bdc32f57`    | Chris Lasher  | `docs(pi-subagents): record when the 0.85 project-context offset goes dead`         |
+
+The rename resolved a collision the review had only half-seen: `tailStart` shadowed not just its caller's meaning but the local `tailStart` in `inheritedIdentity` a few functions above.
+`cwdAnchoredTailStart` names the discriminator the function's own doc comment leads with.
+
+Both follow-ups carry `Co-authored-by: George Harker <george@george-graphics.co.uk>` as the final paragraph, verified with `git interpret-trailers --parse`; the rebase merge kept [#959]'s own commit authored by him.
+
+### Observations
+
+- **`maintainerCanModify: true` is the evidence; `git push --dry-run` is not.**
+  The dry run reported `Everything up-to-date` — it resolved the connection without proving the write would be accepted.
+  Only the real push settled it.
+- **The fork PR's CI run took roughly four minutes to be created**, during which `statusCheckRollup` was `[]` and `actions/runs?head_sha=…` returned `total_count: 0`.
+  `ci_find` timed out at 125 s on a run that did eventually appear and pass.
+  An empty rollup on a fork PR means *not yet created* as often as it means *awaiting approval* — neither is a failure, and the distinction is not visible from the rollup alone.
+  No approval was needed here, the fork having been approved on the previous head.
+- **`main` had advanced to `bdad88a4` mid-session** while three local doc commits sat unpushed.
+  `git rev-parse --short main origin/main` failed with `Needed a single revision` at one point and resolved individually at another, which looked like divergence and was not: `git status -sb` read `ahead 3` and `git merge-base --is-ancestor` confirmed a clean fast-forward.
+  The compound `rev-parse` was the unreliable witness, not the repository.
+- **A worktree shares the repository's config**, so the `gh-fork` remote added inside `/tmp/pr-959` appeared in the root checkout's `git remote -v` after an earlier `git remote remove` in the root had apparently succeeded.
+  Remove it from wherever it ends up, not from where it was added.
+- **The release needed no decision beyond the dispatch.**
+  `./scripts/release/next-version.sh pi-subagents` printed `pi-subagents-v21.7.4` from the `fix:` alone; the `refactor:` and `docs:` follow-ups are skipped types and would not have cut one.
+  npm's `latest` lagged the successful `publish` job by about a minute — the tag and changelog land first, so a version check immediately after a green run reads stale.
+
 [#890]: https://github.com/gotgenes/pi-packages/issues/890
 [#918]: https://github.com/gotgenes/pi-packages/issues/918
 [#959]: https://github.com/gotgenes/pi-packages/pull/959
