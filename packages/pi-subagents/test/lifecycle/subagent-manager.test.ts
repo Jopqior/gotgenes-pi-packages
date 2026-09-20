@@ -2033,6 +2033,39 @@ describe("SubagentManager — spawn selection threading", () => {
       expect(factory).not.toHaveBeenCalled();
     });
 
+    it.each([false, true])("preserves running-task disposal without a selection waiter (provider at spawn: %s)", async (withProvider) => {
+      const scope = new SpawnSelectionScope();
+      const select = vi.fn(async (): Promise<SpawnSelection> => ({ model: catalogueModels[0], thinkingLevel: "off" }));
+      if (withProvider) scope.register({ select });
+      const entered = Promise.withResolvers<undefined>();
+      const task = Promise.withResolvers<{ responseText: string; aborted: boolean; steered: boolean }>();
+      const stub = createSubagentSessionStub();
+      stub.runTurnLoop.mockImplementation(() => {
+        entered.resolve(undefined);
+        return task.promise;
+      });
+      const { manager } = createManager({
+        createSubagentSession: async () => toSubagentSession(stub),
+        selectionScope: scope,
+      });
+      // The synchronous service path never calls waitForSpawnSelection.
+      const id = bgSpawn(manager, "service caller");
+      const record = manager.getRecord(id);
+      if (!record) throw new Error("Expected the running record");
+      await entered.promise;
+      if (!withProvider) scope.register({ select });
+
+      try {
+        await manager.dispose();
+        expect(record.abortController.signal.aborted).toBe(false);
+        expect(record.status).toBe("running");
+        expect(stub.dispose).toHaveBeenCalledOnce();
+      } finally {
+        task.resolve({ responseText: "finished", aborted: false, steered: false });
+        await record.promise;
+      }
+    });
+
     it("cancels an admitted late-registered selection after a no-provider acknowledgement", async () => {
       const scope = new SpawnSelectionScope();
       const firstGate = Promise.withResolvers<SubagentSession>();

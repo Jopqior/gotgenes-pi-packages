@@ -58,15 +58,12 @@ function deferred<T>(): Deferred<T> {
 }
 
 /**
- * Failure bound only: pending-state claims in this file are structural (a gate
- * this test holds), never derived from tick counts.
+ * Timer hop for bounded waits and cleanup drains only — never evidence. Every
+ * pending-state claim in this file is structural: the gate that would have to
+ * resolve the wait is held by the test, so no amount of scheduling can settle
+ * it. Positive settlements are awaited directly on the production promise.
  */
 const tick = (): Promise<void> => new Promise((resolve) => { setTimeout(resolve, 0); });
-
-/** Drain pending continuations before a pending-state (negative) claim. */
-const flush = async (): Promise<void> => {
-	for (let i = 0; i < 10; i++) await tick();
-};
 
 /**
  * Wait, bounded, for a settlement the production chain owes. Used only on the
@@ -246,24 +243,39 @@ const backgroundParams = (): Record<string, unknown> => ({
  * The sequential parent continuation at the real tool boundary: the parent
  * awaits the subagent call, then reaches for ask_user. The spy flips on as
  * soon as it is reached, and its answer parks on a test-held gate.
+ *
+ * `toolDone` is the real execute promise with one observer chained on: the
+ * `toolReturned` flag flips exactly when the tool returns, and awaiting
+ * `toolDone` is the explicit phase boundary for the tool's return.
  */
 function startSequentialTurn(world: TestWorld, signal?: AbortSignal) {
 	const askUserGate = deferred<string>();
-	const askUser = vi.fn(async (): Promise<string> => askUserGate.promise);
-	let settled = false;
+	let selectionAtContinuation: SpawnSelection | undefined;
+	const askUser = vi.fn(async (): Promise<string> => {
+		selectionAtContinuation = world.manager.listAgents().find((record) => record.description === "bg task")?.selectedPair;
+		return askUserGate.promise;
+	});
+	let returned = false;
 	let result: ToolExecuteResult | undefined;
+	const toolDone = world.tool
+		.execute("tc-1", backgroundParams(), signal, undefined, STUB_CTX)
+		.then((toolResult) => {
+			returned = true;
+			result = toolResult;
+			return toolResult;
+		});
 	const turn = (async () => {
-		const toolResult = await world.tool.execute("tc-1", backgroundParams(), signal, undefined, STUB_CTX);
-		result = toolResult;
-		settled = true;
+		const toolResult = await toolDone;
 		const answer = await askUser();
 		return { toolResult, answer };
 	})();
 	return {
 		turn,
+		toolDone,
 		askUser,
 		askUserGate,
-		toolSettled: () => settled,
+		toolReturned: () => returned,
+		selectionAtContinuation: () => selectionAtContinuation,
 		toolResultText: () => {
 			if (!result) throw new Error("the tool has not returned yet");
 			return result.content[0].text;
@@ -293,24 +305,34 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 		it("holds the following ask_user spy until selection confirms, then continues while child work is held", async () => {
 			const world = makeWorld({ withProvider: true });
 			const harness = startSequentialTurn(world);
-			await flush();
 
-			// While the provider is held, the tool has not returned and the
-			// parent's next operation cannot have been reached.
+			// Phase-entry signal: the free slot admitted the record inside the
+			// synchronous spawn prologue, and the provider has been invoked — the
+			// run is parked inside its selection, and this test holds the answer.
+			// Every path that could settle the tool's wait runs through that gate,
+			// so the tool and the parent's following ask_user are parked with it.
 			expect(world.provider!.select).toHaveBeenCalledTimes(1);
-			expect(harness.toolSettled()).toBe(false);
-			expect(harness.askUser).not.toHaveBeenCalled();
 			const record = mainRecord(world);
 			expect(record.status).toBe("running");
 
+			// Initial pending snapshot; the selected pair captured inside askUser
+			// below pins the actual continuation order independently of this yield.
+			await Promise.resolve();
+			expect(harness.toolReturned()).toBe(false);
+			expect(harness.askUser).not.toHaveBeenCalled();
+
 			world.provider!.resolveAt(0, selectedPair(world));
-			await settleBound(() => harness.toolSettled(), "the tool return");
+			await harness.toolDone;
 			expect(harness.askUser).toHaveBeenCalledTimes(1);
+			// Capture at the actual continuation, not after an arbitrary drain.
+			expect(harness.selectionAtContinuation()).toEqual(selectedPair(world));
 			expect(harness.toolResultText()).toContain("Model/thinking selection confirmed");
 			expect(harness.toolResultText()).toContain("Agent started in background.");
 
 			// The continuation runs while child work is held: the factory gate has
 			// not resolved, so no session exists yet and the record has no result.
+			// The gate is test-held — only this test can resolve it — so its
+			// unsettled flag is structural, not a timing observation.
 			expect(record.selectedPair?.model.id).toBe("opus");
 			await settleBound(() => world.factoryGates.length >= 1, "the main record's factory gate");
 			expect(world.factoryGates[0].settled).toBe(false);
@@ -339,14 +361,20 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			const world = makeWorld({ maxConcurrent: 1, withProvider: true });
 			const sibling = spawnBackgroundSibling(world, "sibling work");
 			const harness = startSequentialTurn(world);
-			await flush();
 
-			// Still queued: the provider has been asked only for the sibling, and
-			// the tool holds.
+			// Phase-entry signals: the sibling — admitted first — is the only one
+			// parked in its selection, and the sibling's own held factory gate is
+			// what keeps the slot occupied. Admission of the record under test is
+			// downstream of a gate this test holds, so the tool and the following
+			// ask_user are parked with it.
 			const record = mainRecord(world, sibling.id);
 			expect(record.status).toBe("queued");
 			expect(world.provider!.select).toHaveBeenCalledTimes(1);
-			expect(harness.toolSettled()).toBe(false);
+
+			// Initial pending snapshot; admission and the pair captured inside
+			// askUser below provide the later ordering checkpoints.
+			await Promise.resolve();
+			expect(harness.toolReturned()).toBe(false);
 			expect(harness.askUser).not.toHaveBeenCalled();
 
 			// Drain the sibling: its selection, then its factory, then its task.
@@ -362,13 +390,14 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			);
 
 			// Admitted only now: the second selection reaches the provider, and
-			// the tool is still held by it.
+			// the tool is still held by it — the second answer is test-held.
 			expect(world.provider!.select).toHaveBeenCalledTimes(2);
 			expect(record.status).toBe("running");
-			expect(harness.toolSettled()).toBe(false);
+			expect(harness.toolReturned()).toBe(false);
 
 			world.provider!.resolveAt(0, selectedPair(world));
-			await settleBound(() => harness.toolSettled(), "the tool return");
+			await harness.toolDone;
+			expect(harness.selectionAtContinuation()).toEqual(selectedPair(world));
 			expect(harness.toolResultText()).toContain("Model/thinking selection confirmed");
 
 			// The admitted record's own factory work is downstream and still held.
@@ -380,11 +409,12 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			const world = makeWorld({ maxConcurrent: 1 });
 			const sibling = spawnBackgroundSibling(world, "sibling work");
 			const harness = startSequentialTurn(world);
-			await flush();
 
 			// No provider at wait time: the ordinary non-blocking return, even
-			// though the record has not been admitted yet.
-			expect(harness.toolSettled()).toBe(true);
+			// though the record has not been admitted yet. Awaiting the real
+			// execute promise is the return boundary — under a wait-that-holds
+			// implementation this await would simply never resolve.
+			await harness.toolDone;
 			expect(harness.askUser).toHaveBeenCalledTimes(1);
 			const text = harness.toolResultText();
 			expect(text).toContain("Agent queued in background.");
@@ -418,7 +448,7 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 	describe("foreground whole-run boundary", () => {
 		it("returns the child's outcome only after the whole run completes", async () => {
 			const world = makeWorld({ withProvider: true });
-			let toolSettled = false;
+			let toolReturned = false;
 			const pending = world.tool
 				.execute(
 					"tc-1",
@@ -428,24 +458,28 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 					STUB_CTX,
 				)
 				.then((result) => {
-					toolSettled = true;
+					toolReturned = true;
 					return result;
 				});
-			await flush();
 
-			// Foreground holds through selection too.
+			// Phase-entry signal: the foreground run parked inside its selection
+			// (the provider was invoked synchronously at spawn); this test holds
+			// the answer, so the tool is parked with it.
 			expect(world.provider!.select).toHaveBeenCalledTimes(1);
-			expect(toolSettled).toBe(false);
+			expect(toolReturned).toBe(false);
 
 			world.provider!.resolveAt(0, selectedPair(world));
-			await flush();
-			// Selection has settled, but the foreground call is still held by the
-			// factory and task boundaries.
-			expect(toolSettled).toBe(false);
+			// Selection has settled, but the foreground return sits behind the
+			// whole-run wait — downstream of the factory and task gates, both
+			// test-held — so the flag must still be down.
+			expect(toolReturned).toBe(false);
 
+			await settleBound(() => world.factoryGates.length >= 1, "the foreground record's factory gate");
 			world.releaseFactory(0);
 			await settleBound(() => world.taskGates.length >= 1, "the foreground record's task gate");
-			expect(toolSettled).toBe(false);
+			// The whole-run wait is the only settle path left, and the task gate
+			// holding it is test-held.
+			expect(toolReturned).toBe(false);
 
 			world.releaseTask(0, taskDone("child finished"));
 			const text = (await pending).content[0].text;
@@ -461,10 +495,9 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 		it("returns the tool result while workspace preparation is still held", async () => {
 			const world = makeWorld({ withProvider: true, withWorkspace: true });
 			const harness = startSequentialTurn(world);
-			await flush();
 
 			world.provider!.resolveAt(0, selectedPair(world));
-			await settleBound(() => harness.toolSettled(), "the tool return");
+			await harness.toolDone;
 
 			// The tool has returned; workspace preparation is still parked on its
 			// gate, so the factory behind it has not been reached.
@@ -490,7 +523,7 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			const world = makeWorld({ withProvider: true });
 			const controller = new AbortController();
 			const pending = world.tool.execute("tc-1", backgroundParams(), controller.signal, undefined, STUB_CTX);
-			await flush();
+			// Phase-entry signal: the run is parked inside its selection.
 			expect(world.provider!.select).toHaveBeenCalledTimes(1);
 
 			controller.abort();
@@ -502,9 +535,10 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			expect(world.factoryGates).toHaveLength(0);
 
 			// A provider answer arriving after cancellation must not start the
-			// child, apply the pair, or create a session.
+			// child, apply the pair, or create a session. The race already decided,
+			// so the losing promise's value routes nowhere — these reads are
+			// structural, not timing observations.
 			world.provider!.resolveAt(0, selectedPair(world));
-			await tick();
 			expect(record.status).toBe("stopped");
 			expect(world.factoryGates).toHaveLength(0);
 			expect(record.selectedPair).toBeUndefined();
@@ -514,7 +548,7 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 		it("returns did-not-start with the validation error when the answer is outside the catalogue", async () => {
 			const world = makeWorld({ withProvider: true });
 			const pending = world.tool.execute("tc-1", backgroundParams(), undefined, undefined, STUB_CTX);
-			await flush();
+			expect(world.provider!.select).toHaveBeenCalledTimes(1);
 			world.provider!.resolveAt(0, {
 				model: makeModel({ id: "ghost", name: "Ghost", provider: "astral" }),
 				thinkingLevel: "off",
@@ -533,20 +567,22 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			const world = makeWorld({ withProvider: true });
 			const controller = new AbortController();
 			const pending = world.tool.execute("tc-1", backgroundParams(), controller.signal, undefined, STUB_CTX);
-			await flush();
+			// Phase-entry signal: the run is parked inside its selection.
+			expect(world.provider!.select).toHaveBeenCalledTimes(1);
 			world.provider!.resolveAt(0, selectedPair(world));
 			const text = (await pending).content[0].text;
 			expect(text).toContain("Model/thinking selection confirmed");
 
 			const record = mainRecord(world);
+			await settleBound(() => world.factoryGates.length >= 1, "the confirmed record's factory gate");
 			world.releaseFactory(0);
 			await settleBound(() => world.taskGates.length >= 1, "the confirmed task's gate");
 			expect(record.isSessionReady()).toBe(true);
 
 			// The startup signal fires after confirmation; a leaked listener would
-			// stop the record synchronously on this abort.
+			// stop the record synchronously on this abort, so the immediate read is
+			// the discriminator.
 			controller.abort();
-			await flush();
 			expect(record.status).toBe("running");
 
 			world.releaseTask(0, taskDone("child finished"));

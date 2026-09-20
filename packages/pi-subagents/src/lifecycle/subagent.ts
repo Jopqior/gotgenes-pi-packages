@@ -506,6 +506,8 @@ export class Subagent {
 			// Downstream work (workspace preparation, the factory) may only proceed
 			// past this point, never before it.
 			this.settleSelectionOutcome({ kind: "selected" });
+		} else {
+			this.settleSelectionOutcome({ kind: "not-required" });
 		}
 		let cwd: string | undefined;
 		if (this.workspaceBracket.hasProvider()) {
