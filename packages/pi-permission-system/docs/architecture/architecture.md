@@ -1123,6 +1123,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   `sed` and `awk` are excluded from the pure-reader core outright, so `sed -n '1,80p' file` consults `external_directory_write` for a read — `sed` is 24 of the 388 recent asks this phase's findings already measure.
   It is the core side of the same boundary [#880] approaches from the declaration side, and it needs no configuration from the user to deliver relief, so it lands first and shrinks the population the declared layer must cover.
   Both edit `command-effects.ts`, so they sequence rather than parallelize.
+- [#957] — filed by [#863]'s planning; adopted as a new step, after [#859] and ahead of [#609].
+  A quoted `--flag='value'` on any pattern-first command bypasses the flag table, so `grep --regexp='/etc/passwd' f.txt` raises an `external_directory` ask for a file `grep` never opens.
+  Measured population over 7937 corpus commands is 0 real invocations, so it makes no claim on the phase's relief budget; it is adopted anyway because it is the same over-surface family as [#863] and [#859], it lands in the same file and the same walker, and leaving it open would have [#609] rewire that walker's roles around a known gap.
 - [#880] — filed for the `commandEffects` step; the unfiled remainder of staging slice 2 (ADR 0013 §7).
 - [#881] — filed for the blame-threading step (staging slice 5), recast from a UX slice into a `fix:` by the measurement above.
 - [#800] — **close as completed** with the config recipe: `external_directory_read: {"*": "allow"}` plus the pure-reader core delivers what it asks for `cat`/`ls`/`find`/`grep`, and [#880] covers the non-core readers it names (`strings`, `file`) by declaration.
@@ -1321,6 +1324,20 @@ Release: independent
 
 Release: independent
 
+#### [#957] A quoted `--flag='value'` is still a flag
+
+**Cause:** the flag branch of `collectPatternCommandTokens` is guarded on `child.type === "word"`, and quoting a long option's `=`-embedded value makes `tree-sitter-bash` emit a `concatenation` instead.
+The argument never reaches `classifyPatternCommandFlag`, falls through to the positional path, and `embeddedOptionValueToken`'s blind `--opt=value` split — the [#645] fallback, correct precisely because it runs only for flags of *unknown* role — hands the consumed value back as a token.
+
+- **Smell:** Category C (the role vocabulary exists and is consulted for one spelling of the same argument but not the other).
+- **Target:** `src/access-intent/bash/token-collection.ts` — classify a `-`-leading argument of any node type, but act only on the recognized directives (`end-of-flags`, `consume-next`, `inline-value`) and let `regular-flag` fall through to today's positional handling.
+  Dropping the type guard outright is the wrong fix: an unrecognized quoted `-`-leading argument would stop spending a pattern positional, so `sd '-old' '-new' file.txt` would join the already-broken unquoted spelling and drop `file.txt` — ADR 0009's unrecoverable direction.
+- **Outcome:** `grep --regexp='/etc/passwd' f.txt` projects `f.txt` alone, matching what the unquoted spelling already does; `node --eval='// x'` projects nothing, closing [#863]'s recorded residual.
+- **Commit type:** `fix:`.
+- **Impact 2 / Risk 2 / Priority 8.**
+
+Release: independent
+
 #### [#609] A redirect destination is projected by its role, not its shape
 
 **Cause:** the collector proves a redirect destination names a file — that is what `redirectDestinationEffect` attributes a `syntax` write from — and then hands the projection a `PathToken` carrying only the effect, so `projectRuleCandidates` re-asks the shape classifier and the existence probe, both written for operands of unknown role, and a bare creating redirect (`> newfile`) is dropped.
@@ -1413,7 +1430,8 @@ Release: independent
 flowchart TD
     S945["✅ #945<br/>Hosted commands keep their operands"] -.-> S863["#863<br/>Inline scripts are scripts"]
     S863 -.-> S609["#609<br/>Redirect destinations by role"]
-    S859["#859<br/>.. as a whole segment"] -.-> S609
+    S859["#859<br/>.. as a whole segment"] -.-> S957["#957<br/>A quoted --flag=value is still a flag"]
+    S957 -.-> S609
     S924["#924<br/>sed/awk presumed readers"] -.-> S880["#880<br/>commandEffects"]
     S880 --> S881["#881<br/>Blame reaches the ask"]
     S609 -.-> S881
@@ -1422,7 +1440,7 @@ flowchart TD
 
 The section order under `### Steps` is the order they are meant to land, and the dashed edges here are sequencing preferences, not dependencies.
 The diagram is laid out by dependency instead, so its shape and the working sequence answer different questions.
-[#945], [#863], and [#859] are one-file fixes in `token-collection.ts` and `token-classification.ts`; landing them before [#609] keeps the role thread's diff about the role, and [#609]'s `TokenRole` then has a `script` value to absorb [#863]'s table entries into if the plan chooses.
+[#945], [#863], [#859], and [#957] are one-file fixes in `token-collection.ts` and `token-classification.ts`; landing them before [#609] keeps the role thread's diff about the role, and [#609]'s `TokenRole` then has a `script` value to absorb [#863]'s table entries into if the plan chooses.
 [#924] and [#880] both edit `command-effects.ts`, so they sequence rather than parallelize — [#924] first, because core relief needs no configuration from the user and narrows the population a declaration has to cover.
 [#881] stamps the deciding token's provenance onto the payload from the same `worstEntry` [#609] gives a role, so landing [#609] first means [#881] reads one shape rather than two.
 [#881] hard-depends on [#880] only for its teaching sentence, which names the config key.
@@ -1430,7 +1448,7 @@ The diagram is laid out by dependency instead, so its shape and the working sequ
 
 ### Parallel tracks
 
-- **Track A — role-carrying projection:** [#945] → [#863] → [#859] → [#609].
+- **Track A — role-carrying projection:** [#945] → [#863] → [#859] → [#957] → [#609].
   Owns `src/access-intent/bash/token-collection.ts`, `token-classification.ts`, `bash-path-resolver.ts`, and the bash-path tests.
 - **Track B — proven and declared effects, and blame:** [#924] → [#880] → [#881].
   [#924] owns `command-effects.ts` and the pure-reader core section of `docs/configuration.md`; [#880] owns `src/config/` and re-enters `command-effects.ts`; [#881] owns `src/presentation/` and the two bash path gates.
@@ -1443,7 +1461,7 @@ The sandbox seam that Phase 15 briefly carried as a fourth track is now Phase 16
 
 - **Batch "declared-effects":** [#880], [#881] (ship together; tail = [#881]; release vehicle = [#880]'s `feat:` with [#881]'s `fix:` riding the same release).
   They ship together because [#881]'s blame line names the config key [#880] creates, and a prompt telling the user to declare an effect they cannot declare is worse than the prompt it replaces.
-- Independently releasable: [#945] (`fix:`), [#863] (`fix:`), [#859] (`fix:`), [#609] (`fix!:` — newly prompts on a bare creating redirect under an unconfigured `path_write`), [#924] (`fix:`), [#882] (`feat:` if the checkpoint changes; a `docs:` amendment alone cuts no release).
+- Independently releasable: [#945] (`fix:`), [#863] (`fix:`), [#859] (`fix:`), [#957] (`fix:`), [#609] (`fix!:` — newly prompts on a bare creating redirect under an unconfigured `path_write`), [#924] (`fix:`), [#882] (`feat:` if the checkpoint changes; a `docs:` amendment alone cuts no release).
 
 ## Refactoring history
 
@@ -1538,6 +1556,7 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#860]: https://github.com/gotgenes/pi-packages/issues/860
 [#861]: https://github.com/gotgenes/pi-packages/issues/861
 [#863]: https://github.com/gotgenes/pi-packages/issues/863
+[#957]: https://github.com/gotgenes/pi-packages/issues/957
 [#868]: https://github.com/gotgenes/pi-packages/issues/868
 [#874]: https://github.com/gotgenes/pi-packages/issues/874
 [#875]: https://github.com/gotgenes/pi-packages/issues/875
