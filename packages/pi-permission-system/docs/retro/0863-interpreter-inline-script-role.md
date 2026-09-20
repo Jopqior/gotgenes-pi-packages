@@ -53,7 +53,7 @@ The assessor found nothing preparatory; its one considered candidate (a `scriptF
 
 - [#886] — should an interpreter's inline script floor to `ask` like `bash -c`?
   Filed because #863 removes the last accidental signal that an interpreter payload is opaque, even though it removes no real protection.
-  Disposition recorded against Phase 15 as deferred to a later phase (commit `1f5b983c`): it adds prompts in the opposite direction from this phase's cause, and Steps 4 and 6 change its calculus before it is worth scheduling.
+  Disposition recorded against Phase 15 as deferred to a later phase (commit `docs(pi-permission-system): disposition #886 against Phase 15`): it adds prompts in the opposite direction from this phase's cause, and Steps 4 and 6 change its calculus before it is worth scheduling.
 
 ## Stage: Strategic review (2026-09-07T04:18:01Z)
 
@@ -84,7 +84,7 @@ The outcome is [#892] (the sandbox ADR, folded into Step 6 and moved first), [#8
 - **Candidate cause:** the bash path projection infers a shell command's filesystem effects from its text and uses the inference as a security boundary; the problem is undecidable in general, each fix adds a table row that "rots silently" (ADR 0009's own words), and the unrecoverable failure (a dropped operand) is the one no corpus can measure.
 - **Sequencing call:** [#892] opens *before* this issue's implementation.
   Step 6 folds it in, is scoped up from "export + launcher" to "decision record + manifest compiler + `bash` override + Linux webhook backend + macOS re-run backend + fallback prompt", and lands ahead of Steps 1–5 and 7, each of which is re-evaluated once the record exists.
-  Recorded in the roadmap's sweep list and Track C (commit `42458eb0`).
+  Recorded in the roadmap's sweep list and Track C (commit `docs(pi-permission-system): disposition #892 against Phase 15 — fold into Step 6, first`).
 - **What this plan becomes:** not implemented as written.
   Its Change A (a consumed flag argument is searched for hosted executions) is a genuine ADR 0009 guarantee violation and may land alone; its Change B (interpreter rows) amends the ADR 0009 bound the record would rather freeze.
   [#863] and [#859] close against the sandbox, or [#859] lands as its one-regex fix.
@@ -286,3 +286,18 @@ Pre-completion reviewer returned **WARN** with no defect found — its single fi
   Its WARN is that it did not re-run the 7937-command corpus spike, which its read-only mandate excludes — disclosed rather than reported as verified.
 
 [#945]: https://github.com/gotgenes/pi-packages/issues/945
+
+## Stage: Sync (worktree) (2026-09-20T19:10:14Z)
+
+### Session summary
+
+Pre-push checks pass clean from the worktree root (`pnpm run lint`: no issues in 1220 files; `pnpm fallow dead-code`: 0 issues, 366 entry points).
+The plan's `**Release:**` marker is `ship independently` — nothing downstream needs to land in the same release.
+Two follow-up issues were filed during planning and are already dispositioned against Phase 15 on `main` (not part of this branch's diff): [#957] (quoted `--flag='value'`, adopted after [#859]) and the pre-existing [#886] (interpreter payload floor-to-`ask`, deferred).
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-863--/2026-09-20T17-02-16-317Z_01a0bfc4-bafc-7092-a300-a686dffe99b0.jsonl` — read with `read_session_file({ path: "..." })` for message-level verification at land/retro time.
+
+### Observations
+
+No deferred work beyond what the plan's Non-Goals already name ([#957], [#886], [#609]'s `TokenRole` absorption, the interpreter cluster residual).
+Pre-completion reviewer returned WARN at the TDD stage (disclosed limitation of its read-only mandate, not a defect); no action needed before this sync.
