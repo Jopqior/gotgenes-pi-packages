@@ -1,0 +1,178 @@
+#!/usr/bin/env node
+// Rejects stray invisible characters in tracked text files.
+//
+// A model's output stream can carry a form feed where an em-dash belonged --
+// during #863 eight of them reached a commit, and every gate in the repository
+// was green on the corrupt tree. Biome's noIrregularWhitespace catches a form
+// feed in code position but not inside a comment or a string literal, and its
+// rule takes no options, so there is no setting that closes the gap. tsc
+// accepts the byte between tokens because ECMAScript classifies U+000C as
+// WhiteSpace, and rumdl accepts it in prose.
+//
+// The characters split by what the correct repair is, not by how bad they are:
+// deleting a zero-width space is unambiguous, while deleting a form feed leaves
+// the visible half of the corruption behind and deleting a zero-width joiner
+// would break an emoji sequence. Only the unambiguous ones are repairable.
+//
+// Usage: node scripts/lint/invisible-characters.mjs [paths...]
+//
+// With no paths it enumerates `git ls-files -z` itself.
+
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+/**
+ * Every code point from `first` to `last`, inclusive.
+ *
+ * The sets below are built rather than written as a regular expression
+ * character class: Biome's `lint/suspicious/noControlCharactersInRegex` is in
+ * the recommended preset and rejects one, and a built set also keeps every
+ * literal control character out of this file.
+ *
+ * @param {number} first
+ * @param {number} last
+ * @returns {number[]}
+ */
+function range(first, last) {
+  return Array.from({ length: last - first + 1 }, (_, index) => first + index);
+}
+
+/**
+ * Code points that are always a failure and are never rewritten.
+ *
+ * The C0 controls except tab, line feed, and carriage return, plus DEL; then
+ * the zero-width characters whose deletion is not universally correct, since
+ * a joiner is load-bearing inside an emoji sequence and a non-joiner is
+ * semantically required in Persian and several Indic scripts.
+ */
+const REPORT_ONLY = new Set([
+  ...range(0x00, 0x08),
+  0x0b,
+  0x0c,
+  ...range(0x0e, 0x1f),
+  0x7f,
+  0x200c,
+  0x200d,
+  0x2060,
+]);
+
+/** Code points whose unique correct repair is deletion. */
+const REPAIRABLE = new Set([0x200b, 0xfeff]);
+
+/**
+ * Every stray invisible character in `text`, in reading order.
+ *
+ * `column` counts code points rather than UTF-16 units, so an astral
+ * character earlier on the line does not skew the position.
+ *
+ * @param {string} text
+ * @returns {{line: number, column: number, codePoint: number, repairable: boolean}[]}
+ */
+export function findInvisibleCharacters(text) {
+  const findings = [];
+  const lines = text.split("\n");
+  for (const [index, line] of lines.entries()) {
+    let column = 0;
+    for (const character of line) {
+      column += 1;
+      const codePoint = character.codePointAt(0);
+      const repairable = REPAIRABLE.has(codePoint);
+      if (!repairable && !REPORT_ONLY.has(codePoint)) continue;
+      findings.push({ line: index + 1, column, codePoint, repairable });
+    }
+  }
+  return findings;
+}
+
+/**
+ * Whether a file's bytes should be treated as binary and skipped.
+ *
+ * A NUL is git's own heuristic, and it is what keeps a video or a PNG that
+ * happens to contain `0x0c` out of the findings.
+ *
+ * @param {Buffer} buffer
+ * @returns {boolean}
+ */
+export function isBinary(buffer) {
+  return buffer.includes(0);
+}
+
+/**
+ * One finding rendered as a `path:line:column: U+XXXX` line.
+ *
+ * @param {string} path
+ * @param {{line: number, column: number, codePoint: number}} finding
+ * @returns {string}
+ */
+export function formatFinding(path, finding) {
+  const codePoint = finding.codePoint
+    .toString(16)
+    .toUpperCase()
+    .padStart(4, "0");
+  return `${path}:${finding.line}:${finding.column}: U+${codePoint}`;
+}
+
+/**
+ * Findings across many files, each tagged with the path it came from.
+ *
+ * `readFile` is injected so a test can drive the multi-file path without a
+ * temporary directory, matching `doc-growth.mjs`'s `measure(sha, run)`.
+ *
+ * @param {string[]} paths
+ * @param {(path: string) => Buffer} readFile
+ * @returns {{findings: {path: string, line: number, column: number, codePoint: number, repairable: boolean}[]}}
+ */
+export function scanFiles(paths, readFile) {
+  const findings = [];
+  for (const path of paths) {
+    const buffer = readFile(path);
+    if (isBinary(buffer)) continue;
+    for (const finding of findInvisibleCharacters(buffer.toString("utf8"))) {
+      findings.push({ path, ...finding });
+    }
+  }
+  return { findings };
+}
+
+/**
+ * Every tracked file that exists on disk.
+ *
+ * A path staged for deletion is still tracked, so the existence filter keeps
+ * the scan from throwing on it.
+ *
+ * @returns {string[]}
+ */
+function trackedFiles() {
+  const listing = execFileSync("git", ["ls-files", "-z"], {
+    maxBuffer: 64 * 1024 * 1024,
+  }).toString("utf8");
+  return listing.split("\0").filter((path) => path !== "" && existsSync(path));
+}
+
+/**
+ * @param {string[]} argv
+ * @returns {{paths: string[]}}
+ */
+function parseArgs(argv) {
+  const paths = [];
+  for (const argument of argv) {
+    if (argument.startsWith("--")) {
+      throw new Error(`unknown option: ${argument}`);
+    }
+    paths.push(argument);
+  }
+  return { paths };
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const { paths } = parseArgs(process.argv.slice(2));
+  const { findings } = scanFiles(
+    paths.length > 0 ? paths : trackedFiles(),
+    readFileSync,
+  );
+  for (const finding of findings) {
+    process.stdout.write(`${formatFinding(finding.path, finding)}\n`);
+  }
+  process.exitCode = findings.length === 0 ? 0 : 1;
+}
