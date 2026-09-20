@@ -86,3 +86,20 @@ The plan's release marker is `ship independently` for the selector only; publica
 
 - The feature branch is checked out in the root checkout, not a separate linked worktree; synchronization does not switch or modify `main` and does not push.
 - The final `/retro 15` is deferred until after root-session `/ship 15`; this entry is only the sync breadcrumb.
+
+## Stage: Ship (2026-09-20T15:12:18Z)
+
+### Session summary
+
+Fast-forwarded the feature branch into root `main`, passed root lint and dead-code gates, pushed, and verified CI run 35518488121.
+The operator explicitly approved npmjs.org publication of `@jopqior/pi-subagents-model-selector` and the issue close comment.
+Closed issue #15 and published selector `2.0.0` through successful release run 35518763495; core was not released.
+
+### Observations
+
+- The version script reported the expected major bump for the required-peer installation migration.
+  The release tag `pi-subagents-model-selector-v2.0.0` was present on the pulled release commit.
+- No co-shipped issue, adopted PR, or roadmap phase close was identified.
+- Branch-based lane detection selected the worktree lane, but `git worktree list` showed only the root checkout, matching the sync note.
+  The teardown script refused the absent peer directory; deleted the fully merged feature branch with `git branch -d` instead.
+- The deliberate retrospective remains `/retro 15` at root on `main`.
