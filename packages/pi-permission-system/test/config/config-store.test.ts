@@ -158,6 +158,40 @@ describe("ConfigStore", () => {
     });
   });
 
+  // ── getConfigIssues() ─────────────────────────────────────────────────
+
+  describe("getConfigIssues()", () => {
+    it("answers empty before any refresh", () => {
+      const { store } = makeStore();
+      expect(store.getConfigIssues()).toEqual([]);
+    });
+
+    it("answers the issues the last load produced", () => {
+      const { store } = makeStore();
+      mockLoadAndMergeConfigs.mockReturnValue({
+        merged: { ...DEFAULT_EXTENSION_CONFIG },
+        issues: ["first issue", "second issue"],
+      });
+      store.refresh(makeCtx(), true);
+      expect(store.getConfigIssues()).toEqual(["first issue", "second issue"]);
+    });
+
+    it("answers empty again once a reload finds the config clean", () => {
+      const { store } = makeStore();
+      mockLoadAndMergeConfigs.mockReturnValue({
+        merged: { ...DEFAULT_EXTENSION_CONFIG },
+        issues: ["transient issue"],
+      });
+      store.refresh(makeCtx(), true);
+      mockLoadAndMergeConfigs.mockReturnValue({
+        merged: { ...DEFAULT_EXTENSION_CONFIG },
+        issues: [],
+      });
+      store.refresh(makeCtx(), true);
+      expect(store.getConfigIssues()).toEqual([]);
+    });
+  });
+
   // ── refresh() ─────────────────────────────────────────────────────────
 
   describe("refresh()", () => {

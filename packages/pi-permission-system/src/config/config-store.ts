@@ -11,6 +11,7 @@ import type {
   ExtensionContext,
 } from "@earendil-works/pi-coding-agent";
 import type { DebugReviewLogger } from "#src/logging/session-logger";
+import type { ConfigIssueSource } from "./config-issue-reporter";
 import { loadAndMergeConfigs, loadUnifiedConfig } from "./config-loader";
 import {
   getGlobalConfigPath,
@@ -78,8 +79,11 @@ export interface ConfigStoreDeps {
  * Implements {@link ConfigReader} so consumers that only read the current config
  * can depend on the narrow interface rather than the full class.
  */
-export class ConfigStore implements SessionConfigStore, CommandConfigStore {
+export class ConfigStore
+  implements SessionConfigStore, CommandConfigStore, ConfigIssueSource
+{
   private config: PermissionSystemExtensionConfig;
+  private configIssues: readonly string[] = [];
   private lastConfigWarning: string | null = null;
 
   constructor(private readonly deps: ConfigStoreDeps) {
@@ -89,6 +93,22 @@ export class ConfigStore implements SessionConfigStore, CommandConfigStore {
   /** Return the current extension config. */
   current(): PermissionSystemExtensionConfig {
     return this.config;
+  }
+
+  /**
+   * What is wrong with the config as of the last {@link refresh}.
+   *
+   * Every issue `loadAndMergeConfigs` collects: a legacy-file notice, a zod
+   * field violation, and the cross-cutting detectors (a permissive bash
+   * fallback, a deprecated preview cap, a refused dialog-key binding).
+   *
+   * This store answers; `ConfigIssueReporter` decides whether the operator has
+   * heard it yet (#933). Not to be confused with
+   * `PermissionResolver.getConfigIssues(agentName?)`, which answers for the
+   * *policy* files rather than the extension config.
+   */
+  getConfigIssues(): readonly string[] {
+    return this.configIssues;
   }
 
   /**
@@ -112,6 +132,8 @@ export class ConfigStore implements SessionConfigStore, CommandConfigStore {
     );
     const runtimeConfig = normalizePermissionSystemConfig(mergeResult.merged);
     this.config = runtimeConfig;
+
+    this.configIssues = mergeResult.issues;
 
     const warning =
       mergeResult.issues.length > 0 ? mergeResult.issues.join("\n") : undefined;
