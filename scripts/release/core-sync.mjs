@@ -47,8 +47,8 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { forkLevelFromWindow } from "./core-sync-cliff.mjs";
 import {
+  changedCoreFiles,
   coreCommitsBetween,
-  isCoreScopePath,
   requireAncestor,
   requireCommitObject,
   runGit,
@@ -144,16 +144,7 @@ export function decideCoreRelease(input) {
   const mergeParents = new Map();
   for (const merge of windowMerges) {
     if (!recordedMerges.has(merge)) {
-      const changedCoreFiles = runGit(
-        repo,
-        "diff",
-        "--name-only",
-        `${merge}^1`,
-        merge,
-      )
-        .split("\n")
-        .filter((file) => file && isCoreScopePath(file));
-      if (changedCoreFiles.length > 0) {
+      if (changedCoreFiles(repo, `${merge}^1`, merge).length > 0) {
         throw new CoreSyncError(
           `merge ${merge} changes core paths but has no reviewed sync record. ` +
             "Record it with: scripts/upstream-sync.sh --record-core-sync <merge>",

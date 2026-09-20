@@ -169,6 +169,17 @@ export function verifyUpstreamReleaseManifest(repo, release) {
 /**
  * Core-scope commits in `from..to`, from real history.
  *
+ * The listing is NUL-delimited (`-z`) because git's default prints paths
+ * C-quoted whenever they contain non-ASCII, quote, tab, or newline
+ * characters, and a quoted path is one `isCoreScopePath` never accepts —
+ * an in-scope tail would silently read as out of scope. Measured record
+ * layout for `--format=%H --name-only -z` (git 2.53.0): `<oid>\0`, then per
+ * changed file `<path>\0`, where the first path token carries the newline
+ * git prints between the commit header and its file names; a commit with no
+ * changed files emits no path token. A repository path that is exactly 40
+ * lowercase hex characters at the repository root would still be mistaken
+ * for a commit id — the same limitation the previous line-based parser had.
+ *
  * @param {string} repo
  * @param {string} from
  * @param {string} to
@@ -180,6 +191,7 @@ export function coreCommitsBetween(repo, from, to) {
     "log",
     "--format=%H",
     "--name-only",
+    "-z",
     `${from}..${to}`,
     "--",
     `packages/${CORE_PACKAGE}/`,
@@ -188,20 +200,30 @@ export function coreCommitsBetween(repo, from, to) {
   const commits = [];
   let current = null;
   let currentTouchesCore = false;
+  let firstPathOfCommit = true;
   const flush = () => {
     if (current !== null && currentTouchesCore) {
       commits.push(current);
     }
   };
-  for (const line of output.split("\n")) {
-    if (/^[0-9a-f]{40}$/.test(line)) {
+  for (const token of output.split("\0")) {
+    if (/^[0-9a-f]{40}$/.test(token)) {
       flush();
-      current = line;
+      current = token;
       currentTouchesCore = false;
-    } else if (line && current !== null) {
-      if (isCoreScopePath(line)) {
-        currentTouchesCore = true;
-      }
+      firstPathOfCommit = true;
+      continue;
+    }
+    if (current === null) {
+      continue;
+    }
+    // The token right after an oid carries the header separator's newline;
+    // strip exactly that one and leave every other byte of the path alone.
+    const file =
+      firstPathOfCommit && token.startsWith("\n") ? token.slice(1) : token;
+    firstPathOfCommit = false;
+    if (file && isCoreScopePath(file)) {
+      currentTouchesCore = true;
     }
   }
   flush();
@@ -211,13 +233,16 @@ export function coreCommitsBetween(repo, from, to) {
 /**
  * Core-scope files changed between two revisions.
  *
+ * NUL-delimited (`-z`) so the names come back raw and lossless — see
+ * `coreCommitsBetween` for why git's default quoting loses paths.
+ *
  * @param {string} repo
  * @param {string} from
  * @param {string} to
  * @returns {string[]}
  */
 export function changedCoreFiles(repo, from, to) {
-  return runGit(repo, "diff", "--name-only", from, to)
-    .split("\n")
+  return runGit(repo, "diff", "--name-only", "-z", from, to)
+    .split("\0")
     .filter((file) => file && isCoreScopePath(file));
 }

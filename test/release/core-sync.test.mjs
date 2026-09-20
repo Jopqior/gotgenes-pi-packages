@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-
+import {
+  changedCoreFiles,
+  coreCommitsBetween,
+} from "../../scripts/release/core-sync-evidence.mjs";
 import {
   BASE_TAG,
   createCoreSyncScenario,
@@ -414,6 +417,26 @@ describe("evidence failures", () => {
     );
   });
 
+  it("blocks an unrecorded merge whose core path git would quote", () => {
+    // With the default `core.quotePath`, git prints this path C-quoted
+    // ("packages/pi-subagents/…") and the old line-based enumeration read
+    // the quoted string as one out-of-scope path, waving the unreviewed
+    // merge through.
+    const branch = uniqueUpstreamBranch();
+    repo.git("checkout", "-b", branch);
+    repo.commitInScope(
+      "feat(pi-subagents): unrecorded 未记录 change",
+      "packages/pi-subagents/未记录-变更.txt",
+    );
+    repo.git("checkout", "main");
+    repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", branch);
+    writeCoreSyncState();
+
+    expect(errorOf(() => decide()).message).toMatch(
+      /changes core paths but has no reviewed sync record[\s\S]*--record-core-sync/,
+    );
+  });
+
   it("allows an unrecorded merge that never touches core paths", () => {
     const branch = "docs-branch";
     repo.git("checkout", "-b", branch);
@@ -456,6 +479,37 @@ describe("evidence failures", () => {
     expect(errorOf(() => decide()).message).toMatch(
       /unexpected release boundary.*inside the pi-subagents-v1\.0\.0\.\.HEAD window/,
     );
+  });
+});
+
+describe("lossless core path enumeration", () => {
+  // The evidence helpers feed the unreleased-tail guards, the unrecorded-merge
+  // guard, and the recorder's review-path listing. Git's default listing
+  // quotes any path containing non-ASCII, quote, tab, or newline characters,
+  // so a quoted path used to be read as one out-of-scope path.
+
+  it("lists commits touching core paths git would quote", () => {
+    repo.commitInScope(
+      "feat(pi-subagents): rename for a Chinese audience",
+      "packages/pi-subagents/src/中文-变更.ts",
+    );
+    const commit = repo.gitOut("rev-parse", "HEAD");
+
+    expect(coreCommitsBetween(repo.dir, baseUpstream.commit, "HEAD")).toEqual([
+      commit,
+    ]);
+  });
+
+  it("returns raw core paths from two-tree diffs", () => {
+    // A newline inside the file name survives no line-based listing: the
+    // line-based default printed two lines, each read as an out-of-scope
+    // path. NUL-delimited output is the only lossless shape.
+    const weird = "packages/pi-subagents/src/new\nline-名称.ts";
+    repo.commitInScope("feat(pi-subagents): newline-named change", weird);
+
+    expect(changedCoreFiles(repo.dir, baseUpstream.commit, "HEAD")).toEqual([
+      weird,
+    ]);
   });
 });
 
@@ -561,6 +615,113 @@ describe("unreleased upstream tails", () => {
       {
         message: "docs(pi-subagents): internal plan note",
         file: "packages/pi-subagents/docs/plans/note.md",
+      },
+    ]);
+    writeCoreSyncState();
+
+    expect(decide()).toMatchObject({
+      nextTag: "pi-subagents-v1.0.1",
+      upstreamLevel: "patch",
+    });
+  });
+
+  it("blocks a non-ASCII core tail after the recorded sync release", () => {
+    // Git C-quotes this path ("packages/pi-subagents/src/\346\234\252…"), so
+    // the old line-based enumeration classified it out of scope and derived
+    // a patch from a window whose upstream tail was not actually released.
+    const { tail } = syncWithTail([
+      {
+        message: "test(pi-subagents): 未发布的核心变更",
+        file: "packages/pi-subagents/src/未发布-变更.ts",
+      },
+    ]);
+    writeCoreSyncState();
+
+    const error = errorOf(() => decide());
+
+    expect(error.message).toMatch(
+      /unreleased upstream core changes follow 21\.7\.1/,
+    );
+    expect(error.message).toContain(tail);
+  });
+
+  it("blocks a core tail whose path survives no line-based listing", () => {
+    const { tail } = syncWithTail([
+      {
+        message: "fix(pi-subagents): unreleased newline-named change",
+        file: "packages/pi-subagents/src/new\nline.ts",
+      },
+    ]);
+    writeCoreSyncState();
+
+    const error = errorOf(() => decide());
+
+    expect(error.message).toMatch(
+      /unreleased upstream core changes follow 21\.7\.1/,
+    );
+    expect(error.message).toContain(tail);
+  });
+
+  it("blocks a non-ASCII core tail after the current release record's upstream release", () => {
+    // Baseline-span variant of the shipped-docs case: the forged tip carries
+    // a core path git quotes, so the span must still fail closed.
+    repo.commitInScope(
+      "docs(pi-subagents): unreleased 指南 update",
+      "packages/pi-subagents/docs/guide-指南.md",
+    );
+    const tail = repo.gitOut("rev-parse", "HEAD");
+    repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", tail);
+    writeCoreSyncState({
+      releases: [
+        {
+          forkTag: BASE_TAG,
+          upstream: baseUpstream,
+          upstreamTip: tail,
+        },
+      ],
+    });
+
+    const error = errorOf(() => decide());
+
+    expect(error.message).toMatch(
+      /unreleased upstream core changes follow 21\.7\.0/,
+    );
+    expect(error.message).toContain(tail);
+  });
+
+  it("blocks a tab-named core tail after the current release record's upstream release", () => {
+    repo.commitInScope(
+      "docs(pi-subagents): unreleased tabbed guide",
+      "packages/pi-subagents/docs/guide\tname.md",
+    );
+    const tail = repo.gitOut("rev-parse", "HEAD");
+    repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", tail);
+    writeCoreSyncState({
+      releases: [
+        {
+          forkTag: BASE_TAG,
+          upstream: baseUpstream,
+          upstreamTip: tail,
+        },
+      ],
+    });
+
+    const error = errorOf(() => decide());
+
+    expect(error.message).toMatch(
+      /unreleased upstream core changes follow 21\.7\.0/,
+    );
+    expect(error.message).toContain(tail);
+  });
+
+  it("still allows an internal-docs tail with a non-ASCII name", () => {
+    // Positive control: lossless enumeration widens what the scope predicate
+    // can see, never what it counts — excluded working docs stay excluded
+    // under their real (unquoted) names.
+    syncWithTail([
+      {
+        message: "docs(pi-subagents): internal 计划 note",
+        file: "packages/pi-subagents/docs/plans/计划.md",
       },
     ]);
     writeCoreSyncState();
