@@ -199,3 +199,52 @@ The fourth proposal — a `/plan-issue` direction-gate option for a triage entry
 It remains the change that would have addressed the largest cost in this issue, and is recorded here rather than filed.
 
 [#895]: https://github.com/gotgenes/pi-packages/issues/895
+
+## Stage: Planning \(re-plan after reopen\) (2026-09-20T17:27:32Z)
+
+### Session summary
+
+Re-planned #863 against current `main` after [#945] landed the original plan's Change A in a wider form, rewriting `docs/plans/0863-interpreter-inline-script-role.md` in place as a single-change plan.
+Re-measured the whole blast radius at `c8d96d30` over a 7937-command corpus with a disposable vitest spike against the real collector and both classifiers, and re-verified every interpreter flag row by running today's binaries.
+The re-measurement found a defect the 2026-09-06 draft had asserted away, which became a new Phase 15 step ([#957]).
+
+### Observations
+
+- **The prior plan's `--eval=` claim was wrong, and only execution showed it.**
+  The draft reasoned from the branch structure that the `=`-embedded spelling was covered free, because `inline-value` pushes a token only for `script-file`.
+  Measured: `node --eval=//x` projects nothing, and `node --eval='// x'` projects `// x`.
+  The flag branch is guarded on `child.type === "word"`, and quoting the value makes the argument a `concatenation` that never reaches the flag table at all.
+  The generalizable form: a claim about which branch a token takes is a claim about the **parse**, and `tree-sitter-bash`'s node type is not derivable from the source text by inspection.
+- **That gap is pre-existing, not interpreter-specific, and already recorded.**
+  `grep --regexp='/etc/passwd' f.txt` leaks the pattern at HEAD today.
+  ADR 0009 § "What the projection deliberately omits" already names the mechanism (`rg -g'!docs'`) and explicitly declines "widening flag detection to quoted tokens" on the `sd '-old' '-new' file.txt` objection.
+  I filed [#957] before finding that passage, then corrected the framing in a follow-up comment rather than leaving the issue claiming an unrecorded gap.
+  The declination priced the naive lever (drop the type guard); the narrow lever — classify any node type, act only on *recognized* directives — preserves `regular-flag` fall-through and does not pay that cost.
+  Operator adopted [#957] as a Phase 15 step after [#859]; the roadmap entry says outright that the amendment is the step's substance and the code is ten lines.
+- **The old plan's own outcome metric cannot observe this fix.**
+  `measure-path-false-positives.mjs` reads the *asks that actually fired*, so it depends on the operator's policy.
+  It reports `2026-05 12 / 2026-06 6 / 2026-07 4 / 2026-08 6` and has **no 2026-09 row at all** — zero bash `external_directory` asks this month.
+  The roadmap step's `Outcome:` bullet currently promises that metric reads 0, which it already does for an unrelated reason; step 3 of the new plan corrects it to the collector-level figure (219 → 18 interpreter nodes contributing a non-path `path` candidate).
+- **No permanent instrument, by operator decision.**
+  The repo's `scripts/measure-*.mjs` cannot import TypeScript and therefore transcribe the rules they measure; for this change that would mean copying six `PatternCommandConfig`s and both classifiers.
+  The plan inlines the disposable vitest spike's source instead, so the numbers stay falsifiable without a second copy of the table rotting in `scripts/`.
+- **Tidy First: nothing recommended.**
+  The assessor confirmed the config-constant region and both test files already carry the shape this change needs, and declined a shared `scriptFlagsConfig(...)` factory for `NODE_CONFIG`/`BUN_CONFIG` as the wrong abstraction — the two maps are identical by coincidence of spelling, and the separate objects record that they are separate parsers.
+  It also caught that the design summary's line count for `token-collection.ts` was stale (795 vs. 811), a `#945` artifact.
+- **Third-party issue, but the direction was already settled.**
+  `kuoruan` filed it; the operator's 2026-09-18 reopening comment states the direction and that the plan stands.
+  The gate this session ran therefore covered only what changed since — which turned out to be two real decisions, not zero.
+
+#### Deferred tidyings
+
+None new.
+The assessor's one rejection (`scriptFlagsConfig(...)` factory) is a judgment about new code rather than existing debt, and the plan tells the implementing session not to introduce it.
+
+### Follow-ups filed
+
+- [#957] — a pattern-first command's quoted `--flag='value'` bypasses the flag table and projects the value.
+  Adopted as a Phase 15 step, after [#859] and ahead of [#609], with the ADR 0009 declination recorded on the step.
+
+[#609]: https://github.com/gotgenes/pi-packages/issues/609
+[#945]: https://github.com/gotgenes/pi-packages/issues/945
+[#957]: https://github.com/gotgenes/pi-packages/issues/957
