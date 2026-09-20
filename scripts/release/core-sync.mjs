@@ -47,6 +47,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { forkLevelFromWindow } from "./core-sync-cliff.mjs";
 import {
+  coreCommitsBetween,
   isCoreScopePath,
   requireAncestor,
   requireCommitObject,
@@ -197,6 +198,38 @@ export function decideCoreRelease(input) {
       );
       return { sync, upstreamParent, forkParent };
     });
+
+  // Every recorded sync must have incorporated a *released* upstream state:
+  // no in-scope core commit — source, test, shipped doc, or metadata, of any
+  // commit type — may sit between the recorded release and the incorporated
+  // tip. The scope boundary is `isCoreScopePath`, not git-cliff's hidden
+  // types; internal working docs stay excluded.
+  for (const { sync, upstreamParent } of windowSyncs) {
+    const unreleased = coreCommitsBetween(
+      repo,
+      sync.upstream.commit,
+      upstreamParent,
+    );
+    if (unreleased.length > 0) {
+      throw new CoreSyncError(
+        `unreleased upstream core changes follow ${sync.upstream.version}: ${unreleased.join(", ")}. ` +
+          "Wait for the upstream release that contains them before recording this sync.",
+      );
+    }
+  }
+  // The release record's own span gets the same check: the recorded tip
+  // must not carry in-scope work past the recorded upstream release.
+  const baselineUnreleased = coreCommitsBetween(
+    repo,
+    release.upstream.commit,
+    release.upstreamTip,
+  );
+  if (baselineUnreleased.length > 0) {
+    throw new CoreSyncError(
+      `unreleased upstream core changes follow ${release.upstream.version}: ${baselineUnreleased.join(", ")}. ` +
+        "The recorded correspondence must end at the released upstream state.",
+    );
+  }
 
   // One comparison across the whole window: baseline versus the final
   // verified target. Deferred intermediate releases never sum.

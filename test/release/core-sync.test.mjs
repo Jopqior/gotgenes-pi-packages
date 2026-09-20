@@ -459,6 +459,119 @@ describe("evidence failures", () => {
   });
 });
 
+describe("unreleased upstream tails", () => {
+  /**
+   * Hand-build a sync whose upstream branch closes with the release-bump
+   * manifest commit, then carries `files` past it — the recorded-release
+   * shape with an appended tail.
+   *
+   * @param {{ message: string, file: string }[]} tailFiles
+   * @returns {{ releaseCommit: string, tail: string }}
+   */
+  function syncWithTail(tailFiles) {
+    const branch = uniqueUpstreamBranch();
+    repo.git("checkout", "-b", branch);
+    repo.commitInScope(
+      "feat(pi-subagents): upstream 21.7.1",
+      "packages/pi-subagents/up-21.7.1.txt",
+    );
+    repo.writeManifest("pi-subagents", "21.7.1");
+    repo.git("add", "packages/pi-subagents/package.json");
+    repo.git("commit", "-m", "chore(pi-subagents): release 21.7.1");
+    const releaseCommit = repo.gitOut("rev-parse", "HEAD");
+    for (const change of tailFiles) {
+      repo.commitInScope(change.message, change.file);
+    }
+    const tail = repo.gitOut("rev-parse", "HEAD");
+    repo.git("checkout", "main");
+    repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", branch);
+    recordedSyncs.push({
+      merge: repo.gitOut("rev-parse", "HEAD"),
+      upstream: { version: "21.7.1", commit: releaseCommit },
+      forkCore: {
+        level: "none",
+        rationale: "upstream-only integration; no fork core resolution",
+        paths: [],
+      },
+    });
+    return { releaseCommit, tail };
+  }
+
+  it("still derives a patch when the recorded tails are empty", () => {
+    syncUpstream({ version: "21.7.1" });
+    writeCoreSyncState();
+
+    expect(decide()).toMatchObject({
+      nextTag: "pi-subagents-v1.0.1",
+      upstreamLevel: "patch",
+    });
+  });
+
+  it("blocks unreleased in-scope core commits after the recorded sync release", () => {
+    // A hidden type on a test path: git-cliff's classification would hide
+    // it, but the unreleased guard must not — in-scope work past the
+    // recorded release blocks the release, whatever its commit type.
+    const { tail } = syncWithTail([
+      {
+        message: "test(pi-subagents): unreleased hidden test change",
+        file: "packages/pi-subagents/src/up.test.ts",
+      },
+    ]);
+    writeCoreSyncState();
+
+    const error = errorOf(() => decide());
+
+    expect(error.message).toMatch(
+      /unreleased upstream core changes follow 21\.7\.1/,
+    );
+    expect(error.message).toContain(tail);
+  });
+
+  it("blocks unreleased core commits after the current release record's upstream release", () => {
+    // A shipped-docs path past the baseline release. Forging the baseline
+    // tip means moving the fork release tag onto it: the recorded tip must
+    // stay an ancestor of the fork release for the other guards to pass, so
+    // the unreleased span is the only failing property.
+    repo.commitInScope(
+      "docs(pi-subagents): unreleased shipped guide",
+      "packages/pi-subagents/docs/guide.md",
+    );
+    const tail = repo.gitOut("rev-parse", "HEAD");
+    repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", tail);
+    writeCoreSyncState({
+      releases: [
+        {
+          forkTag: BASE_TAG,
+          upstream: baseUpstream,
+          upstreamTip: tail,
+        },
+      ],
+    });
+
+    const error = errorOf(() => decide());
+
+    expect(error.message).toMatch(
+      /unreleased upstream core changes follow 21\.7\.0/,
+    );
+    expect(error.message).toContain(tail);
+  });
+
+  it("still allows an internal-docs-only tail after the recorded sync release", () => {
+    syncWithTail([
+      {
+        message: "docs(pi-subagents): internal plan note",
+        file: "packages/pi-subagents/docs/plans/note.md",
+      },
+    ]);
+    writeCoreSyncState();
+
+    expect(decide()).toMatchObject({
+      nextTag: "pi-subagents-v1.0.1",
+      upstreamLevel: "patch",
+    });
+  });
+});
+
 describe("shared entry point", () => {
   /**
    * Run `next_tag` from the real lib.sh against the fixture repository,
