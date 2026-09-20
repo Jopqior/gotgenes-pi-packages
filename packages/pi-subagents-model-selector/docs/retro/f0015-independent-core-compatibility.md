@@ -72,3 +72,17 @@ Selector Vitest tests increased from 61 to 68, and the repository total increase
 - No publishing, pushing, tagging, or issue closure was performed.
   All planned steps are complete; the additional isolation and review-fix commits are the implementation-order deviation.
   Next is `/sync-worktree 15`, then root-session `/ship 15`.
+
+## Stage: Sync (worktree) (2026-09-20T15:01:06Z)
+
+### Session summary
+
+Pre-push lint passed with command-local `NODE_OPTIONS=--max-old-space-size=4096` after the default Node heap exhausted during ESLint; `pnpm fallow dead-code` passed without findings.
+The plan's release marker is `ship independently` for the selector only; publication still requires operator approval at `/ship 15`.
+
+**Peer session transcript:** `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-09-20T14-57-48-377Z_01a0bf52-c759-735f-9f1a-05a2e33aa9bf.jsonl` — read with `read_session_file` for message-level verification.
+
+### Observations
+
+- The feature branch is checked out in the root checkout, not a separate linked worktree; synchronization does not switch or modify `main` and does not push.
+- The final `/retro 15` is deferred until after root-session `/ship 15`; this entry is only the sync breadcrumb.
