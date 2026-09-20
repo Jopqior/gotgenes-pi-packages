@@ -93,4 +93,49 @@ The plan was rewritten from five steps to seven and recommitted; the roadmap dis
 - `src/logging/session-logger.ts` — no tell-once affordance on `SessionLogger.warn`; four consumers hand-roll a latch (`PermissionSessionLogger.reported`, `AuthorizerChainAudit`, `ChildNodeAudit`, `ConfigIssueReporter`).
   Not touched by this change; revisit at the fifth.
 
+## Stage: Implementation — TDD (2026-09-20T16:22:25Z)
+
+### Session summary
+
+Executed all seven steps of the amended plan as eight commits (the last step split a doc fix from a skill fix).
+The two Tidy First preparations landed first: `handleSessionStart` now activates before refreshing, and the status-bar sync moved from `ConfigStore.refresh` to `PermissionSession.refreshConfig`.
+`ConfigStore` now loads and answers `getConfigIssues()`; `ConfigIssueReporter` owns the latch and delivers through `logger.warn`, driven at `session_start` and every `before_agent_start`.
+Test count 4523 to 4540 (+17); `refresh`'s first parameter is now a `cwd` string, so the swallowing notify is unrepresentable in that method.
+
+### Observations
+
+- **The tidyings paid off exactly as predicted.**
+  Tidying 1 deleted a constraint the first plan had to pin with a comment and a killing mutation: once activation precedes the refresh, there is no ordering for `report()` to get wrong.
+  Tidying 2 left `ctx` with a single reader in `refresh`, so step 6's parameter removal was mechanical and `tsc` found every site.
+- **The parameter removal is the real guard.**
+  Verified by mutation: adding `ctx?.ui.notify("reintroduced", "warning")` back inside `refresh` now fails with `TS2304: Cannot find name 'ctx'`.
+  The defect is structurally unrepresentable rather than merely absent.
+- **A predicted mutation did not fire.**
+  The plan said deleting the `session_start` drive would redden the end-to-end pin; it did not, because that pin fires both moments and turn prep alone satisfies it.
+  Only the #927 retarget caught it, incidentally.
+  Added a `session_start`-only pin so the drive is covered directly.
+  This is the "count the reds against the prediction" rule earning its place — the coverage existed, but not where the plan claimed.
+- **Two tests stayed green during their Red step** (the `hasUI: false` status case and the mid-session notification).
+  Both were mutated explicitly rather than assumed sound; mutation A on the `hasUI` guard and the store-side restore each killed the right one.
+- **The mid-session exactly-once pin had to move a step later.**
+  Between steps 5 and 6 both the reporter and the store's surviving notify deliver, so the count is two — the transient duplication the lift-and-shift sequencing accepted.
+  The plan placed the pin in step 5, where it cannot hold.
+  Sequencing was right; the pin's placement was not.
+- **Deviation the plan under-listed:** the #644 trust-gating assertions in `lifecycle.test.ts`, `session-turn-prep.test.ts`, and `permission-session.test.ts` assert `refresh`'s arguments, so all six moved from `ctx` to `ctx.cwd`.
+  The plan listed only the `session-fixtures` stub for that cascade.
+  Each still pins the trust flag, and mutating the cwd away reddens all six.
+- **Deviation:** step 7's verify criterion (`grep "933"` in `src`/`test` returns nothing) was over-broad.
+  It targeted the stale defect description, which is gone; the surviving `(#933)` citations are provenance for live constraints (the ordering, the ctx-free load, the latch), which the convention keeps.
+- **The plan's predicted-unchanged table was wrong about the package skill.**
+  It enumerates `handler-fixtures`' exports, so adding `makeConfigIssueReporter` left it incomplete — caught in the post-step cross-check, not by any gate.
+- Two Biome **warnings** (exit 0) appeared from orphans the change created: `composition-root`'s `readDebugLog` lost its last caller when the #927 test was retargeted, and `session-fixtures` lost its `ExtensionContext` import.
+  Counting `lint/` occurrences rather than trusting the exit code is what surfaced them.
+- Health score unchanged at 78 B; no clone group under `config/`, so the new module added none.
+
+### Reviewer verdict
+
+Pre-completion reviewer: **PASS** — ready for `/ship`.
+It independently re-derived all four mandated invariants, confirmed `save()` and `handleResourcesDiscover` never delivered these issues (so nothing lost a notification), and confirmed the reporter is factory-scoped so its latch cannot leak across same-cwd session switches.
+No warnings.
+
 [#953]: https://github.com/gotgenes/pi-packages/issues/953
