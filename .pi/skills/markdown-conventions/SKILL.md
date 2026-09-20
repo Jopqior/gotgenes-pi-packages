@@ -37,7 +37,13 @@ The `pi-autoformat` extension reformats every file an `Edit`/`Write` touches, an
 An em-dash in a `newText`/`content` body is unreliably emitted: it can arrive as a bare newline, splitting a sentence or a heading.
 The result is valid markdown that `rumdl` accepts, so no gate catches it.
 After writing prose, re-read the region and scan it with `rg -n --multiline ' \n [a-z]' <file>`, which reports the split sentence and the line it ran into.
+`pi-autoformat` rejoins that split before you can scan for it, though, so the damage often survives as a missing word mid-sentence — read the region, do not rely on the pattern alone.
 Prefer a colon, semicolon, or parentheses when the sentence allows it (Refs #814, #933).
+
+It can also arrive as an invisible `\x0c` form feed plus literal text: `erence2` for an em-dash, `erence6` for an ellipsis.
+Replacing the visible text leaves the byte behind, so the confirming grep passes on a still-corrupt file — verify with `git grep -lI $'\x0c'` instead (Refs #863).
+This form reaches source files as readily as markdown, and comment text is its blind spot: Biome flags a form feed in code position but not inside a comment, while `tsc` and `rumdl` accept it anywhere.
+To avoid emitting the character at all, write a placeholder and substitute it in a scripted pass — `@PH@`, then `s.replace('@PH@', '\u2014')`.
 
 ### Code fences
 

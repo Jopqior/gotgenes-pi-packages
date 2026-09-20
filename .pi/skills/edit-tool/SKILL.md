@@ -23,6 +23,7 @@ When the rule line is itself the target (deleting a section header with its bloc
 When the rule line must be **rewritten** (a new label, so the padding changes), `Edit` has nothing to copy — write the line programmatically (`'─' * (78 - len(label))`).
 If you delete such a block by line number with `sed`, re-read the region afterward to confirm you did not remove an enclosing brace.
 An `oldText` spanning any non-ASCII character (an em-dash, a box-drawing rule, an ellipsis) must be copied from a fresh `Read`, never retyped: the character can be emitted as a bare newline, and the batch then fails on text you appear to have quoted correctly (Refs #933).
+It can also land as an invisible `\x0c` form feed plus literal text (`erence2`, `erence6`), which a comment or a doc string carries past `tsc`, Biome, and the suite — see the `markdown-conventions` skill for the detection and the placeholder workaround (Refs #863).
 
 ## Scripted substitutions
 

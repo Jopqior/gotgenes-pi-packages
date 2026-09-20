@@ -6,7 +6,7 @@ description: Land the work (trunk or worktree branch), verify CI, close the issu
 # Ship the implementation
 
 Argument: `$1` is the issue number that was just implemented, or the number of an adopted third-party PR.
-When it is empty, derive the number from the newest plan commit (`git log --format='%s' --grep='^docs: plan ' -1` → the trailing `(#N)`), name the issue you derived, and confirm it in step 0 — lane detection reads it.
+When it is empty, derive the number from the newest plan commit (`git log --format='%s' --grep='^docs: \(re-\)\?plan ' -1` → the trailing `(#N)`), name the issue you derived, and confirm it in step 0 — lane detection reads it.
 
 `/ship` runs at the **root** checkout on `main` in both of its lanes:
 
@@ -174,10 +174,11 @@ Build the close comment from this issue's own commits, anchored on the plan comm
 Each package releases on its own cadence, so a tag range spans every sibling issue that landed since: measured at 165 commits across 32 issues for a 13-commit change (Refs #817).
 
 ```bash
-PLAN=$(git log --format='%H' --grep="docs: plan .*(#$1)" -1)
+PLAN=$(git log --format='%H' --grep="docs: \(re-\)\?plan .*(#$1)" -1)
 git log --oneline "$PLAN"^..HEAD
 ```
 
+The `\(re-\)\?` alternation matters: a reopened issue is re-planned with a `docs: re-plan …` subject, and a bare `docs: plan` pattern silently resolves the **abandoned** original instead, yielding a range hundreds of commits wide (Refs #863).
 If no plan commit matches, anchor on the parent of the issue's first commit.
 In the worktree lane, use step 4's `PRE_MERGE` as the anchor instead when it is an ancestor of `"$PLAN"^` — the branch then carried pre-plan commits the plan range cannot see.
 That test is reflexive, so it also reports true when `PRE_MERGE` equals `"$PLAN"^`, where the two ranges are identical and either anchor works.
@@ -229,7 +230,7 @@ Skip this step entirely if step 8 recorded a defer/batch decision — the releas
 1. Derive candidate packages from the paths the range touched, not from commit types (re-derive `PLAN` — a fresh shell does not carry step 9's):
 
    ```bash
-   PLAN=$(git log --format='%H' --grep="docs: plan .*(#$1)" -1)
+   PLAN=$(git log --format='%H' --grep="docs: \(re-\)\?plan .*(#$1)" -1)
    git diff --name-only "$PLAN"^..HEAD | sed -n 's#^packages/\([^/]*\)/.*#\1#p' | sort -u
    ```
 
