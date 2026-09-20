@@ -103,3 +103,65 @@ Closed issue #15 and published selector `2.0.0` through successful release run 3
 - Branch-based lane detection selected the worktree lane, but `git worktree list` showed only the root checkout, matching the sync note.
   The teardown script refused the absent peer directory; deleted the fully merged feature branch with `git branch -d` instead.
 - The deliberate retrospective remains `/retro 15` at root on `main`.
+
+## Stage: Final Retrospective (2026-09-20T15:18:54Z)
+
+### Session summary
+
+Reviewed the planning, implementation, sync, and ship stage notes alongside their session transcripts and the assessor/reviewer transcripts.
+The selector shipped independently as `2.0.0`, while implementation preserved runtime source and made the installation migration explicit.
+This retrospective focuses on gaps between the detailed plan and its execution rather than adding another general policy layer.
+
+### Observations
+
+#### What went well
+
+- Real published-package loading exposed a distinction that fake-service composition tests cannot establish: missing package fails before initialization, whereas missing service fails inside initialization.
+  Packing after a synthetic sibling version change separately tested release independence without claiming future runtime compatibility.
+- Parent inspection and fresh-context review found different defects: temporary-root isolation versus misleading compatibility prose and a weak missing-package assertion.
+  The corrective diagnostic controls then demonstrated that the old assertion accepted a real missing-service error, rather than merely adding more passing examples.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` — self-identified by parent inspection and agent review: implementation did not initially preserve the plan's disposable-root isolation and explicit limits on compatibility claims.
+  Impact: follow-up commits `test(pi-subagents-model-selector): isolate verification run roots` and `docs: distinguish selector failure modes and verified core floor`, plus verification reruns.
+  These requirements were already in the plan; another general instruction would duplicate existing context.
+- `wrong-abstraction` — matching a core package-name prefix treated error identity as text presence, accepting both a different failure mode and the selector's longer package name.
+  Impact: `test(pi-subagents-model-selector): pin the observed missing-package diagnostic` added diagnostic, full-name, and error-entry checks with rejecting controls.
+  The useful review question is whether neighboring failure modes can satisfy the assertion, not whether the intended negative fixture fails.
+- `missing-context` — ship had already observed that the branch lived in the root checkout, but still called `scripts/worktree-rm.sh 15 --delete-branch` for an absent peer directory.
+  Impact: one rejected teardown call followed by safe deletion of the merged branch; no content rework.
+  Branch-based lane selection in `.pi/prompts/ship.md` does not establish that a linked worktree exists.
+- `other` — default Node heap exhaustion interrupted baseline lint and recurred during sync despite the implementation breadcrumb recording a successful command-local override.
+  Impact: repeated lint execution, without a repository configuration change.
+  Ship already specifies the heap override; this is not evidence for a global memory-policy change.
+- `other` — the planning missing-package probe needed correction of the pnpm removal flag and then its disposable-consumer release-age setting.
+  Impact: two failed calls before the third completed; the permanent harness uses fresh consumers instead.
+
+#### What caused friction (user side)
+
+- No user-caught implementation defect is evidenced in the reviewed stage excerpts; release destination and compatibility-range choices were strategic approvals, not delegated test execution.
+  Naming root-checkout versus linked-worktree operation at handoff could make navigation clearer, but the agent already had the filesystem evidence and should not require operator oversight for cleanup.
+
+### Diagnostic details
+
+- Model attribution comes from inline transcript labels, not agent definitions: the Tidy-First assessor and both pre-completion reviews ran on `openai-codex/gpt-6-astra`; the implementation worker's corrective turns ran on `zai-coding-cn/glm-5.3-flash`.
+  The parent implementation session also ran on `openai-codex/gpt-6-astra`.
+  Isolation, diagnostic semantics, and compatibility wording needed parent/reviewer correction; this supports retaining independent review for packaging work, not inferring a general model capability ranking from one task.
+- Feedback was incremental: baseline repository gates preceded implementation, manifest Red/Green preceded the feature commit, and corrective controls ran Red/Green/mutations before their commit.
+  The problem was assertion discrimination, not verification deferred until the end.
+  Reviewers reran repository gates but explicitly did not rerun the network matrix; implementation supplied that separate verification.
+- No escalation-delay finding is established by the reviewed failed-command sequences: planning removal recovered on its third call, and ship cleanup changed strategy on its next call.
+  The unused action in ship was applying the already-read worktree evidence, not dispatching another exploration agent.
+
+### Follow-up disposition
+
+Do not expand `AGENTS.md` or implementation prompts to repeat requirements already present in the plan and review workflow.
+A cleanup-only clarification in `.pi/prompts/ship.md` was considered, but the root-checkout branch case also contradicts its lane terminology and entry guidance; avoid a partial workflow rewrite in this retrospective.
+No selector architecture roadmap exists, and the fork's open-issue query returned an empty list.
+The newest inherited triage, `docs/triage/2026-09-18-backlog.md`, describes upstream work rather than an authorized fork queue; no successor is recommended from it.
+
+### Changes made
+
+1. Appended the cross-stage synthesis, concrete rework, diagnostic findings, and follow-up disposition to `packages/pi-subagents-model-selector/docs/retro/f0015-independent-core-compatibility.md`.
+2. With operator approval, kept this change retrospective-only: no edits to `AGENTS.md`, prompts, skills, implementation, or generated changelogs; no follow-up issue filed.
