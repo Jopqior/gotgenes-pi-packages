@@ -7,7 +7,7 @@ issue_title: "Derive fork core sync releases from upstream version changes"
 
 ## Revision Status
 
-**Status:** quality revision implemented; fresh pre-completion review WARN after blocker fixes; ready for worktree synchronization and normal ship gates.
+**Status:** quality revision implemented; fresh pre-completion review PASS after blocker and warning fixes; ready for worktree synchronization and normal ship gates.
 
 Post-implementation probes measured four violations of this plan's stated evidence contract, each a silent acceptance with exit status 0 where the plan promises strict failure; the `## Quality Revision Evidence (2026-09-20)` section records the provenance and measured outputs.
 The operator confirmed the revision, and the revision TDD steps have been implemented without package manifest, published-tag, or CI changes.

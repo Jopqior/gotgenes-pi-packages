@@ -145,3 +145,26 @@ The root suite increased from 230 to 264 passing tests, and the full workspace t
 - The releasing skill already points to the handbook's blocking rules and did not imply that recording exempts evidence from offline checks, so it was left unchanged.
   No package runtime, manifest, architecture, roadmap, published tag, or changelog changed; no GitHub mutation, push, synchronization merge, or publication was performed.
   Next is `/sync-worktree 16` in the peer session, then `/ship 16` at the root, with the remaining warnings visible for the operator's disposition.
+
+## Stage: Implementation — TDD (2026-09-20T12:46:38Z)
+
+### Session summary
+
+The operator approved resolving both remaining review warnings before shipping.
+Two additional TDD cycles committed `test: give each recorded sync its own none contribution (#16)` and `fix: bound core sync SemVer arithmetic to safe integers (#16)`.
+The root suite increased from 264 to 270 passing tests, and fresh delta pre-completion review returned PASS with no remaining warnings.
+
+### Observations
+
+- Each default sync contribution now owns its object and `paths` array; mutation tests cover isolation within one scenario and across separate scenarios.
+- The stable-version parser rejects unsafe numeric segments, and all three increment branches reject overflow while preserving valid boundary values and unchanged `none` results.
+  The operator approved rejection rather than a BigInt redesign.
+  The invalid mapping test was corrected to expect the producer's existing comparison diagnostic, because comparison rejects the input before mapping's later validation branch.
+- Killing mutations restored shared defaults, disabled unsafe-number rejection, disabled increment checks, and moved the accepted boundary inward; assigned tests failed and restored tests passed before commits.
+  A formatting-only hook rejection was resolved by staging its formatting changes and retrying.
+- Pre-completion reviewer: PASS.
+  The reviewer independently ran the full workspace tests, type checks, root lint with the existing heap workaround, and dead-code gate; earlier path and merge regressions remained green.
+  The parent reran the root suite and measured 270 passing tests, a cumulative increase from the revision baseline of 230.
+- These two operator-approved fixes extend the revision order and supersede the prior entry's retained WARN disposition.
+  No package changes, GitHub mutations, pushes, or publication occurred.
+  Next remains `/sync-worktree 16`, followed by `/ship 16` at the root.
