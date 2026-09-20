@@ -11,7 +11,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { CORE_TAG_PREFIX } from "./core-sync-state.mjs";
+import { CORE_TAG_PREFIX, isFullOid } from "./core-sync-state.mjs";
 import {
   CoreSyncError,
   compareVersions,
@@ -67,17 +67,26 @@ export function exportCliffContext(repo, cliffArgs, range, currentTag) {
 }
 
 /**
- * Validate the parsed git-cliff context for a window anchored at
- * `currentTag`: every entry is an object without an embedded release
- * boundary and with a commits array, and the first entry's `previous`
- * anchor is exactly the current tag.
+ * Strictly validate the parsed git-cliff context for a window anchored at
+ * `currentTag`. The top level must be an array, every entry an object
+ * without an embedded release boundary and with a commits array, every
+ * commit an object with a full 40-hex string id, and — when the array is
+ * non-empty — the first entry's `previous` anchor exactly the current tag.
+ * An empty array is a legitimate empty window and returns `[]`; no unknown
+ * structure is normalized or silently filtered, because a shape change in a
+ * future git-cliff must fail loudly rather than discard retained commits.
  *
- * @param {unknown[]} contextJson
+ * @param {unknown} contextJson
  * @param {string} currentTag
- * @returns {{ version: unknown, commits: unknown[] }[]}
+ * @returns {{ version: unknown, commits: { id: string }[] }[]}
  */
 export function parseCliffContext(contextJson, currentTag) {
-  /** @type {{ version: unknown, commits: unknown[] }[]} */
+  if (!Array.isArray(contextJson)) {
+    throw new CoreSyncError(
+      `git-cliff context for ${currentTag}..HEAD is not an array`,
+    );
+  }
+  /** @type {{ version: unknown, commits: { id: string }[] }[]} */
   const entries = [];
   for (const [index, entry] of contextJson.entries()) {
     if (typeof entry !== "object" || entry === null) {
@@ -96,22 +105,45 @@ export function parseCliffContext(contextJson, currentTag) {
         `git-cliff context entry ${index} has no commits array`,
       );
     }
-    entries.push(record);
+    /** @type {{ id: string }[]} */
+    const commits = [];
+    for (const [commitIndex, commit] of record.commits.entries()) {
+      if (typeof commit !== "object" || commit === null) {
+        throw new CoreSyncError(
+          `git-cliff context entry ${index} commit ${commitIndex} is not an object`,
+        );
+      }
+      const commitRecord = /** @type {Record<string, unknown>} */ (commit);
+      if (typeof commitRecord.id !== "string") {
+        throw new CoreSyncError(
+          `git-cliff context entry ${index} commit ${commitIndex} has a non-string id: ${JSON.stringify(commitRecord.id)}`,
+        );
+      }
+      if (!isFullOid(commitRecord.id)) {
+        throw new CoreSyncError(
+          `git-cliff context entry ${index} commit ${commitIndex} id is not a full 40-hex object ID: ${JSON.stringify(commitRecord.id)}`,
+        );
+      }
+      commits.push(/** @type {{ id: string }} */ (commitRecord));
+    }
+    entries.push({ ...record, commits });
   }
-  const first = /** @type {Record<string, unknown>} */ (contextJson[0]);
-  const previous = first.previous;
-  if (typeof previous !== "object" || previous === null) {
-    throw new CoreSyncError(
-      `git-cliff context for ${currentTag}..HEAD is not anchored at a previous release; refusing an unbounded walk`,
-    );
-  }
-  const previousVersionInContext = /** @type {Record<string, unknown>} */ (
-    previous
-  ).version;
-  if (previousVersionInContext !== currentTag) {
-    throw new CoreSyncError(
-      `git-cliff context anchored at ${JSON.stringify(previousVersionInContext)} instead of ${currentTag}; later tag metadata leaked into the window`,
-    );
+  if (contextJson.length > 0) {
+    const first = /** @type {Record<string, unknown>} */ (contextJson[0]);
+    const previous = first.previous;
+    if (typeof previous !== "object" || previous === null) {
+      throw new CoreSyncError(
+        `git-cliff context for ${currentTag}..HEAD is not anchored at a previous release; refusing an unbounded walk`,
+      );
+    }
+    const previousVersionInContext = /** @type {Record<string, unknown>} */ (
+      previous
+    ).version;
+    if (previousVersionInContext !== currentTag) {
+      throw new CoreSyncError(
+        `git-cliff context anchored at ${JSON.stringify(previousVersionInContext)} instead of ${currentTag}; later tag metadata leaked into the window`,
+      );
+    }
   }
   return entries;
 }
@@ -140,20 +172,16 @@ export function forkLevelFromWindow(input) {
     input.range,
     input.currentTag,
   );
-  if (!Array.isArray(contextJson) || contextJson.length === 0) {
+  const entries = parseCliffContext(contextJson, input.currentTag);
+  if (entries.length === 0) {
     // An empty window: no commits at all since the release.
     return "none";
   }
-  const entries = parseCliffContext(contextJson, input.currentTag);
   const retained = entries.map((entry) => ({
     ...entry,
-    commits: entry.commits.filter((commit) => {
-      if (typeof commit !== "object" || commit === null) {
-        return false;
-      }
-      const id = /** @type {Record<string, unknown>} */ (commit).id;
-      return typeof id === "string" && !input.upstreamOwned.has(id);
-    }),
+    commits: entry.commits.filter(
+      (commit) => !input.upstreamOwned.has(commit.id),
+    ),
   }));
   const contextDir = mkdtempSync(path.join(tmpdir(), "core-sync-context-"));
   try {
