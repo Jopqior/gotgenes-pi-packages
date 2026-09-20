@@ -42,13 +42,16 @@ Or load from a checkout:
 }
 ```
 
-If the core is missing, failed to load, or lacks `registerSpawnSelectionProvider`, this extension throws a configuration error at initialization and does not activate.
+If the core package is absent, the selector's static import fails while modules load, Pi reports the missing `@jopqior/pi-subagents` module, and the selector is not activated.
+If the core is installed but its service is absent because the core loaded too late, initialization throws a configuration error naming the required package, the registration method, and the load order.
+If the service is present but lacks `registerSpawnSelectionProvider`, the same configuration error applies and the selector registers no hooks and does not activate.
 
 ### Core compatibility
 
 The selector declares `@jopqior/pi-subagents` as a required peer dependency with a floor of `>=1.0.0`.
 The floor describes the spawn-selection API the selector needs, independently of the core version used for development, so developing against one core version does not move the published range.
-Any installed core within the range works when it is loaded before the selector.
+The floor has been verified against the published core releases 1.0.0, 1.0.1, 1.0.2, and 2.0.0, and the maintainer verification command below keeps that verification current.
+The open upper bound is a maintenance policy rather than a guarantee that every future core major works without a selector release.
 
 ### Migrating to the peer dependency
 
