@@ -139,3 +139,17 @@ It independently re-derived all four mandated invariants, confirmed `save()` and
 No warnings.
 
 [#953]: https://github.com/gotgenes/pi-packages/issues/953
+
+## Stage: Sync (worktree) (2026-09-20T16:29:16Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both passed clean with no changes needed.
+The plan's `**Release:** ship independently` marker holds — not part of any batch, no dependency on a sibling package.
+A follow-up ([#953], the sibling policy-file-issue accumulation) is filed and dispositioned against Phase 15 as out of scope; nothing else was deferred.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-933--/2026-09-20T01-16-10-377Z_01a0bc62-8d09-7608-8a3e-0a7e57cf11bd.jsonl` — read with `read_session_file({ path: "..." })` for message-level verification at land/retro time.
+
+### Observations
+
+Rebase onto local `main` is the next step; no conflicts anticipated — this branch's commits touch only `packages/pi-permission-system/` and `.pi/skills/package-pi-permission-system/SKILL.md`.
