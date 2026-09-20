@@ -199,3 +199,115 @@ Push and CI verification remain pending at this breadcrumb commit; issue closure
 - Only the root checkout is registered as a worktree, matching the peer's sync note.
   After successful CI, remove only the merged issue branch rather than trying to remove the root checkout.
 - The final interactive retrospective remains `/retro 16` at the root on `main`.
+
+## Stage: Final Retrospective (2026-09-20T13:11:28Z)
+
+### Session summary
+
+Reviewed planning, both implementation sessions, their child-session evidence, synchronization, and shipping rather than treating the final PASS as the whole history.
+Issue #16 landed on `main`, CI passed in the ship transcript, and the fork issue is closed; no package publication occurred.
+The dominant cost was a late quality revision after the original implementation and review had missed concentrated responsibilities and offline evidence-contract gaps.
+
+### Observations
+
+#### What went well
+
+- The operator's structural question led to contract probes, not a cosmetic line-count exercise.
+  Real issue-14 objects with isolated historical refs exposed incorrect offline version correspondence, while explicitly synthetic inputs exposed malformed context, unreleased tails, and discontinuous ancestry.
+  This separated observed repository history from adversarial scenarios without rewriting published tags.
+- The revision preserved completed steps as history and supplied one actionable `TDD Order`.
+  Replacement implementation agents resumed from committed checkpoints rather than repeating the earlier steps, and later delta reviews kept the path and merge fixes visible while the remaining warnings were resolved.
+- The later reviewer independently challenged Git output semantics despite green gates, finding quoted-path and baseline merge-only omissions.
+  Those findings became separate regression-backed fixes before landing rather than post-release repairs.
+
+#### What caused friction (agent side)
+
+- `wrong-abstraction` — the original `core-sync.mjs` combined value rules, state parsing, Git evidence, git-cliff adaptation, orchestration, and CLI handling; the release test file mixed pure and process tests under repository-wide setup.
+  The first reviewer described the absence of `src/` TypeScript and real-process tests as a clean design result without identifying those boundaries.
+  Impact: the operator had to request a structural assessment after delivery was recommended; a separate revision plan and module/fixture extraction followed.
+- `premature-convergence` — the first review marked unreleased-evidence acceptance complete using recorder checks, while the offline consumer did not repeat the required validations.
+  It also called non-array context unreachable because the installed git-cliff emitted an array, although the plan explicitly required rejection of unknown shapes.
+  The subsequent structural assessor initially characterized trusting committed evidence as permitted; the parent rejected that interpretation against the plan and requested probes.
+  Impact: four measured contract gaps required new TDD fixes after the original seven steps and initial WARN.
+- `missing-context` — path enumeration assumed line-oriented Git output, and tail enumeration assumed ordinary log output included merge-owned changes.
+  Impact: fresh revision review returned FAIL and required `fix: enumerate core paths losslessly in sync evidence (#16)` and `fix: account for merge changes in core tail enumeration (#16)`.
+- `instruction-violation` — revision child transcripts show verification piped through `tail` or `grep`, including `pnpm exec biome check ... | tail -2 && pnpm run test:scripts ... | tail -4`, despite the existing exit-status rule in `.pi/skills/git-workflow/SKILL.md`.
+  Self-identified during this retrospective, not user-caught or corrected at that child checkpoint.
+  Impact: those command-success statuses cannot prove the checks passed; subsequent parent and reviewer runs supplied independent unpiped gates, so no shipped failure is established.
+- `other` — the initial review already ended with a `### Overall` WARN block, but the parent requested another response containing literal `Overall: WARN`.
+  The agent format and the dispatch skill use different spellings for the same verdict.
+  Impact: one avoidable resumed review request, without code rework; no general review-format rewrite is proposed here.
+- `missing-context` — this retrospective delegated transcript inspection before checking whether the child had session-reading tools.
+  The child reported that both required tools were unavailable and stopped; the parent used its own tools instead of authorizing raw transcript parsing.
+  Impact: one nonproductive dispatch; no repository changes or fabricated model attribution.
+- `wrong-abstraction` — the retrospective proposals used review terminology before explaining the concrete difference between structure checks and per-entry-point validation.
+  The operator requested a `wait-what` explanation; the parent restated both proposals in plain language before receiving explicit approval.
+  Impact: an additional explanation turn; no rule edits occurred before approval.
+
+#### What caused friction (user side)
+
+- The operator supplied the decisive quality intervention only after the first completion report, then had to ask what to do next and confirm the revision.
+  An earlier request for a responsibility map could make the preference explicit, but SRP and fixture isolation were already agent responsibilities; this is an opportunity to reduce operator oversight, not a missing user requirement.
+- The operator stopped the implementation agent after step 5 in both implementation rounds and requested replacement agents; another replacement was stopped for a reported model problem.
+  Clean checkpoints prevented replay, but the reason for the two step-5 stops is not established by the transcripts.
+  If bounded dispatch batches are a standing preference, state that before delegation; do not infer a new default from these stops.
+- The issue branch lived in the root checkout rather than a separate worktree, and the operator asked whether to switch to `main` and start a fresh session before shipping.
+  Explicit checkout instructions resolved the handoff without removing the root checkout.
+
+### Diagnostic details
+
+#### Model-performance correlation
+
+Attribution below comes from inline assistant labels in unfiltered child transcript reads, not configured agent models or environment variables.
+Rows identify child sessions by their timestamp basename under the named parent; bounded tail reads establish the observed model, not that no other model ran earlier in the child.
+
+| Parent        | Child timestamp            | Task                                   | Observed model                | Outcome                                                                   |
+| ------------- | -------------------------- | -------------------------------------- | ----------------------------- | ------------------------------------------------------------------------- |
+| Planning      | `2026-09-19T15-52-06-618Z` | Initial tidy assessment                | `zai-coding-cn/glm-5.3`       | Fixture and prediction-entry preparation accepted; NUL printing declined  |
+| Original TDD  | `2026-09-19T16-14-09-335Z` | Steps 1–5                              | `zai-coding-cn/glm-5.3`       | Operator stopped after committed checkpoint                               |
+| Original TDD  | `2026-09-20T04-52-02-895Z` | Steps 6–7                              | `zai-coding-cn/glm-5.3`       | Completed                                                                 |
+| Original TDD  | `2026-09-20T05-18-44-365Z` | Initial review and verdict restatement | `xai/grok-4.6`                | WARN; missed offline contract and structural gaps                         |
+| Original TDD  | `2026-09-20T05-37-33-131Z` | Structural assessment                  | `zai-coding-cn/glm-5.3`       | Useful seams; parent rejected its committed-evidence trust interpretation |
+| Original TDD  | `2026-09-20T05-48-01-948Z` | Contract probes                        | `zai-coding-cn/glm-5.3`       | Measured four gaps; draft needed provenance and mutation corrections      |
+| Original TDD  | `2026-09-20T06-06-30-687Z` | Revision tidy assessment               | `zai-coding-cn/glm-5.3`       | Identified scratch-copy migration coupling                                |
+| Original TDD  | `2026-09-20T06-16-14-317Z` | Revision plan drafting                 | `zai-coding-cn/glm-5.3`       | Parent and plan review corrected remaining migration details              |
+| Original TDD  | `2026-09-20T06-31-13-813Z` | Plan review and delta                  | `openai-codex/gpt-6-astra`    | FAIL then PASS after plan corrections                                     |
+| Revision TDD  | `2026-09-20T07-47-15-809Z` | Steps 1–5                              | `zai-coding-cn/glm-5.3`       | Completed checkpoint; piped verification and incomplete supplemental log  |
+| Revision TDD  | `2026-09-20T10-06-19-188Z` | Replacement implementation             | `xai/grok-4.6`                | Stopped for operator-reported model problem; no changes                   |
+| Revision TDD  | `2026-09-20T10-54-34-809Z` | Steps 6–8                              | `zai-coding-cn/glm-5.3-flash` | Completed; caught and committed omitted step-8 checkpoint before handoff  |
+| Revision TDD  | `2026-09-20T11-35-06-170Z` | Fresh review                           | `openai-codex/gpt-6-astra`    | FAIL; path and merge blockers plus two warnings                           |
+| Revision TDD  | `2026-09-20T11-41-47-541Z` | Blocker fixes                          | `zai-coding-cn/glm-5.3-flash` | Separate fixes; corrected crash-only mutation                             |
+| Revision TDD  | `2026-09-20T12-16-20-811Z` | Blocker delta review                   | `openai-codex/gpt-6-astra`    | WARN; blockers resolved                                                   |
+| Revision TDD  | `2026-09-20T12-21-38-839Z` | Warning fixes                          | `zai-coding-cn/glm-5.3-flash` | Isolation and safe-integer fixes completed                                |
+| Revision TDD  | `2026-09-20T12-42-35-446Z` | Final delta review                     | `openai-codex/gpt-6-astra`    | PASS                                                                      |
+| Retrospective | `2026-09-20T13-09-09-550Z` | Transcript audit                       | `openai-codex/gpt-6-astra`    | Blocked by unavailable child tools; parent continued inline               |
+
+The initial review is an observed task-quality mismatch, not proof that its model is generally unsuitable.
+Later review also had a more explicit mandate and a different tree; this is not a controlled model comparison, and no model-default change is proposed.
+The bounded implementation fixes performed by `glm-5.3-flash` were subsequently independently reviewed, rather than treating its completion reports as approval.
+
+#### Feedback-loop gaps and unused capabilities
+
+Verification was not deferred entirely to the end: revision child tails show mutation/run/restore cycles, and the parent ran full tests, type checks, lint, and dead-code before each review handoff.
+The gap was semantic and structural review, compounded by unreliable piped gate statuses, not simply too few test runs.
+The original review's broad clean-design claim and the pre-retrospective `.pi/agents/pre-completion-reviewer.md` section `2e` expose a concrete routing weakness: production design instructions name changed `src/` files, while repository runtime tooling lives in `scripts/`; test review concentrates on mock conventions rather than fixture scope.
+Existing `code-design` guidance already states SRP, so broadening that review surface is preferable to duplicating SOLID in `AGENTS.md`.
+
+The session-reading tools were available in the parent but unavailable in the retrospective child; use the owner of the capability rather than repeatedly spawning another agent for the same task.
+No greater-than-five consecutive same-error retry sequence was established in the inspected excerpts; the bounded child reads do not support an exhaustive escalation-delay census.
+
+### Proposed adjustments
+
+1. In `.pi/agents/pre-completion-reviewer.md` section `2e`, replace directory-specific production coverage with executable-code coverage, explicitly including repository scripts, and add fixture isolation to test review.
+2. In that agent's section `2a`, require tracing fail-closed criteria through each consumer, including offline readers, and distinguish observed valid tool output from the promised malformed-input contract.
+3. Retain the existing pipeline rule rather than restating it; reject hard file-size limits, a model-default swap, mandatory full-workspace checks after every tiny edit, and a broad review-system rewrite.
+
+No package roadmap successor is defined for this repository-tooling issue.
+The newest triage is inherited upstream context, not a fork priority queue; fork issue #15 remains open as related independent work, not as a ranked or newly unblocked roadmap step.
+
+### Changes made
+
+1. Appended this cross-session retrospective to `docs/retro/f0016-core-sync-release-levels.md`, including review misses, operator interventions, model-attribution limits, and verification evidence gaps.
+2. With explicit operator approval, updated `.pi/agents/pre-completion-reviewer.md` section `2e` and its report examples to include executable repository scripts and fixture isolation, removing the production `src/`-only wording.
+3. With explicit operator approval, updated that agent's section `2a` to trace fail-closed requirements through each consumer and distinguish a valid observed output from malformed-input rejection guarantees.
+   No runtime code, `AGENTS.md`, package metadata, changelog, or model defaults changed.

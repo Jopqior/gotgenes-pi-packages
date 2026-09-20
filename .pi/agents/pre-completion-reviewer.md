@@ -88,6 +88,8 @@ For each acceptance criterion, verify and classify:
 
 Do not mark ACs as met based on the dispatching agent's claims — verify against the actual state of the code.
 When an AC uses a universal quantifier ("all X", "every Y"), search beyond just the changed files.
+For fail-closed criteria, trace each consuming entry point, including offline readers; producer validation does not establish consumer validation.
+Distinguish observed tool output from the promised input contract: a valid sample does not discharge malformed-input rejection.
 
 Determine the base ref:
 
@@ -158,10 +160,10 @@ Report as **WARN** (non-blocking).
 
 ### 2e. Code design review
 
-**Applicability:** any `src/` or `test/` files appear in the modified-files list.
-Skip if neither was changed.
+**Applicability:** any executable code or test files appear in the modified-files list.
+Skip documentation-only changes.
 
-For changed `src/` files, load the `code-design` skill (`.pi/skills/code-design/SKILL.md`) and review for:
+For changed production code, including repository scripts such as `.mjs` and `.sh`, load the `code-design` skill (`.pi/skills/code-design/SKILL.md`) and review for:
 
 - SRP violations — functions or modules doing more than one thing.
 - ISP violations — functions accepting wide interfaces but reading only a few fields.
@@ -169,11 +171,12 @@ For changed `src/` files, load the `code-design` skill (`.pi/skills/code-design/
 - Output arguments — functions that write back into a received parameter.
 - Naming — names that describe implementation rather than intent.
 
-For changed `test/` files, load the `testing` skill (`.pi/skills/testing/SKILL.md`) and spot-check for convention drift:
+For changed test files, load the `testing` skill (`.pi/skills/testing/SKILL.md`) and spot-check for convention drift:
 
 - mock fields typed `Mock<Sig>`, not `ReturnType<typeof vi.fn<…>>`
 - module-scope `vi.fn()` stubs reset in `beforeEach`
 - mock-call assertions via `toHaveBeenCalledWith`, not `mock.calls[0]![0]`
+- fixture isolation — pure tests avoid repository/process setup; mutable defaults belong to each fixture instance
 
 Report findings as **WARN** (non-blocking suggestions).
 
@@ -281,13 +284,13 @@ WARN — plan cites "measured" evidence from a self-built fixture, n=1 per condi
 SKIP — plan makes no empirical claim
 
 ### Code design review
-PASS — no structural concerns in changed src/ or test/ files
+PASS — no structural concerns in changed production code or tests
 — or —
 WARN — src/foo.ts:42: function readConfig accepts a wide Options bag but reads only 2 of 8 fields
 — or —
 WARN — test/foo.test.ts:18: mock field typed ReturnType<typeof vi.fn<…>>; use Mock<Sig>
 — or —
-SKIP — no src/ or test/ files in modified-files list
+SKIP — no executable code or test files in modified-files list
 
 ### Test artifacts
 PASS — all 3 named test files exist on disk
