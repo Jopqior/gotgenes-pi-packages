@@ -758,17 +758,18 @@ describe("SubagentManager", () => {
         await manager.dispose();
       });
 
-      it("delivers onStarted once to each of the manager observer and the spawn observer", async () => {
+      it("delivers onStarted once to the manager observer before the spawn observer", async () => {
         const fromManager: Subagent[] = [];
         const fromSpawn: Subagent[] = [];
+        const events: string[] = [];
         ({ manager } = createManager({
-          observer: { onSubagentStarted: (r) => { fromManager.push(r); } },
+          observer: { onSubagentStarted: (r) => { fromManager.push(r); events.push("manager"); } },
         }));
 
         const id = manager.spawn(STUB_SNAPSHOT, "general-purpose", "test", {
           description: "admission",
           background: { kind: "explicit", isBackground: true },
-          observer: { onStarted: (agent) => { fromSpawn.push(agent); } },
+          observer: { onStarted: (agent) => { fromSpawn.push(agent); events.push("spawn"); } },
         });
         await manager.getRecord(id)!.promise;
 
@@ -777,6 +778,7 @@ describe("SubagentManager", () => {
         expect(fromManager[0]).toBe(record);
         expect(fromSpawn).toHaveLength(1);
         expect(fromSpawn[0]).toBe(record);
+        expect(events).toEqual(["manager", "spawn"]);
       });
 
       it("delivers onStarted to the spawn observer of a foreground agent", async () => {
