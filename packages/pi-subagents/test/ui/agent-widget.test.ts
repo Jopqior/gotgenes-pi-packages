@@ -309,13 +309,12 @@ describe("AgentWidget — self-drives from lifecycle notifications", () => {
 		expect(typeof lastContent()).toBe("function");
 	});
 
-	it("starts the update timer and renders on onSubagentCreated", () => {
+	it("renders a queued agent without starting the timer, since nothing animates", () => {
 		const { widget, lastContent } = makeWidget([{ id: "a1", status: "queued" }]);
-		expect(vi.getTimerCount()).toBe(0);
 
 		widget.onSubagentCreated(createTestSubagent({ id: "a1", status: "queued" }));
 
-		expect(vi.getTimerCount()).toBe(1);
+		expect(vi.getTimerCount()).toBe(0);
 		expect(typeof lastContent()).toBe("function");
 	});
 
@@ -400,6 +399,59 @@ describe("AgentWidget — background-only filtering", () => {
 		const text = renderLines().join("\n");
 		expect(text).toContain("background task");
 		expect(text).not.toContain("foreground task");
+	});
+});
+
+describe("AgentWidget — the animation timer tracks running agents", () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	it("stops the timer when the last running agent finishes, leaving the widget registered", () => {
+		const agents = [{ id: "a1", status: "running", completedAt: undefined as number | undefined }];
+		const { widget, lastContent } = makeWidget(agents);
+		widget.onSubagentStarted(createTestSubagent({ id: "a1", status: "running" }));
+		expect(vi.getTimerCount()).toBe(1);
+
+		agents[0].status = "completed";
+		agents[0].completedAt = 5000;
+		widget.onSubagentCompleted(createTestSubagent({ id: "a1", status: "completed" }));
+
+		expect(vi.getTimerCount()).toBe(0);
+		expect(typeof lastContent()).toBe("function");
+	});
+
+	it("stops the timer when a run finishes while another agent is still queued", () => {
+		const agents = [
+			{ id: "a1", status: "running", completedAt: undefined as number | undefined },
+			{ id: "a2", status: "queued", completedAt: undefined as number | undefined },
+		];
+		const { widget, lastContent } = makeWidget(agents);
+		widget.onSubagentStarted(createTestSubagent({ id: "a1", status: "running" }));
+		expect(vi.getTimerCount()).toBe(1);
+
+		agents[0].status = "completed";
+		agents[0].completedAt = 5000;
+		widget.onSubagentCompleted(createTestSubagent({ id: "a1", status: "completed" }));
+
+		expect(vi.getTimerCount()).toBe(0);
+		expect(typeof lastContent()).toBe("function");
+	});
+
+	it("starts the timer when a queued agent begins running", () => {
+		const agents = [{ id: "a1", status: "queued", completedAt: undefined as number | undefined }];
+		const { widget } = makeWidget(agents);
+		widget.onSubagentCreated(createTestSubagent({ id: "a1", status: "queued" }));
+		expect(vi.getTimerCount()).toBe(0);
+
+		agents[0].status = "running";
+		widget.onSubagentStarted(createTestSubagent({ id: "a1", status: "running" }));
+
+		expect(vi.getTimerCount()).toBe(1);
 	});
 });
 

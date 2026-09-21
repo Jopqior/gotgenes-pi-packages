@@ -118,14 +118,14 @@ export class AgentWidget implements SubagentManagerObserver {
 
   // ---- SubagentManagerObserver: react to lifecycle, self-drive the timer ----
 
-  /** A subagent started running — ensure the update loop is live and render. */
+  /** A subagent started running — render, which arms the animation loop. */
   onSubagentStarted(_record: Subagent) {
-    this.startLoop();
+    this.update();
   }
 
-  /** A background subagent was created (queued) — ensure the loop is live and render. */
+  /** A background subagent was created (queued) — render so the count shows. */
   onSubagentCreated(_record: Subagent) {
-    this.startLoop();
+    this.update();
   }
 
   /** A subagent completed — render so the finished state is seeded and shown. */
@@ -133,13 +133,9 @@ export class AgentWidget implements SubagentManagerObserver {
     this.update();
   }
 
-  /**
-   * A subagent went back to running — ensure the loop is live and render.
-   * `startLoop` rather than `update`: the timer stops once nothing is running,
-   * and a resumed agent is running again.
-   */
+  /** A subagent went back to running — render, which re-arms the animation loop. */
   onSubagentResuming(_record: Subagent) {
-    this.startLoop();
+    this.update();
   }
 
   /** A subagent finished a resume — render so the refreshed result is shown. */
@@ -150,17 +146,6 @@ export class AgentWidget implements SubagentManagerObserver {
   /** A subagent's session compacted — render to refresh the compaction count. */
   onSubagentCompacted(_record: Subagent, _info: CompactionInfo) {
     this.update();
-  }
-
-  /** Start the update timer (if not already running) and render immediately. */
-  private startLoop() {
-    this.ensureTimer();
-    this.update();
-  }
-
-  /** Ensure the widget update timer is running. */
-  private ensureTimer() {
-    this.setTimerRunning(true);
   }
 
   /**
@@ -301,6 +286,11 @@ export class AgentWidget implements SubagentManagerObserver {
       return;
     }
 
+    // Only a running agent has content that changes between ticks: a finished
+    // line's duration is fixed and the queued line is a count, so animating
+    // either would ask Pi to re-render its whole component tree for a
+    // byte-identical result.
+    this.setTimerRunning(state.runningCount > 0);
     this.updateStatusBar(state);
     this.widgetFrame++;
 
