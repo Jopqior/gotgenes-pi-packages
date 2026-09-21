@@ -85,3 +85,18 @@ The measured core suite grew from 1904 to 1953 tests (+49), with 84 test files i
   No roadmap completion mark applied, and `CHANGELOG.md` was not edited.
 
 [#18]: https://github.com/Jopqior/gotgenes-pi-packages/issues/18
+
+## Stage: Sync (worktree) (2026-09-21T02:26:09Z)
+
+### Session summary
+
+Pre-sync lint passed with `NODE_OPTIONS=--max-old-space-size=8192` after the default Node heap exhausted memory; `pnpm fallow dead-code` passed without findings.
+The plan recommends `ship independently` for the breaking core change, with publishing subject to explicit approval; foreground progress follow-up [#18] remains deferred.
+
+**Peer session transcript:** `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-09-21T02-23-25-430Z_01a0c1c6-7af6-7463-a119-cb89ecbfdce1.jsonl` — read with `read_session_file` for message-level verification.
+
+### Observations
+
+- The feature branch is checked out in the root directory rather than a separate linked worktree; synchronization leaves `main` untouched and does not push.
+- The implementation-stage warning about the unperformed GitHub/vivify Mermaid preview remains recorded above.
+- Final `/retro 17` is deferred to the root after `/ship 17`; this entry is only the sync breadcrumb.
