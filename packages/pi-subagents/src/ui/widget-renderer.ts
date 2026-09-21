@@ -176,6 +176,8 @@ interface WidgetSections {
 	finishedLines: string[];
 	runningLines: [string, string][];
 	queuedLine: string | undefined;
+	/** Agents behind `queuedLine`, which collapses all of them into one row. */
+	queuedCount: number;
 }
 
 /** Render each agent bucket into pre-formatted lines with ├─ tree connectors. */
@@ -204,7 +206,7 @@ function buildSections(
 		? truncate(theme.fg("dim", "\u251C\u2500") + ` ${theme.fg("muted", GLYPHS.queued)} ${theme.fg("dim", `${categories.queued.length} queued`)}`)
 		: undefined;
 
-	return { finishedLines, runningLines, queuedLine };
+	return { finishedLines, runningLines, queuedLine, queuedCount: categories.queued.length };
 }
 
 /**
@@ -242,10 +244,11 @@ function assembleOverflow(
 	truncate: (line: string) => string,
 	theme: Theme,
 ): string[] {
-	const { finishedLines, runningLines, queuedLine } = sections;
+	const { finishedLines, runningLines, queuedLine, queuedCount } = sections;
 	const lines: string[] = [heading];
 	let budget = maxBody - 1;
 	let hiddenRunning = 0;
+	let hiddenQueued = 0;
 	let hiddenFinished = 0;
 
 	for (const pair of runningLines) {
@@ -257,9 +260,15 @@ function assembleOverflow(
 		}
 	}
 
-	if (queuedLine && budget >= 1) {
-		lines.push(queuedLine);
-		budget--;
+	if (queuedLine) {
+		if (budget >= 1) {
+			lines.push(queuedLine);
+			budget--;
+		} else {
+			// The line is one row but stands for every queued agent, so dropping it
+			// hides all of them.
+			hiddenQueued = queuedCount;
+		}
 	}
 
 	for (const fl of finishedLines) {
@@ -273,9 +282,11 @@ function assembleOverflow(
 
 	const overflowParts: string[] = [];
 	if (hiddenRunning > 0) overflowParts.push(`${hiddenRunning} running`);
+	if (hiddenQueued > 0) overflowParts.push(`${hiddenQueued} queued`);
 	if (hiddenFinished > 0) overflowParts.push(`${hiddenFinished} finished`);
 	const overflowText = overflowParts.join(", ");
-	lines.push(truncate(theme.fg("dim", "\u2514\u2500") + ` ${theme.fg("dim", `+${hiddenRunning + hiddenFinished} more (${overflowText})`)}`));
+	const hiddenTotal = hiddenRunning + hiddenQueued + hiddenFinished;
+	lines.push(truncate(theme.fg("dim", "\u2514\u2500") + ` ${theme.fg("dim", `+${hiddenTotal} more (${overflowText})`)}`));
 	return lines;
 }
 
@@ -315,8 +326,9 @@ export function renderWidgetLines(params: {
 	const totalBody = finishedLines.length + runningLines.length * 2 + (queuedLine ? 1 : 0);
 	const heading = truncate(theme.fg(headingColor, headingIcon) + " " + theme.fg(headingColor, "Agents"));
 
+	const sections = { finishedLines, runningLines, queuedLine, queuedCount: queued.length };
 	if (totalBody <= maxBody) {
-		return assembleWithinBudget(heading, { finishedLines, runningLines, queuedLine });
+		return assembleWithinBudget(heading, sections);
 	}
-	return assembleOverflow(heading, { finishedLines, runningLines, queuedLine }, maxBody, truncate, theme);
+	return assembleOverflow(heading, sections, maxBody, truncate, theme);
 }

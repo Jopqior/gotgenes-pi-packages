@@ -355,6 +355,41 @@ describe("renderWidgetLines", () => {
 		expect(lines[lines.length - 1]).toContain("3 running");
 	});
 
+	it("counts a dropped queued line in the overflow summary", () => {
+		// A 10-row terminal budgets 4 lines, so maxBody is 3 and the running pair
+		// plus the summary consume all of it: the queued line does not fit.
+		const lines = callRenderWidgetLines({
+			agents: [
+				makeAgent({ id: "r1", status: "running", completedAt: undefined }),
+				makeAgent({ id: "q1", status: "queued", completedAt: undefined }),
+				makeAgent({ id: "f1", status: "completed", completedAt: 6000 }),
+			],
+			terminalHeight: 10,
+		});
+
+		expect(lines).toHaveLength(4);
+		const summary = lines[lines.length - 1];
+		expect(summary).toContain("+2 more");
+		expect(summary).toContain("1 queued");
+		expect(summary).toContain("1 finished");
+	});
+
+	it("counts every agent behind a dropped queued line, not the line", () => {
+		const agents: WidgetAgent[] = [makeAgent({ id: "r1", status: "running", completedAt: undefined })];
+		for (let i = 0; i < 3; i++) {
+			agents.push(makeAgent({ id: `q${i}`, status: "queued", completedAt: undefined }));
+		}
+		agents.push(makeAgent({ id: "f1", status: "completed", completedAt: 6000 }));
+
+		const lines = callRenderWidgetLines({ agents, terminalHeight: 10 });
+
+		// The collapsed queued line stands for three agents, so hiding it hides three.
+		const summary = lines[lines.length - 1];
+		expect(summary).toContain("+4 more");
+		expect(summary).toContain("3 queued");
+		expect(summary).toContain("1 finished");
+	});
+
 	it("returns empty array when no agents to show", () => {
 		const lines = callRenderWidgetLines();
 
