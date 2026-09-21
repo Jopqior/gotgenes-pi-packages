@@ -44,3 +44,35 @@ The plan (`packages/pi-subagents/docs/plans/0864-bound-widget-to-terminal-viewpo
 
 - `packages/pi-subagents/test/widget-renderer.test.ts` and `packages/pi-subagents/test/ui/agent-widget.test.ts` — promoting the two new local builders to `test/helpers/ui-stubs.ts` was rejected as premature; neither shape is reused outside its own file today, and `ui-stubs.ts` currently exports only `makeMenuUI`.
 - `packages/pi-subagents/src/ui/widget-renderer.ts` — narrowing the `renderWidgetLines` params object was rejected: every field is read on every call by the single consumer, so 6→7 fields is cohesion, not a dependency bag.
+
+## Stage: Implementation — TDD (2026-09-21T17:28:02Z)
+
+### Session summary
+
+Executed all seven planned steps plus one unplanned eighth, each as its own commit leaving the tree green.
+The widget's rendered height now derives from `tui.terminal.rows`, its animation timer runs if and only if a subagent is running, and the cadence is 250 ms. Test count 1803 → 1830 (+27), including a new `test/ui/widget-viewport.test.ts` that drives Pi's real `TuiMainScreen` against a fake `Terminal`.
+
+### Observations
+
+- The new integration test **reproduced the reported defect before fixing it**, at exactly the cells the planning spike measured: 10 rows with 4 agents, 12 rows with 4 agents, and 14 rows with 6 agents all failed on the Red step, while 16, 18, 24, and 40 rows passed.
+  That is the strongest evidence this branch carries — the test would have caught the bug, not merely documents the fix.
+- Every step's killing mutations behaved as predicted, with two informative surprises.
+  The `setTimerRunning(true)` no-op mutation killed four tests where the plan named three: `"clears the update interval"` also asserts the timer exists before `dispose()`, so it depends on the start path too.
+  The `terminalHeight: tui.terminal.columns` mutation killed only the integration cells and left every `widgetLineBudget` unit test green, which is precisely why both layers exist.
+- One planned test had a **wrong premise** and was corrected during Red: `"counts every agent behind a dropped queued line"` originally used one running plus three queued agents, but `totalBody` (3) fits `maxBody` (3), so `assembleWithinBudget` ran and no overflow occurred.
+  Adding a finished agent forced the overflow path the test is about.
+- Deviation, doc-only: `packages/pi-subagents/docs/architecture/client-server-opportunities.md` was not in the plan's Module-Level Changes but stated the old 80 ms poll in three places.
+  It is a live forward-looking note rather than a `history/` file, so it was updated; the reviewer confirmed every remaining `80 ms` hit under the package is in `docs/plans/`, `docs/architecture/history/`, or `docs/retro/`, all frozen artifacts.
+- Deviation, behavioral: the plan predicted **no change** to `assembleOverflow`, and that prediction was falsified by this change's own effect.
+  Lowering the line budget made a pre-existing queued-drop path reachable at ordinary small-pane sizes — at 10 rows with one running, one queued, and one finished agent the summary reported `+1 more (1 finished)` while hiding two agents.
+  The pre-completion reviewer found it; the finding was reproduced independently with a throwaway probe before acting on it, rather than accepted as a premise.
+  The operator chose to fix it in this branch over filing a follow-up, since the reachability is this change's doing and lands where the issue lives.
+  Raising the budget floor to hide the path again was offered and declined: it would trade the honest 3-line floor for a widget the viewport bound cannot protect.
+  The plan now carries a `### Departure: assembleOverflow counts hidden queued agents` section recording this.
+- `perf(pi-subagents): slow the agents widget animation to 250 ms` was kept despite reading as mechanism-named, because `perf` reaches the changelog and the animation cadence *is* the observable — a user sees the spinner rate.
+  The rule against seam-named subjects targets things like "add `terminalHeight` param", not a user-visible behavior change stated with its value.
+- Two ESLint auto-fixes landed during commits: the fake `Terminal` satisfies Pi's interface structurally, so both `as unknown as Terminal` and the `as never` casts on the widget-factory arguments were unnecessary.
+  The compiled fake needing no cast is a small piece of evidence that the test couples to Pi's public surface rather than its internals.
+- Pre-completion reviewer: **WARN** (round 1) → **WARN** (round 2, delta-scoped).
+  Round 1's re-derivation confirmed the timer-stop claim (the one `Date.now()` in `renderFinishedLine` is unreachable, since `categorizeAgents` only routes agents that already have `completedAt`), `dispose()`'s #849 inertness, linger-aging independence from the timer, and the integration test's line-order fidelity against Pi's real mount order.
+  Round 2 verified the fix's arithmetic, proved `+0 more ()` is unreachable, and reduced to a documentation finding — the stale plan prediction and a missing retro entry, both addressed here.
