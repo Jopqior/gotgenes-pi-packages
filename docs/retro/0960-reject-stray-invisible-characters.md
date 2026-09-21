@@ -108,3 +108,19 @@ The pre-completion reviewer returned PASS.
   Its lint wall-clock differed in absolute terms (32.9 s → 34.4 s against my 27.0 s → 28.2 s) but the delta matched at ~1.2–1.5 s, so the machine differs and the scan cost does not.
 
 [#964]: https://github.com/gotgenes/pi-packages/issues/964
+
+## Stage: Sync (worktree) (2026-09-21T15:45:09Z)
+
+### Session summary
+
+Pre-push checks pass clean (`pnpm run lint`, `pnpm fallow dead-code`), so the branch is ready to hand off to the root.
+The plan's marker is `**Release:** ship independently`, but no `packages/*/src/` file changed in this issue, so no package release is actually triggered (confirm this at land time rather than dispatching one reflexively).
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-960--/2026-09-20T20-59-12-591Z_01a0c09d-a74e-7657-a7e6-b1c9a33d93ee.jsonl` (read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time).
+
+### Observations
+
+- The TDD stage note already flagged that `next-version.sh pi-subagents` reports a pending `v21.7.3` purely because this worktree sat 9 commits behind `origin/main` (which carries `v21.7.4`), verified as pre-existing and not caused by this issue.
+  Step 4's `git fetch` + `git rebase main` below should resolve that gap; recheck the probe once rebased if it matters at ship time.
+- Filed [#964] during TDD (the gate does not inspect filenames) with no open package phase to disposition against, and nothing further needed at land time beyond what `/ship`'s normal close-comment flow does.
+- No conflicts anticipated: every file this branch touches is new or a small targeted edit (two doc repairs of 3 bytes each, four doc/skill sections, `prek.toml`, `package.json`, one new script pair), none of it in a hot path another peer is likely to be touching concurrently.
