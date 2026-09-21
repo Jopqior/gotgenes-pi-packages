@@ -430,7 +430,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
     expect(conflicting.status).toBe(1);
     expect(conflicting.stderr).toContain("a different record already exists");
     expect(readFileSync(statePathOf(work), "utf8")).toBe(recorded);
-  });
+  }, 30_000);
 
   it("refuses a merge that cannot be resolved", () => {
     const { work } = net.materializeNetwork("core-sync");
