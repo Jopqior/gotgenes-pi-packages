@@ -119,3 +119,72 @@ Release run [35564374563](https://github.com/Jopqior/gotgenes-pi-packages/action
   No linked worktree existed to remove, so the worktree-removal script was skipped and the merged branch was safely deleted with `git branch -d`.
 - The implementation-stage Mermaid preview warning remains unchanged.
   The deliberate final retrospective is `/retro 17` at the root.
+
+## Stage: Final Retrospective (2026-09-21T05:32:14Z)
+
+### Session summary
+
+Reviewed the planning, implementation, sync, and ship transcripts, their stage notes, and the available subagent transcript endings.
+The selection-return boundary shipped as `@jopqior/pi-subagents` version `3.0.0`, while the separate foreground observation defect remains tracked by [#18].
+This retrospective changes no production behavior and does not reopen the operator-accepted diagram-preview warning.
+
+### Observations
+
+#### What went well
+
+- The fresh-context review found a real service-only disposal regression after all automatic gates were green.
+  The contrast between an unobserved selection outcome and a completed lifecycle phase led to `fix(pi-subagents): preserve running task disposal after provider registration (#17)` and a successful delta review.
+- The Tidy-First assessment discovered that foreground mocks invoked a callback the real manager did not forward.
+  Filing [#18] during planning kept that separate defect visible without expanding the selection-boundary implementation.
+- Manual acceptance used a fresh Pi session rather than the implementation session's stale extension instance.
+  The operator confirmed the three requested scenarios; the transcript also records the later decision to accept, not falsely mark verified, the GitHub/vivify preview warning.
+
+#### What caused friction (agent side)
+
+- `wrong-abstraction` — selection settlement initially depended on a tool observing the outcome, although synchronous service callers never observe that milestone.
+  Late provider registration exposed both the live-gate and already-running-task cases in `src/lifecycle/subagent.ts`.
+  Impact: two disposal follow-up commits and a second pre-completion review.
+- `instruction-violation` — self-identified through the dispatched reviewer: `test/tools/spawn-selection-boundary.test.ts` used a timed drain despite the plan and `.pi/skills/testing/SKILL.md` requiring explicit promise/phase evidence for pending state.
+  Impact: the integration harness was rewritten after its first commit, and the parent strengthened the mutation check to capture the selected pair inside the actual following `ask_user` continuation.
+- `missing-context` — the sync session ran plain root lint before reading the implementation breadcrumb that already documented the Node heap failure and working command.
+  Impact: another failed lint invocation and retry with `NODE_OPTIONS=--max-old-space-size=8192`; no source rework.
+  The ship template already uses that command, while `.pi/prompts/sync-worktree.md` still prescribes plain lint.
+- `other` — the sync breadcrumb names its own transcript as the peer transcript, not the implementation transcript.
+  Impact: the final retrospective needed `list_session_files` to locate the earlier TDD conversation; the recorded path was useful but insufficient for implementation diagnostics.
+
+#### What caused friction (user side)
+
+- No missing operator context was identified as causing the code rework.
+  Admission ordering, fresh-session acceptance, and publication approval were substantive decisions rather than mechanical supervision.
+- The operator explicitly accepted the remaining diagram-preview warning after implementation, but subsequent breadcrumbs only repeated that it was unperformed.
+  Opportunity: carry the acceptance disposition alongside the verification limitation so later sessions do not ask the operator to adjudicate it again.
+
+### Diagnostic details
+
+- Model attribution comes from executed assistant-turn labels, not agent configuration: the observed Tidy-First, initial review, and delta-review turns used `openai-codex/gpt-6-astra`.
+  The observed implementation-step and resumed integration-harness turns used `zai-coding-cn/glm-5.3-flash`; the resumed dispatch reused the integration transcript rather than creating another file.
+  The lifecycle work needed judgment, and review found a missed service path and a timed-drain test weakness; this supports retaining independent review, not attributing causation to the model or imposing a model ban.
+  No cost or latency comparison was measured.
+- Feedback-loop analysis found incremental Red/Green runs, interface typechecking, killing mutations, and repeated full gates rather than end-only verification.
+  The gap was scenario selection: a green suite did not cover the synchronous service caller that never waits for selection.
+  Future lifecycle work should use this concrete caller contrast; this retro does not add another general testing rule.
+- The planning transcript shows two failed module-resolution commands followed by a successful filesystem lookup; the diagram-rendering failure was followed by a temporary Chromium configuration and successful rendering.
+  Neither observed recovery warrants a rabbit-hole escalation rule.
+- The unused-tool lens found no missing search capability explaining the main rework: the required lifecycle and testing context was available, and independent review supplied the missing counterexample.
+  The repeated lint failure instead calls for aligning the command at the sync workflow's point of use.
+
+### Proposed adjustment
+
+Replace only the root lint command in `.pi/prompts/sync-worktree.md` with the heap-sized command already used by `.pi/prompts/ship.md`.
+Do not change repository-wide Node defaults, add an `AGENTS.md` rule, duplicate the pending-state testing rule, or restructure the worktree workflow in this retro.
+
+### Next work
+
+There is no fork roadmap successor or phase-close action for this issue.
+The newest triage, `docs/triage/2026-09-18-backlog.md`, ranks inherited `gotgenes/pi-packages` work, not this fork's queue.
+Fork issue [#18] was checked open during this retrospective and is the concrete follow-up candidate, without an invented triage rank or severity.
+
+### Changes made
+
+1. Appended the cross-session retrospective to `packages/pi-subagents/docs/retro/f0017-block-tool-return-until-selection.md`, including the review-driven repairs, model-attribution limits, and the operator's acceptance of the unperformed diagram preview.
+2. With operator approval, replaced the root lint command in `.pi/prompts/sync-worktree.md` with `NODE_OPTIONS=--max-old-space-size=8192 pnpm run lint`, matching the existing ship command without changing global configuration or adding another rule.
