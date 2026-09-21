@@ -40,4 +40,48 @@ No implementation was started.
 - `packages/pi-subagents/test/lifecycle/subagent.test.ts`, `subagent-manager.test.ts`, and `nested-selection.test.ts`: do not merge their differing selection fixtures as part of this boundary change.
 - `packages/pi-subagents/src/lifecycle/subagent.ts`: do not reorganize the entire terminal/resume lifecycle or generalize query-only `settleOrAbort` into work cancellation.
 
+## Stage: Implementation — TDD (2026-09-21T01:56:01Z)
+
+### Session summary
+
+Completed the three planned code/test cycles and the documentation step, plus two disposal-edge regression cycles discovered during implementation and review.
+Background tools now wait for required admission and model/thinking selection without waiting for workspace, session, or task completion; synchronous service spawning and no-provider acknowledgements are preserved.
+The measured core suite grew from 1904 to 1953 tests (+49), with 84 test files in the final run; the unchanged companion suite passed with 68 tests.
+
+### Observations
+
+- Work stayed on `issue-17-plan-selection-boundary`; `git fetch origin` succeeded before plan loading.
+  No push, release, or GitHub mutation was performed.
+- Root baseline and final `check`, `lint`, `test`, and `fallow dead-code` passed.
+  The first baseline lint attempt exhausted the default Node heap; subsequent root lint runs used `NODE_OPTIONS=--max-old-space-size=8192` without changing repository configuration.
+  Package checks, public-type verification, and the companion suite also passed.
+  No lockfile or workspace configuration changes remained.
+- `refactor(pi-subagents): expose internal spawn selection completion (#17)` kept step 1 observational; its optional signal parameter arrived with the behavior step instead of being accepted and ignored.
+  Mutations exercised early settlement, queued stop, failed-outcome classification, and one-shot resume behavior.
+- `feat(pi-subagents)!: wait for model selection before returning background spawns (#17)` added startup-only cancellation, queued closure handling, uncooperative-provider cancellation, and the async tool boundary.
+  Its breaking footer preserves the distinction between tool timing and the synchronous public service.
+  Named mutations exercised missing background waiting, whole-run waiting, signal forwarding, queued closure, provider cancellation, late-pair application, listener detachment, and manager teardown.
+- `test(pi-subagents): pin sequential parent selection boundaries (#17)` added the real tool-manager-record chain with separately held downstream phases.
+  Workspace preparation may begin before the tool continuation resumes; the contract is that the tool does not wait for it, not that it begins afterward.
+  The final tests capture the selected pair inside the actual following `ask_user` spy.
+  A mutation that fabricated a successful selected outcome while removing the wait failed the continuation and queued-admission assertions, independently of success wording.
+- Implementation found a late-registration disposal edge: a no-provider tool acknowledgement could settle before admission later opened a live selection gate.
+  `fix(pi-subagents): cancel late-registered selection on disposal (#17)` preserves that one-shot acknowledgement while cancelling the outstanding gate on disposal.
+  This was within the plan's explicit live-scope admission behavior, so it was fixed rather than deferred.
+- The first pre-completion review returned FAIL: a synchronous service caller with no selection waiter could already be running when a provider was registered, causing disposal to mistake its unobserved outcome for unfinished selection and newly abort the task.
+  The operator chose repair and re-review.
+  `fix(pi-subagents): preserve running task disposal after provider registration (#17)` settles the no-provider phase at preparation and adds both provider-at-spawn variants; the new no-provider regression failed before the fix, and an inverted disposal guard killed both variants afterward.
+  The late-registered live-gate regression remains green.
+- Review also identified a timed pending-state drain in the integration harness.
+  It was removed in favor of production promises, phase checkpoints, and the selection snapshot captured at parent continuation.
+  A child-start progress callback omission encountered during mutation work is the already-recorded [#18], not a new scope expansion.
+- Manual acceptance was operator-reported, not independently instrumented: after being asked to open a fresh Pi session from the repository root using the local core and selector, the operator reported that all three cases passed (pending selection holds the parent, confirmation releases it before child completion, and cancellation returns without child creation).
+  The current session's stale extension code was not used as evidence for the fix.
+  That report preceded the final disposal-only edge correction; no second interactive run is claimed.
+- Pre-completion reviewer: WARN after a fresh delta review of the final fix; the earlier blocking defect and timed-drain warning were cleared.
+  The reviewer independently reran all four root gates successfully.
+  Reviewer warnings: GitHub/vivify Mermaid preview remains unperformed; the changed class and execution diagrams rendered locally with `mmdc` using a temporary Chromium no-sandbox configuration, and the execution PNG was inspected.
+- All planned module-level files were updated; the public service, public snapshot shape, limiter, selection-scope ownership, foreground runner, and companion production code remained unchanged.
+  No roadmap completion mark applied, and `CHANGELOG.md` was not edited.
+
 [#18]: https://github.com/Jopqior/gotgenes-pi-packages/issues/18
