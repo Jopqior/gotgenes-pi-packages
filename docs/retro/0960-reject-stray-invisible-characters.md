@@ -59,3 +59,52 @@ The plan landed as `docs/plans/0960-reject-stray-invisible-characters.md` with n
   Trigger for extraction is a fifth script needing the pairwise shape.
 - `test/roadmap/roadmap-check.test.mjs`, `test/agent-docs/model-usage.test.mjs` — duplicated `mkdtempSync`/`rmSync` `beforeEach`/`afterEach` workspace fixtures.
   Would have become a third copy; the design sidesteps it by injecting `readFile` into `scanFiles` instead, following `measure(sha, run)`.
+
+## Stage: Implementation — TDD (2026-09-21T02:59:49Z)
+
+### Session summary
+
+All seven TDD steps landed in seven commits, adding `scripts/lint/invisible-characters.mjs` and its test, wiring the gate into `prek.toml`, `pnpm run lint`, `lint:fix`, and the `pi-autoformat` chain, repairing the two live U+200B sites, and refreshing four docs.
+The root suite went from 8 files / 130 tests to 9 files / 178 tests (+48).
+The pre-completion reviewer returned PASS.
+
+### Observations
+
+- **Three deviations from the plan, all disclosed in commit bodies.**
+  Step 3 was planned as `repairInvisibleCharacters` plus "the CLI's `--fix` branch", but the step's own killing mutation (`--fix` exiting 0 whenever it repaired something) needed a test, and root `test/` has no CLI-spawn harness by convention.
+  Extracted `run()` and `repairFiles()` so the composition and exit semantics are testable, leaving the CLI body a four-line shell; the reviewer judged the decomposition sound on ISP grounds.
+  Step 4 was retyped from the plan's `fix:` to `docs:` — the files are internal plan and retro documents, so nothing user-observable changes and `fix:` would have put "remove stray zero-width spaces" in a package changelog.
+  Step 2 required updating step 1's `toEqual` expectations to carry the new `suggestion` field, which the plan had anticipated as a consequence of adding a field to a produced object.
+- **Two mutations killed far more tests than the plan predicted, for a structural reason.**
+  Making the form feed repairable reddened 10 tests against a predicted 1, and returning a suggestion unconditionally reddened 15 against a predicted 1.
+  Both because `REPAIRABLE` and the suggestion's null path are shared with the classifier rather than local to the repair.
+  Treated as a pass, since the rule is that *fewer* reds than predicted is the finding.
+  The plan would have been more accurate had it noted which sets the classifier and the repair share.
+- **Step 5's verification was the most valuable one in the plan.**
+  Planting a form feed in a staged file showed the hook rejecting it, `pnpm run lint` exiting 1, and `git commit` blocked; removing the hook entry let the same byte reach a commit, reproducing #863's failure exactly.
+  That is a falsifying test of the gate rather than a happy path, and it also turned up a fact the plan did not have: `types = ["text"]` covers `.mjs` and `.toml`, which the existing `biome` hook's `types_or` does not, so `.mjs` files were previously outside the pre-commit formatter entirely.
+- **Step 6's mutation could not be run as written and was simulated instead.**
+  The plan already warned that the running Pi loaded `pi-autoformat`'s config at session start, so a live turn cannot exercise the chain change.
+  Ran the `.md` chain's commands in order instead, with and without the entry: `rumdl fmt` alone leaves a planted U+200B intact, and the entry prepended removes it.
+  That measures the claim without needing a restart.
+- **A three-way class split replaced the plan's two-way one during planning and paid off under review.**
+  U+200C/U+200D/U+2060 are detected but never repaired.
+  The reviewer verified this against a real family emoji ZWJ sequence: both joiners are reported, `--fix` leaves the byte sequence unchanged, and the command still exits 1.
+- **The `pi-subagents` release probe reports a pending `v21.7.3`, and it is not this issue's doing.**
+  `next-version.sh` compares `git-cliff`'s bumped version against the globally highest tag, and this worktree is 9 commits behind `origin/main`, which already carries `v21.7.4`.
+  Confirmed by running the probe in a scratch worktree at the plan commit, before any implementation step: it printed the same `pi-subagents-v21.7.3`.
+  `/sync-worktree` resolves it; the plan's "no package release is triggered" claim holds for this change.
+- **Filed [#964]** — the gate inspects file contents and never the path string, so an invisible character in a *filename* is undetected.
+  Surfaced by the reviewer, which probed start-of-file, end-of-file without a trailing newline, CRLF, a single-character file, an empty file, and a symlink, all of which are caught.
+  Not #960's symptom, which is corrupt content, so it was filed rather than folded in.
+  Measured 0 of 2007 tracked paths carry a non-ASCII or control character today, and `prek` ships a builtin `deny-filename-pattern` that may cover the pre-commit half as pure config.
+  `roadmap-fit` exited at its first step: `scope:repo` with no resolvable package, so there is no open phase to disposition against.
+- **Reviewer warnings:** one WARN, on evidence provenance.
+  The suggestion table's corpus counts (122 form feeds across 1764 transcripts; 65 `erence2`, 4 `erence6`, 51 with no residue) could not be independently re-derived cheaply, and the reviewer named both reasons precisely: a JSON transcript stores a raw form feed as the two-character escape `\f` rather than `\u000c`, so a naive scan under-counts, and the sessions written while working #960 discuss the literal strings `erence2`/`erence6` in prose, which over-counts in the other direction.
+  Both effects are real — the first is a bug I hit and fixed mid-sweep during planning.
+  The counts stand as reported from one organic sweep, not as verified, and the table only ever prints a suggestion.
+- **Re-derived numbers.**
+  The reviewer confirmed the suite delta (8/130 → 9/178) by running the baseline in a scratch worktree, and the 3-bytes-per-file doc repair by `wc -c`.
+  Its lint wall-clock differed in absolute terms (32.9 s → 34.4 s against my 27.0 s → 28.2 s) but the delta matched at ~1.2–1.5 s, so the machine differs and the scan cost does not.
+
+[#964]: https://github.com/gotgenes/pi-packages/issues/964
