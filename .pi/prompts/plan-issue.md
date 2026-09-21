@@ -181,6 +181,7 @@ Then an H1 title (e.g., `# <short descriptive title>`) — required by markdownl
 - **Problem Statement** — quote the issue's framing in your own words.
 - **Goals** — bullet list, scoped to this change.
 - **Non-Goals** — explicitly defer anything tangential (sibling issues, follow-ups).
+  A Non-Goal resting on a path being unreachable is a claim about the *current* bound — when the change moves that bound (a budget, a limit, a threshold), re-derive the reachability before writing it (Refs #864).
 - **Background** — relevant existing modules/functions and how they relate.
   Flag any constraint from AGENTS.md that applies.
 - **Design Overview** — decision model, data shapes, separation of concerns, edge cases.

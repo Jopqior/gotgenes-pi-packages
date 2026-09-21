@@ -91,3 +91,74 @@ The plan's `**Release:** ship independently` marker still applies — no roadmap
 
 Nothing deferred beyond what the plan's own Open Questions already name (an optional upstream `pi-tui` report, and the overflow-summary presentation at a 3-line budget).
 No follow-up issues were filed during implementation.
+
+## Stage: Final Retrospective (2026-09-21T17:54:18Z)
+
+### Session summary
+
+Shipped #864 through the worktree lane: fast-forward merged thirteen commits, verified CI, closed the issue, and released `pi-subagents` v21.7.5.
+The ship itself ran without a single correction or retry — thirty-four turns, every gate green on the first attempt.
+This entry synthesizes all four stages (planning, TDD, sync, ship), reading the peer session transcript for the three that ran outside this session.
+
+### Observations
+
+#### What went well
+
+- The planning spike is the strongest thing this issue produced.
+  It drove Pi's **real** `TuiMainScreen` against a fake `Terminal` with the real `AgentWidget` mounted, and the measured table (100 of 100 destructive redraws at 12 widget lines / 14 rows; 0 of 100 at 24 rows) did more than confirm the report — it **refuted the reporter's proposed change-gating** and redirected it to a timer-lifetime rule.
+  A theorized fix would have shipped the wrong mechanism.
+- The Red step was verified against a measured prediction rather than a guess.
+  `test/ui/widget-viewport.test.ts` failed at exactly the cells the spike measured (10 rows × 4 agents, 12 × 4, 14 × 6) and passed at 16, 18, 24, and 40 — so the test demonstrably would have caught the bug, not merely documented the fix.
+- The pre-completion reviewer's finding was **independently reproduced before being acted on**.
+  The implementing session wrote a throwaway probe (`test/probe.test.ts`, deleted immediately after) to confirm the `assembleOverflow` undercount rather than accepting the subagent's claim as a premise — exactly the posture `AGENTS.md` principle 2 asks for.
+- The tidy-first assessor's most valuable output was a **rejection**: it ruled that collapsing three timer-start triggers into one state check *is* the behavior change, not a preparation for it, which kept the `refactor:` mechanism extraction and the `fix:` rule change as separate commits.
+- Feedback loops ran incrementally throughout, not at the end.
+  Every step ran `vitest run` at Red and at Green, `pnpm run check` after Green, and its planned killing mutations before committing — with two mutations returning informative surprises (a fourth test killed where three were predicted; a `terminalHeight` mutation that killed only the integration cells, proving the two test layers discriminate different claims).
+
+#### What caused friction (agent side)
+
+- `instruction-violation` (self-identified, recurrent) — an em-dash written as a literal `\u2014` token in `Edit` bodies, in **both** peer sessions and under **both** models.
+  It landed as literal text in `test/ui/agent-widget.test.ts` (twice) and in the plan file, and caused one failed `Edit` in the sync stage where the `oldText` did not match the real character already in the file.
+  Both `markdown-conventions` § Non-ASCII in authored prose and the `AGENTS.md` addendum already carry this rule, and it was still violated.
+  Impact: roughly six extra tool calls across the peer sessions, including an `od -c` inspection to diagnose the failed match.
+  No content rework.
+- `instruction-violation` (self-identified) — the repair for those literals reached for `perl -CSD -pi` rather than a second `Edit`, and the first attempt (`s/AgentWidget \\\\u2014 the animation/…/`) was itself over-escaped and matched nothing.
+  `edit-tool` § Scripted substitutions already says a replacement containing backslashes is a trap and to use `Edit`; the skill does not name the *repair* case specifically, which is where both sessions went wrong.
+  Impact: one wasted `perl` invocation plus its verification grep.
+- `missing-context` (reviewer-caught) — the plan asserted "No change to `assembleOverflow`" on the strength of a reachability the change itself altered.
+  Lowering the line budget from a fixed 10 to a viewport-derived floor of 3 made a pre-existing queued-drop miscount reachable at ≤10 rows with an ordinary agent mix, where it previously needed five simultaneous running agents.
+  Impact: one extra `fix:` commit and two documentation commits at the end of TDD.
+  The pre-completion reviewer caught it before the land, so the designed safety net worked.
+- `other` (self-identified) — a commit body passed to `git commit -m` with literal `\n` sequences instead of separate `-m` arguments, landing the escape in the message.
+  Caught immediately with `git log -1 --format=%B | cat -A` and amended.
+  Impact: three tool calls, no rework.
+
+#### What caused friction (user side)
+
+- Nothing that cost time.
+  Two interventions materially improved the outcome:
+  - Asking "why not match Pi's own animation timer?"
+    at the cadence gate turned a picked number into a grounded one — the investigation found Pi's `Loader` default is *also* 80 ms but module-private, setter-only, and animating on the **opposite** duty cycle, which is a far better justification for choosing 250 ms than the original.
+  - Choosing to fix the `assembleOverflow` finding in-branch rather than defer it kept the fix where its reachability was created, and declining the offered "raise the budget floor to hide the path again" preserved the honest 3-line floor.
+- Opportunity, not criticism: the operator reviewed the `perf:` subject-line judgment call only because the implementing session surfaced it explicitly at handoff.
+  That surfacing is worth keeping as a habit — it converted a silent judgment into a reviewed one at zero cost.
+
+### Diagnostic details
+
+- **Model-performance correlation** — planning and TDD ran on `anthropic/claude-opus-5` (judgment-heavy: root-cause analysis, spike design, TDD sequencing); sync and ship ran on `anthropic/claude-sonnet-5` (procedural gate-and-merge work); this retrospective on `anthropic/claude-opus-5`.
+  All four subagent dispatches — the root-cause Explore, the tidy-first assessor, and both pre-completion review rounds — ran on `claude-sonnet-5`, attributed from their own task transcripts rather than their agent definitions.
+  No mismatch to flag: the sonnet-5 reviewer found the one substantive defect the opus-5 plan missed, and the sonnet-5 ship lane needed no judgment calls.
+- **Escalation-delay tracking** — no sequence exceeded five consecutive tool calls on the same error.
+  The longest same-target run was five edit-and-measure cycles on the planning spike, which was deliberate instrument refinement producing the measured table, not a rabbit hole.
+- **Feedback-loop gap analysis** — no gap.
+  Verification ran after every Red and every Green, killing mutations ran per step before each commit, and the full gate set (`check`, `lint`, `test`, `fallow dead-code`) ran after the last step and again at ship time on the merged tree.
+  The ship lane's own gates caught nothing because the peer's had already run — the redundancy cost about 26 seconds and remains correct, since the tip the root merged was rebased after the peer checked it.
+
+### Changes made
+
+1. `.pi/skills/edit-tool/SKILL.md` — added one sentence to § Scripted substitutions naming the repair case for a literal `\uXXXX` an edit body just wrote: re-edit with the character typed literally rather than reaching for a `perl` substitution carrying the same escape.
+   The surrounding backslash-escape trap was already documented; both peer sessions failed to recognize the repair as an instance of it.
+2. `.pi/prompts/plan-issue.md` — added one sentence to the Non-Goals bullet: a Non-Goal resting on a path being unreachable is a claim about the current bound, so re-derive the reachability when the change moves that bound.
+   Written against this issue's own falsified `assembleOverflow` prediction.
+
+Nothing was added to `AGENTS.md`: the em-dash rule already has two skill homes, and a third copy fails the admission test's second question.

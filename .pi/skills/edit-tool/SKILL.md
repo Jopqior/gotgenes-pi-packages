@@ -36,6 +36,7 @@ A touched `toMatchObject`/`objectContaining` site absorbs a wrong insertion and 
 Run the full package suite, not the files the rename's own grep matched — a mock *producer* spells the symbol as an object key (`externalPaths:`), which a call-site grep (`\.externalPaths\(`) never sees.
 A replacement containing backslashes is a trap even as a single-line rename — shell, perl, and the regex engine each consume an escape level.
 Use `Edit`.
+That includes repairing a literal `\uXXXX` an edit body just wrote: re-edit the region with the character typed literally, never a `perl` substitution whose pattern carries the same escape (Refs #864).
 A scripted symbol rename also rewrites the prose *around* the symbol, where the old signature's adjectives survive as contradictions ("the zero-arg `getRootPermissionsService()`").
 Grep the words that described the old shape (`zero-arg`, `takes no`, the old arity) after the script — no gate flags them.
 
