@@ -76,3 +76,18 @@ The widget's rendered height now derives from `tui.terminal.rows`, its animation
 - Pre-completion reviewer: **WARN** (round 1) → **WARN** (round 2, delta-scoped).
   Round 1's re-derivation confirmed the timer-stop claim (the one `Date.now()` in `renderFinishedLine` is unreachable, since `categorizeAgents` only routes agents that already have `completedAt`), `dispose()`'s #849 inertness, linger-aging independence from the timer, and the integration test's line-order fidelity against Pi's real mount order.
   Round 2 verified the fix's arithmetic, proved `+0 more ()` is unreachable, and reduced to a documentation finding — the stale plan prediction and a missing retro entry, both addressed here.
+
+## Stage: Sync (worktree) (2026-09-21T17:31:25Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both passed clean with no fixes needed before this note.
+The branch carries eleven commits over the plan: seven planned TDD steps plus one unplanned eighth (`fix(pi-subagents): count hidden queued agents in the widget overflow summary`, a pre-completion-reviewer finding fixed in-branch per the operator's choice) plus two documentation-only corrections closing the reviewer's round-2 WARN.
+The plan's `**Release:** ship independently` marker still applies — no roadmap step references #864, so nothing gates this on a batch.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-864--/2026-09-20T22-29-02-289Z_01a0c0ef-e4d1-71e3-8faa-17061c81cebf.jsonl` — read with `read_session_file({ path: "..." })` for message-level verification at land/retro time.
+
+### Observations
+
+Nothing deferred beyond what the plan's own Open Questions already name (an optional upstream `pi-tui` report, and the overflow-summary presentation at a 3-line budget).
+No follow-up issues were filed during implementation.
