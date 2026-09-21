@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v3.0.0...pi-subagents-v4.0.0) (2026-09-21)
+
+
+### Features
+
+* **pi-subagents:** **breaking:** show pending foreground model selection ([#18](https://github.com/Jopqior/gotgenes-pi-packages/issues/18)) ([1bafd71](https://github.com/Jopqior/gotgenes-pi-packages/commit/1bafd719aa4e316d07a299655c2743fda4f91435))
+
 ## [3.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v2.0.0...pi-subagents-v3.0.0) (2026-09-21)
 
 
