@@ -58,3 +58,18 @@ The package suite increased from 1953 to 1956 tests; root checks, lint, tests, a
   The reviewer independently checked source and ran all four root gates, but its filesystem scope prevented reading the historical mutation logs outside the repository.
 - All planned implementation steps are complete.
   The next step on this issue branch is `/sync-worktree 18`, followed by `/ship 18` from the root session; publishing still requires explicit release-destination approval.
+
+## Stage: Implementation — TDD follow-up (2026-09-21T07:17:00Z)
+
+### Session summary
+
+At the operator's request, a new implementation subagent addressed the observer-order warning in `test(pi-subagents): pin admission observer callback order (#18)`.
+The existing admission test now asserts a shared `manager` then `spawn` event sequence while retaining delivery-count and record-identity assertions; production code and test counts are unchanged.
+
+### Observations
+
+- The implementing agent temporarily swapped the production callback order and observed the new assertion fail with the reversed sequence, then restored the production file before verification and commit.
+- An independent delta review returned PASS and reran root check, lint, tests, and dead-code analysis sequentially with all checks passing.
+  Lint again used `NODE_OPTIONS=--max-old-space-size=6144`.
+- The callback-order warning is resolved.
+  Historical mutation logs outside the repository remain outside the reviewer's inspection scope; its PASS rests on independent source inspection and current checks, not a claim to have witnessed those historical runs.
