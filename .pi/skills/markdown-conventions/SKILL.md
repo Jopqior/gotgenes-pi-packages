@@ -41,8 +41,10 @@ After writing prose, re-read the region and scan it with `rg -n --multiline ' \n
 Prefer a colon, semicolon, or parentheses when the sentence allows it (Refs #814, #933).
 
 It can also arrive as an invisible `\x0c` form feed plus literal text: `erence2` for an em-dash, `erence6` for an ellipsis.
-Replacing the visible text leaves the byte behind, so the confirming grep passes on a still-corrupt file — verify with `git grep -lI $'\x0c'` instead (Refs #863).
-This form reaches source files as readily as markdown, and comment text is its blind spot: Biome flags a form feed in code position but not inside a comment, while `tsc` and `rumdl` accept it anywhere.
+The corruption is upstream of every tool here — measured across 1764 session transcripts, 62 of 122 occurrences sit in plain assistant prose with no tool call involved, so `Edit` writes faithfully what the model already emitted (Refs #863, #960).
+Replacing the visible text leaves the byte behind, so a grep for `erence2` passes on a still-corrupt file.
+A pre-commit hook and `pnpm run lint` now reject it, so you no longer have to remember to look; run `node scripts/lint/invisible-characters.mjs` to check on demand, and `--fix` to delete the zero-width characters it can repair.
+A form feed it will not repair for you: deleting the byte alone strands the `erence2`, so replace the whole token.
 To avoid emitting the character at all, write a placeholder and substitute it in a scripted pass — `@PH@`, then `s.replace('@PH@', '\u2014')`.
 
 ### Code fences
