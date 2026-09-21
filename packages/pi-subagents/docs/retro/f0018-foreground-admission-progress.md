@@ -175,3 +175,7 @@ This retrospective preserves those outcomes and proposes a bounded TDD validatio
 
 1. Appended this cross-session retrospective to `packages/pi-subagents/docs/retro/f0018-foreground-admission-progress.md`, preserving all prior stage entries and recording the operator's notes-only decision.
 2. Left `AGENTS.md`, prompts, skills, production code, tests, and `CHANGELOG.md` unchanged; no follow-up issue was filed.
+3. After the initial retrospective commit, the operator rejected distributing machine-resource settings across workflow prose and explicitly approved project-level configuration instead.
+   Added `nodeOptions: "--max-old-space-size=8192"` to `pnpm-workspace.yaml`; existing prompt prefixes remain unchanged.
+   Verification with inherited `NODE_OPTIONS` removed passed: `pnpm run lint` completed successfully, and `pnpm exec node` reported the configured environment value and an 8384 MiB V8 heap limit.
+   The configured old-space limit is not a total-process or aggregate concurrency budget.

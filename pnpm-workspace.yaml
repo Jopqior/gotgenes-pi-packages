@@ -8,6 +8,8 @@ packages:
 # with the workspace: protocol.
 linkWorkspacePackages: false
 
+nodeOptions: "--max-old-space-size=8192"
+
 # Centralize version management across all packages.
 # In each package.json, use "catalog:" as the version specifier
 # to pull from here (e.g. "vitest": "catalog:").
