@@ -87,3 +87,20 @@ The issue branch is checked out in the root checkout rather than a separate peer
 
 - This is a synchronization breadcrumb only; final `/retro 18` runs at the root after `/ship 18`.
 - No branch push, issue closure, or release is performed in this stage.
+
+## Stage: Ship (2026-09-21T07:56:53Z)
+
+### Session summary
+
+Fast-forwarded `issue-18-plan-foreground-admission-progress` into root `main` from `993d01cab49d8045d279962d8e39b4decc723f95`.
+Root lint with an 8192 MiB Node heap and dead-code analysis passed on the landed tree.
+Push, CI verification, issue closure, and release verification follow this checkpoint.
+
+### Observations
+
+- The operator explicitly authorized publishing `@jopqior/pi-subagents` to npmjs.org and creating the corresponding tag and GitHub Release in `Jopqior/gotgenes-pi-packages`.
+  The plan recommends independent release and the implementation carries the planned breaking-change marker.
+- The landed range touches only `pi-subagents` plus the repository test-timeout adjustment; no co-shipped issue or adopted PR is identified in its commits, plan, or retro.
+- Lane detection found an issue branch, but `git worktree list` contains only the root checkout.
+  After successful release verification, delete the merged branch without attempting to remove a nonexistent peer directory.
+- Final interactive retrospective remains `/retro 18` at the root on `main`.
