@@ -100,3 +100,22 @@ The plan recommends `ship independently` for the breaking core change, with publ
 - The feature branch is checked out in the root directory rather than a separate linked worktree; synchronization leaves `main` untouched and does not push.
 - The implementation-stage warning about the unperformed GitHub/vivify Mermaid preview remains recorded above.
 - Final `/retro 17` is deferred to the root after `/ship 17`; this entry is only the sync breadcrumb.
+
+## Stage: Ship (2026-09-21T05:24:21Z)
+
+### Session summary
+
+Fast-forwarded the implementation branch onto root `main`, pushed it, and closed issue #17 after CI passed.
+The operator explicitly approved publishing `@jopqior/pi-subagents` to npmjs.org through this fork and approved the issue-close comment.
+Release run [35564374563](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/35564374563) succeeded for `pi-subagents-v3.0.0`; the release commit and tag were pulled locally.
+
+### Observations
+
+- Root lint passed with `NODE_OPTIONS=--max-old-space-size=8192`, and dead-code analysis reported no issues on the merged implementation.
+  CI run [35564081158](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/35564081158) passed before closing the issue and dispatching the release.
+- The release candidate scan found only `pi-subagents`; no companion release or additional issue/PR closure applied.
+  Foreground progress follow-up [#18] remains separate, and this change does not complete a roadmap phase.
+- Lane detection found the implementation branch, but `git worktree list` showed only the root checkout on `main`.
+  No linked worktree existed to remove, so the worktree-removal script was skipped and the merged branch was safely deleted with `git branch -d`.
+- The implementation-stage Mermaid preview warning remains unchanged.
+  The deliberate final retrospective is `/retro 17` at the root.
