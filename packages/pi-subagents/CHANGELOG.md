@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v2.0.0...pi-subagents-v3.0.0) (2026-09-21)
+
+
+### Features
+
+* **pi-subagents:** **breaking:** wait for model selection before returning background spawns ([#17](https://github.com/Jopqior/gotgenes-pi-packages/issues/17)) ([b60a1a1](https://github.com/Jopqior/gotgenes-pi-packages/commit/b60a1a1813b201dfddbb2e7a90a5e3b894d01901))
+
+### Bug Fixes
+
+* **pi-subagents:** cancel late-registered selection on disposal ([#17](https://github.com/Jopqior/gotgenes-pi-packages/issues/17)) ([f094df0](https://github.com/Jopqior/gotgenes-pi-packages/commit/f094df04a45c6dc437455eee795dd333f54f0265))
+* **pi-subagents:** preserve running task disposal after provider registration ([#17](https://github.com/Jopqior/gotgenes-pi-packages/issues/17)) ([b6599e3](https://github.com/Jopqior/gotgenes-pi-packages/commit/b6599e30f9dce3f60d445043f232219eb40e47f5))
+
+### Documentation
+
+* **pi-subagents:** explain startup selection waiting and limits ([#17](https://github.com/Jopqior/gotgenes-pi-packages/issues/17)) ([7aae933](https://github.com/Jopqior/gotgenes-pi-packages/commit/7aae9332a3b7198155f461f2f7d40aee539f0a50))
+
 ## [2.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v1.0.2...pi-subagents-v2.0.0) (2026-09-19)
 
 
