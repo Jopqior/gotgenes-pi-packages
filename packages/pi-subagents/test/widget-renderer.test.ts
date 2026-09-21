@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { Theme } from "#src/ui/display";
 import type { WidgetAgent } from "#src/ui/widget-renderer";
-import { renderFinishedLine, renderRunningLines, renderWidgetLines } from "#src/ui/widget-renderer";
+import {
+	renderFinishedLine,
+	renderRunningLines,
+	renderWidgetLines,
+	widgetLineBudget,
+} from "#src/ui/widget-renderer";
 
 /** Minimal theme stub — wraps text with markup tags for assertion. */
 function stubTheme(): Theme {
@@ -46,6 +51,7 @@ function callRenderWidgetLines(overrides: Partial<RenderWidgetLinesParams> = {})
 		registry: testRegistry,
 		spinnerFrame: 0,
 		terminalWidth: 200,
+		terminalHeight: 40,
 		theme: stubTheme(),
 		shouldShowFinished: () => true,
 		...overrides,
@@ -232,6 +238,26 @@ describe("renderRunningLines", () => {
 	});
 });
 
+describe("widgetLineBudget", () => {
+	// Pi's differential renderer full-clears the screen when the first changed
+	// line sits above the viewport, so the widget's own height has to leave the
+	// dock below it room inside the terminal (#864).
+	it.each([
+		{ rows: 6, budget: 3 },
+		{ rows: 7, budget: 3 },
+		{ rows: 9, budget: 3 },
+		{ rows: 10, budget: 4 },
+		{ rows: 12, budget: 6 },
+		{ rows: 14, budget: 8 },
+		{ rows: 16, budget: 10 },
+		{ rows: 18, budget: 12 },
+		{ rows: 24, budget: 12 },
+		{ rows: 60, budget: 12 },
+	])("allows $budget lines in a $rows-row terminal", ({ rows, budget }) => {
+		expect(widgetLineBudget(rows)).toBe(budget);
+	});
+});
+
 describe("renderWidgetLines", () => {
 
 	it("renders a single running agent with heading and tree connectors", () => {
@@ -311,6 +337,22 @@ describe("renderWidgetLines", () => {
 		expect(lastLine).toContain("+2 more");
 		expect(lastLine).toContain("1 running");
 		expect(lastLine).toContain("1 finished");
+	});
+
+	it("collapses to the overflow summary when the terminal is too short", () => {
+		// 6 running agents = 12 body lines. A 14-row terminal budgets 8 lines,
+		// so maxBody is 7 and the overflow summary takes one of them: 3 pairs fit.
+		const agents: WidgetAgent[] = [];
+		for (let i = 0; i < 6; i++) {
+			agents.push(makeAgent({ id: `r${i}`, status: "running", completedAt: undefined }));
+		}
+
+		const lines = callRenderWidgetLines({ agents, terminalHeight: 14 });
+
+		// heading(1) + 3 running*2(6) + overflow(1) = 8
+		expect(lines).toHaveLength(8);
+		expect(lines[lines.length - 1]).toContain("+3 more");
+		expect(lines[lines.length - 1]).toContain("3 running");
 	});
 
 	it("returns empty array when no agents to show", () => {

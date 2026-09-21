@@ -52,7 +52,7 @@ export function assembleWidgetState(
 
 /** The slice of the TUI the widget factory callback touches. */
 export interface TuiSurface {
-  readonly terminal: { readonly columns: number };
+  readonly terminal: { readonly columns: number; readonly rows: number };
   requestRender(): void;
 }
 
@@ -227,6 +227,7 @@ export class AgentWidget implements SubagentManagerObserver {
       registry: this.registry,
       spinnerFrame: this.widgetFrame,
       terminalWidth: tui.terminal.columns,
+      terminalHeight: tui.terminal.rows,
       theme,
       shouldShowFinished: (id, status) => this.shouldShowFinished(id, status),
     });

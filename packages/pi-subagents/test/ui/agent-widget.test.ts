@@ -21,8 +21,11 @@ const alwaysShow = () => true;
 const neverShow = () => false;
 
 /** The slice of the TUI the widget factory callback reads. */
-function stubTui(overrides: { columns?: number } = {}) {
-	return { terminal: { columns: overrides.columns ?? 200 }, requestRender: () => {} };
+function stubTui(overrides: { columns?: number; rows?: number } = {}) {
+	return {
+		terminal: { columns: overrides.columns ?? 200, rows: overrides.rows ?? 40 },
+		requestRender: () => {},
+	};
 }
 
 /** Identity theme — every helper returns its text unchanged, so assertions read plainly. */
