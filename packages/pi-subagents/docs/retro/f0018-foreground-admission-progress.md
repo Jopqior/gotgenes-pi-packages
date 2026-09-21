@@ -104,3 +104,74 @@ Push, CI verification, issue closure, and release verification follow this check
 - Lane detection found an issue branch, but `git worktree list` contains only the root checkout.
   After successful release verification, delete the merged branch without attempting to remove a nonexistent peer directory.
 - Final interactive retrospective remains `/retro 18` at the root on `main`.
+
+## Stage: Final Retrospective (2026-09-21T08:13:16Z)
+
+### Session summary
+
+Reviewed the planning, implementation, follow-up, synchronization, and shipping transcripts, including the child sessions rather than only their reports.
+The foreground admission repair and observer-order follow-up landed, and the shipping transcript records successful CI, release, issue closure, and branch cleanup.
+This retrospective preserves those outcomes and proposes a bounded TDD validation adjustment without reopening production work.
+
+### Observations
+
+#### What went well
+
+- Reusing the real-manager boundary harness from fork issue #17 exposed the connection that mock-driven foreground tests bypassed.
+  The implementation transcript records missing-callback Red, restored forwarding Green, and separate mutations for presentation, waiting, consumption, and spinner cleanup.
+- Independent review distinguished correct production ordering from missing regression protection, and the operator-approved follow-up added a shared event sequence in `test(pi-subagents): pin admission observer callback order (#18)`.
+  Swapping the callbacks then failed the assertion without changing the shipped production behavior.
+
+#### What caused friction (agent side)
+
+- `other` — Root validation commands did not carry the resource settings already used by `/sync-worktree` and `/ship`.
+  The implementation child ran plain lint twice before using a larger heap, then repeated concurrent root gates at final verification despite the baseline resource failures.
+  Impact: failed lint reruns, an isolated test rerun, and another full test run; serial success supports a load-sensitivity hypothesis but does not prove that concurrency was the only cause.
+  The separately committed timeout adjustment addressed a different test that also failed in isolation.
+- `missing-context` — The plan preserved manager-before-spawn ordering but its mutation list did not include swapping those callbacks, and the initial tests recorded them in separate arrays.
+  Impact: an additional test commit and independent delta review after the first review returned WARN.
+  This was reviewer-caught; the operator chose to address it after asking what the callbacks meant and why order mattered.
+- `instruction-violation` — The implementation child omitted the producer's `twin` tag from the initial exact pending-tags expectation despite the TDD instruction to copy producer output.
+  Impact: one expectation correction and targeted rerun after the forwarding fix.
+  Self-identified during implementation.
+- `instruction-violation` — The implementation parent delegated before loading the package and TDD skills inline; its child loaded them, but that did not satisfy the parent's inline-loading instruction.
+  The child also used `sed` to read source despite the `read` requirement.
+  Impact: weaker instruction visibility and nonstandard inspection, with no specific code rework attributable to either breach.
+  Self-identified in this retrospective, not caught during execution or by the operator.
+- `other` — The spinner mutation initially changed a comment instead of deleting the target statement; the child inspected the diff and corrected it before running the mutation test.
+  Impact: an extra edit and inspection, without false-green evidence being accepted.
+- `other` — Historical mutation logs were kept in `/tmp`, outside the reviewer's allowed filesystem scope.
+  Impact: the reviewer could independently inspect current code and run gates but could not attest to those historical results; the parent also resumed it once to obtain the required `Overall: WARN` line.
+
+#### What caused friction (user side)
+
+- The first WARN summary named two observers without explaining their responsibilities or the practical consequence of their order, requiring an explanatory exchange before the operator could decide.
+  Opportunity: the agent should lead with “manager lifecycle notification, then this invocation's record capture” and distinguish a missing test pin from a current bug.
+  No missing operator context caused the defect; release approval remained an appropriate strategic decision rather than mechanical oversight.
+
+### Diagnostic details
+
+- Model-performance correlation: the implementation child ran on `zai-coding-cn/glm-5.3-flash`; the Tidy-First assessor, initial reviewer, callback-order follow-up implementer, and delta reviewer ran on `openai-codex/gpt-6-astra`, as shown by their own transcript turn labels.
+  The implementation child completed the planned mutations but needed local corrections for tags and the spinner edit, while independent review found the order pin the plan also omitted.
+  This is insufficient evidence for a blanket model restriction or a cost comparison; retain bounded implementation delegation with independent judgment review.
+- Feedback-loop gap analysis: verification was incremental, not deferred until completion: baseline, targeted Red/Green, mutations, package gates, and independent root gates all appear in the transcripts.
+  The actionable gap was concurrent root verification and inconsistent lint heap settings, not missing checks.
+- Unused-tool detection: the implementation child spent five consecutive shell calls locating `AgentToolResult` through guessed SDK declaration paths before moving on.
+  The available path search could have located the declaration without repeated guesses; this bounded detour did not exceed the escalation threshold.
+  Existing exploration and source-reading instructions already address it, so no additional rule is proposed.
+
+### Evidence and scope
+
+- Parent transcripts reviewed under `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/`: planning `2026-09-21T05-53-00-145Z_01a0c286-5af0-731b-9054-267c6a6ec308.jsonl`, implementation `2026-09-21T06-18-13-459Z_01a0c29d-7252-7260-abf8-5262765b32c1.jsonl`, synchronization `2026-09-21T07-46-57-883Z_01a0c2ee-b0da-74b9-b662-039f0b804a3f.jsonl`, and shipping `2026-09-21T07-52-37-900Z_01a0c2f3-e10b-77cf-abcd-b0d8a321adb6.jsonl`.
+  Child transcripts were located with `list_subagent_sessions` and read with `read_session_file`; this retrospective did not rerun historical mutations.
+- Proposed adjustment: make baseline and final TDD root gates sequential and use the existing ship/sync lint heap command in `.pi/prompts/tdd-plan.md`.
+  The operator selected notes only in `ask_user`; this proposal is not implemented or scheduled.
+- Declined additions: another generic mutation rule, a global model policy, wider reviewer filesystem access, and blanket test-timeout changes.
+  Existing rules cover the first; the other changes need evidence or authorization beyond this retrospective.
+- The plan names no roadmap successor for fork issue #18, and the current fork open-issue query returned none.
+  The newest triage, `docs/triage/2026-09-18-backlog.md`, ranks upstream work rather than an authorized fork queue; no upstream item is promoted automatically.
+
+### Changes made
+
+1. Appended this cross-session retrospective to `packages/pi-subagents/docs/retro/f0018-foreground-admission-progress.md`, preserving all prior stage entries and recording the operator's notes-only decision.
+2. Left `AGENTS.md`, prompts, skills, production code, tests, and `CHANGELOG.md` unchanged; no follow-up issue was filed.
