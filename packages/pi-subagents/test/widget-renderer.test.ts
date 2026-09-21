@@ -34,6 +34,24 @@ function makeAgent(overrides: Partial<WidgetAgent> = {}): WidgetAgent {
 	};
 }
 
+type RenderWidgetLinesParams = Parameters<typeof renderWidgetLines>[0];
+
+/**
+ * Call `renderWidgetLines` with the defaults every case shares, overriding only
+ * what the case is about. One place to teach a new parameter.
+ */
+function callRenderWidgetLines(overrides: Partial<RenderWidgetLinesParams> = {}): string[] {
+	return renderWidgetLines({
+		agents: [],
+		registry: testRegistry,
+		spinnerFrame: 0,
+		terminalWidth: 200,
+		theme: stubTheme(),
+		shouldShowFinished: () => true,
+		...overrides,
+	});
+}
+
 describe("renderFinishedLine", () => {
 	const theme = stubTheme();
 
@@ -215,19 +233,11 @@ describe("renderRunningLines", () => {
 });
 
 describe("renderWidgetLines", () => {
-	const theme = stubTheme();
 
 	it("renders a single running agent with heading and tree connectors", () => {
 		const agent = makeAgent({ status: "running", completedAt: undefined, turnCount: 1 });
 
-		const lines = renderWidgetLines({
-			agents: [agent],
-			registry: testRegistry,
-			spinnerFrame: 0,
-			terminalWidth: 200,
-			theme,
-			shouldShowFinished: () => true,
-		});
+		const lines = callRenderWidgetLines({ agents: [agent] });
 
 		// Heading with active indicator
 		expect(lines[0]).toContain("●");
@@ -247,14 +257,7 @@ describe("renderWidgetLines", () => {
 		const finished = makeAgent({ id: "f1", status: "completed", completedAt: 6000, turnCount: 5 });
 		const queued = makeAgent({ id: "q1", status: "queued", completedAt: undefined });
 
-		const lines = renderWidgetLines({
-			agents: [running, finished, queued],
-			registry: testRegistry,
-			spinnerFrame: 0,
-			terminalWidth: 200,
-			theme,
-			shouldShowFinished: () => true,
-		});
+		const lines = callRenderWidgetLines({ agents: [running, finished, queued] });
 
 		// Heading (active because running+queued exist)
 		expect(lines[0]).toContain("[accent:\u25cf]");
@@ -275,12 +278,8 @@ describe("renderWidgetLines", () => {
 		const finished1 = makeAgent({ id: "f1", status: "completed", completedAt: 6000 });
 		const finished2 = makeAgent({ id: "f2", status: "error", completedAt: 6000 });
 
-		const lines = renderWidgetLines({
+		const lines = callRenderWidgetLines({
 			agents: [finished1, finished2],
-			registry: testRegistry,
-			spinnerFrame: 0,
-			terminalWidth: 200,
-			theme,
 			// Only show f1, filter out f2
 			shouldShowFinished: (id) => id === "f1",
 		});
@@ -303,14 +302,7 @@ describe("renderWidgetLines", () => {
 		// Add a finished agent — should be hidden since running takes priority
 		agents.push(makeAgent({ id: "f1", status: "completed", completedAt: 6000 }));
 
-		const lines = renderWidgetLines({
-			agents,
-			registry: testRegistry,
-			spinnerFrame: 0,
-			terminalWidth: 200,
-			theme,
-			shouldShowFinished: () => true,
-		});
+		const lines = callRenderWidgetLines({ agents });
 
 		// heading(1) + 5 running*2(10) + overflow(1) = 12
 		expect(lines).toHaveLength(12);
@@ -322,14 +314,7 @@ describe("renderWidgetLines", () => {
 	});
 
 	it("returns empty array when no agents to show", () => {
-		const lines = renderWidgetLines({
-			agents: [],
-			registry: testRegistry,
-			spinnerFrame: 0,
-			terminalWidth: 200,
-			theme,
-			shouldShowFinished: () => true,
-		});
+		const lines = callRenderWidgetLines();
 
 		expect(lines).toEqual([]);
 	});
@@ -337,14 +322,7 @@ describe("renderWidgetLines", () => {
 	it("returns empty when all finished agents are filtered out", () => {
 		const agent = makeAgent({ status: "completed", completedAt: 6000 });
 
-		const lines = renderWidgetLines({
-			agents: [agent],
-			registry: testRegistry,
-			spinnerFrame: 0,
-			terminalWidth: 200,
-			theme,
-			shouldShowFinished: () => false,
-		});
+		const lines = callRenderWidgetLines({ agents: [agent], shouldShowFinished: () => false });
 
 		expect(lines).toEqual([]);
 	});
@@ -352,14 +330,7 @@ describe("renderWidgetLines", () => {
 	it("uses dim heading when only finished agents are visible", () => {
 		const agent = makeAgent({ status: "completed", completedAt: 6000 });
 
-		const lines = renderWidgetLines({
-			agents: [agent],
-			registry: testRegistry,
-			spinnerFrame: 0,
-			terminalWidth: 200,
-			theme,
-			shouldShowFinished: () => true,
-		});
+		const lines = callRenderWidgetLines({ agents: [agent] });
 
 		// Dim heading with open circle
 		expect(lines[0]).toContain("[dim:\u25cb]");
