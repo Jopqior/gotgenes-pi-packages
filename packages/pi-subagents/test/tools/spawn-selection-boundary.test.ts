@@ -10,6 +10,7 @@
  * selection is pending, and after confirmation the parent continues without
  * waiting for any child work.
  */
+import type { AgentToolResult } from "@earendil-works/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import { ConcurrencyLimiter } from "#src/lifecycle/concurrency-limiter";
@@ -21,6 +22,7 @@ import type { Workspace, WorkspacePrepareContext } from "#src/lifecycle/workspac
 import type { SpawnSelection, SpawnSelectionRequest } from "#src/service/service";
 import type { ModelRegistry } from "#src/session/model-resolver";
 import { AgentTool, type AgentToolRuntime } from "#src/tools/agent-tool";
+import { type AgentDetails, PENDING_SELECTION_ACTIVITY } from "#src/ui/display";
 import { makeModel } from "#test/helpers/make-model";
 import { makeWorkspace } from "#test/helpers/make-workspace";
 import { createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
@@ -449,12 +451,27 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 		it("returns the child's outcome only after the whole run completes", async () => {
 			const world = makeWorld({ withProvider: true });
 			let toolReturned = false;
+			// The caller requests a valid model different from the parent and an
+			// explicit thinking level, plus an unrelated presentation tag: while
+			// selection is pending the streamed details must withhold the
+			// unresolved request without touching the rest of the presentation.
+			const updates: AgentToolResult<AgentDetails>[] = [];
+			const onUpdate = vi.fn((update: AgentToolResult<AgentDetails>) => {
+				updates.push(update);
+			});
 			const pending = world.tool
 				.execute(
 					"tc-1",
-					{ prompt: "child work", description: "fg task", subagent_type: "general-purpose" },
+					{
+						prompt: "child work",
+						description: "fg task",
+						subagent_type: "general-purpose",
+						model: "opus",
+						thinking: "high",
+						inherit_context: true,
+					},
 					undefined,
-					undefined,
+					onUpdate,
 					STUB_CTX,
 				)
 				.then((result) => {
@@ -468,11 +485,31 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			expect(world.provider!.select).toHaveBeenCalledTimes(1);
 			expect(toolReturned).toBe(false);
 
+			// updates[0] is the initial pre-spawn placeholder; every spinner
+			// update after it must present the pending selection and mask the
+			// caller's unresolved model/thinking, keeping the mode label and the
+			// unrelated "inherit context" tag.
+			await settleBound(() => updates.length >= 2, "a pending-selection streamed update");
+			for (const update of updates.slice(1)) {
+				expect(update.details.activity).toBe(PENDING_SELECTION_ACTIVITY);
+				expect(update.details.modelName).toBeUndefined();
+				expect(update.details.tags).toEqual(["twin", "inherit context"]);
+			}
+
 			world.provider!.resolveAt(0, selectedPair(world));
 			// Selection has settled, but the foreground return sits behind the
 			// whole-run wait — downstream of the factory and task gates, both
 			// test-held — so the flag must still be down.
 			expect(toolReturned).toBe(false);
+
+			// The confirmed pair reaches the streamed details before the session
+			// exists: the record's factory gate is still this test's to release.
+			await settleBound(() => {
+				const latest = updates.at(-1);
+				return latest?.details.modelName === "opus"
+					&& latest.details.tags?.includes("thinking: off") === true;
+			}, "a selected-pair streamed update");
+			expect(mainRecord(world).isSessionReady()).toBe(false);
 
 			await settleBound(() => world.factoryGates.length >= 1, "the foreground record's factory gate");
 			world.releaseFactory(0);
@@ -488,6 +525,13 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			const record = mainRecord(world);
 			expect(record.status).toBe("completed");
 			expect(record.selectedPair?.model.id).toBe("opus");
+
+			// The foreground return is the delivery edge — the record is consumed
+			// and the spinner is gone: a further bounded interval emits nothing.
+			expect(record.consumed).toBe(true);
+			const updatesAtReturn = updates.length;
+			await new Promise((resolve) => { setTimeout(resolve, 250); });
+			expect(updates.length).toBe(updatesAtReturn);
 		});
 	});
 

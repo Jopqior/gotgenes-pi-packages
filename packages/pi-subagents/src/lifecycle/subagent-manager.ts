@@ -261,6 +261,7 @@ export class SubagentManager {
     return {
       onStarted: (agent) => {
         this.observer?.onSubagentStarted(agent);
+        options.observer?.onStarted?.(agent);
       },
       onSessionCreated: options.observer?.onSessionCreated
         ? (agent) => options.observer!.onSessionCreated!(agent)

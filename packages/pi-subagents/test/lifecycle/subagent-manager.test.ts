@@ -751,6 +751,69 @@ describe("SubagentManager", () => {
       });
     });
 
+    describe("per-spawn admission forwarding", () => {
+      let manager: SubagentManager;
+
+      afterEach(async () => {
+        await manager.dispose();
+      });
+
+      it("delivers onStarted once to each of the manager observer and the spawn observer", async () => {
+        const fromManager: Subagent[] = [];
+        const fromSpawn: Subagent[] = [];
+        ({ manager } = createManager({
+          observer: { onSubagentStarted: (r) => { fromManager.push(r); } },
+        }));
+
+        const id = manager.spawn(STUB_SNAPSHOT, "general-purpose", "test", {
+          description: "admission",
+          background: { kind: "explicit", isBackground: true },
+          observer: { onStarted: (agent) => { fromSpawn.push(agent); } },
+        });
+        await manager.getRecord(id)!.promise;
+
+        const record = manager.getRecord(id);
+        expect(fromManager).toHaveLength(1);
+        expect(fromManager[0]).toBe(record);
+        expect(fromSpawn).toHaveLength(1);
+        expect(fromSpawn[0]).toBe(record);
+      });
+
+      it("delivers onStarted to the spawn observer of a foreground agent", async () => {
+        const fromSpawn: Subagent[] = [];
+        ({ manager } = createManager());
+
+        const record = await manager.spawnAndWait(STUB_SNAPSHOT, "general-purpose", "test", {
+          description: "fg admission",
+          observer: { onStarted: (agent) => { fromSpawn.push(agent); } },
+        });
+
+        expect(fromSpawn).toHaveLength(1);
+        expect(fromSpawn[0]).toBe(record);
+      });
+
+      it("withholds a queued record's onStarted until the limiter admits it", async () => {
+        const fromSpawn: Subagent[] = [];
+        ({ manager } = createManager({ getMaxConcurrent: () => 1 }));
+
+        // The first spawn fills the only slot: its run is parked inside the
+        // factory await before the second spawn in the same tick queues up.
+        const first = spawnBg(manager, "first");
+        const second = manager.spawn(STUB_SNAPSHOT, "general-purpose", "second", {
+          description: "second",
+          background: { kind: "explicit", isBackground: true },
+          observer: { onStarted: (agent) => { fromSpawn.push(agent); } },
+        });
+        expect(manager.getRecord(second)!.status).toBe("queued");
+        expect(fromSpawn).toHaveLength(0);
+
+        await manager.waitForAll();
+        expect(manager.getRecord(first)!.status).toBe("completed");
+        expect(fromSpawn).toHaveLength(1);
+        expect(fromSpawn[0]).toBe(manager.getRecord(second));
+      });
+    });
+
     describe("toolCallId notification wiring", () => {
       let manager: SubagentManager;
 
