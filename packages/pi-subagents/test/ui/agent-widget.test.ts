@@ -20,6 +20,16 @@ function makeAgent(overrides: { id?: string; status?: string; completedAt?: numb
 const alwaysShow = () => true;
 const neverShow = () => false;
 
+/** The slice of the TUI the widget factory callback reads. */
+function stubTui(overrides: { columns?: number } = {}) {
+	return { terminal: { columns: overrides.columns ?? 200 }, requestRender: () => {} };
+}
+
+/** Identity theme — every helper returns its text unchanged, so assertions read plainly. */
+function stubTheme() {
+	return { fg: (_: string, t: string) => t, bold: (t: string) => t };
+}
+
 // Build a widget over a manager stub whose listAgents() returns a fixed list,
 // plus a recording UICtx. Both `setWidget` and `setStatus` are spies, so a test
 // can assert the key as well as the value; `lastContent()` reads the `content`
@@ -231,9 +241,7 @@ describe("AgentWidget — projection reads activity off Subagent records", () =>
 		widget.update();
 
 		expect(renderFn).toBeDefined();
-		const stubTui = { terminal: { columns: 200 }, requestRender: () => {} };
-		const stubTheme = { fg: (_: string, t: string) => t, bold: (t: string) => t };
-		const lines = renderFn!(stubTui, stubTheme).render();
+		const lines = renderFn!(stubTui(), stubTheme()).render();
 		const allText = lines.join("\n");
 		// Turn 3 from the record should appear
 		expect(allText).toContain("↻3");
@@ -351,11 +359,7 @@ describe("AgentWidget — background-only filtering", () => {
 		};
 		widget.setUICtx(ui);
 		const lastContent = () => setWidgetCalls.at(-1);
-		const renderLines = () => {
-			const stubTui = { terminal: { columns: 200 }, requestRender: () => {} };
-			const stubTheme = { fg: (_: string, t: string) => t, bold: (t: string) => t };
-			return renderFn!(stubTui, stubTheme).render();
-		};
+		const renderLines = () => renderFn!(stubTui(), stubTheme()).render();
 		return { widget, lastContent, renderLines };
 	}
 
