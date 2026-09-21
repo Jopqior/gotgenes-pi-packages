@@ -124,3 +124,85 @@ The plan's marker is `**Release:** ship independently`, but no `packages/*/src/`
   Step 4's `git fetch` + `git rebase main` below should resolve that gap; recheck the probe once rebased if it matters at ship time.
 - Filed [#964] during TDD (the gate does not inspect filenames) with no open package phase to disposition against, and nothing further needed at land time beyond what `/ship`'s normal close-comment flow does.
 - No conflicts anticipated: every file this branch touches is new or a small targeted edit (two doc repairs of 3 bytes each, four doc/skill sections, `prek.toml`, `package.json`, one new script pair), none of it in a hot path another peer is likely to be touching concurrently.
+
+## Stage: Final Retrospective (2026-09-21T16:42:48Z)
+
+### Session summary
+
+Shipped the invisible-character gate through the worktree lane: fast-forward-merged 11 commits, ran both pre-push gates on the merged tree, verified CI green on `d1227e32`, closed the issue with a seven-commit close comment, and tore down the worktree.
+Nothing released, matching the plan's own prediction: the range touched `packages/` only under `docs/plans` and `docs/retro`, and `next-version.sh` reported nothing releasable for either candidate package.
+The single notable event was a 300-second `pnpm run lint` timeout that resolved as a cold-start anomaly rather than a regression in the gate this issue added.
+
+### Observations
+
+#### What went well
+
+- **The peer's pre-emptive diagnosis of the release probe cost the ship zero investigation.**
+  The TDD stage had already established, in a scratch worktree at the plan commit, that `next-version.sh pi-subagents` reported a pending `v21.7.3` because the worktree sat 9 commits behind `origin/main`.
+  At the root the probe reported `pi-subagents-v21.7.4` with nothing to release, so the breadcrumb converted what would have been a mid-ship anomaly into a one-line confirmation.
+  This is the cross-session context bridge working as designed.
+- **An unpushed root commit was present at ship time and the fast-forward merge still succeeded.**
+  `a53dc527` (the #963 roadmap disposition) sat unpushed on `main` when `/ship` started, which the `worktrees` skill names as the sharper form of the staleness hazard because a peer rebasing onto `origin/main` cannot see it.
+  It worked because `/sync-worktree` rebases onto **local** `main`, exactly as the skill prescribes: the peer's own check was `git rev-list --count main..origin/main`, then `git rebase main`.
+  The near-miss validates a rule that already exists rather than exposing a gap.
+- **The new gate was immediately used as its own self-check.**
+  Both the TDD and Sync stages ran `node scripts/lint/invisible-characters.mjs` against the retro file they had just written, before committing it.
+  A gate whose subject is authored prose earning its keep on the very prose that documents it is a good sign for the mechanism.
+- **Step 2's plan-and-retro read paid for itself before any irreversible action.**
+  Reading both in full established the release marker, the absence of any third-party PR close target, and that [#964] was a follow-up to leave open, so steps 8 through 10 confirmed decisions rather than deriving them under pressure.
+
+#### What caused friction (agent side)
+
+- `other` (environment anomaly) — the first `pnpm run lint` exceeded the 300-second tool timeout with only the `pnpm` command echo in the log, against a recorded baseline near 29 seconds.
+  I bisected it: the new script (1.2 s), `biome check .` (2.8 s), `eslint packages/` (29.7 s), and `rumdl check .` (4.1 s) were each clean, and a re-run of the whole script passed in 32.2 s.
+  Impact: about 7 minutes and 7 tool calls, no rework, and no defect found.
+  The cheaper first move was a single re-run (32 s) before decomposing into stages (about 70 s of gate runs plus the reasoning) — bisection was defensible only because this issue had just **added** a stage to `lint`, which made the new script the live suspect.
+  The root cause remains unexplained; the log's emptiness places the hang before `biome` emitted its summary line, which it normally reaches in under half a second.
+- `other` (shell exit-status handling) — the first gate invocation was `pnpm run lint >/tmp/lint.log 2>&1 || tail -30 /tmp/lint.log; echo "--- lint rc=$?"`.
+  In that form `$?` reports `tail`'s status on the failing branch, so the `rc=` line would have printed `0` for a failed gate.
+  The `/ship` prompt's prescribed recipe stops at the `|| tail` and is correct as written; the ambiguity came from the `rc=` echo I appended to it.
+  Impact: none here, since the gate ultimately passed and I read the log tail rather than the `rc=` line — but it is a masking construct one step removed from the pipeline trap `shell-traps` already documents.
+  Subsequent calls used `timeout … ; echo rc=$?`, which reports the command's own status.
+- `instruction-violation` (self-identified, peer Sync stage) — writing the sync stage note, the peer emitted hand-written `\u2014` escape sequences into the `Edit` body, which landed in the retro file as the literal six characters instead of em-dashes.
+  It took three greps and two corrective edits to clear, resolved by rephrasing to avoid the character entirely.
+  Impact: about 6 tool calls, no rework beyond that file, caught before the commit.
+  Both governing rules were already on the books and neither was applied: the root `AGENTS.md` addendum says to include such characters literally rather than as escape sequences, and `markdown-conventions` prescribes a placeholder plus a scripted substitution pass.
+  The likely conflation is that the skill's recipe shows `'\u2014'` inside the substituting **script**, which reads as license to write the same escape in an `Edit` body.
+  That this happened in the retro for the invisible-character issue makes it the most on-theme failure of the whole issue.
+  It then recurred **in this retro**, about a minute after the corrective rule was drafted: the `git-workflow` edit below was written with `\\u2014` and landed the literal token, caught by grepping the two lines I had just written.
+  Two data points now say the same thing, which is why the landed rule says write the character and says nothing about escaping it correctly.
+
+#### What caused friction (user side)
+
+- Nothing material.
+  The ship ran unattended end to end with no correction needed, and the release decision was settled from the plan's marker rather than requiring an operator question.
+- One opportunity, framed as such: the model switch from `claude-sonnet-5` to `claude-opus-5` landed mid-turn at turn 7, truncating that turn's text to `Sk` in the transcript.
+  No work was lost and the switch itself was well targeted (see the model lens below); switching at a tool-call boundary rather than mid-generation would leave a cleaner transcript for exactly this kind of retro reading.
+
+### Diagnostic details
+
+- **Model-performance correlation** — no mismatch found, and the split tracked task character well.
+  This ship session: `anthropic/claude-sonnet-5` for turns 2 through 7 (root and branch confirmation, lane detection, issue title, skill loading), then `anthropic/claude-opus-5` from turn 8 onward for the judgment-heavy remainder (the release decision, the plan-and-retro read, the anomaly diagnosis, and the close-comment draft).
+  Peer session: `anthropic/claude-opus-5` through the TDD stage, switching to `anthropic/claude-sonnet-5` for the Sync stage, whose work is largely deterministic (two gates, a stage note, a rebase).
+  The one quality event on the cheaper model was the `\u2014` escape slip during Sync, which is a rule-application failure rather than a reasoning one.
+  No subagent ran in this session; the pre-completion reviewer ran in the peer's TDD stage and returned PASS.
+- **Escalation-delay tracking** — 7 consecutive tool calls on the lint timeout (turns 16 through 22), which exceeds the 5-call threshold.
+  The flag is worth recording with its nuance: this was systematic bisection with a named a-priori suspect, not thrash on a repeating error, and it terminated with a correct conclusion.
+  Neither an `Explore` subagent nor an operator question would have helped, since the evidence was purely local timing.
+  A secondary 6-call run in the peer's Sync stage (turns 14 through 19) on the `\u2014` literal sits just under the threshold and does indicate a rule that was not consulted.
+- **Unused-tool detection** — nothing material.
+  The friction points were an environment timing anomaly and a rule-application slip, neither of which a subagent, `colgrep`, or a web search would have shortened.
+- **Feedback-loop gap analysis** — no gap.
+  `/ship` positions both gates after the fast-forward merge by design, so they ran on exactly the tree being pushed, which the prompt argues for explicitly because `/sync-worktree` checks before it rebases.
+  CI verification followed the push immediately, and the release probe ran before the close rather than after.
+
+### Changes made
+
+1. `docs/retro/0960-reject-stray-invisible-characters.md` — added this Final Retrospective stage entry (summary, observations, and the four diagnostic lenses).
+2. `.pi/skills/markdown-conventions/SKILL.md` — after the placeholder recipe, added two lines: write the character itself in an `Edit`/`Write` body and never a `\uXXXX` token, and the recipe's escape belongs to the substituting script because hand-written in an edit body it arrives over-escaped and lands as literal text.
+   The operator redirected the first draft, which had stated that a single-backslash escape does decode — true, but it reads as license to hand-write escapes, so the landed rule omits it.
+3. `.pi/skills/git-workflow/SKILL.md` — after the redirect recipe in § Gating a commit on a check, added one line: do not append `; echo $?` to it, because `$?` on the failing branch is `tail`'s and a failed gate prints `0`.
+
+Proposed and declined: a `/ship` step 5 line advising a single re-run before bisecting a gate that vastly exceeds its baseline.
+The root cause of the 300-second timeout is still unexplained, so the rule would encode a guess from one incident, and a change that has just added a stage to `lint` makes bisection the correct instinct rather than the wrong one.
+Also considered and rejected: any `AGENTS.md` addition (all three findings are topic-skill facts that fail the admission test's second question), a `/ship` revision to the close-comment anchor rule (its broader "the commit carrying the behavior" phrasing already covers a `build:` landing commit), and a second copy of the unpushed-root-commit rule that had just proven itself.

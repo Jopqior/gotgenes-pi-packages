@@ -31,6 +31,7 @@ Do not gate a commit (or any `&&` step) on a check piped through `tail`/`head` �
 Run the check unpiped, or test `${PIPESTATUS[0]}`.
 `git commit … | tail -3` likewise hides a hook rejection behind the hook's own PASS lines — confirm the commit landed with `git log -1`.
 To keep the output short without losing the gate, redirect rather than pipe: `pnpm run check >/tmp/check.log 2>&1 || tail -30 /tmp/check.log`.
+Do not append `; echo $?` to that recipe — on the failing branch `$?` is `tail`'s, so a failed gate prints `0`; capture the gate's own status first (`cmd >log 2>&1; rc=$?`).
 That redirect hides Biome findings at **warning** level, which exit 0 — `pnpm run lint` reports PASS while new warnings accumulate.
 After adding or heavily editing files, count them: `pnpm run lint >/tmp/l.log 2>&1; grep -c 'lint/' /tmp/l.log || true` — `grep -c` exits 1 on a zero count.
 `biome check --write` reports `No fixes applied` for a warning, whose fix is unsafe-classified — hand-edit it, or `--write --unsafe` the one file.

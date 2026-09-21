@@ -46,6 +46,8 @@ Replacing the visible text leaves the byte behind, so a grep for `erence2` passe
 A pre-commit hook and `pnpm run lint` now reject it, so you no longer have to remember to look; run `node scripts/lint/invisible-characters.mjs` to check on demand, and `--fix` to delete the zero-width characters it can repair.
 A form feed it will not repair for you: deleting the byte alone strands the `erence2`, so replace the whole token.
 To avoid emitting the character at all, write a placeholder and substitute it in a scripted pass — `@PH@`, then `s.replace('@PH@', '\u2014')`.
+Write the character itself in an `Edit`/`Write` body, never a `\uXXXX` token — the addendum's literal-character rule governs `newText` as much as `oldText`.
+The escape in the recipe above belongs to the substituting script; hand-written in an edit body it arrives over-escaped (`\\u2014`) and lands in the file as literal text (Refs #960).
 
 ### Code fences
 
