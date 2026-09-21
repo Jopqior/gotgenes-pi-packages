@@ -455,6 +455,48 @@ describe("AgentWidget — the animation timer tracks running agents", () => {
 	});
 });
 
+describe("AgentWidget — animation cadence", () => {
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
+	});
+
+	// The widget is the only thing driving Pi's renderer while the parent idles,
+	// and each render walks the whole component tree, so the cadence is a cost
+	// paid per running agent for as long as it runs.
+	it("asks Pi for one render per 250 ms while an agent runs", () => {
+		const record = createTestSubagent({
+			id: "a1",
+			status: "running",
+			completedAt: undefined,
+			isBackground: true,
+		});
+		const manager = { listAgents: () => [record] } as unknown as SubagentManager;
+		const widget = new AgentWidget(manager, new AgentTypeRegistry(() => new Map()));
+		const requestRender = vi.fn();
+		widget.setUICtx({
+			setStatus: () => {},
+			setWidget: (_key, content) => {
+				content?.({ terminal: { columns: 200, rows: 40 }, requestRender }, stubTheme());
+			},
+		});
+
+		widget.onSubagentStarted(record);
+		expect(requestRender).not.toHaveBeenCalled();
+
+		vi.advanceTimersByTime(249);
+		expect(requestRender).not.toHaveBeenCalled();
+
+		vi.advanceTimersByTime(1);
+		expect(requestRender).toHaveBeenCalledTimes(1);
+
+		widget.dispose();
+	});
+});
+
 describe("AgentWidget.dispose", () => {
 	beforeEach(() => {
 		vi.useFakeTimers();

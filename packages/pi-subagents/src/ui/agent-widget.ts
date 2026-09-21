@@ -65,8 +65,15 @@ export type UICtx = {
   ): void;
 };
 
-/** How often the widget re-renders while a subagent animates. */
-const WIDGET_UPDATE_INTERVAL_MS = 80;
+/**
+ * How often the widget re-renders while a subagent animates.
+ *
+ * Pi renders the entire regular-mode component tree per request, and the widget
+ * is the only thing requesting one while the parent idles, so this is the
+ * cadence of that whole-tree walk. Deliberately slower than Pi's own `Loader`
+ * default, which pays 80 ms only during a turn the user is already watching.
+ */
+const WIDGET_UPDATE_INTERVAL_MS = 250;
 
 // ---- Widget manager ----
 
