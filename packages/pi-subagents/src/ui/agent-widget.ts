@@ -65,6 +65,9 @@ export type UICtx = {
   ): void;
 };
 
+/** How often the widget re-renders while a subagent animates. */
+const WIDGET_UPDATE_INTERVAL_MS = 80;
+
 // ---- Widget manager ----
 
 export class AgentWidget implements SubagentManagerObserver {
@@ -157,7 +160,22 @@ export class AgentWidget implements SubagentManagerObserver {
 
   /** Ensure the widget update timer is running. */
   private ensureTimer() {
-    this.widgetInterval ??= setInterval(() => this.update(), 80);
+    this.setTimerRunning(true);
+  }
+
+  /**
+   * Single owner of the animation timer's existence. Idempotent in both
+   * directions, so a caller states the wanted state rather than checking first.
+   */
+  private setTimerRunning(shouldRun: boolean): void {
+    if (shouldRun) {
+      this.widgetInterval ??= setInterval(() => this.update(), WIDGET_UPDATE_INTERVAL_MS);
+      return;
+    }
+    if (this.widgetInterval) {
+      clearInterval(this.widgetInterval);
+      this.widgetInterval = undefined;
+    }
   }
 
   /** Check if a finished agent should still be shown in the widget. */
@@ -229,7 +247,7 @@ export class AgentWidget implements SubagentManagerObserver {
       this.uiCtx!.setStatus("subagents", undefined);
       this.lastStatusText = undefined;
     }
-    if (this.widgetInterval) { clearInterval(this.widgetInterval); this.widgetInterval = undefined; }
+    this.setTimerRunning(false);
     for (const [id] of this.finishedTurnAge) {
       if (!backgroundAgents.some(a => a.id === id)) this.finishedTurnAge.delete(id);
     }
@@ -316,10 +334,7 @@ export class AgentWidget implements SubagentManagerObserver {
    * `setUICtx()` re-arms the widget if a context ever arrives again.
    */
   dispose() {
-    if (this.widgetInterval) {
-      clearInterval(this.widgetInterval);
-      this.widgetInterval = undefined;
-    }
+    this.setTimerRunning(false);
     if (this.uiCtx) {
       this.uiCtx.setWidget("agents", undefined);
       this.uiCtx.setStatus("subagents", undefined);
