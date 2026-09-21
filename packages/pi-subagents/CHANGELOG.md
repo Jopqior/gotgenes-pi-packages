@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [21.7.5](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.4...pi-subagents-v21.7.5) (2026-09-21)
+
+
+### Bug Fixes
+
+* **pi-subagents:** keep the agents widget inside the terminal viewport ([123c7f9](https://github.com/gotgenes/pi-packages/commit/123c7f9dd387a658979b3af587163dcdc7fe5a1c)), closes [#864](https://github.com/gotgenes/pi-packages/issues/864)
+* **pi-subagents:** stop widget animation while no subagent is running ([fe6269a](https://github.com/gotgenes/pi-packages/commit/fe6269ab11a3f93fcaa5084c15067051f7b11628)), closes [#864](https://github.com/gotgenes/pi-packages/issues/864)
+* **pi-subagents:** count hidden queued agents in the widget overflow summary ([c2b78e3](https://github.com/gotgenes/pi-packages/commit/c2b78e3ea26a091eeb832b02c5256b08d333cfe3)), closes [#864](https://github.com/gotgenes/pi-packages/issues/864)
+
+### Performance Improvements
+
+* **pi-subagents:** slow the agents widget animation to 250 ms ([2eb6292](https://github.com/gotgenes/pi-packages/commit/2eb62924f6f0a86165497df1aca4d84a9b78a72b)), closes [#864](https://github.com/gotgenes/pi-packages/issues/864)
+
+### Documentation
+
+* **pi-subagents:** record the widget's viewport bound and 250 ms cadence ([6f863da](https://github.com/gotgenes/pi-packages/commit/6f863da50e96ccda0231fb448a24815365023083)), closes [#864](https://github.com/gotgenes/pi-packages/issues/864)
+
 ## [21.7.4](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.3...pi-subagents-v21.7.4) (2026-09-20)
 
 
