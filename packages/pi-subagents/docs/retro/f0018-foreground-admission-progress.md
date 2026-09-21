@@ -73,3 +73,17 @@ The existing admission test now asserts a shared `manager` then `spawn` event se
   Lint again used `NODE_OPTIONS=--max-old-space-size=6144`.
 - The callback-order warning is resolved.
   Historical mutation logs outside the repository remain outside the reviewer's inspection scope; its PASS rests on independent source inspection and current checks, not a claim to have witnessed those historical runs.
+
+## Stage: Sync (worktree) (2026-09-21T07:50:48Z)
+
+### Session summary
+
+Root lint passed with `NODE_OPTIONS=--max-old-space-size=8192`, and `pnpm fallow dead-code` reported no issues.
+The issue branch is checked out in the root checkout rather than a separate peer worktree; synchronization leaves `main` untouched, and publishing still requires explicit release-destination approval.
+
+**Peer session transcript:** `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-09-21T07-46-57-883Z_01a0c2ee-b0da-74b9-b662-039f0b804a3f.jsonl` — read with `read_session_file` for message-level verification.
+
+### Observations
+
+- This is a synchronization breadcrumb only; final `/retro 18` runs at the root after `/ship 18`.
+- No branch push, issue closure, or release is performed in this stage.
