@@ -62,7 +62,7 @@ git remote set-url upstream git@github.com:gotgenes/pi-packages.git
    ```bash
    git tag | wc -l
    pnpm run check
-   NODE_OPTIONS=--max-old-space-size=8192 pnpm run lint
+   pnpm run lint
    pnpm -r run test
    ```
 

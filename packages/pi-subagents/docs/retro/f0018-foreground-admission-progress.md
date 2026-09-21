@@ -179,3 +179,5 @@ This retrospective preserves those outcomes and proposes a bounded TDD validatio
    Added `nodeOptions: "--max-old-space-size=8192"` to `pnpm-workspace.yaml`; existing prompt prefixes remain unchanged.
    Verification with inherited `NODE_OPTIONS` removed passed: `pnpm run lint` completed successfully, and `pnpm exec node` reported the configured environment value and an 8384 MiB V8 heap limit.
    The configured old-space limit is not a total-process or aggregate concurrency budget.
+4. In a subsequent operator-approved cleanup, replaced the explicit heap prefixes with `pnpm run lint` in `.pi/prompts/ship.md`, `.pi/prompts/sync-worktree.md`, and `docs/upstream-sync.md`.
+   Historical plans and retrospective entries retain the commands actually prescribed or executed at the time; the project configuration now supplies the setting for current instructions.

@@ -25,7 +25,7 @@ Load the `worktrees` and `git-workflow` skills before step 1 — the rebase rule
 
 Run from the worktree root (your current directory):
 
-1. `NODE_OPTIONS=--max-old-space-size=8192 pnpm run lint` — catches cross-package lint violations CI runs at root level.
+1. `pnpm run lint` — catches cross-package lint violations CI runs at root level.
 2. `pnpm fallow dead-code` — CI runs this gate on every `main` push, so a failure here blocks the eventual land.
 
 If either fails, fix and commit before continuing.
