@@ -48,6 +48,7 @@ import {
   REVIEW_LOG_FILENAME,
 } from "#src/config/config-paths";
 import { DEFAULT_EXTENSION_CONFIG } from "#src/config/extension-config";
+import { SESSION_ENDED_REASON } from "#src/handlers/lifecycle";
 import piPermissionSystemExtension from "#src/index";
 import { getPermissionsService } from "#src/service";
 import {
@@ -734,6 +735,38 @@ describe("shutdown teardown chain", () => {
       parentSessionId: "p-late",
     });
     expect(getSubagentSessionRegistry().has("late-child")).toBe(false);
+
+    rmSync(cwd, { recursive: true, force: true });
+  });
+
+  it("answers an unanswered ask when the session ends", async () => {
+    writeGlobalConfig({ permission: { "*": "allow", demo: "ask" } });
+
+    const cwd = mkdtempSync(join(tmpdir(), "pi-perm-release-cwd-"));
+    const pi = makeFakePi({ toolNames: ["demo"] });
+    piPermissionSystemExtension(pi as unknown as ExtensionAPI);
+
+    // A human who never answers: the dialog stays open until the session ends.
+    const ctx = makeBaseCtx(cwd, "ui-session", {
+      select: () => new Promise<string | undefined>(() => undefined),
+    });
+    await fireSessionStart(pi, ctx);
+
+    const gated = pi.fire(
+      "tool_call",
+      { toolName: "demo", toolCallId: "demo-unanswered", input: {} },
+      ctx,
+    ) as Promise<{ block?: true; reason?: string }>;
+    await sleep(10);
+
+    await pi.fire("session_shutdown");
+
+    const result = await gated;
+    expect(result.block).toBe(true);
+    expect(result.reason).toContain(SESSION_ENDED_REASON);
+    // A user who was never asked denied nothing (#719): the refusal must not
+    // render through `renderUserDenial`.
+    expect(result.reason).not.toContain("The user denied");
 
     rmSync(cwd, { recursive: true, force: true });
   });

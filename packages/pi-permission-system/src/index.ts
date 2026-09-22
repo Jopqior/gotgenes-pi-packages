@@ -328,6 +328,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
     logger,
     audit,
     configIssueReporter,
+    askDialogQueue,
   );
   const turnPrep = new SessionTurnPrep(
     session,

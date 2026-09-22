@@ -1,4 +1,5 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { AskDialogRelease } from "#src/authority/ask-dialog-queue";
 import type { ConfigIssueReporting } from "#src/config/config-issue-reporter";
 import { PERMISSION_SYSTEM_STATUS_KEY } from "#src/config/status";
 import type { DecisionSummaryWriter } from "#src/logging/decision-audit";
@@ -21,6 +22,15 @@ interface ResourcesDiscoverPayload {
  * Shown when project config is skipped because the project is untrusted, so the
  * reduced-scope state is never silent (#644). Exported for assertion in tests.
  */
+/**
+ * What a permission request still open at shutdown is answered with.
+ *
+ * Reaches the agent as the block reason and the review log as the decider's
+ * `reason`, so both name the same thing (#726).
+ */
+export const SESSION_ENDED_REASON =
+  "The session ended before this permission request was answered";
+
 export const UNTRUSTED_PROJECT_MESSAGE =
   "pi-permission-system: project is not trusted — skipping project-scoped " +
   "permission configuration. Only global policy applies. Grant project trust " +
@@ -40,6 +50,8 @@ export const UNTRUSTED_PROJECT_MESSAGE =
  * - `configIssues` — reports what is wrong with the extension config, latched
  *   per issue; driven here and on every turn, so an issue already on disk when
  *   the session opens is shown rather than swallowed (#933)
+ * - `dialogs` — the session's ask queue, released on shutdown so a gate waiting
+ *   on a dialog nobody can answer any more is unblocked (#965)
  */
 export class SessionLifecycleHandler {
   constructor(
@@ -49,6 +61,7 @@ export class SessionLifecycleHandler {
     private readonly logger: SessionLogger,
     private readonly audit: DecisionSummaryWriter,
     private readonly configIssues: ConfigIssueReporting,
+    private readonly dialogs: AskDialogRelease,
   ) {}
 
   handleSessionStart(
@@ -131,6 +144,9 @@ export class SessionLifecycleHandler {
       ctx.ui.setStatus(PERMISSION_SYSTEM_STATUS_KEY, undefined);
     }
     this.audit.writeSummary(this.logger);
+    // Ahead of the session shutdown that stops forwarding: a drain awaiting a
+    // forwarded ask can only write its response file once that ask is settled.
+    this.dialogs.releaseAll(SESSION_ENDED_REASON);
     this.session.shutdown();
     this.serviceLifecycle.teardown();
     return Promise.resolve();

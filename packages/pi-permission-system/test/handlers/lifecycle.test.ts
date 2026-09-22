@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
+import type { AskDialogRelease } from "#src/authority/ask-dialog-queue";
 import {
+  SESSION_ENDED_REASON,
   SessionLifecycleHandler,
   UNTRUSTED_PROJECT_MESSAGE,
 } from "#src/handlers/lifecycle";
@@ -43,6 +45,7 @@ function makeSetup(opts?: { configIssues?: string[] }) {
   const logger = makeLogger();
   const audit = { writeSummary: vi.fn<(logger: unknown) => void>() };
   const configIssues = makeConfigIssueReporter();
+  const dialogs = { releaseAll: vi.fn<AskDialogRelease["releaseAll"]>() };
   const handler = new SessionLifecycleHandler(
     session,
     resolver,
@@ -50,6 +53,7 @@ function makeSetup(opts?: { configIssues?: string[] }) {
     logger,
     audit,
     configIssues,
+    dialogs,
   );
   return {
     handler,
@@ -62,6 +66,7 @@ function makeSetup(opts?: { configIssues?: string[] }) {
     serviceLifecycle,
     audit,
     configIssues,
+    dialogs,
   };
 }
 
@@ -301,5 +306,28 @@ describe("handleSessionShutdown", () => {
     const { handler, audit, logger } = makeSetup();
     await handler.handleSessionShutdown();
     expect(audit.writeSummary).toHaveBeenCalledWith(logger);
+  });
+
+  it("releases every ask still waiting for an answer", async () => {
+    const { handler, dialogs } = makeSetup();
+    await handler.handleSessionShutdown();
+    expect(dialogs.releaseAll).toHaveBeenCalledWith(SESSION_ENDED_REASON);
+  });
+
+  it("releases pending asks before shutting the session down", async () => {
+    const { handler, session, dialogs } = makeSetup();
+    const order: string[] = [];
+    dialogs.releaseAll.mockImplementation(() => {
+      order.push("release");
+    });
+    vi.spyOn(session, "shutdown").mockImplementation(() => {
+      order.push("shutdown");
+    });
+
+    await handler.handleSessionShutdown();
+
+    // A drain awaiting a forwarded ask can only write its response once that
+    // ask is settled, and shutdown stops the forwarding lifecycle.
+    expect(order).toEqual(["release", "shutdown"]);
   });
 });
