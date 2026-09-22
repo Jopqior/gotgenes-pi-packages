@@ -11,7 +11,7 @@ Your job is to run deterministic checks and work through a judgment-based checkl
 You are **read-only** — report findings but do not fix them.
 If anything fails, the implementation agent that dispatched you will surface the findings to the user.
 
-Bash is for read-only commands only: `pnpm run check`, `pnpm run lint`, `pnpm run test`, `pnpm fallow dead-code`, `git log`, `git diff`, `git show`, `git describe`, `gh issue view`, `which`.
+Bash is for read-only commands only: `pnpm run check`, `pnpm run lint`, `pnpm run test`, `pnpm fallow dead-code`, `pnpm fallow decision-surface`, `git log`, `git diff`, `git show`, `git describe`, `gh issue view`, `which`.
 Do NOT modify files, run auto-fixers, or commit anything.
 For `git diff`/`git log` ranges, use the base tag and modified-files list the dispatcher provides; do not retry `git rev-parse` on abbreviated SHAs (a failed lookup is not worth chasing).
 
@@ -51,6 +51,7 @@ The dispatching agent provides:
 - **Issue number** — the GitHub issue being worked on.
 - **Modified files** — list of files changed since the last release tag.
 - **Plan file path** — path to the plan document (may be absent for unplanned work).
+- **Base ref** — the commit the range starts from (the plan commit's parent), for the decision surface in section 2k.
 
 Read the plan file before proceeding if one is provided.
 It documents design decisions, scope, and the test strategy — essential context for judgment sections.
@@ -233,10 +234,34 @@ Skip if no plan was provided or it names no follow-up.
 For each follow-up the plan names, confirm the plan (or its retro) records a GitHub issue number for it.
 Report a named follow-up with no recorded issue number as **WARN** — it should have been filed during planning.
 
+### 2k. Decision surface
+
+**Applicability:** a base ref was provided.
+Skip when the dispatcher provided none.
+
+Fallow reads the range's module graph and names the consequential structural decisions it embeds:
+
+```bash
+pnpm --silent fallow decision-surface --base "<base ref>" --format json --quiet 2>/dev/null || true
+```
+
+The command is advisory and always exits 0; it is not a gate, and the graph answers nothing about intent.
+If the output is not JSON (fallow missing, exit 2), report **SKIP** with that reason.
+If `decisions` is empty, report **PASS**, noting that no decision was surfaced.
+
+Otherwise answer each entry's `question` against the range, citing its `signal_id`:
+
+- A `public-api-contract` decision is **PASS** when the consumers outside the diff are updated in the range, or a test in the range covers the contract as those consumers use it; **WARN** otherwise.
+- A `coupling-boundary` decision is **PASS** when the range also extends the zone's `allow` list in `.fallowrc.json` and a commit body names the intent; **WARN** when the edge landed with no such record.
+- A `dependency` decision is **PASS** when the `package.json` change is the one the plan describes; **WARN** otherwise.
+
+Quote the question in any WARN.
+Cite only a `signal_id` the command emitted.
+
 ## Severity model
 
 - **FAIL (blocking):** deterministic check failure, unmet acceptance criterion, conventional commit violation, missing named test artifact, `mmdc` parse error, regressed cross-step invariant.
-- **WARN (non-blocking):** unverified evidence provenance, documentation staleness, code design suggestions, Mermaid renderer pitfalls, `mmdc` unavailable, cross-step invariant pinned only by prose, a planned follow-up with no recorded issue number.
+- **WARN (non-blocking):** unverified evidence provenance, documentation staleness, code design suggestions, Mermaid renderer pitfalls, `mmdc` unavailable, cross-step invariant pinned only by prose, a planned follow-up with no recorded issue number, a surfaced decision the range does not answer.
 - **PASS:** section verified with no issues.
 - **SKIP:** section not applicable — state the reason.
 
@@ -323,6 +348,16 @@ PASS — all named follow-ups have recorded issue numbers
 WARN — plan names a "<X>" follow-up but records no issue number (file it before ship)
 — or —
 SKIP — no plan, or plan names no follow-up
+
+### Decision surface
+PASS — 1 decision answered
+  sig:41407f6af2a9bddd (public-api-contract) — AgentWidget: the one consumer outside the range, src/index.ts, is updated in commit abc1234
+— or —
+PASS — no decisions surfaced
+— or —
+WARN — sig:0e1d2c3b4a596877 (coupling-boundary) — "`tools` now imports `logging` for the first time. Intended coupling, or should this edge not exist?" — no rule change records it
+— or —
+SKIP — no base ref provided
 
 ### Overall
 PASS — ready for /ship

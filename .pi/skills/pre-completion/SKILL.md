@@ -27,6 +27,8 @@ Note:
 - The list of modified files.
 - The issue number (from the plan frontmatter `issue:` field or the plan filename pattern `NNNN-`).
 - The plan file path (`docs/plans/NNNN-*.md` or `packages/*/docs/plans/NNNN-*.md` matching the issue number; may be absent for unplanned work).
+- The **base ref** the reviewer's decision surface reads: the plan commit's parent (`<plan-commit>^`), or `$BASE` when there is no plan commit.
+  Resolve it to a SHA with `git rev-parse` rather than passing the `^` expression, so the reviewer runs one command with no shell quoting of its own.
 
 ## Step 2: Dispatch the reviewer
 
@@ -34,13 +36,14 @@ Dispatch the `pre-completion-reviewer` subagent via the `subagent` tool:
 
 - `subagent_type`: `"pre-completion-reviewer"`
 - `description`: `"Pre-completion review for issue #N"`
-- `prompt`: include the issue number, the modified-files list from Step 1, and the plan file path.
+- `prompt`: include the issue number, the modified-files list from Step 1, the plan file path, and the base ref.
 
 Example prompt to pass:
 
 ```text
 Review issue #236.
 Plan file: docs/plans/0236-pre-completion-reviewer.md
+Base ref: 4e6c3a7a
 Modified files since last tag:
   .pi/agents/pre-completion-reviewer.md
   .pi/skills/pre-completion/SKILL.md
