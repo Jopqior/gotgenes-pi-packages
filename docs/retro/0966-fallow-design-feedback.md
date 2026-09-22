@@ -30,3 +30,24 @@ Plan committed as `docs/plans/0966-fallow-design-feedback.md`, seven `/build-pla
 - `packages/pi-permission-system/src/config/config-loader.ts` — `config → policy` value import (`mergeFlatPermissions`) against the doc's "consumed by `policy/`".
 - `packages/pi-permission-system/src/path/pi-infrastructure-read.ts` — `path → policy` value import (`wildcardMatch`).
 - `packages/pi-permission-system/src/service/bash-advisory-check.ts` — `service → handlers` value import (`resolveBashCommandCheck`).
+
+## Stage: Implementation — Build (2026-09-22T09:36:19Z)
+
+### Session summary
+
+Executed all seven plan steps as separate commits: the boundary zones and 22 ratchet rules in `.fallowrc.json`, the architecture-doc and package-skill records of them, `fallow decision-surface` in the `pre-completion-reviewer`, `guard`/`inspect`/`symbol-impact` in the `tidy-first-assessor`, `@vitest/coverage-istanbul`, per-package vital-signs snapshots with the trend recipe, and the `fallow` skill rewrite.
+Every number the plan predicted reproduced on execution, and the `pre-completion-reviewer` re-derived each one independently and returned PASS.
+
+### Observations
+
+- One deviation: the plan predicted Biome ignores `packages/*/docs/fallow-snapshot.json` (a planning probe reported the path as ignored, which was wrong).
+  Biome does check it, and fallow writes no trailing newline, so `biome.json` now excludes the generated file rather than every writer having to fix it up.
+  Recorded in the `bc8bbc34` commit body; the reviewer byte-compared a fresh snapshot against the committed one to confirm the defect is real and the exclusion correctly scoped.
+- The boundary allow lists were re-derived from an empty-allow run at build time rather than copied from the plan's table, per the plan's own instruction; the derived edges matched the table.
+- The step 1 killing mutation needed a second attempt: the first appended an unused `export`, which is an `error`-severity finding of its own and made `fallow dead-code` exit 1, masking the question being asked.
+  With the import actually consumed, the boundary violation is reported and the exit code stays 0, confirming that `warn` leaves the `main` gate intact.
+- New fact recorded in both the architecture doc and the skill: `allowTypeOnly` reads the `import type` **syntax**, not the imported symbol's kind, so a plain `import { SomeType }` on a type-only edge is still a violation.
+- Emitting em-dashes into `Edit` `oldText` failed repeatedly in this session (arriving as stray characters and rejecting the whole atomic batch).
+  Three prose edits were made with the `markdown-conventions` scripted-substitution path (Python with `\u2014` escapes) instead; the pattern worked first try each time.
+- Pre-completion reviewer: PASS, no WARN findings.
+  It independently reproduced the full Test Impact Analysis table, including the `--symbol-impact` false negative (one consumer vs `--trace`'s two), and confirmed no other fallow-describing doc (`AGENTS.md`, `README.md`, the ship/sync prompts, four other skills) went stale.
