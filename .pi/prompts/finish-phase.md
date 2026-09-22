@@ -117,10 +117,25 @@ Do not copy a doc metric forward — recompute it:
 - When the phase findings table records a recompute command for a metric, **use that exact command** — not the `fallow:health` / `fallow:dupes` scripts.
   The scripts and the recorded commands can disagree: `pnpm fallow:health` expands to `fallow health --score --hotspots --targets`, and the `--hotspots --targets` flags **lower the score** (a package baselined at 88 A with `fallow health --score` alone reports 78 B under the script).
   Reconcile against the same command the baseline was computed with, or the "delivered" number will spuriously differ from the target.
-- When no recompute command is recorded, reconcile by **reproducing the doc's existing baseline number**, not by defaulting to a fixed command — the bare `--score` form and the `fallow:health` script disagree, so a fixed default can spuriously report a phantom improvement.
-  Run `pnpm fallow health --score --workspace @gotgenes/$1`; if its grade/score does not reproduce the doc's current health-metrics row, the baseline was computed with the script form (`fallow health --score --hotspots --targets`, which the `--hotspots --targets` deductions drive lower — e.g. pi-subagents baselines at 78 B under the script but 88 A bare), so rerun with `--score --hotspots --targets --workspace @gotgenes/$1` and reconcile against that.
+- When no recompute command is recorded, reconcile against the package's committed snapshot (`packages/$1/docs/fallow-snapshot.json`), which the previous phase close wrote.
+  It records the score, grade, and nine other vital signs as of that close, so the comparison needs no guess about which `--score` form produced the doc's number.
+  A snapshot records no workspace, and `--trend` reads the most recent file in `.fallow/snapshots/`, so empty that directory first or a sibling package's snapshot is compared silently:
+
+  ```bash
+  rm -rf .fallow/snapshots && mkdir -p .fallow/snapshots
+  cp packages/$1/docs/fallow-snapshot.json .fallow/snapshots/baseline.json
+  pnpm --silent fallow health --trend --workspace @gotgenes/$1 --quiet 2>&1 | grep -A 12 'Trend'
+  ```
+
   Reconcile duplication with `pnpm fallow dupes --workspace @gotgenes/$1`.
   The fallow subcommands are root-level and take `--workspace @gotgenes/$1`; the `--filter`/`-C package` forms used elsewhere do **not** apply to them.
+- After reconciling, rewrite the snapshot so the next phase starts from this close, and commit it with the reconciliation:
+
+  ```bash
+  pnpm --silent fallow health --save-snapshot packages/$1/docs/fallow-snapshot.json --workspace @gotgenes/$1 --quiet >/dev/null
+  ```
+
+  Never hand-edit the file — every field in it is a number a command produces.
 - "Total LOC" / "Source LOC" counts `src/` only (`find packages/$1/src -name '*.ts' | wc -l` for the file count; `… -exec wc -l {} +` for LOC).
   Test counts come from `pnpm --filter @gotgenes/$1 run test`.
 - If a doc metric carries a mid-phase label ("as of Step N", "Phase N Step M", "as of [#N]"), replace it with the end-of-phase value and drop the label — the archived doc should read as the settled post-phase baseline, not a snapshot.

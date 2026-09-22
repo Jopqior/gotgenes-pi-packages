@@ -1279,6 +1279,7 @@ Recompute commands (run from the repo root):
 - ADR 0007 amendments: `grep -c '#### Amendment' packages/pi-permission-system/docs/decisions/0007-model-judge-authorizer-chain-adr.md` ([#882] records its answer as an amendment whether accepted or rejected, so the row reads ≥ 1 either way)
 - Non-path tokens per month: `node packages/pi-permission-system/scripts/measure-path-false-positives.mjs` (read the latest month's `non-path` column; the log grows with use, so re-run rather than trusting the figure)
 - Health / clone groups / dead exports: `pnpm fallow health --score --hotspots --targets --workspace @gotgenes/pi-permission-system` / `pnpm fallow dupes --workspace @gotgenes/pi-permission-system` (count the groups whose paths are under `src/`) / `pnpm fallow dead-code --workspace @gotgenes/pi-permission-system`
+- Health vital signs as of the last phase close: `docs/fallow-snapshot.json`, written by `pnpm --silent fallow health --save-snapshot packages/pi-permission-system/docs/fallow-snapshot.json --workspace @gotgenes/pi-permission-system` and read by `fallow health --trend` for per-metric deltas
 
 The prefix re-spelling count needs a pipeline, so it lives here rather than in the table:
 

@@ -88,6 +88,7 @@ Each is a finding a `tidy-first-assessor` judged real but out of scope for the c
 
 Fallow **corroborates** the cause hypothesis and supplies outcome baselines (LOC, complexity, dead code, duplication) — it does not set the agenda.
 Run the full suite from the repo root (the exact commands and interpretation live in the `fallow` and `improvement-discovery` skills you loaded); record the health score, dead-code findings, production/test duplication, hotspots, and refactoring targets.
+Run the coverage feed too, so CRAP scores come from real coverage rather than the estimate, and read the trend against the package's committed snapshot (`packages/$1/docs/fallow-snapshot.json`) for what has drifted since the last phase close; both recipes are in the `improvement-discovery` skill's Step 3.
 Also run the repeated-discriminator sweep from the `improvement-discovery` skill (the `grep … | uniq -c` one-liner in its Step 3) — fallow is blind to that smell class, so the sweep is the only detector.
 
 **The phase spine must not be fallow-sourced-only.**
