@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [21.7.6](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.5...pi-subagents-v21.7.6) (2026-09-22)
+
+
+### Documentation
+
+* snapshot fallow vital signs per package and trend them at phase close ([bc8bbc3](https://github.com/gotgenes/pi-packages/commit/bc8bbc34e32f30c99260aaa05a044df3f445857a)), closes [#966](https://github.com/gotgenes/pi-packages/issues/966)
+
 ## [21.7.5](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.4...pi-subagents-v21.7.5) (2026-09-21)
 
 
