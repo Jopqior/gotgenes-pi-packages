@@ -49,6 +49,8 @@ When the repro path runs through one of this repo's own extensions, that extensi
 
 In practice: `pi --no-extensions -e packages/<pkg>` loads only the copy under test, while a bare `pi` launched from this repo also loads everything in the root `.pi/settings.json` and is never a clean control.
 For a library-level probe, call the upstream function directly instead of the wrapper when the question is about upstream's behavior rather than ours.
+In a monorepo a probe also answers only for the package it ran in: `packages/*/biome.json`, per-package `eslint` overrides, and per-package `vitest.config.*` each make one package's result unrepresentative.
+Before generalizing a probe to `packages/*`, re-run it under a package with no local override — #966's plan recorded "Biome ignores this path" from a package whose own config disables the formatter.
 State which side of the extension each row of the results table was measured on.
 
 ## A stochastic or cached source needs trials and a defeated cache
