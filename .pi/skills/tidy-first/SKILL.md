@@ -32,7 +32,7 @@ Dispatch the `tidy-first-assessor` subagent via the `subagent` tool:
 
 - `subagent_type`: `"tidy-first-assessor"`
 - `description`: `"Tidy-First assessment for issue #N"`
-- `prompt`: include the issue number, the target-files list from Step 1, and a **design summary** — 5–15 lines stating what each target file gains, loses, or changes, and roughly where in the file it lands.
+- `prompt`: include the issue number, the target-files list from Step 1, the **symbols the design alters** (each as `<file>:<symbol>`, for the assessor's consumer trace), and a **design summary** — 5–15 lines stating what each target file gains, loses, or changes, and roughly where in the file it lands.
 
 The design summary carries the weight the written plan used to carry, so write it concretely: "adds a third branch to `resolveScope()` in `src/scope.ts` (currently 40 lines)" tells the assessor where the friction is; "updates scope resolution" does not.
 
