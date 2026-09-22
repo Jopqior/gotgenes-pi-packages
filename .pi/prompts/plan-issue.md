@@ -141,6 +141,8 @@ Measure when the command runs in under a minute; an inferred number with false p
 A qualitative cost claim ("only reformats", "nothing is lost") is measurable too — produce the output and diff it before offering the option (Refs #865).
 When the proposal also has design ambiguities, fold those into the same `ask-user` call.
 Let the operator's answers — not the issue body — drive the plan's Goals and Design Overview.
+When the operator adopts a third-party design, record the `Co-authored-by:` trailer in the plan's TDD Order — resolved to a real line, not an instruction to resolve one.
+The `git-workflow` rule fires on an accepted design whether or not the patch was taken, and the implementing session commits without re-reading the issue (Refs #965).
 
 If the issue is a decision-record or ADR issue (its deliverable is a decision, not code), do **not** skip the `ask-user` gate even when a design is already written down.
 The deliberation is the deliverable: existing architecture-doc prose is an input to put to the operator, not a settled spec to transcribe.
