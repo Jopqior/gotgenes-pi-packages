@@ -38,15 +38,27 @@ function makePromptUi() {
   };
 }
 
+/**
+ * A `PermissionEventBus` double. `onEmit` observes the emission without
+ * replacing it, so a test that cares about emit-versus-present ordering can
+ * still build its deps through {@link makeDeps}.
+ */
+function makeEvents(onEmit?: () => void) {
+  return {
+    emit: vi.fn(() => {
+      onEmit?.();
+    }),
+    on: vi.fn().mockReturnValue(() => undefined),
+  };
+}
+
 function makeDeps(
   overrides: {
+    events?: ReturnType<typeof makeEvents>;
     requestPermissionDecision?: typeof requestPermissionDecision;
   } = {},
 ) {
-  const events = {
-    emit: vi.fn(),
-    on: vi.fn().mockReturnValue(() => undefined),
-  };
+  const events = overrides.events ?? makeEvents();
   const ui = makePromptUi();
   const decisionFn =
     overrides.requestPermissionDecision ??
@@ -151,13 +163,6 @@ describe("LocalUserAuthorizer", () => {
 
   it("emits the UI event before calling requestPermissionDecision", async () => {
     const calls: string[] = [];
-    const events = {
-      emit: vi.fn(() => {
-        calls.push("emit");
-      }),
-      on: vi.fn().mockReturnValue(() => undefined),
-    };
-    const ui = makePromptUi();
     const decisionFn = vi.fn<typeof requestPermissionDecision>(() => {
       calls.push("dialog");
       return Promise.resolve({
@@ -166,13 +171,13 @@ describe("LocalUserAuthorizer", () => {
         decidedBy: DECIDED_BY_HUMAN,
       });
     });
-    const authorizer = new LocalUserAuthorizer({
-      ui,
-      mode: "tui",
-      events,
-      getPromptPreferences: () => makePromptPreferences(),
+    const { deps } = makeDeps({
+      events: makeEvents(() => {
+        calls.push("emit");
+      }),
       requestPermissionDecision: decisionFn,
     });
+    const authorizer = new LocalUserAuthorizer(deps);
 
     await authorizer.authorize(makeDetails());
 
