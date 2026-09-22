@@ -33,6 +33,9 @@ Within the package, `./` names a same-directory module and `#src/`/`#test/` name
 Both halves are lint-enforced here (`local-rules/no-parent-relative-imports` and `local-rules/no-own-directory-alias-imports` in the repo-root `eslint.config.js`), each with an auto-fix, so `eslint --fix` settles a specifier rather than a judgment call.
 Neither rule sees a `vi.mock()` specifier, which is a call argument rather than an import — write those as `#src/…` by hand.
 
+Each directory is also a fallow boundary zone, allow-listed to the zones it already imports (`policy/` to type-only edges into `authority/`, `exposure/`, and `session/`).
+Run `pnpm --silent fallow guard <file>` before adding a cross-directory import: it lists what that file's zone may import, and an intended new edge extends the zone's `allow` list in `.fallowrc.json` in the same commit.
+
 ## Implementation Priorities
 
 - Default to least privilege — when in doubt, prompt (`ask`), do not silently allow.

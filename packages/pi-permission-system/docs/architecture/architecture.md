@@ -1056,6 +1056,17 @@ Five files stay at the root, and the list grows only by an explicit edit to this
 - `service.ts` — the public API entry point, named by `package.json`'s sole `exports` entry and by the rollup declaration bundle.
 - `types.ts`, `value-guards.ts`, `permission-request-id.ts` — package-wide leaves belonging to no domain, each read from directories that share nothing else.
 
+The table is also encoded as fallow boundary **zones** (`boundaries` in the repo-root `.fallowrc.json`), one zone per directory plus a `pi-permission-system/core` zone for the five root files.
+Each zone's `allow` list is the set of zones it imported when the zones were encoded, so the baseline reports zero violations and a **new** cross-zone edge is a finding (`boundary-violation`, severity `warn`, reported by `fallow dead-code` and `fallow audit` without failing either) and a `fallow decision-surface` `coupling-boundary` question in review.
+Run `pnpm --silent fallow guard <file>` before adding a cross-directory import to see what the file's zone may import; when the new edge is intended, extend that zone's `allow` list in the same commit and say why in the commit body.
+The zones are directory-scoped and coarse; the file-scoped ESLint `no-restricted-imports` rule on `permission-manager.ts` (the ADR 0002 string boundary) is finer and stays.
+
+`policy/`'s "depends on `config/` for loading and on nothing above it" is encoded as `allowTypeOnly` for `authority`, `exposure`, and `session`: its five edges into them are all `import type` (`permission-gate.ts`, `permission-resolver.ts`), so a value import from any of the three is a violation while the type edges are not.
+That check reads the `import type` **syntax**, not whether the imported symbol is a type: a plain `import { SomeType }` on one of those edges is reported.
+
+Three allowed edges run against the table's own direction: `config/` imports `mergeFlatPermissions` from `policy/` (`config-loader.ts`), `path/` imports `wildcardMatch` from `policy/` (`pi-infrastructure-read.ts`), and `service/` imports `resolveBashCommandCheck` from `handlers/` (`bash-advisory-check.ts`).
+The ratchet admits them because they predate it; each is a lead for a later discovery round, not a violation today.
+
 This supersedes the earlier convention that a domain directory grows only in the phase that rewrites its files, and never by a bulk move.
 That rule was recorded as a Phase 8 non-goal and re-applied through Phase 14, and it is the reason the layout lapsed: issue-by-issue work only ever moves the files issues happen to touch, so cold modules accumulate at the root indefinitely.
 Writing the target layout down is what replaces it — a module's home is now answerable without re-deriving it, and the same-directory import convention is lint-enforced for this package so the two cannot drift silently ([#837]).
