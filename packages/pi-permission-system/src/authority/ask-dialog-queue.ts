@@ -10,6 +10,21 @@ export interface AskDialogRelease {
 }
 
 /**
+ * The admission-facing slice of {@link AskDialogQueue}: present this ask once
+ * every earlier one has settled.
+ *
+ * The terminal that shows a dialog admits asks and never releases them, and
+ * depending on the slice rather than the class keeps the queue's private state
+ * out of its dependency type.
+ */
+export interface AskDialogAdmission {
+  run<T>(
+    present: () => Promise<T>,
+    released: (reason: string) => T,
+  ): Promise<T>;
+}
+
+/**
  * Serializes the human-facing presentations one session owns.
  *
  * Pi's inline `ctx.ui.custom` slot holds one component: a second presentation
@@ -29,7 +44,7 @@ export interface AskDialogRelease {
  * brackets each ask with review entries, so a queue wait reads as the gap
  * between them and a released ask reads as its terminal entry.
  */
-export class AskDialogQueue implements AskDialogRelease {
+export class AskDialogQueue implements AskDialogAdmission, AskDialogRelease {
   /** Settles once every ask admitted so far has been presented or released. */
   private tail: Promise<void> = Promise.resolve();
   /**

@@ -2,6 +2,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { getAgentDir, getPackageDir } from "@earendil-works/pi-coding-agent";
 import { warmBashParser } from "#src/access-intent/bash/parser";
 import { buildResolvedIntentFromMatchValues } from "#src/access-intent/input-normalizer";
+import { AskDialogQueue } from "#src/authority/ask-dialog-queue";
 import { AuthorizerChainAudit } from "#src/authority/authorizer-chain-audit";
 import {
   AuthorizerRegistry,
@@ -132,6 +133,11 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
 
   const prompter = new PermissionPrompter({ logger });
 
+  // One queue per factory invocation, so it is rebuilt with the session rather
+  // than outliving it: the host holds a single inline dialog slot, and a second
+  // presentation there strands the first ask's promise (#965).
+  const askDialogQueue = new AskDialogQueue();
+
   // The filesystem half of the serving announcement. `servingRegistry` reaches
   // an in-process child through `globalThis`; a child in its own process shares
   // nothing but this directory, so the served session publishes a heartbeat
@@ -149,6 +155,7 @@ export default function piPermissionSystemExtension(pi: ExtensionAPI): void {
   const authorizerSelection = new AuthorizerSelection({
     detection: subagentDetection,
     events: pi.events,
+    dialogs: askDialogQueue,
     getPromptPreferences: () => ({
       doublePressToConfirm: configStore.current().doublePressToConfirm,
       budget: resolveRenderBudget(configStore.current()),
