@@ -31,3 +31,27 @@ Five TDD steps, one of them the Tidy-First assessor's single accepted preparator
   Treated as a lead, checked, discarded — no issue filed.
 - No follow-up issues filed.
   The two open questions (an idle-threshold release, a core coordination primitive) already have homes in issue #931 and the closed `earendil-works/pi#7007`.
+
+## Stage: Implementation — TDD (2026-09-22T18:05:15Z)
+
+### Session summary
+
+All five TDD steps landed as planned, in five commits.
+`AskDialogQueue` now serializes every human-facing ask a session presents, `LocalUserAuthorizer` admits through it with the `permissions:ui_prompt` emit inside the serialized region, and `SessionLifecycleHandler` releases pending asks at `session_shutdown` as unanswered denials.
+Test count went 4570 to 4584 (+14) across 167 to 168 files; `check`, root `lint`, full `test`, and `fallow dead-code` all green.
+
+### Observations
+
+- Deviation, step 2: the plan's settle-once killing mutation (dropping `AdmittedAsk`'s double-settle guard) killed **zero** tests.
+  `Promise.withResolvers`' `resolve` is already once-only, so the guard was unobservable; it was removed rather than papered over.
+  Its replacement mutation — dropping the `isSettled` check in `run` — was *also* green at first, because no existing test ever let a released ask's turn arrive.
+  Added "never presents a released ask whose turn arrives afterwards" (release, then answer the stale dialog) to reach that path; it reddens under the mutation.
+  This is the real hazard at shutdown, so the gap mattered.
+- Deviation, design: the dependency bags take a narrow `AskDialogAdmission` interface rather than the concrete `AskDialogQueue` the plan wrote, matching the `AskDialogRelease` slice the plan already specified and the `code-design` rule against concrete collaborator types.
+- Deviation, placement: `SESSION_ENDED_REASON` lives in `src/handlers/lifecycle.ts` (the site that calls `releaseAll`) rather than in `local-user-authorizer.ts`; the released *shape* assertion landed in step 3 with `unansweredDecision` instead of step 4.
+- Near-miss probe caught during mutation testing: the composition-root assertion was written as `not.toContain("User denied")`, but `renderUserDenial` produces `The user denied this …`.
+  The probe passed under the attribution mutation until it was rewritten against the producer's literal.
+- The rest of the plan's mutations behaved exactly as predicted, including the two-class split in step 3: bypassing `dialogs.run` reddens both the non-overlap and the announce test, while hoisting the emit above `run` reddens only the announce test.
+- Every file in the plan's `Module-Level Changes` table was touched and no others; both `fix:` subjects name observable outcomes rather than seams.
+- Pre-completion reviewer: PASS.
+  It re-derived all four mandated invariants independently (fail-open impossibility, the six admission/settle/release interleavings, emit timing on both the TUI and `select` paths, and the absence of a queue/drain cycle) and reported no warnings.
