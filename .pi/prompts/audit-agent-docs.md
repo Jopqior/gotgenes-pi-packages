@@ -1,6 +1,6 @@
 ---
 description: Measure the agent documentation, classify every passage against the admission test, gate the inventory, and apply the approved cuts
-model: anthropic/claude-opus-5
+model: anthropic/claude-opus-5-5
 ---
 
 # Audit the agent documentation

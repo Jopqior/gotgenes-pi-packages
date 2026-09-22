@@ -1,6 +1,6 @@
 ---
 description: Sweep open issues and PRs repo-wide, verify their real state, and produce a prioritized working list
-model: anthropic/claude-opus-5
+model: anthropic/claude-opus-5-5
 ---
 
 # Triage the backlog
