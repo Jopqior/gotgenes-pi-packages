@@ -83,3 +83,71 @@ No deferred work; the plan's marker is `**Release:** ship independently`, and th
 ### Observations
 
 No new friction beyond what the TDD stage above already recorded.
+
+## Stage: Final Retrospective (2026-09-23T16:22:05Z)
+
+### Session summary
+
+The fix shipped as `pi-permission-system` 33.1.0 through the worktree lane: fast-forward merge, clean root gates, green CI, and issue closed with 596dca1a as the landing commit.
+Across planning, TDD, and sync, the work followed the plan without rework: 2 tidyings, 4 behavior steps, and docs.
+The one miss surfaced only at this retro: the shipped mechanism is SlanyCukr's patch from the issue thread, and no artifact credits it.
+
+### Observations
+
+#### What went well
+
+- The planning spike installed pi 0.87.1 from the registry and ran its real `buildSystemPrompt` through the unmodified `renderToolSurface`.
+  That found a defect that neither the issue nor the contributor's patch named: plain-header removal on a footerless prompt deleted a user's own `Guidelines:` section in AGENTS.md.
+  This is the `reproduction` skill working as intended, with organic input instead of a hand fixture.
+- Every killing mutation named in the plan turned red exactly the tests it predicted, and the pre-completion reviewer re-derived the invariants with its own decoy inputs.
+- The ship ran without a stop: `ff-ok` prediction, 0 unpushed root commits, lint and `fallow` clean on the merged tree, CI in about 3.5 minutes, and the release in about 1.5 minutes.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` — SlanyCukr's comment on the issue carried measured wire evidence and a patch.
+  The patch removes Pi's own `<tools>`/`<rules>` only when Pi wrote the preamble, bounded before the first later Pi section.
+  Commit 596dca1a ships that mechanism, adding `<docs>` to the bound.
+  Planning framed the patch by its gap (it keeps whole-head plain removal) and never recorded it as adopted.
+  The plan does not mention it, no commit carries `Co-authored-by:`, and the `/ship` close comment did not name the contributor.
+  The `git-workflow` rule covers this case ("whether or not their patch was taken"), but the `/plan-issue` gate that enforces it sits inside the third-party-issue paragraph, and #962 was filed by `gotgenes`.
+  `/ship` step 9 builds the close comment from commits only and never reads the issue's comments.
+  Found at this retro, not caught by the operator.
+  Impact: the credit is not in git history, since pushed commits cannot be amended; the remedy is a follow-up comment on the issue.
+- `other` — the agent wrote `\uXXXX` escapes in `Edit` bodies 5 times: 4 in TDD (claude-opus-5-5, across `src/`, `test/`, and the retro heading) and 1 in sync (claude-sonnet-5).
+  The rule already exists in `markdown-conventions` and in the system-prompt addendum.
+  A `grep` caught every one before commit.
+  Impact: about 5 extra edit-and-grep cycles, and no rework reached a commit.
+  The recurrence across two models suggests a lint gate rather than more prose; one pre-existing literal escape in a comment (`src/authority/authorizer-chain.ts` line 47) shows the class already reaches `main`.
+- `other` — a green-file backup `cp` ran in the same parallel tool block as the mutating `Edit`, so the backup held the mutation (TDD step 3).
+  Self-identified.
+  Impact: one hand repair and a re-save.
+- `missing-context` — during planning, the agent told the operator that every package keeps its devDependency at its peer floor.
+  The `pi-subagents` package does not.
+  Self-identified and corrected before the #970 body was written.
+  Impact: none on artifacts.
+
+#### What caused friction (user side)
+
+- The User Note on test-running ergonomics is an opportunity, not a correction.
+  Nearly every TDD run was a hand-built chain (`vitest run … >/tmp/t.log; grep -E "×|Tests "`, then `check`, `eslint`, and a `cp` restore), so a purpose-built tool would take that composition off the agent.
+
+### Diagnostic details
+
+- **Model-performance correlation:** planning and TDD ran on `anthropic/claude-opus-5-5` (thinking high), which fits the design and mutation work.
+  Sync ran on `anthropic/claude-sonnet-5`, which fits mechanical gates and a rebase.
+  The `tidy-first-assessor` (25 turns) and the `pre-completion-reviewer` (60 turns) both ran on `claude-sonnet-5`, per their own transcripts; the reviewer's PASS came with independent re-derivation, so there was no mismatch.
+  Ship and retro ran on `anthropic/claude-opus-5-5`.
+- **Feedback-loop gap analysis:** no gap.
+  Each TDD step ran its scoped `vitest`, `check`, and `eslint` before committing.
+  The full package suite ran before the step 6 shared-interface commit, and every root gate ran at the end and again on the merged tree at ship.
+
+### Changes made
+
+1. `.pi/prompts/plan-issue.md`: the `Co-authored-by:` planning rule now has its own paragraph and fires on a third-party mechanism from an issue body, comment, or PR, whoever filed the issue.
+   It also states that a patch set aside for one gap still credits the mechanism the plan keeps.
+2. `.pi/prompts/ship.md` step 9: the close comment now credits by `@login` any third party whose comment supplied the shipped design or measured the defect, read from `gh issue view --json comments`.
+3. Posted a credit comment for @SlanyCukr on #962 (issuecomment-5799008917), naming 596dca1a as the commit that ships the patch's mechanism.
+4. Filed #973 (`scope:repo`): a purpose-built test-running tool, from the operator's User Note.
+   Dispositioned out of scope for Phase 15 in `packages/pi-permission-system/docs/architecture/architecture.md` (commit `docs(pi-permission-system): disposition #973 against Phase 15`).
+5. Not filed, by operator decision: a lint gate for literal `\uXXXX` escapes in markdown and TS comments.
+   The class recurred a 6th time during this retro: the #973 sweep bullet landed as a literal `\u2014` and was caught by `grep` before commit.
