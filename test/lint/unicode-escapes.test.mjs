@@ -1,6 +1,24 @@
 import { describe, expect, it } from "vitest";
 
-import { maskCode } from "../../scripts/lint/unicode-escapes.mjs";
+import {
+  findUnicodeEscapes,
+  formatFinding,
+  maskCode,
+  run,
+} from "../../scripts/lint/unicode-escapes.mjs";
+import { memoryIo } from "./memory-io.mjs";
+
+// Every expected character is built from its code point, so no line of this
+// file depends on a non-ASCII glyph surviving the edit that wrote it.
+const EM_DASH = String.fromCodePoint(0x2014);
+const RIGHTWARDS_ARROW = String.fromCodePoint(0x2192);
+const GRINNING_FACE = String.fromCodePoint(0x1f600);
+const E_ACUTE = String.fromCodePoint(0xe9);
+
+/** A finding with the fields a caller reads, for `toEqual` comparison. */
+function finding(line, column, token, replacement) {
+  return { line, column, token, replacement };
+}
 
 /** `count` spaces, for spelling a masked region without miscounting it. */
 function blank(count) {
@@ -97,3 +115,159 @@ describe("maskCode", () => {
 function lineBreaks(text) {
   return [...text.matchAll(/\n/g)].map((match) => match.index);
 }
+
+describe("findUnicodeEscapes", () => {
+  describe("escapes it decodes", () => {
+    it("reports an escape in prose with the character it spells", () => {
+      expect(findUnicodeEscapes("floor \\u2014 when")).toEqual([
+        finding(1, 7, "\\u2014", EM_DASH),
+      ]);
+    });
+
+    it("accepts uppercase hexadecimal digits", () => {
+      expect(findUnicodeEscapes("caf\\u00E9")).toEqual([
+        finding(1, 4, "\\u00E9", E_ACUTE),
+      ]);
+    });
+
+    it("reports a surrogate pair as one finding", () => {
+      expect(findUnicodeEscapes("a \\uD83D\\uDE00 b")).toEqual([
+        finding(1, 3, "\\uD83D\\uDE00", GRINNING_FACE),
+      ]);
+    });
+
+    it("decodes the braced form", () => {
+      expect(findUnicodeEscapes("a \\u{1F600} b")).toEqual([
+        finding(1, 3, "\\u{1F600}", GRINNING_FACE),
+      ]);
+    });
+  });
+
+  describe("escapes it reports without decoding", () => {
+    it("does not decode a lone surrogate", () => {
+      expect(findUnicodeEscapes("a \\uD83D b")).toEqual([
+        finding(1, 3, "\\uD83D", null),
+      ]);
+    });
+
+    it("does not decode a braced escape past the last code point", () => {
+      expect(findUnicodeEscapes("\\u{110000}")).toEqual([
+        finding(1, 1, "\\u{110000}", null),
+      ]);
+    });
+
+    it("does not decode a form feed, which the invisible-character gate rejects", () => {
+      expect(findUnicodeEscapes("\\u000c")).toEqual([
+        finding(1, 1, "\\u000c", null),
+      ]);
+    });
+
+    it("does not decode a zero-width space", () => {
+      expect(findUnicodeEscapes("\\u200b")).toEqual([
+        finding(1, 1, "\\u200b", null),
+      ]);
+    });
+
+    it("does not decode a non-breaking space", () => {
+      expect(findUnicodeEscapes("\\u00a0")).toEqual([
+        finding(1, 1, "\\u00a0", null),
+      ]);
+    });
+
+    it("reports a bare token that lost its backslash", () => {
+      expect(findUnicodeEscapes("The floor u2014 when")).toEqual([
+        finding(1, 11, "u2014", null),
+      ]);
+    });
+  });
+
+  describe("text it leaves alone", () => {
+    it("skips an escape inside a code span", () => {
+      expect(findUnicodeEscapes("write `\\u2014` never")).toEqual([]);
+    });
+
+    it("skips an escape inside a fenced block", () => {
+      expect(
+        findUnicodeEscapes("```js\ns.replace('@PH@', '\\u2014')\n```"),
+      ).toEqual([]);
+    });
+
+    it("skips an escape whose backslash is itself escaped", () => {
+      expect(findUnicodeEscapes("frontmatter \\\\u2014 stays")).toEqual([]);
+    });
+
+    it("skips a code point written the way prose names one", () => {
+      expect(findUnicodeEscapes("U+2014 is an em dash")).toEqual([]);
+    });
+
+    it("skips a token embedded in a word", () => {
+      expect(findUnicodeEscapes("menu2014 and u2014x")).toEqual([]);
+    });
+  });
+
+  describe("positions", () => {
+    it("counts lines from one", () => {
+      expect(findUnicodeEscapes("a\nb \\u2192")).toEqual([
+        finding(2, 3, "\\u2192", RIGHTWARDS_ARROW),
+      ]);
+    });
+
+    it("counts columns in code points after an astral character", () => {
+      expect(findUnicodeEscapes(`${GRINNING_FACE} \\u2014`)).toEqual([
+        finding(1, 3, "\\u2014", EM_DASH),
+      ]);
+    });
+
+    it("reports several findings in reading order", () => {
+      expect(findUnicodeEscapes("\\u2014 u2014\n\\u2192")).toEqual([
+        finding(1, 1, "\\u2014", EM_DASH),
+        finding(1, 8, "u2014", null),
+        finding(2, 1, "\\u2192", RIGHTWARDS_ARROW),
+      ]);
+    });
+  });
+});
+
+describe("formatFinding", () => {
+  it("names the character a decodable escape spells", () => {
+    expect(formatFinding("a.md", finding(3, 7, "\\u2014", EM_DASH))).toBe(
+      `a.md:3:7: literal escape \\u2014 (--fix writes U+2014 ${EM_DASH})`,
+    );
+  });
+
+  it("asks for a hand repair of an escape it will not decode", () => {
+    expect(formatFinding("a.md", finding(1, 1, "\\u000c", null))).toBe(
+      "a.md:1:1: literal escape \\u000c (not a visible character; repair by hand)",
+    );
+  });
+
+  it("flags a bare token as an escape that lost its backslash", () => {
+    expect(formatFinding("a.md", finding(1, 11, "u2014", null))).toBe(
+      "a.md:1:11: bare u2014 (an escape that lost its backslash? repair by hand)",
+    );
+  });
+});
+
+describe("run", () => {
+  it("reports every finding across files and fails", () => {
+    const io = memoryIo({
+      "a.md": Buffer.from("x \\u2014\n", "utf8"),
+      "b.md": Buffer.from("clean\n", "utf8"),
+      "c.md": Buffer.from("y u2014\n", "utf8"),
+    });
+
+    expect(run({ paths: ["a.md", "b.md", "c.md"] }, io)).toEqual({
+      lines: [
+        `a.md:1:3: literal escape \\u2014 (--fix writes U+2014 ${EM_DASH})`,
+        "c.md:1:3: bare u2014 (an escape that lost its backslash? repair by hand)",
+      ],
+      exitCode: 1,
+    });
+  });
+
+  it("passes a clean tree", () => {
+    const io = memoryIo({ "a.md": Buffer.from("`\\u2014` is fine\n", "utf8") });
+
+    expect(run({ paths: ["a.md"] }, io)).toEqual({ lines: [], exitCode: 0 });
+  });
+});

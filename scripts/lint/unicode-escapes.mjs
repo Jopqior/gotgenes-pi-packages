@@ -10,6 +10,72 @@
 // Code is exempt: the documents that teach this rule quote the escape in
 // backticks on purpose, so the scan blanks inline code spans and fenced
 // blocks before it looks.
+//
+// Usage: node scripts/lint/unicode-escapes.mjs [paths...]
+//
+// With no paths it enumerates the tracked markdown files itself.
+
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+/**
+ * Every literal Unicode escape in the prose of `text`, in reading order.
+ *
+ * `replacement` is the character the escape spells when decoding it is safe,
+ * and null when the finding needs a hand repair: a bare token, a lone
+ * surrogate, or an escape for a character nobody can see.
+ *
+ * `column` counts code points rather than UTF-16 units, so an astral
+ * character earlier on the line does not skew the position.
+ *
+ * @param {string} text
+ * @returns {{line: number, column: number, token: string, replacement: string | null}[]}
+ */
+export function findUnicodeEscapes(text) {
+  return escapeMatches(text).map(({ index, token, replacement }) => ({
+    ...position(text, index),
+    token,
+    replacement,
+  }));
+}
+
+/**
+ * One finding rendered as a `path:line:column: ...` line.
+ *
+ * @param {string} path
+ * @param {{line: number, column: number, token: string, replacement: string | null}} finding
+ * @returns {string}
+ */
+export function formatFinding(path, finding) {
+  const where = `${path}:${finding.line}:${finding.column}`;
+  const { token, replacement } = finding;
+  if (!token.startsWith("\\")) {
+    return `${where}: bare ${token} (an escape that lost its backslash? repair by hand)`;
+  }
+  if (replacement === null) {
+    return `${where}: literal escape ${token} (not a visible character; repair by hand)`;
+  }
+  return `${where}: literal escape ${token} (--fix writes U+${hex(replacement.codePointAt(0))} ${replacement})`;
+}
+
+/**
+ * The whole command: report every finding across `paths`.
+ *
+ * @param {{paths: string[]}} request
+ * @param {{readFile: (path: string) => Buffer}} io
+ * @returns {{lines: string[], exitCode: number}}
+ */
+export function run({ paths }, io) {
+  const lines = [];
+  for (const path of paths) {
+    const text = io.readFile(path).toString("utf8");
+    for (const finding of findUnicodeEscapes(text)) {
+      lines.push(formatFinding(path, finding));
+    }
+  }
+  return { lines, exitCode: lines.length === 0 ? 0 : 1 };
+}
 
 /**
  * `text` with fenced code blocks and inline code spans blanked to spaces.
@@ -171,6 +237,143 @@ function isAsciiPunctuation(character) {
 }
 
 /**
+ * An escape preceded by exactly one backslash -- `\\u2014` is CommonMark's
+ * spelling of a literal backslash, and so of a deliberate literal escape --
+ * in the four-digit or the braced form.
+ */
+const ESCAPE = /(?<!\\)\\u(?:\{([0-9a-fA-F]{1,6})\}|([0-9a-fA-F]{4}))/g;
+
+/** A four-digit escape for a low surrogate, anchored where a high one ends. */
+const LOW_SURROGATE_ESCAPE = /^\\u(d[c-f][0-9a-f]{2})/i;
+
+/** An escape that lost its backslash, standing alone as a word. */
+const BARE_TOKEN = /(?<![\w\\])u[0-9a-fA-F]{4}\b/g;
+
+/** Characters an escape may spell but decoding must not plant. */
+const INVISIBLE = /[\p{C}\p{Z}]/u;
+
+/**
+ * Every escape and bare token in the prose of `text`, by UTF-16 offset.
+ *
+ * @param {string} text
+ * @returns {{index: number, token: string, replacement: string | null}[]}
+ */
+function escapeMatches(text) {
+  const prose = maskCode(text);
+  const matches = [];
+  let consumedUntil = 0;
+  for (const match of prose.matchAll(ESCAPE)) {
+    // The low half of a surrogate pair was already read with its high half.
+    if (match.index < consumedUntil) continue;
+    const decoded = decodedEscape(prose, match);
+    matches.push(decoded);
+    consumedUntil = decoded.index + decoded.token.length;
+  }
+  for (const match of prose.matchAll(BARE_TOKEN)) {
+    matches.push({ index: match.index, token: match[0], replacement: null });
+  }
+  return matches.sort((a, b) => a.index - b.index);
+}
+
+/**
+ * One escape match, joined with the low surrogate that follows a high one.
+ *
+ * @param {string} prose
+ * @param {RegExpExecArray} match
+ * @returns {{index: number, token: string, replacement: string | null}}
+ */
+function decodedEscape(prose, match) {
+  const [token, braced, fourDigit] = match;
+  const codePoint = Number.parseInt(braced ?? fourDigit, 16);
+  if (fourDigit && isHighSurrogate(codePoint)) {
+    const low = LOW_SURROGATE_ESCAPE.exec(
+      prose.slice(match.index + token.length),
+    );
+    if (low) {
+      const pair = String.fromCharCode(codePoint, Number.parseInt(low[1], 16));
+      return { index: match.index, token: token + low[0], replacement: pair };
+    }
+  }
+  return { index: match.index, token, replacement: visible(codePoint) };
+}
+
+/**
+ * The character for `codePoint`, or null when it is not safe to write.
+ *
+ * @param {number} codePoint
+ * @returns {string | null}
+ */
+function visible(codePoint) {
+  if (codePoint > 0x10ffff) return null;
+  const character = String.fromCodePoint(codePoint);
+  return INVISIBLE.test(character) ? null : character;
+}
+
+/**
+ * @param {number} codePoint
+ * @returns {boolean}
+ */
+function isHighSurrogate(codePoint) {
+  return codePoint >= 0xd800 && codePoint <= 0xdbff;
+}
+
+/**
+ * The one-based line and code-point column of a UTF-16 offset.
+ *
+ * @param {string} text
+ * @param {number} index
+ * @returns {{line: number, column: number}}
+ */
+function position(text, index) {
+  const before = text.slice(0, index);
+  const lineStart = before.lastIndexOf("\n") + 1;
+  return {
+    line: before.split("\n").length,
+    column: [...before.slice(lineStart)].length + 1,
+  };
+}
+
+/**
+ * A code point as at least four uppercase hexadecimal digits.
+ *
+ * @param {number} codePoint
+ * @returns {string}
+ */
+function hex(codePoint) {
+  return codePoint.toString(16).toUpperCase().padStart(4, "0");
+}
+
+/**
+ * Every tracked markdown file that exists on disk.
+ *
+ * A path staged for deletion is still tracked, so the existence filter keeps
+ * the scan from throwing on it.
+ *
+ * @returns {string[]}
+ */
+function trackedMarkdown() {
+  const listing = execFileSync("git", ["ls-files", "-z", "--", "*.md"], {
+    maxBuffer: 64 * 1024 * 1024,
+  }).toString("utf8");
+  return listing.split("\0").filter((path) => path !== "" && existsSync(path));
+}
+
+/**
+ * @param {string[]} argv
+ * @returns {{paths: string[]}}
+ */
+function parseArgs(argv) {
+  const options = { paths: [] };
+  for (const argument of argv) {
+    if (argument.startsWith("--")) {
+      throw new Error(`unknown option: ${argument}`);
+    }
+    options.paths.push(argument);
+  }
+  return options;
+}
+
+/**
  * `text` with every character except a line feed replaced by a space.
  *
  * @param {string} text
@@ -178,4 +381,14 @@ function isAsciiPunctuation(character) {
  */
 function blankOut(text) {
   return text.replace(/[^\n]/g, " ");
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const { paths } = parseArgs(process.argv.slice(2));
+  const { lines, exitCode } = run(
+    { paths: paths.length > 0 ? paths : trackedMarkdown() },
+    { readFile: readFileSync },
+  );
+  for (const line of lines) process.stdout.write(`${line}\n`);
+  process.exitCode = exitCode;
 }
