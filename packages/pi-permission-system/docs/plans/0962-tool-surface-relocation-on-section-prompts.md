@@ -47,7 +47,9 @@ That is the [#919] / [#932] defect class, and it now happens in pi's default bra
   Setting that would mean rebuilding pi's preamble and `<docs>` text ourselves, and it would change what `customPrompt` means to every later handler.
   A custom `sections.tools` entry replaces pi's section in its original position near the top, which is the inherited region [#890] moved the list out of.
   The handler already returns a forced prompt for skill filtering, so text surgery on that prompt remains the mechanism.
-- **Bumping the `@earendil-works/pi-coding-agent` devDependency** (pinned `0.79.1`) so tests can build 0.86 prompts with pi's own builder.
+- **Raising the `@earendil-works/pi-coding-agent` peer floor or devDependency pin** (`>=0.79.0`, pinned `0.79.1`): tracked as [#970], a separate breaking change sequenced after this one.
+  Once the floor passes 0.86 it can delete this plan's footer-shaped layout.
+  A newer pin would not let tests build prompts with pi's own builder either: 0.87.1 exports `buildSystemPrompt` from no public entry point.
   The section-shape fixtures are hand-built from the 0.87.1 dist shapes, which is what [#958]'s PR [#959] did for `pi-subagents`.
 - **The tool-restored-one-turn-late residual** (architecture doc, *Two-phase checking*).
   The 0.87.1 dist now merges base and run `toolSnippets`, which may have fixed it.
@@ -390,3 +392,4 @@ Interface width check: `ToolSurfaceInputs` goes to five fields, and its one cons
 [#932]: https://github.com/gotgenes/pi-packages/issues/932
 [#958]: https://github.com/gotgenes/pi-packages/issues/958
 [#959]: https://github.com/gotgenes/pi-packages/pull/959
+[#970]: https://github.com/gotgenes/pi-packages/issues/970

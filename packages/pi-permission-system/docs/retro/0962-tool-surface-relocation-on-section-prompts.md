@@ -32,7 +32,10 @@ The plan has 7 steps: 2 tidyings, 4 behavior steps, and docs.
 - PR #908 (OMP prompt arrays) touches the same two `src/` files and is orthogonal; whichever lands second rebases.
 - The `pi-anthropic-auth` sibling writer parses sections by name and treats `tools`/`rules`/`docs` as pi-owned.
   A tagged tail block keeps its shaping consistent.
-- No follow-up issues were filed.
+- Follow-up #970 was filed after the plan commit: raise the `pi-coding-agent` peer floor and devDependency pin together, for this package only, as a separate breaking change after #962 (operator decision).
+  A spike pinning the devDependency at 0.87.1 was clean: `tsc` passed, and so did 168 test files with 4590 tests.
+  The spike was reverted, including pnpm's automatic `pnpm-workspace.yaml` edits.
+  Its roadmap disposition is out of scope for Phase 15.
 
 #### Deferred tidyings
 
