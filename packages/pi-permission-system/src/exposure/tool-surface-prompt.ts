@@ -37,6 +37,16 @@ export interface ToolSurfaceInputs {
   /** Guideline bullets each tool contributes, keyed by tool name. */
   readonly guidelinesByTool: ReadonlyMap<string, readonly string[]>;
   /**
+   * `systemPromptOptions.promptGuidelines`: bullets Pi writes into its rules
+   * after the tools' own.
+   *
+   * Only a bullet no registered tool contributes is carried. From Pi 0.86 the
+   * field holds what other extensions added; through 0.85 it *is* the tools'
+   * guidelines, flattened, and a denied tool's bullet must not return by this
+   * route.
+   */
+  readonly promptGuidelines: readonly string[];
+  /**
    * Whether Pi wrote the prompt's preamble itself.
    *
    * False when Pi assembled the prompt from `customPrompt` — a user's
@@ -419,8 +429,8 @@ function toolBullets(inputs: ToolSurfaceInputs): string[] {
  * The guideline bullets for the allowed set.
  *
  * Mirrors `buildSystemPrompt`'s assembly: its conditional file-exploration
- * bullet first, then each allowed tool's own contributions, then its two
- * unconditional bullets — de-duplicated in first-seen order, as Pi does.
+ * bullet first, then each allowed tool's own contributions, then the bullets
+ * other extensions added, then its two unconditional bullets — de-duplicated in first-seen order, as Pi does.
  */
 function ruleBullets(inputs: ToolSurfaceInputs): string[] {
   const bullets: string[] = [];
@@ -445,11 +455,27 @@ function ruleBullets(inputs: ToolSurfaceInputs): string[] {
     }
   }
 
+  for (const guideline of extensionGuidelines(inputs)) {
+    addGuideline(guideline);
+  }
+
   for (const guideline of UNIVERSAL_GUIDELINES) {
     addGuideline(guideline);
   }
 
   return bullets.map((bullet) => `- ${bullet}`);
+}
+
+/** The `promptGuidelines` bullets no registered tool contributes. */
+function extensionGuidelines(inputs: ToolSurfaceInputs): string[] {
+  const toolGuidelines = new Set(
+    [...inputs.guidelinesByTool.values()]
+      .flat()
+      .map((guideline) => guideline.trim()),
+  );
+  return inputs.promptGuidelines.filter(
+    (guideline) => !toolGuidelines.has(guideline.trim()),
+  );
 }
 
 /**

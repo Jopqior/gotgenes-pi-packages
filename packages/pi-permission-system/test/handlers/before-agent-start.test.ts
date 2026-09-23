@@ -379,6 +379,17 @@ describe("AgentPrepHandler.handle", () => {
     expect(result.systemPrompt).not.toContain("Use bash for file operations.");
   });
 
+  it("carries the rules another extension added to the prompt options", async () => {
+    const { handler } = makeSetup();
+
+    const result = await handler.handle(
+      makeEvent(undefined, { promptGuidelines: ["An extension's rule"] }),
+      makeCtx(),
+    );
+
+    expect(result.systemPrompt).toContain("- An extension's rule");
+  });
+
   it("keeps the wire system prompt stable across the tool-listing drift between turns", async () => {
     const fullProse = [
       "You are an assistant.",

@@ -21,6 +21,7 @@ function inputs(overrides: Partial<ToolSurfaceInputs> = {}): ToolSurfaceInputs {
     allowedTools: ["read"],
     toolSnippets: SNIPPETS,
     guidelinesByTool: new Map(),
+    promptGuidelines: [],
     piAuthoredPreamble: true,
     ...overrides,
   };
@@ -953,6 +954,62 @@ describe("renderToolSurface", () => {
           renderToolSurface(piAuthoredSectionPrompt(), inputs()),
         );
       });
+    });
+  });
+
+  describe("extension-contributed rules", () => {
+    it("carries a rule no tool contributes, after the tools' own and before Pi's two", () => {
+      const result = renderToolSurface(
+        customAuthoredSectionPrompt(),
+        inputs({
+          piAuthoredPreamble: false,
+          guidelinesByTool: new Map([["read", ["Read before editing"]]]),
+          promptGuidelines: ["An extension's rule"],
+        }),
+      );
+
+      expect(result).toContain(
+        [
+          "<rules>",
+          "- Read before editing",
+          "- An extension's rule",
+          "- Be concise in your responses",
+          "- Show file paths clearly when working with files",
+          "</rules>",
+        ].join("\n"),
+      );
+    });
+
+    it("does not carry a denied tool's rule back in by that route", () => {
+      const result = renderToolSurface(
+        customAuthoredSectionPrompt(),
+        inputs({
+          piAuthoredPreamble: false,
+          guidelinesByTool: new Map([["bash", ["  Use bash carefully"]]]),
+          promptGuidelines: ["Use bash carefully "],
+        }),
+      );
+
+      expect(result).not.toContain("Use bash carefully");
+    });
+
+    it("adds nothing when the field is Pi 0.85's flattened tool guidelines", () => {
+      const guidelinesByTool = new Map([
+        ["read", ["Read before editing"]],
+        ["bash", ["Use bash carefully"]],
+      ]);
+
+      const flattened = renderToolSurface(
+        piAuthoredPrompt(),
+        inputs({
+          guidelinesByTool,
+          promptGuidelines: ["Read before editing", "Use bash carefully"],
+        }),
+      );
+
+      expect(flattened).toBe(
+        renderToolSurface(piAuthoredPrompt(), inputs({ guidelinesByTool })),
+      );
     });
   });
 });
