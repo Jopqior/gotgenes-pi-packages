@@ -70,3 +70,16 @@ Pre-completion reviewer: PASS; it re-derived all four invariants against real pi
 #### Reviewer warnings
 
 None.
+
+## Stage: Sync (worktree) (2026-09-23T14:31:59Z)
+
+### Session summary
+
+Pre-push checks are clean from the worktree root: `pnpm run lint` and `pnpm fallow dead-code` both pass.
+No deferred work; the plan's marker is `**Release:** ship independently`, and the one follow-up it names (#970, raising the `pi-coding-agent` peer floor) is filed and dispositioned separately.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-962--/2026-09-23T04-03-09-329Z_01a0cc6e-8191-7541-9553-a08310463316.jsonl` — read with `read_session_file({ path: "<path above>" })` for message-level verification at land/retro time.
+
+### Observations
+
+No new friction beyond what the TDD stage above already recorded.
