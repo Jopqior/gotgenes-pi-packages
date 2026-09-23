@@ -15,17 +15,23 @@
  * and no session edits another's bytes.
  *
  * Removal is bounded to the text this package or Pi wrote. The prompt is split
- * at Pi's `Current working directory:` footer, which it writes last and
- * unconditionally: everything after it was appended by an extension, and
- * everything before it is Pi's own preamble only when Pi did not build the
- * prompt from a `customPrompt`. Under a custom prompt Pi writes no tool
- * surface at all, so a section matched above the footer is a user's or another
- * extension's — removing it destroyed their text (#919, #932).
+ * at the cwd layer Pi writes last and unconditionally: a
+ * `Current working directory:` footer through Pi 0.85, a `<cwd>` section from
+ * 0.86. Everything after it was appended by an extension, and everything
+ * before it is Pi's own only when Pi did not build the prompt from a
+ * `customPrompt`. Under a custom prompt Pi writes no tool surface at all, so a
+ * section matched above the cwd layer is a user's or another extension's, and
+ * removing it destroyed their text (#919, #932). On the 0.86 shape even a
+ * Pi-authored head is searched only for Pi's own `<tools>` and `<rules>`,
+ * bounded to where Pi writes them, since the plain headers it no longer
+ * writes would match only a context file's text.
  *
- * Rendering follows `buildSystemPrompt`'s own rules — a tool is listed only
- * when it has a snippet, and the guideline bullets are the allowed tools' own
- * `promptGuidelines` around Pi's built-in ones — so the block reads as the one
- * Pi would have written for this session's real surface.
+ * Rendering follows `buildSystemPrompt`'s own rules (a tool is listed only
+ * when it has a snippet; the guideline bullets are the allowed tools' own
+ * `promptGuidelines`, then other extensions' rules, around Pi's built-in
+ * ones) and its shape (plain headers or tagged sections, matching the
+ * prompt), so the block reads as the one Pi would have written for this
+ * session's real surface.
  */
 
 /** What a session's tool surface renders from. */

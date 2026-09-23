@@ -213,9 +213,10 @@ describe("renderToolSurface", () => {
     });
 
     it("removes a section-header-shaped line in project context when Pi wrote the preamble", () => {
-      // Pi's own sections come first in a prompt it wrote, so this heading is
-      // only reachable when Pi wrote none - which cannot happen in its default
-      // branch. Documents the behavior of the Pi-authored path.
+      // Through Pi 0.85 its own sections come first in a prompt it wrote, so
+      // this heading is only reachable when Pi wrote none, which its default
+      // branch never does. Documents the header layout's Pi-authored path; a
+      // section-shaped prompt never searches its head for plain headers.
       const prompt = [
         "You are an assistant.",
         "",
