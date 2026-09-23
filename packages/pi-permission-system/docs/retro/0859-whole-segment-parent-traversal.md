@@ -82,3 +82,69 @@ The filed follow-up ([#968], brace expansion) is deferred to a later phase and n
 ### Observations
 
 Nothing further to add beyond the TDD and Planning stage notes above.
+
+## Stage: Final Retrospective (2026-09-23T03:55:00Z)
+
+### Session summary
+
+The root `/ship` fast-forward-merged the peer branch, passed CI, closed the issue, and released `pi-permission-system-v33.0.8`.
+It then tore down the worktree.
+Across all four stages the fix itself went cleanly: Red matched the plan, all five mutations were killed, and the corpus re-run matched the planning measurement.
+The friction was all process: literal `\uXXXX` escapes in authored markdown, one scripted mutation that silently did not apply, and a close comment drafted without the voice skill.
+
+### Observations
+
+#### What went well
+
+- **The `PRE_MERGE` anchor rule fired as designed.**
+  The branch carried a pre-plan commit (`docs(pi-permission-system): disposition #968 against Phase 15`) that the plan-anchored range could not see.
+  `/ship`'s ancestor test surfaced it, and the release-candidate check confirmed it touched only `pi-permission-system`.
+- **The corpus before/after was captured at the right commits.**
+  The TDD stage took the "before" snapshot at the `refactor:` commit, before the `fix:` landed.
+  So the re-run could attribute its one extra `path` loss to a specific token: the session's own commit-message prose.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` (self-identified, three times, two models): a literal `\u2705` or `\u2014` escape was written into markdown by an `Edit`.
+  This happened once in the TDD roadmap edit and once in the TDD retro note (both Opus 5.5), then again in the sync retro note (Sonnet 5), which said "the same em-dash escape mistake again".
+  The addendum and `markdown-conventions` already forbid it.
+  Impact: about 2–3 repair tool calls each, all caught by `grep` before commit; the sync note then recorded "nothing further to add" instead of the slip.
+  This is the case [#967] makes for a gate over prose.
+- `instruction-violation` (self-identified): the TDD stage ran a killing mutation (M3, the token-edge regex) as a scripted `perl -pi` substitution without loading `edit-tool`.
+  That skill already warns that a backslash-bearing replacement goes through three escape levels.
+  The substitution matched nothing, and the suite stayed green (367).
+  Impact: 1 extra tool call, since a follow-up `grep` showed the pattern unchanged; unnoticed, a mutation that never applied reads as a surviving mutation and invites unnecessary tests.
+- `instruction-violation` (self-identified at retro): `/ship` step 9 says to load `github-voice` before drafting, but the ship session drafted and published the close comment without it.
+  Step 1.4's up-front skill load lists `git-workflow`, `releasing`, and `worktrees`, and says "the close comment … sit[s] on rules those carry", but it does not list `github-voice`.
+  Impact: the published comment carries a garbled clause ("both classifiers now credit the reporter via Co-authored-by").
+- `other`: in the ship session's lint gate, `rc=$?; …; [ $rc -ne 0 ] && tail` made the tool report exit 1 on a passing lint.
+  The prompt's recipe is `|| tail`.
+  Impact: 1 extra tool call to read the log.
+
+#### What caused friction (user side)
+
+- None observed.
+  The operator's two gates in planning (classifier scope, and #968's roadmap disposition) were strategic, and each was answered once.
+
+### Diagnostic details
+
+- **Model-performance correlation:**
+  - Planning and TDD ran on `anthropic/claude-opus-5-5`, which is appropriate for the corpus design and the mutation plan.
+  - Sync ran on `anthropic/claude-sonnet-5`, which is appropriate for mechanical work.
+  - Both subagents ran on `anthropic/claude-sonnet-5`, attributed from their own transcripts.
+    The `tidy-first-assessor` confirmed the probe fall-through with line citations.
+    The `pre-completion-reviewer` enumerated about 30 tokens against the shipped regex.
+    No quality mismatch.
+  - Ship ran on `anthropic/claude-sonnet-5`; the one quality slip there (the close-comment clause) is a skipped skill load, not model capability.
+- **Unused-tool detection:** the `edit-tool` skill (an `AGENTS.md` index row for "a scripted substitution") was not loaded before the `perl` mutations; it already names the backslash-escape trap.
+- **Feedback-loop gap analysis:** none.
+  TDD ran full baseline gates, targeted `vitest` after each Red, Green, and mutation, and full gates again before the reviewer.
+
+### Changes made
+
+1. `.pi/prompts/ship.md`: step 1.4 now loads `github-voice` alongside `git-workflow` and `releasing`, so the close comment's skill is in context before step 9.
+2. `.pi/skills/testing/SKILL.md`: added one line to confirm a mutation applied (`git diff --stat`) before reading its run.
+3. Edited the published #859 close comment to replace the garbled credit clause, thank the reporter, and name the released version.
+4. Commented on [#967] with this issue's three occurrences of literal `\uXXXX` escapes across two models.
+
+[#967]: https://github.com/gotgenes/pi-packages/issues/967
