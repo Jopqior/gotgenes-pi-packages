@@ -10,6 +10,7 @@ import {
   scanFiles,
   suggestedCharacter,
 } from "../../scripts/lint/invisible-characters.mjs";
+import { memoryIo } from "./memory-io.mjs";
 
 // Every fixture builds its invisible characters from escapes. A literal byte
 // here would make this file fail the very scan it tests.
@@ -201,21 +202,6 @@ describe("suggestedCharacter", () => {
     expect(suggestedCharacter("coherence2")).toBe(null);
   });
 });
-
-/** An in-memory stand-in for `readFileSync`/`writeFileSync`. */
-function memoryIo(tree) {
-  const files = { ...tree };
-  const writes = [];
-  return {
-    files,
-    writes,
-    readFile: (path) => files[path],
-    writeFile: (path, text) => {
-      files[path] = Buffer.from(text, "utf8");
-      writes.push(path);
-    },
-  };
-}
 
 describe("repairInvisibleCharacters", () => {
   describe("characters it deletes", () => {
