@@ -11,12 +11,14 @@
 // backticks on purpose, so the scan blanks inline code spans and fenced
 // blocks before it looks.
 //
-// Usage: node scripts/lint/unicode-escapes.mjs [paths...]
+// Usage: node scripts/lint/unicode-escapes.mjs [--fix] [paths...]
 //
-// With no paths it enumerates the tracked markdown files itself.
+// With no paths it enumerates the tracked markdown files itself. `--fix`
+// decodes each escape that spells a visible character and still fails on the
+// rest.
 
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 /**
@@ -60,21 +62,60 @@ export function formatFinding(path, finding) {
 }
 
 /**
- * The whole command: report every finding across `paths`.
+ * `text` with every decodable escape replaced by the character it spells.
  *
- * @param {{paths: string[]}} request
- * @param {{readFile: (path: string) => Buffer}} io
+ * A finding with no replacement is left exactly where it is, and so is
+ * anything inside code.
+ *
+ * @param {string} text
+ * @returns {{text: string, decoded: number}}
+ */
+export function repairUnicodeEscapes(text) {
+  const decodable = escapeMatches(text).filter(
+    ({ replacement }) => replacement !== null,
+  );
+  let repaired = "";
+  let copiedUntil = 0;
+  for (const { index, token, replacement } of decodable) {
+    repaired += text.slice(copiedUntil, index) + replacement;
+    copiedUntil = index + token.length;
+  }
+  repaired += text.slice(copiedUntil);
+  return { text: repaired, decoded: decodable.length };
+}
+
+/**
+ * The whole command: decode when asked, then report whatever is left.
+ *
+ * Decoding never satisfies the gate on its own -- the scan runs afterwards
+ * over the rewritten files, so a finding that needs a hand repair still fails.
+ * A file with nothing to decode is not rewritten.
+ *
+ * @param {{paths: string[], fix?: boolean}} request
+ * @param {{readFile: (path: string) => Buffer, writeFile: (path: string, text: string) => void}} io
  * @returns {{lines: string[], exitCode: number}}
  */
-export function run({ paths }, io) {
+export function run({ paths, fix = false }, io) {
   const lines = [];
+  if (fix) {
+    for (const path of paths) {
+      const { text, decoded } = repairUnicodeEscapes(
+        io.readFile(path).toString("utf8"),
+      );
+      if (decoded === 0) continue;
+      io.writeFile(path, text);
+      lines.push(`decoded ${path}`);
+    }
+  }
+  let findings = 0;
   for (const path of paths) {
     const text = io.readFile(path).toString("utf8");
     for (const finding of findUnicodeEscapes(text)) {
       lines.push(formatFinding(path, finding));
+      findings += 1;
     }
   }
-  return { lines, exitCode: lines.length === 0 ? 0 : 1 };
+  return { lines, exitCode: findings === 0 ? 0 : 1 };
 }
 
 /**
@@ -360,15 +401,15 @@ function trackedMarkdown() {
 
 /**
  * @param {string[]} argv
- * @returns {{paths: string[]}}
+ * @returns {{fix: boolean, paths: string[]}}
  */
 function parseArgs(argv) {
-  const options = { paths: [] };
+  const options = { fix: false, paths: [] };
   for (const argument of argv) {
-    if (argument.startsWith("--")) {
+    if (argument === "--fix") options.fix = true;
+    else if (argument.startsWith("--")) {
       throw new Error(`unknown option: ${argument}`);
-    }
-    options.paths.push(argument);
+    } else options.paths.push(argument);
   }
   return options;
 }
@@ -384,10 +425,13 @@ function blankOut(text) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const { paths } = parseArgs(process.argv.slice(2));
+  const { fix, paths } = parseArgs(process.argv.slice(2));
   const { lines, exitCode } = run(
-    { paths: paths.length > 0 ? paths : trackedMarkdown() },
-    { readFile: readFileSync },
+    { paths: paths.length > 0 ? paths : trackedMarkdown(), fix },
+    {
+      readFile: readFileSync,
+      writeFile: (path, text) => writeFileSync(path, text, "utf8"),
+    },
   );
   for (const line of lines) process.stdout.write(`${line}\n`);
   process.exitCode = exitCode;

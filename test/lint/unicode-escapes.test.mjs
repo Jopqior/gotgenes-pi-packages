@@ -4,6 +4,7 @@ import {
   findUnicodeEscapes,
   formatFinding,
   maskCode,
+  repairUnicodeEscapes,
   run,
 } from "../../scripts/lint/unicode-escapes.mjs";
 import { memoryIo } from "./memory-io.mjs";
@@ -269,5 +270,64 @@ describe("run", () => {
     const io = memoryIo({ "a.md": Buffer.from("`\\u2014` is fine\n", "utf8") });
 
     expect(run({ paths: ["a.md"] }, io)).toEqual({ lines: [], exitCode: 0 });
+  });
+
+  describe("with fix", () => {
+    it("decodes, names the file, and passes", () => {
+      const io = memoryIo({ "a.md": Buffer.from("x \\u2014 y\n", "utf8") });
+
+      expect(run({ paths: ["a.md"], fix: true }, io)).toEqual({
+        lines: ["decoded a.md"],
+        exitCode: 0,
+      });
+      expect(io.files["a.md"].toString("utf8")).toBe(`x ${EM_DASH} y\n`);
+      expect(io.writes).toEqual(["a.md"]);
+    });
+
+    it("still fails on a finding it cannot decode", () => {
+      const io = memoryIo({
+        "a.md": Buffer.from("x \\u2014 u2014\n", "utf8"),
+      });
+
+      expect(run({ paths: ["a.md"], fix: true }, io)).toEqual({
+        lines: [
+          "decoded a.md",
+          "a.md:1:5: bare u2014 (an escape that lost its backslash? repair by hand)",
+        ],
+        exitCode: 1,
+      });
+    });
+
+    it("does not rewrite a file with nothing to decode", () => {
+      const io = memoryIo({ "a.md": Buffer.from("y u2014\n", "utf8") });
+
+      run({ paths: ["a.md"], fix: true }, io);
+
+      expect(io.writes).toEqual([]);
+    });
+  });
+});
+
+describe("repairUnicodeEscapes", () => {
+  it("decodes an escape in prose", () => {
+    expect(repairUnicodeEscapes("floor \\u2014 when")).toEqual({
+      text: `floor ${EM_DASH} when`,
+      decoded: 1,
+    });
+  });
+
+  it("decodes several escapes of different lengths on one line", () => {
+    expect(
+      repairUnicodeEscapes("\\uD83D\\uDE00\\u2014 \\u{1F600} \\u2192."),
+    ).toEqual({
+      text: `${GRINNING_FACE}${EM_DASH} ${GRINNING_FACE} ${RIGHTWARDS_ARROW}.`,
+      decoded: 4,
+    });
+  });
+
+  it("leaves report-only findings and code untouched", () => {
+    const text = "`\\u2014` u2014 \\u000c \\\\u2014";
+
+    expect(repairUnicodeEscapes(text)).toEqual({ text, decoded: 0 });
   });
 });
