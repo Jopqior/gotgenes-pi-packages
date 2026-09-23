@@ -1255,6 +1255,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#963] — filed by an operator session (2026-09-20); **becomes a new step in this phase, after [#924]** (operator decision).
   A wrapper that only changes *how* the same visible command runs (`time`, `timeout`, `nice`, `stdbuf`, `setsid`) is floored with the wrappers that change *what* runs, so `time pnpm run lint` asks where `pnpm run lint` resolves by its own rules — a deterministic false-positive ask in the phase's direction, though its mechanism is ADR 0013 §11's floor rather than a lost token role.
   It owns `wrapper-analysis.ts`, which no other step touches, and it sequences before [#880] so that step's "does not lift the floor" constraint is written against the amended §11.
+- [#968] — filed by [#859]'s planning; deferred to a later phase, beside [#822].
+  Bash brace expansion (`cat {..,y}/z` reads `../z`) is invisible to the projection, which resolves the literal token as one in-cwd segment; [#859]'s whole-segment rule removes the incidental unknown-base catch the substring test gave it.
+  It is a missed operand, the opposite direction to this phase's false-positive cause, and it shares [#822]'s mechanism class of gating a token by what the shell expands it into.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by [#880] (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1661,5 +1664,6 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#962]: https://github.com/gotgenes/pi-packages/issues/962
 [#963]: https://github.com/gotgenes/pi-packages/issues/963
 [#965]: https://github.com/gotgenes/pi-packages/issues/965
+[#968]: https://github.com/gotgenes/pi-packages/issues/968
 [#490]: https://github.com/gotgenes/pi-packages/issues/490
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
