@@ -349,6 +349,16 @@ describe("BashProgram", () => {
         expect(program.pathRuleCandidates()).toHaveLength(0);
       });
 
+      it("does not make a revision range a rule candidate after an unknown cd", async () => {
+        const program = await BashProgram.parse(
+          "cd ~/x && git log v1..v2",
+          probeNormalizer,
+        );
+        expect(program.pathRuleCandidates().map(({ token }) => token)).toEqual([
+          "~/x",
+        ]);
+      });
+
       it("does not double-promote a token the shape gate already accepts", async () => {
         tmp.file(root, "id_rsa", "key");
         const program = await BashProgram.parse(
@@ -628,6 +638,16 @@ describe("BashProgram", () => {
         expect(
           program.externalAccesses().map(({ path }) => path.boundaryValue()),
         ).toContain(outsideRoot);
+      });
+
+      it("flags a symlink whose name carries an in-segment ..", async () => {
+        const outsideRoot = canonicalDir("pi-perm-ext-range-");
+        const secret = tmp.file(outsideRoot, "secret", "s");
+        tmp.symlink(root, "v1..v2", secret);
+        const program = await BashProgram.parse("cat v1..v2", probeNormalizer);
+        expect(
+          program.externalAccesses().map(({ path }) => path.boundaryValue()),
+        ).toEqual([secret]);
       });
     });
 
@@ -999,6 +1019,28 @@ describe("BashProgram", () => {
         expect(
           program.externalAccesses().map(({ path }) => path.value()),
         ).toContain("/projects/my-app/within.txt");
+      });
+
+      it("does not flag a revision range after a non-literal cd", async () => {
+        // `..` inside a segment traverses nothing, so only the cd target is
+        // external.
+        const program = await BashProgram.parse(
+          "cd ~/x && git log HEAD..origin/main",
+          normalizer,
+        );
+        expect(
+          program.externalAccesses().map(({ path }) => path.value()),
+        ).toEqual([join(homedir(), "x")]);
+      });
+
+      it("flags a whole-segment traversal inside a longer token after a non-literal cd", async () => {
+        const program = await BashProgram.parse(
+          "cd ~/x && cat a/../../b",
+          normalizer,
+        );
+        expect(
+          program.externalAccesses().map(({ path }) => path.value()),
+        ).toEqual([join(homedir(), "x"), "/projects/b"]);
       });
 
       it("still resolves an absolute path normally after a non-literal cd", async () => {
