@@ -36,5 +36,35 @@ I also filed the brace-expansion residual as [#968] and recorded its disposition
 
 - `test/access-intent/bash/token-classification.test.ts`: the two near-duplicate "shared rejection: rejectNonPathToken" blocks (one per classifier) could share one table-driven test.
 
+## Stage: Implementation — TDD (2026-09-23T03:35:39Z)
+
+### Session summary
+
+Completed all three plan steps: the `refactor:` extraction of `hasParentTraversal`, the `fix:` that makes it a whole-segment `PARENT_TRAVERSAL_SEGMENT_PATTERN` (co-authored with `TacoTakumi`), and the roadmap `docs:` commit with the ✅ marks and a `Landed:` note.
+The package suite went from 4584 to 4590 tests (+6: two unit tests in `token-classification.test.ts`, four in `program.test.ts`).
+
+### Observations
+
+- **Red matched the plan exactly.** 4 tests failed at Red (the two in-segment unit tests and the two `program.test.ts` range tests), and the three invariant pins (the `a/../../b` control, the `v1..v2` symlink, and the whole-segment positives) passed as predicted.
+- **All five named mutations were killed.**
+  In-segment: 4 reds.
+  Rule call site only: 2 reds, with the strict tests green.
+  Token edge (drop `$`): 2 reds; it also killed the rule classifier's POSIX `foo\..` positive, which is a trailing-edge case too, one more than the plan named.
+  Backslash: 2 reds.
+  Probe fall-through: 4 reds, including the new symlink test and three pre-existing #645/#694 pins.
+- **The scripted `perl` mutation for the token edge matched nothing** (the pattern unchanged, and 367 green).
+  I caught it because `grep` showed the pattern unchanged, then re-applied it with `Edit`.
+  The regex-escaping layers (shell, `perl`, the JS regex source) make a scripted mutation of a regex literal unreliable, so `Edit` is the tool for it.
+- **The corpus re-run matched the plan.**
+  It covered 8375 commands (the log grew by 15): `external_directory` 28 tokens lost across 27 commands, `path` 93 lost across 86, 0 gained, 0 lost tokens with a whole `..` segment, and 2 commands losing every external access.
+  The one extra `path` loss is this session's own `refactor:` commit message (prose containing ` .. `).
+  The pre-change output was captured at the `refactor:` commit, before the `fix:` landed.
+- **One slip in the docs step:** the first `Edit` wrote the check-mark as a literal `\u2705` escape in the heading and the Mermaid node, and the retro's first draft repeated the slip for an em-dash.
+  The addendum's literal-character rule governs `newText` as much as `oldText`.
+  `grep` caught it, and I replaced it with the character before committing.
+- **Pre-completion reviewer: WARN.**
+  It found no defects: it enumerated about 30 candidate tokens (including `$VAR/..`, `$HOME/..`, `./..`, `.../x`, and quoted forms) and confirmed that each classifies as intended.
+  Its single finding is that its read-only mandate kept it from re-running the corpus spike, which it disclosed rather than reporting as verified.
+
 [#822]: https://github.com/gotgenes/pi-packages/issues/822
 [#968]: https://github.com/gotgenes/pi-packages/issues/968
