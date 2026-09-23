@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [33.1.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v33.0.8...pi-permission-system-v33.1.0) (2026-09-23)
+
+
+### Features
+
+* **pi-permission-system:** state the relocated tool surface in pi ≥0.86's section shape ([e9980a4](https://github.com/gotgenes/pi-packages/commit/e9980a46af93b2cf668977fc103c803c911d9b12)), closes [#962](https://github.com/gotgenes/pi-packages/issues/962)
+
+### Bug Fixes
+
+* **pi-permission-system:** keep a project's own Guidelines section on a pi ≥0.86 prompt ([4f88680](https://github.com/gotgenes/pi-packages/commit/4f88680b309219d6f21d84968101975012f01364)), closes [#962](https://github.com/gotgenes/pi-packages/issues/962)
+* **pi-permission-system:** remove pi's own tool list and rules on a pi ≥0.86 prompt ([596dca1](https://github.com/gotgenes/pi-packages/commit/596dca1a64838162f0662ff06b6a0cc29c538bdc)), closes [#962](https://github.com/gotgenes/pi-packages/issues/962)
+* **pi-permission-system:** keep extension-contributed rules when relocating the tool surface ([00eb11b](https://github.com/gotgenes/pi-packages/commit/00eb11b3ac5bc4c80205fc1c5ffe62d45d8ddc72)), closes [#962](https://github.com/gotgenes/pi-packages/issues/962)
+
+### Documentation
+
+* **pi-permission-system:** describe both prompt shapes in the tool-surface module comments ([5b5ca51](https://github.com/gotgenes/pi-packages/commit/5b5ca512586e2d47b887406e210f847811293192)), closes [#962](https://github.com/gotgenes/pi-packages/issues/962)
+* **pi-permission-system:** describe the tool-surface relocation on pi ≥0.86 section prompts ([5168e40](https://github.com/gotgenes/pi-packages/commit/5168e408c1a0f07c0ae5c9668ec49914b4a2a41b)), closes [#962](https://github.com/gotgenes/pi-packages/issues/962)
+
 ## [33.0.8](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v33.0.7...pi-permission-system-v33.0.8) (2026-09-23)
 
 
