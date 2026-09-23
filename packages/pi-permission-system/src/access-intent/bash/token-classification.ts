@@ -62,7 +62,7 @@ export function classifyTokenAsPathCandidate(token: string): string | null {
 
   if (token.startsWith("/")) return token;
   if (token.startsWith("~/")) return token;
-  if (token.includes("..")) return token;
+  if (hasParentTraversal(token)) return token;
   if (WINDOWS_DRIVE_PATH_PATTERN.test(token)) return token;
 
   return null;
@@ -98,7 +98,7 @@ export function classifyTokenAsRuleCandidate(
 
   if (token.startsWith(".")) return token;
   if (flavor.hasPathSeparator(token)) return token; // ~/ paths, relative paths with /, and win32 dir\file
-  if (token.includes("..")) return token; // bare ".." (no slash)
+  if (hasParentTraversal(token)) return token; // bare ".." (no slash)
   if (WINDOWS_DRIVE_PATH_PATTERN.test(token)) return token; // backslash-only drive form
 
   return null;
@@ -130,6 +130,13 @@ export function classifyBareTokenCandidate(token: string): string | null {
 }
 
 // ── Private rejection predicate ────────────────────────────────────────────
+
+/**
+ * A parent-traversal shape: the token carries `..`.
+ */
+function hasParentTraversal(token: string): boolean {
+  return token.includes("..");
+}
 
 /**
  * Windows drive-letter absolute path: a single ASCII letter, a colon, then a
