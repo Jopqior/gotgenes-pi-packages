@@ -788,12 +788,14 @@ describe("renderToolSurface", () => {
             "/repo",
             "</cwd>",
             "",
-            "Available tools:",
+            "<tools>",
             "- read: Read file contents",
+            "</tools>",
             "",
-            "Guidelines:",
+            "<rules>",
             "- Be concise in your responses",
             "- Show file paths clearly when working with files",
+            "</rules>",
           ].join("\n"),
         );
       });
@@ -858,6 +860,98 @@ describe("renderToolSurface", () => {
         expect(identity).not.toContain("- bash:");
         expect(child.startsWith(identity)).toBe(true);
         expect(child).not.toBe(parent);
+      });
+    });
+
+    describe("this session's block", () => {
+      it("ends the prompt as Pi's own tools and rules sections", () => {
+        const result = renderToolSurface(
+          customAuthoredSectionPrompt(),
+          inputs({ piAuthoredPreamble: false }),
+        );
+
+        expect(result).toBe(
+          [
+            customAuthoredSectionPrompt(),
+            "",
+            "<tools>",
+            "- read: Read file contents",
+            "</tools>",
+            "",
+            "<rules>",
+            "- Be concise in your responses",
+            "- Show file paths clearly when working with files",
+            "</rules>",
+          ].join("\n"),
+        );
+      });
+
+      it("writes no tools section when no allowed tool has a snippet", () => {
+        const result = renderToolSurface(
+          customAuthoredSectionPrompt(),
+          inputs({ allowedTools: ["undescribed"], piAuthoredPreamble: false }),
+        );
+
+        expect(result).toBe(
+          [
+            customAuthoredSectionPrompt(),
+            "",
+            "<rules>",
+            "- Be concise in your responses",
+            "- Show file paths clearly when working with files",
+            "</rules>",
+          ].join("\n"),
+        );
+      });
+
+      it("is unchanged by a second pass over its own output", () => {
+        const once = renderToolSurface(piAuthoredSectionPrompt(), inputs());
+        const twice = renderToolSurface(once, inputs());
+
+        expect(twice).toBe(once);
+      });
+
+      it("is unchanged by a second pass over a custom preamble's output", () => {
+        const custom = inputs({ piAuthoredPreamble: false });
+        const once = renderToolSurface(customAuthoredSectionPrompt(), custom);
+        const twice = renderToolSurface(once, custom);
+
+        expect(twice).toBe(once);
+      });
+
+      it("replaces a peer's header-shaped block in the tail", () => {
+        const prompt = [
+          customAuthoredSectionPrompt(),
+          "",
+          "Available tools:",
+          "- peer: a tool a peer listed",
+          "",
+          "Guidelines:",
+          "- a rule a peer listed",
+        ].join("\n");
+
+        const result = renderToolSurface(
+          prompt,
+          inputs({ piAuthoredPreamble: false }),
+        );
+
+        expect(result).toBe(
+          renderToolSurface(
+            customAuthoredSectionPrompt(),
+            inputs({ piAuthoredPreamble: false }),
+          ),
+        );
+      });
+
+      it("renders the same prompt whether Pi's listing is full or already narrowed", () => {
+        const narrowed = piAuthoredSectionPrompt().replace(
+          "- bash: Execute bash commands (ls, grep, find, etc.)\n",
+          "",
+        );
+
+        expect(renderToolSurface(narrowed, inputs())).toBe(
+          renderToolSurface(piAuthoredSectionPrompt(), inputs()),
+        );
       });
     });
   });

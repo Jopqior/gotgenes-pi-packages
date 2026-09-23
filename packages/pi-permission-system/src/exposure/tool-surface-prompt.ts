@@ -176,8 +176,8 @@ const HEADER_LAYOUT: PromptLayout = {
  */
 const SECTION_LAYOUT: PromptLayout = {
   removePiSurface: removePiToolSurfaceSections,
-  removeRelocatedSurface: removeToolSurfaceSections,
-  renderBlock: renderHeaderBlock,
+  removeRelocatedSurface: removeRelocatedToolSurface,
+  renderBlock: renderSectionBlock,
 };
 
 /**
@@ -283,13 +283,33 @@ function removeToolSurfaceSections(lines: readonly string[]): string[] {
  * would be a user's or another extension's text.
  */
 function removePiToolSurfaceSections(head: readonly string[]): string[] {
-  let remaining = [...head];
+  return removeTaggedToolSurface(head, laterPiSectionStart);
+}
+
+/**
+ * Remove a relocated block from the extension tail, in either shape.
+ *
+ * This package writes the tagged shape here, and a peer writer may write
+ * either, so both are removed: the pass stays safe to apply to its own output
+ * and order-independent with a second writer.
+ */
+function removeRelocatedToolSurface(tail: readonly string[]): string[] {
+  return removeToolSurfaceSections(
+    removeTaggedToolSurface(tail, (lines) => lines.length),
+  );
+}
+
+/**
+ * Remove the first `<tools>` and the first `<rules>` section, each only when
+ * it closes before the line `limitOf` names.
+ */
+function removeTaggedToolSurface(
+  lines: readonly string[],
+  limitOf: (lines: readonly string[]) => number,
+): string[] {
+  let remaining = [...lines];
   for (const name of TOOL_SURFACE_SECTION_NAMES) {
-    const section = findTaggedSection(
-      remaining,
-      name,
-      laterPiSectionStart(remaining),
-    );
+    const section = findTaggedSection(remaining, name, limitOf(remaining));
     if (section) {
       remaining = [
         ...remaining.slice(0, section.start),
@@ -324,6 +344,25 @@ function findTaggedSection(
     return null;
   }
   return { start, end: closeAt + 1 };
+}
+
+/**
+ * This session's tool surface, as Pi 0.86+ would have rendered it: a `<tools>`
+ * section, when any allowed tool has a snippet, then a `<rules>` section.
+ */
+function renderSectionBlock(bullets: ToolSurfaceBullets): string {
+  const sections: string[] = [];
+  if (bullets.tools.length > 0) {
+    sections.push(taggedSection("tools", bullets.tools));
+  }
+  sections.push(taggedSection("rules", bullets.rules));
+
+  return sections.join("\n\n");
+}
+
+/** A section in the form Pi 0.86+ renders: its tags on their own lines. */
+function taggedSection(name: string, lines: readonly string[]): string {
+  return [`<${name}>`, ...lines, `</${name}>`].join("\n");
 }
 
 /** This session's tool surface, as Pi through 0.85 would have rendered it. */
