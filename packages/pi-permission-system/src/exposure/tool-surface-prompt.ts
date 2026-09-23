@@ -178,43 +178,63 @@ function removeToolSurfaceSections(lines: readonly string[]): string[] {
 
 /** This session's tool surface, as Pi would have rendered it. */
 function renderToolSurfaceBlock(inputs: ToolSurfaceInputs): string {
+  const bullets = toolSurfaceBullets(inputs);
   const sections: string[] = [];
 
-  const toolList = renderAvailableTools(inputs);
+  const toolList = renderAvailableTools(bullets.tools);
   if (toolList) {
     sections.push(toolList);
   }
-  sections.push(renderGuidelines(inputs));
+  sections.push(renderGuidelines(bullets.rules));
 
   return sections.join("\n\n");
 }
 
-/**
- * The `Available tools:` section for the allowed set, or `null` when none of
- * those tools has a snippet.
- *
- * Pi lists a tool only when the caller supplied a one-line snippet for it, so
- * a tool without one is left unlisted here too rather than rendered bare.
- */
-function renderAvailableTools(inputs: ToolSurfaceInputs): string | null {
-  const bullets = inputs.allowedTools
-    .map((toolName) => ({ toolName, snippet: inputs.toolSnippets[toolName] }))
-    .filter((tool) => Boolean(tool.snippet))
-    .map((tool) => `- ${tool.toolName}: ${tool.snippet}`);
-
+/** The `Available tools:` section, or `null` when it lists no tool. */
+function renderAvailableTools(bullets: readonly string[]): string | null {
   return bullets.length > 0
     ? [AVAILABLE_TOOLS_SECTION_HEADER, ...bullets].join("\n")
     : null;
 }
 
+/** The `Guidelines:` section. */
+function renderGuidelines(bullets: readonly string[]): string {
+  return [GUIDELINES_SECTION_HEADER, ...bullets].join("\n");
+}
+
+/** The bullets a tool-surface block wraps, whatever shape wraps them. */
+interface ToolSurfaceBullets {
+  /** `- name: snippet` lines; empty when no allowed tool has a snippet. */
+  readonly tools: readonly string[];
+  /** `- rule` lines, in `buildSystemPrompt`'s order. */
+  readonly rules: readonly string[];
+}
+
+function toolSurfaceBullets(inputs: ToolSurfaceInputs): ToolSurfaceBullets {
+  return { tools: toolBullets(inputs), rules: ruleBullets(inputs) };
+}
+
 /**
- * The `Guidelines:` section for the allowed set.
+ * One bullet per allowed tool that has a snippet.
+ *
+ * Pi lists a tool only when the caller supplied a one-line snippet for it, so
+ * a tool without one is left unlisted here too rather than rendered bare.
+ */
+function toolBullets(inputs: ToolSurfaceInputs): string[] {
+  return inputs.allowedTools
+    .map((toolName) => ({ toolName, snippet: inputs.toolSnippets[toolName] }))
+    .filter((tool) => Boolean(tool.snippet))
+    .map((tool) => `- ${tool.toolName}: ${tool.snippet}`);
+}
+
+/**
+ * The guideline bullets for the allowed set.
  *
  * Mirrors `buildSystemPrompt`'s assembly: its conditional file-exploration
  * bullet first, then each allowed tool's own contributions, then its two
  * unconditional bullets — de-duplicated in first-seen order, as Pi does.
  */
-function renderGuidelines(inputs: ToolSurfaceInputs): string {
+function ruleBullets(inputs: ToolSurfaceInputs): string[] {
   const bullets: string[] = [];
   const seen = new Set<string>();
   const addGuideline = (guideline: string): void => {
@@ -241,10 +261,7 @@ function renderGuidelines(inputs: ToolSurfaceInputs): string {
     addGuideline(guideline);
   }
 
-  return [
-    GUIDELINES_SECTION_HEADER,
-    ...bullets.map((bullet) => `- ${bullet}`),
-  ].join("\n");
+  return bullets.map((bullet) => `- ${bullet}`);
 }
 
 /**
