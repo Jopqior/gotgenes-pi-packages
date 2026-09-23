@@ -75,6 +75,13 @@ const EMPTY_LIST_PLACEHOLDER = "(none)";
  */
 const PROMPT_FOOTER_PREFIX = "Current working directory: ";
 
+/**
+ * The tags of the section Pi renders the working directory into from 0.86,
+ * last among its own sections and in both of its branches.
+ */
+const CWD_SECTION_OPEN = "<cwd>";
+const CWD_SECTION_CLOSE = "</cwd>";
+
 /** Pi's two unconditional guideline bullets, in the order it writes them. */
 const UNIVERSAL_GUIDELINES: readonly string[] = [
   "Be concise in your responses",
@@ -144,29 +151,60 @@ const HEADER_LAYOUT: PromptLayout = {
   renderBlock: renderHeaderBlock,
 };
 
-function detectPromptLayout(lines: readonly string[]): DetectedLayout {
-  return { layout: HEADER_LAYOUT, tailStart: footerTailStart(lines) };
-}
+/**
+ * The shape Pi writes from 0.86: an untagged preamble, then `<name>` sections
+ * joined by a blank line (`<tools>` and `<rules>` among them), and a `<cwd>`
+ * section last among its own.
+ */
+const SECTION_LAYOUT: PromptLayout = {
+  removePiSurface: (head) => [...head],
+  removeRelocatedSurface: removeToolSurfaceSections,
+  renderBlock: renderHeaderBlock,
+};
 
 /**
- * Where the text extensions appended begins: the line after Pi's footer, or
- * the end of the prompt when nothing downstream left one.
+ * The prompt's layout, read off the cwd layer Pi wrote, and where the text
+ * extensions appended after that layer begins.
  *
- * The last footer is Pi's own — it appends one after everything it assembled,
- * so a line of the same shape in a custom prompt is always above it.
+ * Pi writes its cwd layer last among its own, in both of its branches: a
+ * `Current working directory:` footer through 0.85, a `<cwd>` section from
+ * 0.86. So whichever of the two sits later is Pi's, and a line of either shape
+ * quoted in a context file or a custom prompt is always above it. The shape is
+ * told apart by which layer is present, never by version sniffing.
  *
- * Accepted edge: a prompt carrying no footer at all is treated as all head, so
- * a block appended to *that* prompt cannot be found and replaced, and a custom
- * preamble would collect a second one. Pi writes the footer last and in both
- * branches, so reaching this needs a downstream rewrite of Pi's whole output —
- * which has already broken `@gotgenes/pi-subagents`' identity anchor, since it
- * reads the same line.
+ * A prompt carrying neither is read as the header layout and treated as all
+ * head, so a block appended to *that* prompt cannot be found and replaced, and
+ * a custom preamble would collect a second one. Pi writes a cwd layer in both
+ * branches of both renderers, so reaching this needs a downstream rewrite of
+ * Pi's whole output.
  */
-function footerTailStart(lines: readonly string[]): number {
+function detectPromptLayout(lines: readonly string[]): DetectedLayout {
   const footerAt = lines.findLastIndex((line) =>
     line.startsWith(PROMPT_FOOTER_PREFIX),
   );
-  return footerAt === -1 ? lines.length : footerAt + 1;
+  const cwdCloseAt = lastCwdSectionClose(lines);
+  if (cwdCloseAt > footerAt) {
+    return { layout: SECTION_LAYOUT, tailStart: cwdCloseAt + 1 };
+  }
+  return {
+    layout: HEADER_LAYOUT,
+    tailStart: footerAt === -1 ? lines.length : footerAt + 1,
+  };
+}
+
+/**
+ * Line index of the closing tag of the last `<cwd>` section, or -1 when there
+ * is none.
+ *
+ * Pi renders the section as exactly three lines (the opening tag, the
+ * directory, the closing tag), so that is the shape matched, the way the
+ * footer is matched by its prefix.
+ */
+function lastCwdSectionClose(lines: readonly string[]): number {
+  return lines.findLastIndex(
+    (line, index) =>
+      line === CWD_SECTION_CLOSE && lines[index - 2] === CWD_SECTION_OPEN,
+  );
 }
 
 /**

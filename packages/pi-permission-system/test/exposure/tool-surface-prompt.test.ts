@@ -86,6 +86,82 @@ function piAuthoredPrompt(): string {
   ].join("\n");
 }
 
+/**
+ * A prompt shaped the way pi 0.86+ `buildSystemPrompt` writes one: an
+ * untagged preamble, then tagged sections joined by a blank line, the cwd last.
+ *
+ * Hand-built from the 0.87.1 dist (`buildSystemPromptSections` and
+ * `getSystemMessageText`), because the SDK this package pins predates the
+ * shape. Pi writes `<tools>`, `<rules>`, and `<docs>` only when it wrote the
+ * preamble itself.
+ */
+function piAuthoredSectionPrompt(
+  projectInstructions: readonly string[] = ["Project instructions."],
+): string {
+  return [
+    "You are an expert coding assistant operating inside pi, a coding agent harness.",
+    "",
+    "<tools>",
+    "- read: Read file contents",
+    "- bash: Execute bash commands (ls, grep, find, etc.)",
+    "",
+    "In addition to the tools above, you may have access to other custom tools depending on the project.",
+    "</tools>",
+    "",
+    "<rules>",
+    "- Use bash for file operations like ls, rg, find",
+    "- Be concise in your responses",
+    "- Show file paths clearly when working with files",
+    "</rules>",
+    "",
+    "<docs>",
+    "Pi documentation (read only when the user asks about pi itself):",
+    "- Main documentation: /pi/README.md",
+    "</docs>",
+    "",
+    "<addendum>",
+    "Operator addendum.",
+    "</addendum>",
+    "",
+    ...projectContextSection(projectInstructions),
+    "",
+    "<cwd>",
+    "/repo",
+    "</cwd>",
+  ].join("\n");
+}
+
+/**
+ * The same shape under `customPrompt` (a subagent child's, or a user's
+ * SYSTEM.md): Pi writes no tool surface, only the layers after the preamble.
+ */
+function customAuthoredSectionPrompt(
+  projectInstructions: readonly string[] = ["Project instructions."],
+): string {
+  return [
+    "You are a child agent.",
+    "",
+    ...projectContextSection(projectInstructions),
+    "",
+    "<cwd>",
+    "/repo",
+    "</cwd>",
+  ].join("\n");
+}
+
+/** Pi 0.86+'s `<project_context>` section around one AGENTS.md. */
+function projectContextSection(instructions: readonly string[]): string[] {
+  return [
+    "<project_context>",
+    "Project-specific instructions and guidelines:",
+    "",
+    '<project_instructions path="/repo/AGENTS.md">',
+    ...instructions,
+    "</project_instructions>",
+    "</project_context>",
+  ];
+}
+
 describe("renderToolSurface", () => {
   describe("removing what Pi wrote", () => {
     it("drops the tool list, the filler sentence, and the guidelines", () => {
@@ -606,6 +682,77 @@ describe("renderToolSurface", () => {
       );
 
       expect(fromNarrowed).toBe(fromFull);
+    });
+  });
+
+  describe("a section-shaped prompt", () => {
+    describe("the extension tail", () => {
+      it("keeps a project's own Guidelines section when Pi wrote the preamble", () => {
+        const instructions = [
+          "Guidelines:",
+          "- user rule one",
+          "- user rule two",
+          "",
+          "More user prose.",
+        ];
+
+        const result = renderToolSurface(
+          piAuthoredSectionPrompt(instructions),
+          inputs(),
+        );
+
+        expect(result).toContain(
+          projectContextSection(instructions).join("\n"),
+        );
+      });
+
+      it("replaces the block it appended to a custom preamble rather than adding a second", () => {
+        const once = renderToolSurface(
+          customAuthoredSectionPrompt(),
+          inputs({ piAuthoredPreamble: false }),
+        );
+        const twice = renderToolSurface(
+          once,
+          inputs({ piAuthoredPreamble: false }),
+        );
+
+        expect(twice).toBe(once);
+      });
+
+      it("anchors on Pi's cwd section, not a footer-shaped line quoted above it", () => {
+        const instructions = [
+          "Guidelines:",
+          "- user rule one",
+          "",
+          "Current working directory: /elsewhere",
+        ];
+
+        const result = renderToolSurface(
+          piAuthoredSectionPrompt(instructions),
+          inputs(),
+        );
+
+        expect(result).toContain(
+          projectContextSection(instructions).join("\n"),
+        );
+      });
+
+      it("anchors on Pi's footer, not a cwd section quoted above it", () => {
+        const prompt = piAuthoredPrompt().replace(
+          "Project instructions.",
+          ["<cwd>", "/elsewhere", "</cwd>"].join("\n"),
+        );
+
+        const result = renderToolSurface(prompt, inputs());
+        const identity = result.slice(
+          0,
+          result.indexOf("Current working directory: /repo"),
+        );
+
+        expect(identity).toContain("<cwd>\n/elsewhere\n</cwd>");
+        expect(identity).not.toContain("Available tools:");
+        expect(identity).not.toContain("- bash: Execute bash commands");
+      });
     });
   });
 });
