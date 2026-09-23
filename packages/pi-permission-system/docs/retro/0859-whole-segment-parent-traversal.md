@@ -68,3 +68,17 @@ The package suite went from 4584 to 4590 tests (+6: two unit tests in `token-cla
 
 [#822]: https://github.com/gotgenes/pi-packages/issues/822
 [#968]: https://github.com/gotgenes/pi-packages/issues/968
+
+## Stage: Sync (worktree) (2026-09-23T03:43:52Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both pass with no findings.
+No deferred work: all three plan steps landed, and the plan's `**Release:** ship independently` marker applies with no batch to coordinate against.
+The filed follow-up ([#968], brace expansion) is deferred to a later phase and needs no action at land time.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-859--/2026-09-23T02-30-00-576Z_01a0cc19-3a80-7609-b4f6-32ea900f03b7.jsonl`, read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time.
+
+### Observations
+
+Nothing further to add beyond the TDD and Planning stage notes above.
