@@ -40,3 +40,9 @@ The plan has 7 steps: 2 tidyings, 4 behavior steps, and docs.
 #### Deferred tidyings
 
 - `src/exposure/tool-surface-prompt.ts`: this package's `guidelinesByTool` (from `getAll()`) duplicates pi 0.86's separate `systemPromptOptions.toolGuidelines`; reconciling the two sources is a separate design change.
+
+## Stage: User Note (2026-09-23T04:53:22Z)
+
+I wonder whether a purpose-built test-running tool would help.
+The agent keeps assembling compound shell invocations just to run tests.
+In this session's TDD cycle, nearly every run was a chain along the lines of `pnpm --filter … exec vitest run <file> >/tmp/t.log 2>&1; grep -E "×|Tests " /tmp/t.log`, often followed by `pnpm run check`, `eslint`, and a `cp` backup or restore for a killing mutation.
