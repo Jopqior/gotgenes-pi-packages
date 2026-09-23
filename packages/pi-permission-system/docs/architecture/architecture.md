@@ -1258,6 +1258,8 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#968] — filed by [#859]'s planning; deferred to a later phase, beside [#822].
   Bash brace expansion (`cat {..,y}/z` reads `../z`) is invisible to the projection, which resolves the literal token as one in-cwd segment; [#859]'s whole-segment rule removes the incidental unknown-base catch the substring test gave it.
   It is a missed operand, the opposite direction to this phase's false-positive cause, and it shares [#822]'s mechanism class of gating a token by what the shell expands it into.
+- [#970] — filed by [#962]'s planning; out of scope for the roadmap.
+  Raising the `pi-coding-agent` peer floor and devDependency pin past 0.86 is dependency upkeep that lets the footer-shaped prompt layout [#962] keeps be deleted; it is sequenced after [#962] and touches no token role or declared effect.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by [#880] (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1670,5 +1672,6 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#963]: https://github.com/gotgenes/pi-packages/issues/963
 [#965]: https://github.com/gotgenes/pi-packages/issues/965
 [#968]: https://github.com/gotgenes/pi-packages/issues/968
+[#970]: https://github.com/gotgenes/pi-packages/issues/970
 [#490]: https://github.com/gotgenes/pi-packages/issues/490
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
