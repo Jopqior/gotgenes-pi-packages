@@ -754,5 +754,111 @@ describe("renderToolSurface", () => {
         expect(identity).not.toContain("- bash: Execute bash commands");
       });
     });
+
+    describe("Pi's own sections", () => {
+      it("drops Pi's tool list and rules from the identity", () => {
+        const result = renderToolSurface(piAuthoredSectionPrompt(), inputs());
+        const identity = result.slice(0, result.indexOf("</cwd>"));
+
+        expect(identity).not.toContain("<tools>");
+        expect(identity).not.toContain("<rules>");
+        expect(identity).not.toContain("- bash: Execute bash commands");
+        expect(identity).not.toContain("Use bash for file operations");
+      });
+
+      it("leaves every other section byte for byte, joined as Pi joined them", () => {
+        const result = renderToolSurface(piAuthoredSectionPrompt(), inputs());
+
+        expect(result).toBe(
+          [
+            "You are an expert coding assistant operating inside pi, a coding agent harness.",
+            "",
+            "<docs>",
+            "Pi documentation (read only when the user asks about pi itself):",
+            "- Main documentation: /pi/README.md",
+            "</docs>",
+            "",
+            "<addendum>",
+            "Operator addendum.",
+            "</addendum>",
+            "",
+            ...projectContextSection(["Project instructions."]),
+            "",
+            "<cwd>",
+            "/repo",
+            "</cwd>",
+            "",
+            "Available tools:",
+            "- read: Read file contents",
+            "",
+            "Guidelines:",
+            "- Be concise in your responses",
+            "- Show file paths clearly when working with files",
+          ].join("\n"),
+        );
+      });
+
+      it("keeps tool and rules sections quoted in the addendum or project context", () => {
+        // Pi's own two sections are already gone, as a peer writer earlier in
+        // the chain leaves them, so the only matches are the quoted ones.
+        const quotedTools = ["<tools>", "- quoted: a tool", "</tools>"];
+        const quotedRules = ["<rules>", "- a quoted rule", "</rules>"];
+        const prompt = piAuthoredSectionPrompt(quotedRules)
+          .replace("Operator addendum.", quotedTools.join("\n"))
+          .replace(/<tools>\n- read[\s\S]*?<\/rules>\n\n/, "");
+
+        const result = renderToolSurface(prompt, inputs());
+
+        expect(result).toContain(
+          ["<addendum>", ...quotedTools, "</addendum>"].join("\n"),
+        );
+        expect(result).toContain(projectContextSection(quotedRules).join("\n"));
+      });
+
+      it("keeps a tool section a custom preamble carries", () => {
+        const inherited = [
+          "<tools>",
+          "- bash: inherited from the parent",
+          "</tools>",
+        ];
+        const prompt = [
+          "You are a child agent.",
+          "",
+          ...inherited,
+          "",
+          "<cwd>",
+          "/repo",
+          "</cwd>",
+        ].join("\n");
+
+        const result = renderToolSurface(
+          prompt,
+          inputs({ piAuthoredPreamble: false }),
+        );
+
+        expect(
+          result.startsWith(
+            ["You are a child agent.", "", ...inherited].join("\n"),
+          ),
+        ).toBe(true);
+      });
+
+      it("leaves the identity a child shares with its parent byte-identical", () => {
+        const parent = renderToolSurface(
+          piAuthoredSectionPrompt(),
+          inputs({ allowedTools: ["read", "bash"] }),
+        );
+        const child = renderToolSurface(
+          piAuthoredSectionPrompt(),
+          inputs({ allowedTools: ["read"] }),
+        );
+
+        const identity = parent.slice(0, parent.indexOf("</cwd>"));
+
+        expect(identity).not.toContain("- bash:");
+        expect(child.startsWith(identity)).toBe(true);
+        expect(child).not.toBe(parent);
+      });
+    });
   });
 });

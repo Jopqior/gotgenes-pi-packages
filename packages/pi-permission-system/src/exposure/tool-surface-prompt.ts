@@ -82,6 +82,24 @@ const PROMPT_FOOTER_PREFIX = "Current working directory: ";
 const CWD_SECTION_OPEN = "<cwd>";
 const CWD_SECTION_CLOSE = "</cwd>";
 
+/** The sections Pi 0.86+ writes its tool surface into, in the order it writes them. */
+const TOOL_SURFACE_SECTION_NAMES = ["tools", "rules"] as const;
+
+/**
+ * Opening tags of the sections Pi writes after its tool surface.
+ *
+ * Pi writes `<tools>` and `<rules>` directly under its preamble and ahead of
+ * every one of these, so a match that opens or closes past the first of them
+ * is text somebody quoted, not Pi's.
+ */
+const LATER_PI_SECTION_OPENS: ReadonlySet<string> = new Set([
+  "<docs>",
+  "<addendum>",
+  "<project_context>",
+  "<skills>",
+  CWD_SECTION_OPEN,
+]);
+
 /** Pi's two unconditional guideline bullets, in the order it writes them. */
 const UNIVERSAL_GUIDELINES: readonly string[] = [
   "Be concise in your responses",
@@ -157,7 +175,7 @@ const HEADER_LAYOUT: PromptLayout = {
  * section last among its own.
  */
 const SECTION_LAYOUT: PromptLayout = {
-  removePiSurface: (head) => [...head],
+  removePiSurface: removePiToolSurfaceSections,
   removeRelocatedSurface: removeToolSurfaceSections,
   renderBlock: renderHeaderBlock,
 };
@@ -254,6 +272,58 @@ function removeToolSurfaceSections(lines: readonly string[]): string[] {
   return remaining.filter(
     (line) => !line.trimStart().startsWith(CUSTOM_TOOLS_FILLER_PREFIX),
   );
+}
+
+/**
+ * Remove Pi 0.86+'s own `<tools>` and `<rules>` sections, tags included.
+ *
+ * A section is Pi's only when it opens and closes before the first section Pi
+ * writes after it; the plain headers `removeToolSurfaceSections` matches are
+ * never searched here, because Pi writes none on this shape and every match
+ * would be a user's or another extension's text.
+ */
+function removePiToolSurfaceSections(head: readonly string[]): string[] {
+  let remaining = [...head];
+  for (const name of TOOL_SURFACE_SECTION_NAMES) {
+    const section = findTaggedSection(
+      remaining,
+      name,
+      laterPiSectionStart(remaining),
+    );
+    if (section) {
+      remaining = [
+        ...remaining.slice(0, section.start),
+        ...remaining.slice(section.end),
+      ];
+    }
+  }
+  return remaining;
+}
+
+/** Line index of the first section Pi writes after its tool surface. */
+function laterPiSectionStart(lines: readonly string[]): number {
+  const at = lines.findIndex((line) => LATER_PI_SECTION_OPENS.has(line));
+  return at === -1 ? lines.length : at;
+}
+
+/**
+ * The first `<name>` section, opening tag through closing tag, that ends
+ * before `limit`; `null` when there is none.
+ */
+function findTaggedSection(
+  lines: readonly string[],
+  name: string,
+  limit: number,
+): LineSection | null {
+  const start = lines.indexOf(`<${name}>`);
+  if (start === -1 || start >= limit) {
+    return null;
+  }
+  const closeAt = lines.indexOf(`</${name}>`, start + 1);
+  if (closeAt === -1 || closeAt >= limit) {
+    return null;
+  }
+  return { start, end: closeAt + 1 };
 }
 
 /** This session's tool surface, as Pi through 0.85 would have rendered it. */
