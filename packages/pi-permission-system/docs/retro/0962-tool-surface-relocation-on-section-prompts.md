@@ -46,3 +46,27 @@ The plan has 7 steps: 2 tidyings, 4 behavior steps, and docs.
 I wonder whether a purpose-built test-running tool would help.
 The agent keeps assembling compound shell invocations just to run tests.
 In this session's TDD cycle, nearly every run was a chain along the lines of `pnpm --filter … exec vitest run <file> >/tmp/t.log 2>&1; grep -E "×|Tests " /tmp/t.log`, often followed by `pnpm run check`, `eslint`, and a `cp` backup or restore for a killing mutation.
+
+## Stage: Implementation — TDD (2026-09-23T05:09:35Z)
+
+### Session summary
+
+All 7 plan steps are done: 2 tidyings (split the bullets from their headers, `PromptLayout` dispatch), 4 behavior steps (section anchor, removing Pi's `<tools>`/`<rules>`, the tagged block, carried `promptGuidelines`), and the docs step.
+Comment-only prose landed in a separate docs commit.
+`pi-permission-system` went from 4590 to 4609 tests (+19).
+Pre-completion reviewer: PASS; it re-derived all four invariants against real pi 0.87.1 prompts with its own decoy inputs.
+
+### Observations
+
+- Every killing mutation named in the plan turned red exactly the tests it predicted.
+  The stability twin in step 5 had no named mutation, so I checked it separately: making `removePiSurface` a no-op turned it red.
+- Deviation, step 4 test 3: with Pi's own `<tools>`/`<rules>` present, removing the later-section bound still removes Pi's sections first, so a quoted `<tools>` survives either way and the mutation cannot tell the two apart.
+  The test instead builds the prompt as a peer writer leaves it (Pi's two sections already gone), which is the only input where the bound decides.
+- Deviation: the module doc comment and the test comment on the header-layout project-context case landed as their own `docs(pi-permission-system):` commit, not inside the code steps.
+- Friction: in step 3, the `cp` that backs up the green file ran in the same parallel tool block as the mutating `Edit`, so the "green" backup already held the mutation.
+  Take the backup in a call of its own before mutating.
+- Friction: I typed `\u2014`/`\u2265` escapes into `Edit` bodies four times (including this retro's own stage heading) and they landed as literal text; each time a `grep -n 'u2014'` caught it before commit.
+
+#### Reviewer warnings
+
+None.
