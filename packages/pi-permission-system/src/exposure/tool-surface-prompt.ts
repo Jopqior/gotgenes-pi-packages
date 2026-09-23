@@ -93,17 +93,59 @@ export function renderToolSurface(
   inputs: ToolSurfaceInputs,
 ): string {
   const lines = normalizePrompt(systemPrompt).split("\n");
-  const tailStart = extensionTailStart(lines);
+  const { layout, tailStart } = detectPromptLayout(lines);
   const body = [
-    settleRegion(lines.slice(0, tailStart), inputs.piAuthoredPreamble),
-    settleRegion(lines.slice(tailStart), true),
+    settleRegion(
+      lines.slice(0, tailStart),
+      inputs.piAuthoredPreamble ? layout.removePiSurface : null,
+    ),
+    settleRegion(lines.slice(tailStart), layout.removeRelocatedSurface),
   ]
     .filter((region) => region.length > 0)
     .join("\n")
     .trimEnd();
-  const block = renderToolSurfaceBlock(inputs);
+  const block = layout.renderBlock(toolSurfaceBullets(inputs));
 
   return body.length > 0 ? `${body}\n\n${block}` : block;
+}
+
+/** Lines removed from one region of the prompt; the rest are returned in order. */
+type RegionRemoval = (lines: readonly string[]) => string[];
+
+/**
+ * How one prompt shape bounds and writes the tool surface.
+ *
+ * Pi has written its prompt in more than one shape, and each shape answers the
+ * same three questions differently, so the shape is decided once per prompt
+ * and every answer is read off the layout it selected.
+ */
+interface PromptLayout {
+  /** Pi's own tool surface, removed from the head when Pi wrote the preamble. */
+  readonly removePiSurface: RegionRemoval;
+  /** A relocated block (this package's or a peer's), removed from the tail. */
+  readonly removeRelocatedSurface: RegionRemoval;
+  /** This session's block, in this layout's shape. */
+  readonly renderBlock: (bullets: ToolSurfaceBullets) => string;
+}
+
+/** A prompt's layout, and the line at which the text extensions appended begins. */
+interface DetectedLayout {
+  readonly layout: PromptLayout;
+  readonly tailStart: number;
+}
+
+/**
+ * The shape Pi wrote through 0.85: `Available tools:` and `Guidelines:`
+ * sections in its preamble, and a `Current working directory:` footer last.
+ */
+const HEADER_LAYOUT: PromptLayout = {
+  removePiSurface: removeToolSurfaceSections,
+  removeRelocatedSurface: removeToolSurfaceSections,
+  renderBlock: renderHeaderBlock,
+};
+
+function detectPromptLayout(lines: readonly string[]): DetectedLayout {
+  return { layout: HEADER_LAYOUT, tailStart: footerTailStart(lines) };
 }
 
 /**
@@ -120,7 +162,7 @@ export function renderToolSurface(
  * which has already broken `@gotgenes/pi-subagents`' identity anchor, since it
  * reads the same line.
  */
-function extensionTailStart(lines: readonly string[]): number {
+function footerTailStart(lines: readonly string[]): number {
   const footerAt = lines.findLastIndex((line) =>
     line.startsWith(PROMPT_FOOTER_PREFIX),
   );
@@ -129,7 +171,7 @@ function extensionTailStart(lines: readonly string[]): number {
 
 /**
  * One region's surviving text: its sections removed, when they are ours to
- * remove.
+ * remove, or returned as it arrived when `removal` is `null`.
  *
  * Blank runs are collapsed only where a removal opened one, so a region this
  * pass took nothing out of is returned exactly as it arrived rather than
@@ -137,12 +179,12 @@ function extensionTailStart(lines: readonly string[]): number {
  */
 function settleRegion(
   lines: readonly string[],
-  removalAllowed: boolean,
+  removal: RegionRemoval | null,
 ): string {
-  if (!removalAllowed) {
+  if (!removal) {
     return lines.join("\n");
   }
-  const kept = removeToolSurfaceSections(lines);
+  const kept = removal(lines);
   const text = kept.join("\n");
   return kept.length === lines.length ? text : collapseExtraBlankLines(text);
 }
@@ -176,9 +218,8 @@ function removeToolSurfaceSections(lines: readonly string[]): string[] {
   );
 }
 
-/** This session's tool surface, as Pi would have rendered it. */
-function renderToolSurfaceBlock(inputs: ToolSurfaceInputs): string {
-  const bullets = toolSurfaceBullets(inputs);
+/** This session's tool surface, as Pi through 0.85 would have rendered it. */
+function renderHeaderBlock(bullets: ToolSurfaceBullets): string {
   const sections: string[] = [];
 
   const toolList = renderAvailableTools(bullets.tools);
