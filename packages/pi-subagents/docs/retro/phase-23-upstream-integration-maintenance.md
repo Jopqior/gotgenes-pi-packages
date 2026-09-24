@@ -68,6 +68,8 @@ The operator subsequently authorized a local commit of the roadmap and both retr
 
 ### Next entry point
 
-Local commit authorization was obtained after artifact checks; pushing or landing the planning branch remains a separate decision.
+The operator subsequently authorized committing and pushing these planning documents directly to fork `main`, superseding the local-only gate.
+The planning commit was fast-forwarded onto local `main`; the extra planning branch was unnecessary.
+No fetch, production implementation, or publication is authorized by this clarification.
 Start implementation planning with `/plan-issue #20`; afterward use `/plan-issue #21` against the delivered startup facts.
 Preserve behavior unless a change is explicitly approved, and keep issue 19 open until actual combined maintenance outcomes are assessed or the operator explicitly defers/stops.

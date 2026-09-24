@@ -324,3 +324,10 @@ No push, release, or production implementation is authorized by this confirmatio
 The planning branch is `issue-19-upstream-integration-maintenance`, created from local `main` without fetching.
 Next use `/plan-issue #20`, followed by `/plan-issue #21`; pushing or landing the planning branch is a separate decision.
 The phase retro records the successful structural/Markdown checks and the remaining GitHub/vivify preview limitation.
+
+## Stage: Main landing authorization (2026-09-24T09:06:30Z)
+
+The operator clarified that these planning documents can be committed and pushed directly to fork `main`; the extra planning branch and local-only gate were unnecessary.
+The planning commit was fast-forwarded onto local `main`, and pushing to the verified fork `origin/main` is authorized.
+This supersedes the earlier local-only handoff; it does not authorize fetching, production implementation, or package publication.
+Continue with `/plan-issue #20`, then `/plan-issue #21`, retaining the fixed upstream baseline and keeping issue 19 open for overall acceptance.
