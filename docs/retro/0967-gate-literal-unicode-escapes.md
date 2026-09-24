@@ -39,3 +39,34 @@ The plan is `docs/plans/0967-gate-literal-unicode-escapes.md`, nine TDD steps, o
 - `scripts/lint/invisible-characters.mjs` and the new `scripts/lint/unicode-escapes.mjs` — `parseArgs` and the tracked-file listing will duplicate about 20 lines; declined at two callers, following the unextracted two-caller precedent `fallow dupes` reports in `packages/pi-permission-system/scripts/`.
   Trigger: a third lint script.
 - A generic `runLinter({paths, fix}, io, {scan, repair, format})` over both lint scripts — rejected; the two repairs differ in shape (code-point filter vs. offset splice).
+
+## Stage: Implementation — TDD (2026-09-23T22:39:49Z)
+
+### Session summary
+
+All nine plan steps landed as nine commits: the shared `memoryIo` double, `maskCode`, the report-only scan and CLI, `--fix` decoding, the `0301` retro repair, the `authorizer-chain.ts` comment, the prek/`lint` wiring, the `pi-autoformat` chain entry, and the docs.
+The root suite went from 9 files / 178 tests to 10 files / 221 tests (+43); the whole-tree scan is clean and takes 0.42 s.
+Pre-completion reviewer: PASS.
+
+### Observations
+
+- **Two of step 2's planned killing mutations survived the tests as first written, and both were test defects.**
+  A triple-backtick fence with no blank line inside masks identically as an inline span, so the fence logic was never exercised by the backtick cases; each now holds a blank line, which a span cannot cross.
+  The at-least-n closer mutation needed a longer run *inside* a span (a single-backtick span holding a double-backtick run), not the plan's double-backtick span.
+  The plan's mutation list was right to exist; its predicted killing tests were wrong.
+- **The plan's `+` in the bare-token lookbehind was vacuous.**
+  `U+2014` cannot match a lowercase `u` plus four hex digits whatever the lookbehind says; dropped it and moved the mutation to the word-character lookbehind, which `menu2014` pins.
+- **A step 1 relocation mutation found a pre-existing weak pin.**
+  Deleting `writes.push` in `memoryIo` left all 178 tests green, because the #960 tests only ever assert `writes` is empty; the new "decodes, names the file" test asserts `writes` equals `["a.md"]`, which the sibling suite never did.
+- **zsh's `echo` decodes `\u2014` itself**, so the first step 8 chain check printed an em-dash for the *without-entry* case and looked like `rumdl` was decoding.
+  Re-running with `print -r` and `sed -n` showed the real bytes; worth knowing for any future check of this gate from the shell.
+- **Step 6 used a scripted substitution from the code point** (`perl -CSD ... \x{2014}`) rather than a typed glyph, per `markdown-conventions`, and `od -c` confirmed the three-byte em-dash landed.
+  `next-version.sh pi-permission-system` reported nothing to release before and after the `style:` commit.
+- **The running session still has the pre-change `pi-autoformat` config**, so none of this session's markdown edits were decoded between turns; the new docs avoid em-dashes in fresh prose for that reason.
+- The reviewer independently probed about 20 masker inputs (tab-indented fences, blockquoted fences, HTML comments, tables, frontmatter) and confirmed `[\p{C}\p{Z}]` covers every code point `invisible-characters.mjs` rejects or repairs.
+- **The gate's first organic catch was this retro, and it exposed a masker gap the reviewer's probes missed.**
+  A malformed double-backtick example in one bullet closed early, and `maskCode`'s span search, which only stops at a blank line, carried the misaligned pairing into later bullets until a backticked `\u2014` read as prose.
+  The example was rewritten in words; the gap also runs the other way (a stray backtick in one list item masks an escape in the next, reproduced with `rc=0`), so it is filed as [#974] rather than folded in after review.
+  `roadmap-fit` exited at its first step: `scope:repo`, no package phase.
+
+[#974]: https://github.com/gotgenes/pi-packages/issues/974
