@@ -75,3 +75,19 @@ The core suite increased from a measured 1984 to 1988 tests across 86 files, a n
   No isolation failure was observed; the non-blocking warning remains for the operator's ship decision.
 - Local tests use stub sessions rather than an interactive SDK host, and no live-host acceptance is claimed.
   Issue 19 remains the overall maintenance assessment; the next workflow step on `main` is `/ship 21`.
+
+## Stage: Implementation — Review follow-up (2026-09-24T16:41:16Z)
+
+### Session summary
+
+After assessing the non-blocking warning, the operator approved aligning the mock reset with the testing convention.
+Committed `test(pi-subagents): reset presentation mock before each test`, changing only the hook import and registration from `afterEach` to `beforeEach`.
+No production behavior or test count changed.
+
+### Observations
+
+- The parent ran the affected `spawn-config.test.ts` suite: 33 tests passed, followed by successful root typecheck and lint.
+- A fresh delta-scoped reviewer reran root `check`, `lint`, `test`, and `fallow dead-code`; all passed.
+  Pre-completion reviewer: PASS, with the previous sole WARN resolved and no new findings.
+  This supersedes the pending warning recorded in the earlier implementation entry.
+- No push or release occurred; the next step remains `/ship 21`.
