@@ -30,6 +30,12 @@ Take the input from something that already exists:
 When no real artifact is reachable, say so: label the evidence synthetic and unconfirmed, and carry that label into the plan's Design Overview.
 A named limit is a finding; an unnamed one becomes a premise.
 
+## Reproduce the effect, not an intermediate
+
+A report names an effect someone observed: a prompt, a decision, an output.
+Probe that effect through the path that produces it; an intermediate signal (a parse error, a classifier verdict) that matches does not confirm it, and one that differs does not refute it.
+For a permission ask, drive the gate's decision (`resolveBashAdvisoryCheck` shares the gate's `resolveBashCommandCheck`), not the parser.
+
 ## A prototype's measurement expires when the implementation diverges
 
 A number measured against a prototype covers only the mechanisms the prototype had.

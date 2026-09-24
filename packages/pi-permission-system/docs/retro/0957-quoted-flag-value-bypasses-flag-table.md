@@ -88,3 +88,78 @@ PR #972 was rebase-merged after CI run `35963136555` passed.
 Two commits landed: @SamYue1's `a9721e43` (the fix) and our `e5eb6ab5`, which replaces `isQuotedGluedFlag` with `hasUnquotedLeadingDash` and carries the `Co-authored-by` trailer.
 Two deliberate breaks confirmed the new tests catch regressions: admitting any `concatenation` failed the `sd '-o'ld '-n'ew file.txt` case, and removing the `concatenation` branch failed three tests.
 The PR body's `Closes #957` closed the issue on merge, so its summary comment was posted afterwards.
+
+## Stage: Final Retrospective (2026-09-24T06:27:34Z)
+
+### Session summary
+
+One session covered the whole issue: a `/pr-review` of PR #972, a maintainer commit pushed onto the contributor's branch, a rebase-merge, `/ship` (released `pi-permission-system-v33.1.1`), and this retro.
+A side claim in the PR's notes, a backtick in double quotes raising a prompt, took three rounds to settle.
+It ended as #976, marked out of scope for the roadmap.
+
+### Observations
+
+#### What went well
+
+- Swapping predicates in a scratch worktree settled the design questions by measurement.
+  The issue's own proposed narrowing dropped `file.txt` from `sd '-old' '-new' file.txt`, and the simpler `hasUnquotedLeadingDash` predicate passed all 4594 tests before I recommended it.
+  That is the `/pr-review` rule "verify any alternative you propose" working as intended.
+- The review log gave the backtick question real numbers: 1260 bash asks, 16 floored as `<unparsed-bash-subtree>`, 1 of them the backtick kind.
+  It also priced the gap between the two predicates at zero real-traffic instances.
+- This was the first time the "push your own fixes onto the contributor's branch, then `gh pr merge --rebase`" ending was used end to end.
+  It kept @SamYue1's authorship on `a9721e43`, carried the `Co-authored-by` trailer on `e5eb6ab5`, and CI's approval gate for a fork (`action_required`) cleared with one `approve` call.
+- Breaking the code on purpose confirmed each new test catches its regression before the commit, as the `testing` skill asks.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` (identified during this retro) — I built four probes whose results became decisions (the defect repro, the predicate swaps, the parse probe, the gate probe) without loading the `reproduction` skill, which the `AGENTS.md` index requires before any such probe.
+  `/pr-review`'s "Load skills" list does not name it.
+  The skill's "build it from real artifacts" section points at the review log, which I reached only after the operator's question.
+  Impact: the organic-data check came a round late.
+- `wrong-abstraction` (user-caught) — I "verified" the backtick claim at the parser (`hasError`, `bash -n`), not at the effect the author reported, which was a permission prompt.
+  I concluded "does not reproduce", committed that to the triage note, and drafted a PR comment saying so.
+  The operator asked what the effect should have been and whether they would have noticed.
+  The gate probe then showed the prompt fires on exactly the two spellings bash rejects.
+  Impact: one amend of the triage commit and one rewrite of the comment draft.
+- `wrong-abstraction` (user-caught) — I then called the prompt "not a false positive" because bash rejects those commands.
+  That judged it by why the gate fired rather than by what the gate is for.
+  The operator pointed out that the package's purpose is to judge access, and a command bash refuses to run accesses nothing.
+  Impact: a second amend and a second rewrite of the comment; the framing that followed (the floor exists for completeness, not validity) is what shaped #976's scope.
+- `other` — My own syntax probes set off the gate under investigation twice.
+  `bash -n -c "$cmd"` in a loop is an opaque wrapper, and the operator denied it; a literal `bash -n -c '<payload>'` whose payload does not parse floors to the same ask, and was denied too.
+  I had also claimed the earlier literal-payload calls "didn't prompt", but the operator had most likely approved one I could not see.
+  Impact: two denied calls and one false claim, corrected when the second denial showed it.
+- `instruction-violation` (self-identified) — I wrote `\u2705` escapes in an `Edit` body.
+  `pi-autoformat` decoded the one in the heading but not the one inside the Mermaid fenced block.
+  An em-dash `oldText` also failed once.
+  The `markdown-conventions` skill already says to write the character itself.
+  It recurred while writing this entry: all nine em-dashes arrived as a line break plus a literal escape, and the reflow then stripped the continuation-line indents.
+  Impact: one repair edit each, plus a scripted rejoin and re-indent of this entry.
+- `other` — A literal backtick inside a single-backtick code span in the triage note broke the span, and the reflow then merged two sentences.
+  Impact: one repair edit.
+- `instruction-violation` (self-identified, three times) — I wrote the `cmd >log; rc=$?; [ $rc -ne 0 ] && tail` form, which exits 1 when the check passes, instead of the `git-workflow` skill's `cmd >log 2>&1 || tail` recipe.
+  `/ship`, running on `claude-sonnet-5`, repeated it.
+  Impact: noise only.
+
+#### What caused friction (user side)
+
+- Both corrections came as questions ("how do we know it didn't reproduce?", "the purpose is not to prevent running a command bash would reject"), and each redirected the work more cheaply than a correction would have.
+  The invitation to push back gave the reply that separated completeness from validity.
+- Opportunity: the rule that a false positive is judged by the package's purpose rather than by why the gate fired is the operator's standing judgement.
+  Written in the package skill, it would have been in context before the first framing.
+
+### Diagnostic details
+
+- **Model-performance correlation** — The PR review, the maintainer commit, and the merge ran on `anthropic/claude-opus-5-5`, which is judgement-heavy work on a fitting model.
+  `/ship` ran on `anthropic/claude-sonnet-5` per its frontmatter, which is mechanical work on a cheaper model.
+  It handled the already-closed issue correctly, though its report contradicted itself ("none of the template's steps were skipped" next to a skipped `issue_close`).
+  No subagents were dispatched.
+- **Feedback-loop gap analysis** — `check`, `lint`, and the package suite ran on the contributor's branch before I evaluated the design, again after the maintainer commit, and in CI on both SHAs.
+  No gap.
+
+### Changes made
+
+1. `.pi/prompts/pr-review.md`: the "Load skills" list now names the `reproduction` skill for the Verify gate's probes.
+2. `.pi/skills/reproduction/SKILL.md`: a new section, "Reproduce the effect, not an intermediate".
+
+The operator declined a third proposal, a sentence in the `package-pi-permission-system` skill saying a false positive is judged by the gate's purpose rather than by why it fired.
