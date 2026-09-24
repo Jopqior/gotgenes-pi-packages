@@ -74,3 +74,21 @@ Core tests increased from 1956 to 1984 (+28), while the companion suite remained
 - Both issue-20 architecture completion markers are present; issue 21 presentation work and issue 19 overall maintenance assessment remain separate.
   No changelog, manifest, lockfile, release, push, or issue closure was performed.
   The next workflow step is `/ship 20`, with publication still requiring explicit destination and scope approval.
+
+## Stage: Ship (2026-09-24T15:17:45Z)
+
+### Session summary
+
+Shipping from root `main` through the trunk lane; no issue-20 branch or worktree needs merging or teardown.
+The plan recommends independent delivery, but the release derivation reports nothing to release for `pi-subagents` at `pi-subagents-v4.0.0`, so no publication or release dispatch is planned.
+
+### Observations
+
+- Verified the GitHub target and origin remote as `Jopqior/gotgenes-pi-packages`.
+  Fetch and fast-forward-only pull succeeded; local `main` had six unpushed implementation commits.
+- Root lint and dead-code gates passed before this stage note; the final tree will be checked again before pushing.
+  Push and exact-SHA CI verification are still pending at this note's commit; issue closure remains gated on CI success.
+- The plan-to-HEAD range contains no co-shipped issue or adopted PR close target.
+  Issues 19 and 21 remain open, and Phase 23 is not complete.
+- This delivery preserves public behavior and carries no breaking change.
+  The next interactive workflow step after successful shipping is `/retro 20`.
