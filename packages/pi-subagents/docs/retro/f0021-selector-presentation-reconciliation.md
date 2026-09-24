@@ -91,3 +91,20 @@ No production behavior or test count changed.
   Pre-completion reviewer: PASS, with the previous sole WARN resolved and no new findings.
   This supersedes the pending warning recorded in the earlier implementation entry.
 - No push or release occurred; the next step remains `/ship 21`.
+
+## Stage: Ship (2026-09-24T16:44:51Z)
+
+### Session summary
+
+Prepared trunk-lane delivery on root `main` after reading the plan and both implementation review entries.
+The final implementation review is PASS; issue 19 remains open for the overall maintenance assessment.
+
+### Observations
+
+- Origin resolves to `Jopqior/gotgenes-pi-packages`; fetch and fast-forward-only pull succeeded, with nine implementation/planning commits ahead of `origin/main` before this stage note.
+- Root `pnpm run lint` and `pnpm fallow dead-code` passed before this documentation-only stage entry.
+- The plan recommends independent delivery, but the read-only release derivation reports nothing to release for `pi-subagents` at `pi-subagents-v4.0.0`.
+  No release dispatch is needed; the internal refactors batch into a future releasable change.
+- No adopted PR or additional co-shipped issue was identified in the plan, retro, commit subjects, or changed paths.
+- Push, exact-SHA CI verification, and issue closure are pending at this entry's commit; the ship session reports their actual results separately.
+  No worktree teardown applies in the trunk lane.
