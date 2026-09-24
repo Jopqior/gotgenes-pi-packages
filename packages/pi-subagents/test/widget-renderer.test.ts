@@ -172,7 +172,7 @@ describe("renderRunningLines", () => {
 		const agent = makeAgent({ status: "running", completedAt: undefined });
 		const [, activityLine] = renderRunningLines(agent, testRegistry, 0, theme);
 
-		expect(activityLine).toContain("thinking…");
+		expect(activityLine).toBe("[dim:  ⎿  thinking…]");
 	});
 
 	it("projects pending selection instead of tool activity", () => {
@@ -181,11 +181,18 @@ describe("renderRunningLines", () => {
 			completedAt: undefined,
 			awaitingSelection: true,
 			activeTools: new Map([["read_1", "read"]]),
+			responseText: "a provisional response",
 		});
 		const [, activityLine] = renderRunningLines(agent, testRegistry, 0, theme);
 
-		expect(activityLine).toContain("Awaiting model/thinking selection");
-		expect(activityLine).not.toContain("reading");
+		expect(activityLine).toBe("[dim:  ⎿  Awaiting model/thinking selection]");
+	});
+
+	it("shows response text instead of the blank fallback when no tools are active", () => {
+		const agent = makeAgent({ status: "running", completedAt: undefined, responseText: "writing an answer" });
+		const [, activityLine] = renderRunningLines(agent, testRegistry, 0, theme);
+
+		expect(activityLine).toBe("[dim:  ⎿  writing an answer]");
 	});
 
 	it("advances spinner frame", () => {

@@ -157,7 +157,8 @@ function truncateLine(text: string, len = 60): string {
 }
 
 /** Build a human-readable activity string from currently-running tools or response text. */
-export function describeActivity(activeTools: ReadonlyMap<string, string>, responseText?: string): string {
+export function describeActivity(activeTools: ReadonlyMap<string, string>, responseText?: string, awaitingSelection = false): string {
+  if (awaitingSelection) return PENDING_SELECTION_ACTIVITY;
   if (activeTools.size > 0) {
     const groups = new Map<string, number>();
     for (const toolName of activeTools.values()) {

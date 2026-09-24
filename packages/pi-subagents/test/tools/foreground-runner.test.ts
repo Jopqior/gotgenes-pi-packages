@@ -241,11 +241,13 @@ describe("runForeground", () => {
 		expect(result.content[0].text).toContain('Unknown agent type "unknown-type"');
 	});
 
-	it("projects pending selection into streaming activity before the session exists", async () => {
+	it("projects pending selection ahead of provisional activity before the session exists", async () => {
 		const pending = createTestSubagent({
 			status: "running",
 			completedAt: undefined,
 			awaitingSelection: true,
+			activeTools: ["read"],
+			responseText: "a provisional response",
 		});
 		const held = Promise.withResolvers<ReturnType<typeof createTestSubagent>>();
 		const deps = createToolDeps({
@@ -262,7 +264,7 @@ describe("runForeground", () => {
 
 		await vi.advanceTimersByTimeAsync(100);
 		const activities = onUpdate.mock.calls.map((call) => call[0].details.activity);
-		expect(activities).toContain("Awaiting model/thinking selection");
+		expect(activities).toEqual(["thinking…", "Awaiting model/thinking selection"]);
 
 		held.resolve(createTestSubagent({ result: "done" }));
 		await runPromise;

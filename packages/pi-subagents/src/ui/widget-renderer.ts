@@ -21,7 +21,6 @@ import {
 	formatTurns,
 	getDisplayName,
 	getPromptModeLabel,
-	PENDING_SELECTION_ACTIVITY,
 	type Theme,
 } from "#src/ui/display";
 import { GLYPHS, SPINNER } from "#src/ui/glyphs";
@@ -116,9 +115,7 @@ export function renderRunningLines(
 	const statsText = parts.join(" · ");
 
 	const frame = SPINNER[spinnerFrame % SPINNER.length];
-	const activityText = agent.awaitingSelection
-		? PENDING_SELECTION_ACTIVITY
-		: describeActivity(agent.activeTools, agent.responseText);
+	const activityText = describeActivity(agent.activeTools, agent.responseText, agent.awaitingSelection);
 
 	const header = `${theme.fg("accent", frame)} ${theme.bold(name)}${modeTag}  ${theme.fg("muted", agent.description)} ${theme.fg("dim", "·")} ${theme.fg("dim", statsText)}`;
 	const activityLine = theme.fg("dim", `  ${GLYPHS.subLine}  ${activityText}`);

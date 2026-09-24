@@ -145,7 +145,9 @@ describe("TranscriptContent", () => {
         streaming: () => ({ activeTools: new Map([["k", "read"]]), responseText: "" }),
       });
 
-      expect(rendered(makeContent(source))).toContain("◍");
+      const text = rendered(makeContent(source));
+      expect(text).toContain("◍ reading…");
+      expect(text).not.toContain("Awaiting model/thinking selection");
     });
 
     it("omits the streaming-activity row when the agent is not running", () => {

@@ -241,33 +241,48 @@ describe("AgentWidget — projection reads activity off Subagent records", () =>
 		expect(allText).toContain("reading");
 	});
 
-	it("surfaces pending-selection activity from the record via renderWidget", () => {
-		const record = createTestSubagent({
-			status: "running",
+	it("renders pending activity before provisional tools, then normal activity from the same widget callback", () => {
+		const initial = {
+			status: "running" as const,
 			completedAt: undefined,
 			startedAt: Date.now() - 100,
-			awaitingSelection: true,
+			activeTools: ["read"],
+			responseText: "a provisional response",
 			isBackground: true,
-		});
-		const manager = { listAgents: () => [record] } as unknown as SubagentManager;
-		const registry = new AgentTypeRegistry(() => new Map());
-		const widget = new AgentWidget(manager, registry);
-
-		let renderFn: ((tui: unknown, theme: unknown) => { render(): string[] }) | undefined;
-		const ui: UICtx = {
-			setStatus: () => {},
-			setWidget: (_key, content) => {
-				if (typeof content === "function") renderFn = content as typeof renderFn;
-			},
 		};
-		widget.setUICtx(ui);
+		let record = createTestSubagent({ ...initial, awaitingSelection: true });
+		const manager = { listAgents: () => [record] } as unknown as SubagentManager;
+		const widget = new AgentWidget(manager, new AgentTypeRegistry(() => new Map()));
+		let renderFn: NonNullable<Parameters<UICtx["setWidget"]>[1]> | undefined;
+		const setStatus = vi.fn<UICtx["setStatus"]>();
+		const setWidget = vi.fn<UICtx["setWidget"]>();
+		widget.setUICtx({
+			setStatus,
+			setWidget: (key, content, options) => {
+				setWidget(key, content, options);
+				if (typeof content === "function") renderFn = content;
+			},
+		});
 		widget.update();
 
-		expect(renderFn).toBeDefined();
-		const stubTui = { terminal: { columns: 200 }, requestRender: () => {} };
+		expect(setStatus).toHaveBeenLastCalledWith("subagents", "1 running agent");
+		expect(typeof renderFn).toBe("function");
+		const stubTui = { terminal: { columns: 200 }, requestRender: vi.fn() };
 		const stubTheme = { fg: (_: string, t: string) => t, bold: (t: string) => t };
-		const allText = renderFn!(stubTui, stubTheme).render().join("\n");
-		expect(allText).toContain("Awaiting model/thinking selection");
+		const component = renderFn!(stubTui, stubTheme);
+		const pendingText = component.render().join("\n");
+		expect(pendingText).toContain("Awaiting model/thinking selection");
+		expect(pendingText).not.toContain("reading");
+		expect(pendingText).not.toContain("a provisional response");
+
+		record = createTestSubagent(initial);
+		widget.update();
+		expect(stubTui.requestRender).toHaveBeenCalledOnce();
+		expect(setWidget).toHaveBeenCalledTimes(1);
+		expect(setStatus).toHaveBeenCalledTimes(1);
+		const normalText = component.render().join("\n");
+		expect(normalText).toContain("reading…");
+		expect(normalText).not.toContain("Awaiting model/thinking selection");
 	});
 });
 

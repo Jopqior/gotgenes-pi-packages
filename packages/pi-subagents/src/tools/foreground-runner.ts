@@ -20,7 +20,6 @@ import {
   type AgentDetails,
   describeActivity,
   formatMs,
-  PENDING_SELECTION_ACTIVITY,
 } from "#src/ui/display";
 import { SPINNER } from "#src/ui/glyphs";
 
@@ -69,12 +68,11 @@ export async function runForeground(
       maxTurns: recordRef?.maxTurns ?? execution.effectiveMaxTurns,
       durationMs: Date.now() - startedAt,
       status: "running",
-      activity: recordRef?.awaitingSelection
-        ? PENDING_SELECTION_ACTIVITY
-        : describeActivity(
-            recordRef?.activeTools ?? new Map(),
-            recordRef?.responseText ?? "",
-          ),
+      activity: describeActivity(
+        recordRef?.activeTools ?? new Map(),
+        recordRef?.responseText ?? "",
+        recordRef?.awaitingSelection ?? false,
+      ),
       spinnerFrame: spinnerFrame % SPINNER.length,
     };
     onUpdate?.({

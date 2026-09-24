@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { AgentConfig } from "#src/types";
 import {
+  describeActivity,
   formatSessionTokens,
   getDisplayName,
   getPromptModeLabel,
@@ -65,6 +66,30 @@ describe("getPromptModeLabel", () => {
 
   it("returns undefined for replace promptMode", () => {
     expect(getPromptModeLabel("Explore", testRegistry)).toBeUndefined();
+  });
+});
+
+describe("describeActivity", () => {
+  const tools = new Map([["call-1", "read"], ["call-2", "read"], ["call-3", "grep"]]);
+
+  it("prioritizes pending selection over active tools and response text", () => {
+    expect(describeActivity(tools, "a response in progress", true)).toBe("Awaiting model/thinking selection");
+    expect(describeActivity(new Map(), "a response in progress", true)).toBe("Awaiting model/thinking selection");
+  });
+
+  it("groups ordinary tools and keeps them ahead of response text", () => {
+    expect(describeActivity(tools, "a response in progress", false)).toBe("reading 2 files, searching…");
+    expect(describeActivity(tools, "a response in progress")).toBe("reading 2 files, searching…");
+  });
+
+  it("uses the first nonblank response line and truncates it when no tools are active", () => {
+    expect(describeActivity(new Map(), "  \n  writing an answer\nmore", false)).toBe("writing an answer");
+    expect(describeActivity(new Map(), "x".repeat(61))).toBe(`${"x".repeat(60)}…`);
+  });
+
+  it("falls back to thinking when response text is blank, including for an omitted third argument", () => {
+    expect(describeActivity(new Map(), "  \n  ", false)).toBe("thinking…");
+    expect(describeActivity(new Map())).toBe("thinking…");
   });
 });
 
