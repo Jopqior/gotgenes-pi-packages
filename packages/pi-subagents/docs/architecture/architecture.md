@@ -438,9 +438,9 @@ src/
 ├── tools/                          LLM-facing tool implementations
 │   ├── agent-tool.ts               subagent tool definition, validation, dispatch
 │   ├── result-renderer.ts          pure per-status result rendering
-│   ├── spawn-config.ts             pure config resolution
-│   ├── foreground-runner.ts        foreground execution loop; projects private pending-selection activity; overlays tool-card modelName and thinking tags from the selected pair
-│   ├── background-spawner.ts       background spawn setup; awaits initial selection through the manager, reports confirmed/cancelled/failed startup without waiting for child completion; overlays launch details from the selected pair
+│   ├── spawn-config.ts             pure config resolution and one ordinary presentation producer; bound detailFor derives pending/selected output from captured raw facts, retaining the sole model-name rule
+│   ├── foreground-runner.ts        foreground execution loop; passes private pending activity to the shared formatter and requests pending/selected details at existing stream/final sites
+│   ├── background-spawner.ts       background spawn setup; awaits initial selection through the manager, reports confirmed/cancelled/failed startup without waiting for child completion; requests selected launch details
 │   ├── get-result-tool.ts          get_subagent_result tool
 │   ├── get-result-report.ts        pure get_subagent_result report formatter
 │   ├── get-result-renderer.ts      pure get_subagent_result line assembly for the collapsed and expanded TUI views
@@ -449,8 +449,8 @@ src/
 │
 ├── ui/                             user-facing presentation
 │   ├── agent-widget.ts             above-editor live status widget; maps private pending-selection activity onto the renderer
-│   ├── widget-renderer.ts          pure rendering for widget, including pending-selection activity
-│   ├── display.ts                  pure formatters and shared types, including pending-selection activity wording, the spawn-model short-name rule, and overlay of tool-card presentation from the selected pair
+│   ├── widget-renderer.ts          pure rendering for widget; passes the private pending fact to the shared activity formatter
+│   ├── display.ts                  pure formatters and shared detail types; pending-first activity precedence, ordinary mode labels, and invocation-tag construction
 │   ├── bounded-lines.ts            component spending exactly one clipped terminal row per line
 │   ├── glyphs.ts                   semantic display-glyph vocabulary (monospace-coverage constraint, #669)
 │   ├── subagents-settings.ts       /subagents:settings command handler
@@ -932,7 +932,7 @@ Landed: `935cdd578b7b1af4da4beceb4707244d74264cb3` implements the selection owne
 
 Release: independent
 
-#### [#21] Reduce selector presentation reconciliation with upstream UI changes
+#### ✅ [#21] Reduce selector presentation reconciliation with upstream UI changes
 
 **Cause:** ordinary spawn presentation is computed before selection, so the fork must reinterpret model/thinking display and pending activity while tracking upstream display-rule changes.
 The handbook's instruction to transfer the model-name formula is a concrete recurring reconciliation obligation.
@@ -946,8 +946,10 @@ The handbook's instruction to transfer the model-name formula is a concrete recu
   Do not require a new lifecycle model as a premise.
 - **Outcome:** a delivered presentation change with a before/after upstream-change scenario demonstrating reduced repetition or translation, affected behavior tests, and explicit residual display/host obligations and abstraction upkeep.
   Fewer touched files without a reduced coordination obligation do not satisfy the outcome.
-- **Commit type:** to be decided at plan time.
+- **Commit type:** non-breaking `test:`, `refactor:`, and `docs:` commits.
 - **Impact 4 / Risk 3 / Priority 12.**
+
+Landed: `1209de69ead8745c3a1b1c4d1d2622380969c527` creates the common producer, and `6705f856952ab2eb3d5d9f50b07c3c4ab2e6956a` centralizes pending activity; [the synthetic reconciliation trial](selector-presentation-maintenance.md) records scenario differences and remaining adaptations.
 
 Release: independent
 
@@ -958,7 +960,7 @@ The disconnected nodes deliberately show no established hard dependency; the rec
 ```mermaid
 flowchart LR
     S20["✅ #20<br/>Startup coordination"]
-    S21["#21<br/>Presentation reconciliation"]
+    S21["✅ #21<br/>Presentation reconciliation"]
 ```
 
 ### Parallel tracks

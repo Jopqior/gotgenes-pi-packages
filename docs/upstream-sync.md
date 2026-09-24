@@ -198,14 +198,17 @@ Restore any dropped spawn-selection sentence in `AGENTS.md` or `packages/pi-suba
 
 Pin: `rg 'f\$\{PADDED\}' .pi/prompts/ship.md` still hits both snippets.
 
-`rg formatSpawnModelName packages/pi-subagents/src/tools/spawn-config.ts` still hits, and that file must not regain `.replace(/^Claude`.
-If the extract was lost, restore the call and copy the formula back into `formatSpawnModelName`.
+### Spawn presentation after [#21]
 
-If a conflict affects `modelName` in `packages/pi-subagents/src/tools/spawn-config.ts`:
-
-1. Keep the `formatSpawnModelName(...)` call.
-2. Put upstream's new formula into `formatSpawnModelName` in `packages/pi-subagents/src/ui/display.ts`.
-3. Do not paste the formula back into `resolveSpawnConfig`.
+Use [the synthetic presentation reconciliation trial](../packages/pi-subagents/docs/architecture/selector-presentation-maintenance.md) to check incoming mode-label, tag-order, and model-name changes against both ordinary and selected output.
+`spawn-config.ts` owns the single `formatSpawnModelName` rule and `buildSpawnDisplay` ordinary producer; `resolveSpawnConfig` captures resolved context and invocation facts once, and `presentation.detailFor` reruns that producer with pending or selected raw model/thinking facts.
+If an incoming inline model-name formula appears in `resolveSpawnConfig`, adapt its display operation into `formatSpawnModelName` **in the same file** rather than retaining a second inline formula or transferring it to `ui/display.ts`.
+Review the incoming inputs and semantics before adapting: the fixed-upstream truthiness check omits an empty model ID, whereas the fork's current equality guard formats an empty ID when it differs from the parent; preserve the fork behavior unless deliberately changed and tested.
+Initial formatting compares against `modelInfo.parentModel?.id`; selected formatting uses the runner snapshot's parent ID.
+Retain explicitly configured max turns in display tags, the captured prompt-mode label, and non-selection `detailBase` identity for resume and failure fallback.
+Review a changed mode label or tag order through the shared ordinary builder, without restoring literal `twin` checks or parsing thinking strings in a selector overlay.
+Preserve `describeActivity`'s pending-first branch and the foreground/widget pending boolean even when upstream rewrites its ordinary activity formatting; activity wording was already shared before [#21].
+The trial is synthetic, so reconcile new upstream fields, record/host timing, and the first pre-record stream frame explicitly rather than assuming conflict-free merging.
 
 ### Compatibility integration for fork issue 14
 
