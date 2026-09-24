@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [33.1.1](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v33.1.0...pi-permission-system-v33.1.1) (2026-09-24)
+
+
+### Bug Fixes
+
+* **pi-permission-system:** read a recognized flag's quoted value as its value ([a9721e4](https://github.com/gotgenes/pi-packages/commit/a9721e43828ee499d6a78fa2f03d4d6c87a15a95)), closes [#957](https://github.com/gotgenes/pi-packages/issues/957)
+* **pi-permission-system:** admit a quoted flag by its unquoted leading dash ([#957](https://github.com/gotgenes/pi-packages/issues/957)) ([e5eb6ab](https://github.com/gotgenes/pi-packages/commit/e5eb6ab55ec2aae5ad0b8254f46ad90b59ca56aa)), closes [#972](https://github.com/gotgenes/pi-packages/issues/972)
+
 ## [33.1.0](https://github.com/gotgenes/pi-packages/compare/pi-permission-system-v33.0.8...pi-permission-system-v33.1.0) (2026-09-23)
 
 
