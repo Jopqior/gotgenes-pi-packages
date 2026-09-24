@@ -1096,7 +1096,7 @@ Two open defects are that one loss seen from both sides.
 A redirect destination arrives at `projectRuleCandidates` tagged `{ effect: "write", source: "syntax" }` and is dropped, because `newfile` is bare and does not exist yet ([#609]'s residual; ADR 0013 measured it as "collection is real; classification then drops the token").
 An interpreter's inline script (`node -e "// comment…"`) is projected, because after quote removal the token starts with `/` ([#863]).
 ADR 0013 §10 says effects attach per path token, and the collector already tags them there; threading the role the same way is the decide-once fix.
-The symptom fallow sees is the `child.type === "command_name" || child.type === "variable_assignment"` disjunction spelled literally at three sites while `COMMAND_PREFIX_TYPES` exists for it — cited as a symptom, and paid down as [#609]'s tidy-first prep.
+The symptom fallow sees is the `child.type === "command_name" || child.type === "variable_assignment"` disjunction spelled literally at three sites while `COMMAND_PREFIX_TYPES` exists for it — cited as a symptom, and paid down as [#609]'s tidy-first prep (reassigned to [#977] at [#609]'s planning, since none of the three sites is a function [#609] edits).
 
 A second cause surfaced while measuring: **blame never reaches the entries a human decides**.
 Each bash gate stamps `effect`/`effectSource` and the flagged paths on its `logContext`, and the runner spreads that context into the entries it writes — but on `ask` the gate writes nothing, and `PermissionPrompter` brackets the ask (`waiting`/`approved`/`denied`) from `PromptPermissionDetails`, a second projection that never sees the context.
@@ -1114,6 +1114,7 @@ The repeated-discriminator sweep found one new family, the `COMMAND_PREFIX_TYPES
 The craftsmanship scout **refuted all six** fallow large-function flags on test files (each a nested tree of behavior-named `it`s with `it.each` collapsing near-duplicates) and refuted the planner's first reading that the generic and pattern-first token walkers, or `readCommandWords` and `commandArgumentWords`, are one state machine spelled twice — their filters and outputs differ.
 It found one concentrated test-design cluster: `test/handlers/gates/bash-path-extractor.test.ts` re-tests ~300 lines of `BashProgram` coverage through the facade (`/etc/[p]asswd`, the `for` word list, `$(cat /etc/hosts)`, redirect targets), so [#821] and [#839] each landed in two files.
 That rides [#609] as a `test:` prep commit — [#609] would otherwise land in both files a third time.
+[#609]'s planning found the facade has no production caller, so [#609] adds no case there; the cluster is [#978].
 `collectPatternCommandTokens` (cognitive 45) is adjudicated a justified state machine, `runDescriptor` stays whole (Phase 14's call holds), and `src/index.ts` is unchanged since Phase 14's clearance.
 The `scripts/` prelude duplication is scattered and rides whichever step next adds an instrument.
 
@@ -1239,7 +1240,8 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#951] — filed by [#923]'s planning; out of scope for the roadmap.
   `redirectMayWriteFile` proves a write for a `/dev/null` destination, so appending `2>/dev/null` to a read-only pipeline withholds [#803]'s `core-reader` exemption and floors the unit to `ask` — measured against every `<indirection-bash-wrapper>` prompt in the local review log since 2026-09-16, all of them proven core readers.
   The cause is a missing device row in `redirect-analysis.ts`'s effect proof, not the phase's role loss at projection; the two touch different modules and different seams.
-  One interaction to carry forward: [#609] makes a bare creating redirect reach `path_write`, which would newly project `> /dev/null` as a write destination, so the same device fact is needed on the path surface once that step lands.
+  One interaction was carried forward from here: that [#609] would newly project `> /dev/null` onto `path_write`.
+  [#609]'s planning measured that it already does, since `/dev/null` is absolute and passes the shape gate today, so [#609] changes nothing for it.
 - [#953] — filed by [#933]'s planning; out of scope for the roadmap.
   A policy-file issue is warned only at `session_start`, unlatched, while policy is re-read from file mtimes on any turn — so a policy file broken mid-session is rejected fail-closed and the operator is told nothing.
   It is the sibling accumulation to [#933]'s, left out of that fix to keep it tight; the same `config/`–`handlers/` notification-lifecycle class, sharing no step's mechanism.
@@ -1267,11 +1269,14 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
 - [#977] — filed by [#609]'s planning; **becomes a new step in this phase, directly after [#609]** (operator decision, 2026-09-24).
   `tree-sitter-bash` 0.25.1 parses every word after a redirect as another destination of it, so `git 2>/dev/null push --force` enumerates as the unit `git` and runs under a `git push *` deny, and `find ~/x 2>/dev/null -delete` proves `~/x` a read because the `-delete` guard never sees the flag — both measured through the real `resolveBashCommandCheck`.
   It is this phase's cause one layer down (the parse hands a command's argument the role of a redirect target), and [#609] lands the helper naming a redirect's real target, which this step reuses rather than re-derives.
+  It also takes the `COMMAND_PREFIX_TYPES` tidy [#609] was assigned, since it edits `commandArgumentWords`, one of the three re-spelling sites.
+- [#978] — filed by [#609]'s planning; **becomes a new step in this phase, after [#977]** (operator decision, 2026-09-24).
+  The `bash-path-extractor.test.ts` dedup was [#609]'s assigned prep, but the facade it tests has no production caller, so [#609] adds no case there and the dedup prepared nothing; retiring or narrowing the facade keeps the test-design cluster this phase adopted.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by [#880] (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
 
-`token-collection.ts`'s three near-identical prefix-skip loops and its hand-rolled child loop (recorded under [#839] and [#823]) are [#609]'s tidy-first prep; `runner.ts`'s `runDescriptor` split stays deferred on the scout's re-adjudication; the twin registries, `agent-renderer.test.ts`'s flat describes, and `service.test.ts`'s repeated `afterEach` stay scattered.
+`token-collection.ts`'s three near-identical prefix-skip loops and its hand-rolled child loop (recorded under [#839] and [#823]) were [#609]'s tidy-first prep and moved to [#977] at its planning; `runner.ts`'s `runDescriptor` split stays deferred on the scout's re-adjudication; the twin registries, `agent-renderer.test.ts`'s flat describes, and `service.test.ts`'s repeated `afterEach` stay scattered.
 
 ### Health metrics
 
@@ -1403,12 +1408,14 @@ ADR 0013 measured the drop and ADR 0009 lists redirect targets among the project
 
 - **Smell:** Category C (decided once at collection, re-decided at projection; the `COMMAND_PREFIX_TYPES` clone at three sites is the same fact fallow can see).
 - **Target:** `src/access-intent/bash/token-collection.ts` — `PathToken` gains a `role` (`redirect-destination` | `operand`, and the `script` value [#863]'s table entries become if the plan folds them in), stamped where the effect is; `src/access-intent/bash/bash-path-resolver.ts` — `projectRuleCandidates` and `projectExternalPaths` admit a `redirect-destination` token without the shape gate or the existence probe, resolving it against the effective base like any operand (an unknown base still flags conservatively, per [#393]); `docs/decisions/0009-bash-path-projection-completeness-contract.md` — the wording ADR 0013 flagged.
-  Tidy-first prep, as separate commits ahead of the change: export `COMMAND_PREFIX_TYPES` and replace its three literal re-spellings (`refactor:`), and settle which layer owns generic bash-path coverage by removing `bash-path-extractor.test.ts`'s duplication of `program.test.ts` (`test:`), so this step lands its cases once.
+  Tidy-first prep, reassigned at planning (operator decision, 2026-09-24): the `COMMAND_PREFIX_TYPES` re-spellings sit in functions this step does not edit and move to [#977], which edits `commandArgumentWords`; the `bash-path-extractor.test.ts` dedup rested on a facade no production code calls, so this step adds no case there and the question becomes [#978].
+  The one prep this step keeps routes `token-collection.test.ts`'s effect assertions through a role-agnostic projection, so a required `role` changes only the assertions about it.
 - **Constraint:** the role decides candidacy only; the direction still comes from the effect, and an unresolvable redirect ([#814]) still proves nothing and projects nothing.
   A descriptor duplication (`2>&1`) collects no token at all and is unaffected.
-- **Breaking change:** a bare creating redirect newly reaches `path_write` and, under an unknown base, `external_directory_write`, so an unconfigured install prompts on `echo hi > out.txt` where it did not.
-  The plan measures the affected share of real commands from the review log and writes the migration note (`path_write: {"*": "allow"}` restores the old posture) into the `BREAKING CHANGE:` footer.
-- **Outcome:** `cat x > newfile` under `path_write: {"*": "ask"}` prompts; `PathToken` carries a role; the prefix-type disjunction is spelled once; `bash-path-extractor.test.ts` tests the facade only.
+- **Breaking change:** a bare creating redirect newly reaches `path_write` and, under an unknown base, `external_directory_write`.
+  An unconfigured install does not prompt on `echo hi > out.txt` in the working directory, because an unmatched `path` promotion stays unrestricted; it prompts only after a non-literal `cd`.
+  The migration note must not recommend `path_write: {"*": "allow"}`: explicit directional entries append after the expanded sugar, so that line would out-rank a `path` deny on writes (measured: `.env` under `path: {"*.env": "deny"}` resolves `allow`).
+- **Outcome:** `cat x > newfile` under `path_write: {"*": "ask"}` prompts; `PathToken` carries a role; only a redirect's first destination is admitted by role (the rest are [#977]).
 - **Commit type:** `fix!:`.
 - **Impact 4 / Risk 2 / Priority 16.**
 
@@ -1421,9 +1428,21 @@ Three consumers read the misparse: command enumeration drops the trailing words 
 
 - **Smell:** Category C (a token's role — argument, not destination — lost before any consumer reads it).
 - **Target:** decided by the plan; the likely seam normalizes the redirected statement once so `command-enumeration.ts`, `command-effects.ts`'s guards via `token-collection.ts`, and `collectRedirectTokens` read one argument list, reusing [#609]'s redirect-target helper in `redirect-analysis.ts`.
+  Tidy-first prep, reassigned from [#609]: export `COMMAND_PREFIX_TYPES` and replace its three literal re-spellings (`commandArgumentWords`, `collectEmbeddedOptionValues`, `cdLiteralTarget`), the first of which this step edits.
 - **Constraint:** only the first destination is the redirect's target; `redirectMayWriteFile`'s refusal must stay fail-closed for whatever the plan cannot place.
 - **Outcome:** `git 2>/dev/null push --force` is denied by `git push *`; `find ~/x 2>/dev/null -delete` retracts the read; `grep pat 2>/dev/null ~/x/f.txt` attributes `~/x/f.txt` grep's read.
 - **Commit type:** `fix:`.
+
+Release: independent
+
+#### [#978] The bash-path facade nobody calls
+
+**Cause:** `extractExternalPathsFromBashCommand` (`src/handlers/gates/bash-path-extractor.ts`) has no production caller (both bash path gates read `BashProgram` directly), so its 1300-line test file re-tests `BashProgram` through a seam nothing uses; that file is the concentrated test-design cluster the craftsmanship scout found.
+
+- **Smell:** Category A (dead code kept alive by its own tests) over Category G (a test file at the wrong layer).
+- **Target:** retire the facade and its test file after moving any case with no equivalent in `program.test.ts` or `token-collection.test.ts`, or keep it as a documented seam and narrow the test to the facade's own mapping; the plan decides.
+- **Outcome:** no test file re-tests `BashProgram` through an unused facade; the `bash-path-extractor.ts` module-tree entry matches the decision.
+- **Commit type:** `test:`/`refactor:` (no release).
 
 Release: independent
 
@@ -1527,6 +1546,7 @@ flowchart TD
     S880 --> S881["#881<br/>Blame reaches the ask"]
     S609 -.-> S881
     S609 -.-> S977["#977<br/>Arguments after a redirect"]
+    S977 -.-> S978["#978<br/>The facade nobody calls"]
     S881 -.-> S882["#882<br/>May a link dismiss a nonexistent-path ask?"]
 ```
 
@@ -1541,12 +1561,12 @@ The diagram is laid out by dependency instead, so its shape and the working sequ
 
 ### Parallel tracks
 
-- **Track A — role-carrying projection:** [#945] → [#863] → [#859] → [#957] → [#609] → [#977].
+- **Track A — role-carrying projection:** [#945] → [#863] → [#859] → [#957] → [#609] → [#977] → [#978].
   [#977] also re-enters `command-enumeration.ts` and the argument words `command-effects.ts`'s guards read, which Track B's [#924] and [#880] edit — sequence it against whichever of them is in flight rather than concurrently.
   Owns `src/access-intent/bash/token-collection.ts`, `token-classification.ts`, `bash-path-resolver.ts`, and the bash-path tests.
 - **Track B — proven and declared effects, and blame:** [#924] → [#963] → [#880] → [#881].
   [#924] owns `command-effects.ts` and the pure-reader core section of `docs/configuration.md`; [#963] owns `wrapper-analysis.ts` and ADR 0013 §11; [#880] owns `src/config/` and re-enters `command-effects.ts`; [#881] owns `src/presentation/` and the two bash path gates.
-  [#881] touches `bash-path.ts` / `bash-external-directory.ts`, which Track A's [#609] also edits — sequence [#881] after [#609], not concurrently.
+  [#881] touches `bash-path.ts` / `bash-external-directory.ts`; [#609]'s plan leaves both gates unchanged, but [#881]'s blame reads the candidate set [#609] widens, so sequence [#881] after [#609].
 - **Track C — the judgment lane:** [#882], a deliberation first; its code half touches `authority/delegation-envelope.ts`, `authority/permission-forwarding.ts`, and the payload core [#881] owns, so it lands after [#881].
 
 The sandbox seam that Phase 15 briefly carried as a fourth track is now Phase 16's subject in full ([#892], with [#802]).
@@ -1555,7 +1575,7 @@ The sandbox seam that Phase 15 briefly carried as a fourth track is now Phase 16
 
 - **Batch "declared-effects":** [#880], [#881] (ship together; tail = [#881]; release vehicle = [#880]'s `feat:` with [#881]'s `fix:` riding the same release).
   They ship together because [#881]'s blame line names the config key [#880] creates, and a prompt telling the user to declare an effect they cannot declare is worse than the prompt it replaces.
-- Independently releasable: [#945] (`fix:`), [#863] (`fix:`), [#859] (`fix:`), [#957] (`fix:`), [#609] (`fix!:` — newly prompts on a bare creating redirect under an unconfigured `path_write`), [#977] (`fix:`), [#924] (`fix:`), [#882] (`feat:` if the checkpoint changes; a `docs:` amendment alone cuts no release).
+- Independently releasable: [#945] (`fix:`), [#863] (`fix:`), [#859] (`fix:`), [#957] (`fix:`), [#609] (`fix!:` — newly prompts on a bare creating redirect under an explicit `path`/`path_write` rule, or after a non-literal `cd`), [#977] (`fix:`), [#978] (no release), [#924] (`fix:`), [#882] (`feat:` if the checkpoint changes; a `docs:` amendment alone cuts no release).
 
 ## Refactoring history
 
@@ -1700,5 +1720,6 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#973]: https://github.com/gotgenes/pi-packages/issues/973
 [#976]: https://github.com/gotgenes/pi-packages/issues/976
 [#977]: https://github.com/gotgenes/pi-packages/issues/977
+[#978]: https://github.com/gotgenes/pi-packages/issues/978
 [#490]: https://github.com/gotgenes/pi-packages/issues/490
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
