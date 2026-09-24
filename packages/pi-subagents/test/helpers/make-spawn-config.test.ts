@@ -37,8 +37,17 @@ describe("createResolvedSpawnConfig", () => {
           modelName: undefined,
           tags: undefined,
         },
+        detailFor: expect.any(Function),
       },
     });
+  });
+
+  it("returns the original fixture detail object for selection without implementing production formatting", () => {
+    const config = createResolvedSpawnConfig();
+    expect(config.presentation.detailFor({ awaitingSelection: true }, "parent")).toBe(config.presentation.detailBase);
+    expect(config.presentation.detailFor({ awaitingSelection: false,
+      selectedPair: { model: { id: "other", name: "Other" }, thinkingLevel: "off" },
+    }, "parent")).toBe(config.presentation.detailBase);
   });
 
   it("applies the scalar overrides", () => {

@@ -308,6 +308,30 @@ describe("runForeground", () => {
 		await runPromise;
 	});
 
+	it("streams the confirmed pair from the started record", async () => {
+		const selected = createTestSubagent({
+			status: "running", completedAt: undefined,
+			selectedPair: { model: makeModel({ id: "claude-haiku", name: "Claude Haiku" }), thinkingLevel: "off" },
+		});
+		const held = Promise.withResolvers<ReturnType<typeof createTestSubagent>>();
+		const deps = createToolDeps({
+			manager: { ...createToolDeps().manager, spawnAndWait: vi.fn((_snapshot, _type, _prompt, opts) => {
+				opts.observer?.onStarted?.(selected);
+				return held.promise;
+			}) },
+		});
+		const { config, parent } = resolvedSelectionConfig();
+		const onUpdate = vi.fn();
+		const runPromise = runForeground(deps.manager,
+			makeParams({ config, snapshot: { ...STUB_SNAPSHOT, model: parent } }), undefined, onUpdate);
+		await vi.advanceTimersByTimeAsync(100);
+		const details = onUpdate.mock.calls.at(-1)?.[0].details;
+		expect(details?.modelName).toBe("haiku");
+		expect(details?.tags).toEqual(["twin", "thinking: off", "inherit context", "max turns: 9"]);
+		held.resolve(selected);
+		await runPromise;
+	});
+
 	it("names the selected pair on completed details", async () => {
 		const { manager } = createToolDeps();
 		manager.spawnAndWait = vi.fn().mockResolvedValue(

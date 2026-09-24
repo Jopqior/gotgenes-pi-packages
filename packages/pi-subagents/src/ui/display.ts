@@ -6,7 +6,7 @@
  */
 
 import type { AgentConfigLookup } from "#src/config/agent-types";
-import type { AgentInvocation, SubagentType, ThinkingLevel } from "#src/types";
+import type { AgentInvocation, SubagentType } from "#src/types";
 import { GLYPHS } from "#src/ui/glyphs";
 
 // ---- Types ----
@@ -41,14 +41,6 @@ export interface AgentDetails {
   error?: string;
 }
 
-export type SpawnPresentationSource = {
-  awaitingSelection: boolean;
-  selectedPair?: {
-    model: { id: string; name: string };
-    thinkingLevel: ThinkingLevel;
-  };
-};
-
 export type SpawnDetailBase = Pick<
   AgentDetails,
   "displayName" | "description" | "subagentType" | "modelName" | "tags"
@@ -61,9 +53,6 @@ export const ERROR_STATUSES = new Set(["error", "aborted", "steered", "stopped"]
 
 /** Private pending-selection activity shown while public status stays `running`. */
 export const PENDING_SELECTION_ACTIVITY = "Awaiting model/thinking selection";
-
-/** Shared by `thinkingTag` and `isThinkingTag` so the producer and matcher cannot drift. */
-const THINKING_TAG_PREFIX = "thinking: ";
 
 /** Tool name → human-readable action for activity descriptions. */
 const TOOL_DISPLAY: Record<string, string> = {
@@ -133,68 +122,6 @@ export function formatDuration(startedAt: number, completedAt?: number): string 
   return `${formatMs(Date.now() - startedAt)} (running)`;
 }
 
-/**
- * Tool-card short name for a spawn model.
- * Sole implementation of the rule `resolveSpawnConfig` used to inline:
- * omit when `model.id` equals the parent id, otherwise `model.name` with a
- * leading "Claude " stripped and lowercased.
- * `resolveSpawnConfig` and `overlaySpawnPresentation` both call this.
- * Do not inline the formula back into `resolveSpawnConfig`.
- */
-export function formatSpawnModelName(
-  model: { id: string; name: string } | undefined,
-  parentId: string | undefined,
-): string | undefined {
-  if (!model || model.id === parentId) return undefined;
-  return model.name.replace(/^Claude\s+/i, "").toLowerCase();
-}
-
-export function overlaySpawnPresentation(
-  base: SpawnDetailBase,
-  source: SpawnPresentationSource | undefined,
-  parentId: string | undefined,
-): SpawnDetailBase {
-  if (!source) return base;
-  if (source.awaitingSelection) return overlayPendingPresentation(base);
-  if (source.selectedPair) return overlaySelectedPresentation(base, source.selectedPair, parentId);
-  return base;
-}
-
-function overlayPendingPresentation(base: SpawnDetailBase): SpawnDetailBase {
-  const remaining = (base.tags ?? []).filter((tag) => !isThinkingTag(tag));
-  return {
-    ...base,
-    modelName: undefined,
-    tags: remaining.length > 0 ? remaining : undefined,
-  };
-}
-
-function overlaySelectedPresentation(
-  base: SpawnDetailBase,
-  pair: NonNullable<SpawnPresentationSource["selectedPair"]>,
-  parentId: string | undefined,
-): SpawnDetailBase {
-  const remaining = (base.tags ?? []).filter((tag) => !isThinkingTag(tag));
-  const nextThinking = thinkingTag(pair.thinkingLevel);
-  const tags =
-    remaining[0] === "twin"
-      ? ["twin", nextThinking, ...remaining.slice(1)]
-      : [nextThinking, ...remaining];
-  return {
-    ...base,
-    modelName: formatSpawnModelName(pair.model, parentId),
-    tags,
-  };
-}
-
-function thinkingTag(level: ThinkingLevel): string {
-  return `${THINKING_TAG_PREFIX}${level}`;
-}
-
-function isThinkingTag(tag: string): boolean {
-  return tag.startsWith(THINKING_TAG_PREFIX);
-}
-
 // ---- Display helpers ----
 
 /** Get display name for any agent type (built-in or custom). */
@@ -215,7 +142,7 @@ export function buildInvocationTags(
 ): { modelName?: string; tags: string[] } {
   const tags: string[] = [];
   if (!invocation) return { tags };
-  if (invocation.thinking) tags.push(thinkingTag(invocation.thinking));
+  if (invocation.thinking) tags.push(`thinking: ${invocation.thinking}`);
   if (invocation.inheritContext) tags.push("inherit context");
   if (invocation.runInBackground) tags.push("background");
   if (invocation.maxTurns != null) tags.push(`max turns: ${invocation.maxTurns}`);

@@ -20,7 +20,6 @@ import {
   type AgentDetails,
   describeActivity,
   formatMs,
-  overlaySpawnPresentation,
   PENDING_SELECTION_ACTIVITY,
 } from "#src/ui/display";
 import { SPINNER } from "#src/ui/glyphs";
@@ -61,11 +60,7 @@ export async function runForeground(
   const streamUpdate = () => {
     const toolUses = recordRef?.toolUses ?? 0;
     const details: AgentDetails = {
-      ...overlaySpawnPresentation(
-        presentation.detailBase,
-        recordRef,
-        params.snapshot.model?.id,
-      ),
+      ...presentation.detailFor(recordRef, params.snapshot.model?.id),
       toolUses,
       tokens: recordRef ? formatLifetimeTokens(recordRef) : "",
       // Read activity off the record; fall back to safe defaults before session creation.
@@ -133,7 +128,7 @@ export async function runForeground(
 
   const tokenText = formatLifetimeTokens(record);
   const details = buildDetails(
-    overlaySpawnPresentation(presentation.detailBase, record, params.snapshot.model?.id),
+    presentation.detailFor(record, params.snapshot.model?.id),
     record,
     { tokens: tokenText },
   );

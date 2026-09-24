@@ -1,7 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import { resolveSpawnConfig } from "#src/tools/spawn-config";
-import { overlaySpawnPresentation } from "#src/ui/display";
+import type { AgentConfig } from "#src/types";
+
+const { modeLabelOverride } = vi.hoisted(() => ({ modeLabelOverride: vi.fn<() => string | undefined>() }));
+vi.mock("#src/ui/display", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("#src/ui/display")>();
+  return { ...actual, getPromptModeLabel: (...args: Parameters<typeof actual.getPromptModeLabel>) =>
+    modeLabelOverride.getMockImplementation()?.() ?? actual.getPromptModeLabel(...args) };
+});
+afterEach(() => modeLabelOverride.mockReset());
+
 import { makeModel } from "#test/helpers/make-model";
 
 /** Minimal registry with default agents only. */
@@ -383,7 +392,7 @@ describe("resolveSpawnConfig — prompt and rawType passthrough", () => {
   });
 });
 
-describe("resolved spawn presentation through the existing overlay", () => {
+describe("resolved spawn presentation from one ordinary producer", () => {
   const parent = makeModel({ id: "claude-sonnet", name: "Claude Sonnet" });
   const proposed = makeModel({ id: "gpt-5.5", name: "GPT-5.5", provider: "openai" });
   const selected = makeModel({ id: "claude-haiku", name: "Claude Haiku" });
@@ -416,13 +425,13 @@ describe("resolved spawn presentation through the existing overlay", () => {
       modelName: "gpt-5.5", thinking: "high", maxTurns: 9,
       inheritContext: true, runInBackground: true,
     });
-    expect(overlaySpawnPresentation(result.presentation.detailBase, undefined, parent.id)).toBe(result.presentation.detailBase);
-    expect(overlaySpawnPresentation(result.presentation.detailBase, { awaitingSelection: false }, parent.id)).toBe(result.presentation.detailBase);
+    expect(result.presentation.detailFor(undefined, parent.id)).toBe(result.presentation.detailBase);
+    expect(result.presentation.detailFor({ awaitingSelection: false }, parent.id)).toBe(result.presentation.detailBase);
     const pair = { model: selected, thinkingLevel: "off" as const };
-    expect(overlaySpawnPresentation(base, { awaitingSelection: true, selectedPair: pair }, parent.id)).toEqual({
+    expect(result.presentation.detailFor({ awaitingSelection: true, selectedPair: pair }, parent.id)).toEqual({
       ...base, modelName: undefined, tags: ["twin", "inherit context", "background", "max turns: 9"],
     });
-    expect(overlaySpawnPresentation(base, { awaitingSelection: false, selectedPair: pair }, parent.id)).toEqual({
+    expect(result.presentation.detailFor({ awaitingSelection: false, selectedPair: pair }, parent.id)).toEqual({
       ...base, modelName: "haiku", tags: ["twin", "thinking: off", "inherit context", "background", "max turns: 9"],
     });
     expect(result.execution.model).toBe(proposed);
@@ -442,7 +451,7 @@ describe("resolved spawn presentation through the existing overlay", () => {
     );
     if ("error" in result) throw new Error(result.error);
     expect(result.presentation.detailBase.modelName).toBe("gpt-5.5");
-    expect(overlaySpawnPresentation(result.presentation.detailBase, {
+    expect(result.presentation.detailFor({
       awaitingSelection: false, selectedPair: { model: parent, thinkingLevel: "medium" },
     }, parent.id)).toEqual({
       displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
@@ -459,10 +468,10 @@ describe("resolved spawn presentation through the existing overlay", () => {
     expect(result.presentation.detailBase).toEqual({
       displayName: "Explore", description: "scan", subagentType: "Explore", modelName: undefined, tags: undefined,
     });
-    expect(overlaySpawnPresentation(result.presentation.detailBase, { awaitingSelection: true }, parent.id)).toEqual({
+    expect(result.presentation.detailFor({ awaitingSelection: true }, parent.id)).toEqual({
       displayName: "Explore", description: "scan", subagentType: "Explore", modelName: undefined, tags: undefined,
     });
-    expect(overlaySpawnPresentation(result.presentation.detailBase, {
+    expect(result.presentation.detailFor({
       awaitingSelection: false, selectedPair: { model: selected, thinkingLevel: "off" },
     }, parent.id)).toEqual({
       displayName: "Explore", description: "scan", subagentType: "Explore", modelName: "haiku", tags: ["thinking: off"],
@@ -475,11 +484,111 @@ describe("resolved spawn presentation through the existing overlay", () => {
       testRegistry, modelInfo, defaultSettings,
     );
     if ("error" in result) throw new Error(result.error);
-    expect(overlaySpawnPresentation(result.presentation.detailBase, {
+    expect(result.presentation.detailFor({
       awaitingSelection: false,
       selectedPair: { model: makeModel({ id: "", name: "Claude Zero" }), thinkingLevel: "off" },
     }, parent.id)).toEqual({
       displayName: "Explore", description: "scan", subagentType: "Explore", modelName: "zero", tags: ["thinking: off"],
+    });
+  });
+
+  it("compares selected model against the runner parent even when initial parent differed", () => {
+    const result = resolveSpawnConfig(
+      { subagent_type: "Explore", prompt: "investigate", description: "scan" },
+      testRegistry, modelInfo, defaultSettings,
+    );
+    if ("error" in result) throw new Error(result.error);
+    expect(result.presentation.detailBase.modelName).toBeUndefined();
+    expect(result.presentation.detailFor({ awaitingSelection: false,
+      selectedPair: { model: selected, thinkingLevel: "medium" },
+    }, selected.id)).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore",
+      modelName: undefined, tags: ["thinking: medium"],
+    });
+    expect(result.presentation.detailFor({ awaitingSelection: false,
+      selectedPair: { model: parent, thinkingLevel: "off" },
+    }, selected.id)).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore",
+      modelName: "sonnet", tags: ["thinking: off"],
+    });
+  });
+
+  it("captures resolved identity, mode, and invocation facts before registry reload", () => {
+    const configs = new Map<string, AgentConfig>([["custom", {
+      name: "custom", description: "custom", systemPrompt: "", promptMode: "append" as const,
+      displayName: "Original Agent",
+    }]]);
+    const registry = new AgentTypeRegistry(() => configs);
+    const result = resolveSpawnConfig(
+      { subagent_type: "custom", prompt: "investigate", description: "original task", thinking: "high", inherit_context: true },
+      registry, modelInfo, defaultSettings,
+    );
+    if ("error" in result) throw new Error(result.error);
+    configs.set("custom", { name: "custom", description: "custom", systemPrompt: "", promptMode: "replace", displayName: "Changed Agent" });
+    registry.reload();
+    const pair = { model: selected, thinkingLevel: "off" as const };
+    expect(result.presentation.detailFor({ awaitingSelection: false, selectedPair: pair }, parent.id)).toEqual({
+      displayName: "Original Agent", description: "original task", subagentType: "custom",
+      modelName: "haiku", tags: ["twin", "thinking: off", "inherit context"],
+    });
+    expect(result.presentation.detailFor({ awaitingSelection: true, selectedPair: pair }, parent.id)).toEqual({
+      displayName: "Original Agent", description: "original task", subagentType: "custom",
+      modelName: undefined, tags: ["twin", "inherit context"],
+    });
+    expect(result.presentation.detailBase).toEqual({
+      displayName: "Original Agent", description: "original task", subagentType: "custom",
+      modelName: undefined, tags: ["twin", "thinking: high", "inherit context"],
+    });
+  });
+
+  it("retains a controlled non-twin mode label in ordinary and selected tag order", () => {
+    modeLabelOverride.mockReturnValue("mirror");
+    const result = resolveSpawnConfig(
+      { subagent_type: "general-purpose", prompt: "investigate", description: "diagnose", thinking: "high", inherit_context: true },
+      testRegistry, modelInfo, defaultSettings,
+    );
+    if ("error" in result) throw new Error(result.error);
+    expect(result.presentation.detailBase).toEqual({
+      displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
+      modelName: undefined, tags: ["mirror", "thinking: high", "inherit context"],
+    });
+    expect(result.presentation.detailFor({ awaitingSelection: true }, parent.id)).toEqual({
+      displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
+      modelName: undefined, tags: ["mirror", "inherit context"],
+    });
+    expect(result.presentation.detailFor({ awaitingSelection: false,
+      selectedPair: { model: selected, thinkingLevel: "off" },
+    }, parent.id)).toEqual({
+      displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
+      modelName: "haiku", tags: ["mirror", "thinking: off", "inherit context"],
+    });
+  });
+
+  it("pins absent model and same-parent and non-Claude model names through the producer", () => {
+    const noModel = resolveSpawnConfig(
+      { subagent_type: "Explore", prompt: "investigate", description: "scan" },
+      testRegistry, makeModelInfo({ parentModel: undefined }), defaultSettings,
+    );
+    if ("error" in noModel) throw new Error(noModel.error);
+    expect(noModel.presentation.detailBase).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: undefined, tags: undefined,
+    });
+    const result = resolveSpawnConfig(
+      { subagent_type: "Explore", prompt: "investigate", description: "scan" },
+      testRegistry, modelInfo, defaultSettings,
+    );
+    if ("error" in result) throw new Error(result.error);
+    expect(result.presentation.detailFor({ awaitingSelection: false,
+      selectedPair: { model: proposed, thinkingLevel: "high" },
+    }, parent.id)).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore",
+      modelName: "gpt-5.5", tags: ["thinking: high"],
+    });
+    expect(result.presentation.detailFor({ awaitingSelection: false,
+      selectedPair: { model: makeModel({ id: "claude-opus-4-6", name: "Claude Opus 4.6" }), thinkingLevel: "high" },
+    }, parent.id)).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore",
+      modelName: "opus 4.6", tags: ["thinking: high"],
     });
   });
 

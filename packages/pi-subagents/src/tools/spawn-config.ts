@@ -16,7 +16,6 @@ import { resolveInvocationModel } from "#src/session/model-resolver";
 import type { AgentInvocation, SubagentType, ThinkingLevel } from "#src/types";
 import {
   buildInvocationTags,
-  formatSpawnModelName,
   getDisplayName,
   getPromptModeLabel,
   type SpawnDetailBase,
@@ -53,7 +52,27 @@ export interface SpawnPresentation {
   modelName: string | undefined;
   agentTags: string[];
   detailBase: SpawnDetailBase;
+  detailFor(source: SpawnPresentationSource | undefined, parentId: string | undefined): SpawnDetailBase;
 }
+
+type DisplayModel = { readonly id: string; readonly name: string };
+
+type SpawnDisplayContext = {
+  readonly displayName: string;
+  readonly description: string;
+  readonly subagentType: string;
+  readonly modeLabel: string | undefined;
+};
+
+type SpawnInvocationFacts = Omit<AgentInvocation, "modelName">;
+
+type SpawnPresentationSource = {
+  readonly awaitingSelection: boolean;
+  readonly selectedPair?: {
+    readonly model: DisplayModel;
+    readonly thinkingLevel: ThinkingLevel;
+  };
+};
 
 /** Fully resolved config for spawning an agent — composed of domain-aligned sub-interfaces. */
 export interface ResolvedSpawnConfig {
@@ -120,30 +139,36 @@ export function resolveSpawnConfig(
   const inheritContext = resolvedConfig.inheritContext;
   const runInBackground = resolvedConfig.runInBackground;
 
-  const modelName = formatSpawnModelName(model, modelInfo.parentModel?.id);
-
   const effectiveMaxTurns = normalizeMaxTurns(
     resolvedConfig.maxTurns ?? settings.defaultMaxTurns,
   );
-
-  const agentInvocation: AgentInvocation = {
-    modelName,
+  const context: SpawnDisplayContext = {
+    displayName,
+    description: params.description as string,
+    subagentType,
+    modeLabel: getPromptModeLabel(subagentType, registry),
+  };
+  const invocationFacts: SpawnInvocationFacts = {
     thinking,
     maxTurns: normalizeMaxTurns(resolvedConfig.maxTurns),
     inheritContext,
     runInBackground,
   };
-
-  const modeLabel = getPromptModeLabel(subagentType, registry);
-  const { tags: invocationTags } = buildInvocationTags(agentInvocation);
-  const agentTags = modeLabel ? [modeLabel, ...invocationTags] : invocationTags;
-
-  const detailBase = {
-    displayName,
-    description: params.description as string,
-    subagentType,
+  const initial = buildSpawnDisplay(context, invocationFacts, model, modelInfo.parentModel?.id);
+  const { agentInvocation, modelName, agentTags, detailBase } = initial;
+  const presentation: SpawnPresentation = {
     modelName,
-    tags: agentTags.length > 0 ? agentTags : undefined,
+    agentTags,
+    detailBase,
+    detailFor(source, parentId) {
+      if (!source || (!source.awaitingSelection && !source.selectedPair)) return detailBase;
+      const selectedFacts: SpawnInvocationFacts = {
+        ...invocationFacts,
+        thinking: source.awaitingSelection ? undefined : source.selectedPair?.thinkingLevel,
+      };
+      const selectedModel = source.awaitingSelection ? undefined : source.selectedPair?.model;
+      return buildSpawnDisplay(context, selectedFacts, selectedModel, parentId).detailBase;
+    },
   };
 
   return {
@@ -162,8 +187,36 @@ export function resolveSpawnConfig(
       runInBackground,
       agentInvocation,
     },
-    presentation: { modelName, agentTags, detailBase },
+    presentation,
   };
+}
+
+function buildSpawnDisplay(
+  context: SpawnDisplayContext,
+  facts: SpawnInvocationFacts,
+  model: DisplayModel | undefined,
+  parentId: string | undefined,
+) {
+  const modelName = formatSpawnModelName(model, parentId);
+  const agentInvocation: AgentInvocation = { modelName, ...facts };
+  const { tags: invocationTags } = buildInvocationTags(agentInvocation);
+  const agentTags = context.modeLabel ? [context.modeLabel, ...invocationTags] : invocationTags;
+  const detailBase: SpawnDetailBase = {
+    displayName: context.displayName,
+    description: context.description,
+    subagentType: context.subagentType,
+    modelName,
+    tags: agentTags.length > 0 ? agentTags : undefined,
+  };
+  return { agentInvocation, modelName, agentTags, detailBase };
+}
+
+function formatSpawnModelName(
+  model: DisplayModel | undefined,
+  parentId: string | undefined,
+): string | undefined {
+  if (!model || model.id === parentId) return undefined;
+  return model.name.replace(/^Claude\s+/i, "").toLowerCase();
 }
 
 /** Advise that the named type does not exist, so general-purpose ran instead. */

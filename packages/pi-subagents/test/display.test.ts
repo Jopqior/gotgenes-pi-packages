@@ -3,10 +3,8 @@ import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { AgentConfig } from "#src/types";
 import {
   formatSessionTokens,
-  formatSpawnModelName,
   getDisplayName,
   getPromptModeLabel,
-  overlaySpawnPresentation,
 } from "#src/ui/display";
 
 const testRegistry = new AgentTypeRegistry(() => new Map());
@@ -67,125 +65,6 @@ describe("getPromptModeLabel", () => {
 
   it("returns undefined for replace promptMode", () => {
     expect(getPromptModeLabel("Explore", testRegistry)).toBeUndefined();
-  });
-});
-
-describe("formatSpawnModelName", () => {
-  it("strips a leading Claude and lowercases when the model differs from the parent", () => {
-    expect(formatSpawnModelName({ id: "claude-haiku", name: "Claude Haiku" }, "claude-sonnet")).toBe(
-      "haiku",
-    );
-    expect(formatSpawnModelName({ id: "claude-opus-4-6", name: "Claude Opus 4.6" }, "claude-sonnet")).toBe(
-      "opus 4.6",
-    );
-  });
-
-  it("returns undefined when model.id equals the parent id", () => {
-    expect(
-      formatSpawnModelName({ id: "claude-sonnet", name: "Claude Sonnet" }, "claude-sonnet"),
-    ).toBeUndefined();
-  });
-
-  it("returns undefined when model is missing", () => {
-    expect(formatSpawnModelName(undefined, "claude-sonnet")).toBeUndefined();
-  });
-
-  it("passes a non-Claude name through lowercased", () => {
-    expect(formatSpawnModelName({ id: "gpt-5.5", name: "GPT-5.5" }, "claude-sonnet")).toBe("gpt-5.5");
-  });
-});
-
-describe("overlaySpawnPresentation", () => {
-  const base = {
-    displayName: "Agent",
-    description: "task",
-    subagentType: "general-purpose",
-    modelName: "gpt-5.5",
-    tags: ["thinking: high", "inherit context"] as string[] | undefined,
-  };
-
-  const flash = { id: "deepseek/deepseek-flash", name: "DeepSeek Flash" };
-  const parentId = "openai-codex/gpt-5.5";
-
-  it("returns the base unchanged when source is undefined", () => {
-    expect(overlaySpawnPresentation(base, undefined, parentId)).toBe(base);
-  });
-
-  it("returns the base unchanged when there is no selected pair and selection is not pending", () => {
-    expect(overlaySpawnPresentation(base, { awaitingSelection: false }, parentId)).toBe(base);
-  });
-
-  it("clears modelName and thinking tags while pending selection", () => {
-    const pendingBase = {
-      ...base,
-      tags: ["twin", "thinking: high", "inherit context", "background", "max turns: 5"],
-    };
-    expect(overlaySpawnPresentation(pendingBase, { awaitingSelection: true }, parentId)).toEqual({
-      ...pendingBase,
-      modelName: undefined,
-      tags: ["twin", "inherit context", "background", "max turns: 5"],
-    });
-  });
-
-  it("sets tags to undefined when pending strip leaves no remainder", () => {
-    const thinkingOnly = { ...base, tags: ["thinking: high"] };
-    expect(overlaySpawnPresentation(thinkingOnly, { awaitingSelection: true }, parentId)).toEqual({
-      ...thinkingOnly,
-      modelName: undefined,
-      tags: undefined,
-    });
-  });
-
-  it("names the selected model when it differs from the parent", () => {
-    const source = {
-      awaitingSelection: false,
-      selectedPair: { model: flash, thinkingLevel: "high" as const },
-    };
-    expect(overlaySpawnPresentation(base, source, parentId)).toEqual({
-      ...base,
-      modelName: "deepseek flash",
-      tags: ["thinking: high", "inherit context"],
-    });
-  });
-
-  it("omits modelName when the selected id equals the parent", () => {
-    const source = {
-      awaitingSelection: false,
-      selectedPair: {
-        model: { id: parentId, name: "GPT-5.5" },
-        thinkingLevel: "high" as const,
-      },
-    };
-    expect(overlaySpawnPresentation(base, source, parentId)).toEqual({
-      ...base,
-      modelName: undefined,
-      tags: ["thinking: high", "inherit context"],
-    });
-  });
-
-  it("replaces the thinking tag including off", () => {
-    const source = {
-      awaitingSelection: false,
-      selectedPair: { model: flash, thinkingLevel: "off" as const },
-    };
-    expect(overlaySpawnPresentation(base, source, parentId)).toEqual({
-      ...base,
-      modelName: "deepseek flash",
-      tags: ["thinking: off", "inherit context"],
-    });
-  });
-
-  it("inserts the thinking tag after a leading twin entry", () => {
-    const twinBase = { ...base, tags: ["twin", "thinking: high", "inherit context"] };
-    const source = {
-      awaitingSelection: false,
-      selectedPair: { model: flash, thinkingLevel: "medium" as const },
-    };
-    expect(overlaySpawnPresentation(twinBase, source, parentId)).toEqual({
-      ...twinBase,
-      modelName: "deepseek flash",
-      tags: ["twin", "thinking: medium", "inherit context"],
-    });
   });
 });
 

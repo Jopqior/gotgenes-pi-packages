@@ -31,6 +31,8 @@ export function createResolvedSpawnConfig(
   const rawType = options.rawType ?? subagentType;
   const fellBack = options.fellBack ?? false;
 
+  const detailBase = { displayName, description, subagentType, modelName, tags: undefined };
+
   return {
     identity: { subagentType, rawType, fellBack, displayName },
     notes: buildFallbackNote(rawType, fellBack),
@@ -53,7 +55,8 @@ export function createResolvedSpawnConfig(
     presentation: {
       modelName,
       agentTags: [],
-      detailBase: { displayName, description, subagentType, modelName, tags: undefined },
+      detailBase,
+      detailFor: () => detailBase,
     },
   };
 }

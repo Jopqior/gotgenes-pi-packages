@@ -4,7 +4,7 @@ import type { AgentSpawnConfig } from "#src/lifecycle/subagent-manager";
 import { renderSpawnNotes, textResult } from "#src/tools/helpers";
 import type { ResolvedSpawnConfig } from "#src/tools/spawn-config";
 import type { ParentSessionInfo, Subagent } from "#src/types";
-import { type AgentDetails, overlaySpawnPresentation } from "#src/ui/display";
+import type { AgentDetails } from "#src/ui/display";
 
 /** Narrow manager interface for the background spawner. */
 export interface BackgroundManagerDeps {
@@ -76,11 +76,7 @@ export async function spawnBackground(
   // details, so an inline literal would define the type instead of being checked
   // against it.
   const details: AgentDetails = {
-    ...overlaySpawnPresentation(
-      presentation.detailBase,
-      record,
-      params.snapshot.model?.id,
-    ),
+    ...presentation.detailFor(record, params.snapshot.model?.id),
     toolUses: 0,
     tokens: "",
     durationMs: 0,
