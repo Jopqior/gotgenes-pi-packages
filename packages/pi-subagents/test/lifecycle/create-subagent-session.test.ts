@@ -474,6 +474,44 @@ describe("createSubagentSession — the gated-run signal", () => {
     expect(io.createSession).not.toHaveBeenCalled();
   });
 
+  it("disposes without publishing or binding after an asynchronous creation handoff is cancelled", async () => {
+    const session = createFactorySession();
+    const creation = Promise.withResolvers<{ session: typeof session }>();
+    const handoff = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
+    const enteredHandoff = Promise.withResolvers<void>(); // eslint-disable-line @typescript-eslint/no-invalid-void-type -- Promise.withResolvers<void> is valid; rule does not allow void in generic fn call type args
+    io.createSession.mockImplementation(async () => {
+      const created = await creation.promise;
+      enteredHandoff.resolve();
+      await handoff.promise;
+      return created;
+    });
+    const lifecycle = createChildLifecycleMock();
+    const controller = new AbortController();
+    const pending = createSubagentSession(
+      { snapshot: STUB_SNAPSHOT, type: "Explore", selectionSignal: controller.signal },
+      createSubagentSessionDeps({ io, exec, registry: mockAgentLookup, lifecycle }),
+    );
+
+    try {
+      await vi.waitFor(() => expect(io.createSession).toHaveBeenCalledOnce());
+      creation.resolve({ session });
+      await enteredHandoff.promise;
+      expect(controller.signal.aborted).toBe(false);
+      expect(session.bindExtensions).not.toHaveBeenCalled();
+      controller.abort();
+      handoff.resolve();
+
+      await expect(pending).rejects.toThrow(/cancel/i);
+      expect(session.dispose).toHaveBeenCalledOnce();
+      expect(session.bindExtensions).not.toHaveBeenCalled();
+      expect(lifecycle.sessionCreated).not.toHaveBeenCalled();
+      expect(lifecycle.bound).not.toHaveBeenCalled();
+    } finally {
+      creation.resolve({ session });
+      handoff.resolve();
+    }
+  });
+
   it("disposes a session that creation returned after the signal aborted", async () => {
     const session = createFactorySession();
     const { promise: createGate, resolve: finishCreate } = Promise.withResolvers<{

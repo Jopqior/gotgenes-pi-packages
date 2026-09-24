@@ -1915,6 +1915,33 @@ describe("SubagentManager — spawn selection threading", () => {
     expect(select).toHaveBeenCalledTimes(2);
   });
 
+  it("catches a manager completion observer exception and settles failed selection", async () => {
+    const scope = scopeWithProvider(vi.fn().mockResolvedValue({
+      model: makeModel({ id: "claude-opus" }),
+      thinkingLevel: "off",
+    } satisfies SpawnSelection));
+    const onSubagentCompleted = vi.fn(() => { throw new Error("observer exploded"); });
+    const { manager } = createManager({
+      selectionScope: scope,
+      observer: { onSubagentCompleted },
+    });
+    const id = manager.spawn(snapshotWithCatalogue(), "general-purpose", "test", {
+      description: "invalid choice",
+      background: { kind: "explicit", isBackground: true },
+    });
+    const error = 'Selected model is not in the available catalogue: "anthropic/claude-opus".';
+
+    try {
+      const selection = manager.waitForSpawnSelection(id);
+      await expect(manager.getRecord(id)?.promise).resolves.toBeUndefined();
+      expect(onSubagentCompleted).toHaveBeenCalledOnce();
+      expect(manager.getRecord(id)?.error).toBe(error);
+      await expect(selection).resolves.toEqual({ kind: "failed", error });
+    } finally {
+      await manager.dispose();
+    }
+  });
+
   // The background tool's startup boundary: wait for a record's initial
   // selection by id, with the caller's signal as a startup-only lever.
   describe("spawn selection waits", () => {

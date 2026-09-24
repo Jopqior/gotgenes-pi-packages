@@ -2434,6 +2434,121 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 		expect(select).toHaveBeenCalledTimes(1);
 	});
 
+	describe("initial terminal notification boundaries", () => {
+		it("notifies a queued stop before detaching its startup listener", async () => {
+			const scope = new SpawnSelectionScope();
+			const startup = new AbortController();
+			scope.register({ select: vi.fn() });
+			const seen: { status: string; error: string | undefined; listeners: number }[] = [];
+			const agent = makeSubagent({
+				execution: makeStubExecution({
+					selectionScope: scope,
+					observer: { onRunFinished: (record) => {
+						seen.push({ status: record.status, error: record.error, listeners: getEventListeners(startup.signal, "abort").length });
+					} },
+				}),
+			});
+			const selection = agent.waitForSpawnSelection(startup.signal);
+
+			expect(getEventListeners(startup.signal, "abort")).toHaveLength(1);
+			agent.stopQueued();
+			expect(seen).toEqual([{ status: "stopped", error: undefined, listeners: 1 }]);
+			expect(getEventListeners(startup.signal, "abort")).toHaveLength(0);
+			await expect(selection).resolves.toEqual({ kind: "stopped" });
+		});
+
+		it("notifies selection cancellation before detaching its startup listener", async () => {
+			const { provider, resolve } = gatedSelection();
+			const startup = new AbortController();
+			const seen: { status: string; error: string | undefined; listeners: number }[] = [];
+			const { agent } = arrangeGatedAgent({ provider, observer: { onRunFinished: (record) => {
+				seen.push({ status: record.status, error: record.error, listeners: getEventListeners(startup.signal, "abort").length });
+			} } });
+			agent.start();
+			const selection = agent.waitForSpawnSelection(startup.signal);
+
+			try {
+				expect(getEventListeners(startup.signal, "abort")).toHaveLength(1);
+				resolve(undefined);
+				await agent.promise;
+				expect(seen).toEqual([{ status: "stopped", error: undefined, listeners: 1 }]);
+				expect(getEventListeners(startup.signal, "abort")).toHaveLength(0);
+				await expect(selection).resolves.toEqual({ kind: "stopped" });
+			} finally {
+				resolve(undefined);
+			}
+		});
+
+		it("notifies validation failure with its recorded error before detaching", async () => {
+			const { provider, resolve } = gatedSelection();
+			const startup = new AbortController();
+			const seen: { status: string; error: string | undefined; listeners: number }[] = [];
+			const { agent } = arrangeGatedAgent({ provider, observer: { onRunFinished: (record) => {
+				seen.push({ status: record.status, error: record.error, listeners: getEventListeners(startup.signal, "abort").length });
+			} } });
+			agent.start();
+			const selection = agent.waitForSpawnSelection(startup.signal);
+			const error = 'Selected model is not in the available catalogue: "anthropic/claude-opus".';
+
+			try {
+				expect(getEventListeners(startup.signal, "abort")).toHaveLength(1);
+				resolve({ model: makeModel({ id: "claude-opus" }), thinkingLevel: "off" });
+				await agent.promise;
+				expect(seen).toEqual([{ status: "error", error, listeners: 1 }]);
+				expect(getEventListeners(startup.signal, "abort")).toHaveLength(0);
+				await expect(selection).resolves.toEqual({ kind: "failed", error });
+			} finally {
+				resolve(undefined);
+			}
+		});
+
+		it.each(["boom", ""])("reports a recorded error even when stopped (message: %j)", async (message) => {
+			const scope = new SpawnSelectionScope();
+			scope.register({ select: vi.fn() });
+			const seen: { status: string; error: string | undefined }[] = [];
+			const agent = makeSubagent({
+				status: "running",
+				execution: makeStubExecution({
+					selectionScope: scope,
+					observer: { onRunFinished: (record) => seen.push({ status: record.status, error: record.error }) },
+				}),
+			});
+			const selection = agent.waitForSpawnSelection();
+			agent.markStopped();
+
+			agent.failRun(new Error(message));
+			expect(seen).toEqual([{ status: "stopped", error: message }]);
+			await expect(selection).resolves.toEqual({ kind: "failed", error: message });
+		});
+
+		it("lets a directly supplied observer reject the whole run without settling selection", async () => {
+			const { provider, resolve } = gatedSelection();
+			const startup = new AbortController();
+			let notifications = 0;
+			const { agent } = arrangeGatedAgent({ provider, observer: { onRunFinished: () => {
+				notifications += 1;
+				if (notifications === 1) throw new Error("observer exploded");
+			} } });
+			agent.start();
+			const selection = agent.waitForSpawnSelection(startup.signal);
+			expect(selection).not.toBe(agent.promise);
+			const validationError = 'Selected model is not in the available catalogue: "anthropic/claude-opus".';
+			try {
+				resolve({ model: makeModel({ id: "claude-opus" }), thinkingLevel: "off" });
+				await expect(agent.promise).rejects.toThrow("observer exploded");
+				expect(agent.status).toBe("error");
+				expect(agent.error).toBe(validationError);
+				expect(getEventListeners(startup.signal, "abort")).toHaveLength(1);
+			} finally {
+				resolve(undefined);
+				// A second terminal call releases the listener even if an assertion fails.
+				agent.failRun(new Error("cleanup"));
+			}
+			await expect(selection).resolves.toEqual({ kind: "failed", error: "cleanup" });
+			expect(getEventListeners(startup.signal, "abort")).toHaveLength(0);
+		});
+	});
+
 	// The initial selection outcome is the record-owned milestone between spawn
 	// and session creation. It is observed independently of the whole-run
 	// promise, so every case here reads waitForSpawnSelection() directly.
