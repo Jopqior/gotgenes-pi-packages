@@ -2435,6 +2435,54 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 	});
 
 	describe("initial terminal notification boundaries", () => {
+		it("settles queued stops and recorded failures with no external observer at all", async () => {
+			const scope = new SpawnSelectionScope();
+			scope.register({ select: vi.fn() });
+			const execution = makeStubExecution({ selectionScope: scope });
+			expect(Object.hasOwn(execution, "observer")).toBe(false);
+
+			const queued = makeSubagent({ execution });
+			const queuedWait = queued.waitForSpawnSelection();
+			queued.stopQueued();
+			await expect(queuedWait).resolves.toEqual({ kind: "stopped" });
+
+			const failed = makeSubagent({ execution, status: "running" });
+			const failedWait = failed.waitForSpawnSelection();
+			failed.failRun(new Error("selection failed"));
+			await expect(failedWait).resolves.toEqual({ kind: "failed", error: "selection failed" });
+			expect(Object.hasOwn(execution, "observer")).toBe(false);
+		});
+
+		it("forwards unrelated observer calls and arguments without changing the caller's execution", async () => {
+			const stub = createSubagentSessionStub();
+			const factory = vi.fn(async (params: CreateSubagentSessionParams) => {
+				params.notifyParent?.("from child");
+				return toSubagentSession(stub);
+			});
+			const observer: SubagentLifecycleObserver = {
+				onStarted: vi.fn(),
+				onSessionCreated: vi.fn(),
+				onRunFinished: vi.fn(),
+				onUpdateSent: vi.fn(),
+				onResumeStarted: vi.fn(),
+				onResumeFinished: vi.fn(),
+			};
+			const execution = makeStubExecution({ observer, createSubagentSession: factory });
+			const agent = makeSubagent({ execution });
+
+			await agent.run();
+			await agent.resume("again");
+
+			expect(observer.onStarted).toHaveBeenCalledExactlyOnceWith(agent);
+			expect(observer.onSessionCreated).toHaveBeenCalledExactlyOnceWith(agent);
+			expect(observer.onRunFinished).toHaveBeenCalledExactlyOnceWith(agent);
+			expect(observer.onUpdateSent).toHaveBeenCalledExactlyOnceWith(agent, "from child");
+			expect(observer.onResumeStarted).toHaveBeenCalledExactlyOnceWith(agent);
+			expect(observer.onResumeFinished).toHaveBeenCalledExactlyOnceWith(agent);
+			expect(execution.observer).toBe(observer);
+			expect(execution.createSubagentSession).toBe(factory);
+		});
+
 		it("notifies a queued stop before detaching its startup listener", async () => {
 			const scope = new SpawnSelectionScope();
 			const startup = new AbortController();

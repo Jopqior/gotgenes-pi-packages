@@ -361,8 +361,19 @@ export class Subagent {
 		// Abort controller — always created, never injected
 		this._abortController = new AbortController();
 
-		// Execution machinery — a single mandatory collaborator
-		this.execution = init.execution;
+		// Initial terminal notifications settle selection after the original observer.
+		// Keep the caller's execution and observer untouched.
+		const originalObserver = init.execution.observer;
+		this.execution = {
+			...init.execution,
+			observer: {
+				...originalObserver,
+				onRunFinished: (agent) => {
+					originalObserver?.onRunFinished?.(agent);
+					this.finishInitialSelection(agent);
+				},
+			},
+		};
 		this._selectedPair = init.selectedPair;
 
 		// Per-run lifecycle collaborators
@@ -699,6 +710,15 @@ export class Subagent {
 		this.selectionOutcome.resolve(outcome);
 	}
 
+	/** Project recorded initial-run terminal facts after the external observer has returned. */
+	private finishInitialSelection(agent: Subagent): void {
+		if (agent.error !== undefined) {
+			this.settleSelectionOutcome({ kind: "failed", error: agent.error });
+		} else if (agent.status === "stopped") {
+			this.settleSelectionOutcome({ kind: "stopped" });
+		}
+	}
+
 	/**
 	 * Manager teardown: stop an unfinished initial startup so its wait settles
 	 * before the record loses reachability. A provider registered after a
@@ -848,13 +868,11 @@ export class Subagent {
 	 * transition. No listener release: nothing is wired before run().
 	 * The record leaves the active set here, so the thunk the limiter runs when
 	 * the slot finally frees no-ops on guardedRun()'s guard — one notification.
-	 * The selection outcome settles here too: a queued stop never runs a provider,
-	 * so no later transition would otherwise resolve the wait.
+	 * The initial terminal notification also settles a queued selection wait.
 	 */
 	stopQueued(): void {
 		this.state.stopQueued();
 		this.execution.observer?.onRunFinished?.(this);
-		this.settleSelectionOutcome({ kind: "stopped" });
 	}
 
 	/**
@@ -952,15 +970,13 @@ export class Subagent {
 		await disposeQuietly(session, "child session release");
 	}
 
-	/** Fail a run: mark error, release listeners, best-effort workspace dispose, notify observer, settle the selection outcome. */
+	/** Fail a run: mark error, release listeners, best-effort workspace dispose, notify observer. */
 	failRun(err: unknown): void {
 		this.markError(err);
 		this.clearPendingQuestion();
 		this.listeners.release();
 		this.disposeWorkspaceQuietly("error");
 		this.execution.observer?.onRunFinished?.(this);
-		// markError above recorded the formatted message this outcome reports.
-		this.settleSelectionOutcome({ kind: "failed", error: this.error ?? "" });
 	}
 
 	/**
@@ -976,7 +992,6 @@ export class Subagent {
 		this.listeners.release();
 		this.disposeWorkspaceQuietly("stopped");
 		this.execution.observer?.onRunFinished?.(this);
-		this.settleSelectionOutcome({ kind: "stopped" });
 	}
 
 	/**
