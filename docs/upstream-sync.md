@@ -111,6 +111,16 @@ Then re-run the script.
 Do not take ours or theirs wholesale.
 Keep fork-only spawn-selection and `fNNNN-` lookup, and keep incoming upstream behavior.
 
+### Startup selection after [#20]
+
+Use [the fixed-upstream reconciliation trial](../packages/pi-subagents/docs/architecture/selector-startup-maintenance.md) when reviewing incoming lifecycle changes.
+`InitialSpawnSelection` owns the attempt, pending pair, cancellation race, startup listeners, and one-shot acknowledgement; `Subagent` composes the original initial-run terminal observer and reports recorded status/error to that owner afterward.
+If incoming `failRun()` or `stopQueued()` retains error/stop recording, cleanup, and `onRunFinished` in that order, do not reintroduce a terminal-method selection-settlement line.
+The delivered `subagent-state.ts` matches the trial's fixed upstream source: avoid restoring selection activity there.
+Still review notification order, queued/active cancellation, late provider registration, resume, manager construction, and the tool's wait-before-return boundary rather than treating an empty method diff as general compatibility.
+Keep initialization-time scope inheritance and factory wrapping in `index.ts`, close the scope before shutdown disposal, and retain both `selectionSignal` checks and late-session disposal in `create-subagent-session.ts` before extension binding.
+Authenticated catalogue validation and host loader timing remain semantic obligations; the trial is not a guarantee that another upstream body will preserve these hooks.
+
 ### First merge (before [#3])
 
 The measured content conflicts were spawn-selection versus upstream resume/compact-result, not the issue-body's predicted README / settings / issue-form / lockfile set.
@@ -324,3 +334,4 @@ The first data row lands in [#3] as `1.0.0 ← 21.7.0`.
 [#3]: https://github.com/Jopqior/gotgenes-pi-packages/issues/3
 [#14]: https://github.com/Jopqior/gotgenes-pi-packages/issues/14
 [#15]: https://github.com/Jopqior/gotgenes-pi-packages/issues/15
+[#20]: https://github.com/Jopqior/gotgenes-pi-packages/issues/20

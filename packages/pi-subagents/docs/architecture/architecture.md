@@ -912,7 +912,7 @@ Scores below are planning estimates, not measurements of future savings.
 Startup has greater behavioral risk; it comes first because it addresses the operator's primary lifecycle concern and lets presentation planning inspect the delivered facts.
 The ordering does not establish a hard dependency.
 
-#### [#20] Reduce selector startup coordination with upstream lifecycle changes
+#### ✅ [#20] Reduce selector startup coordination with upstream lifecycle changes
 
 **Cause:** fork selection policy, cancellation ownership, and initial-result delivery are entangled with upstream lifecycle transitions.
 The concentration of fork-added logic in `Subagent` is a symptom; the maintenance problem is needing to reconcile these obligations across record, manager, tools, and construction paths.
@@ -925,8 +925,10 @@ The concentration of fork-added logic in `Subagent` is a symptom; the maintenanc
   Mechanism and any new module placement belong in this issue's plan.
 - **Outcome:** a delivered implementation whose scenario comparison demonstrates removed or simplified selector-specific reasoning or reconciliation, with affected behavior tests and an explicit inventory of residual integration and host-compatibility obligations.
   A relocated block, new helper, smaller diff, or report alone does not satisfy this outcome.
-- **Commit type:** to be decided at plan time.
+- **Commit type:** non-breaking `refactor:` and `test:` implementation commits.
 - **Impact 5 / Risk 4 / Priority 10.**
+
+Landed: `935cdd578b7b1af4da4beceb4707244d74264cb3` implements the selection owner and terminal observer composition; [the fixed-upstream reconciliation trial](selector-startup-maintenance.md) records the before/after focused results and remaining hooks.
 
 Release: independent
 
@@ -955,7 +957,7 @@ The disconnected nodes deliberately show no established hard dependency; the rec
 
 ```mermaid
 flowchart LR
-    S20["#20<br/>Startup coordination"]
+    S20["✅ #20<br/>Startup coordination"]
     S21["#21<br/>Presentation reconciliation"]
 ```
 
