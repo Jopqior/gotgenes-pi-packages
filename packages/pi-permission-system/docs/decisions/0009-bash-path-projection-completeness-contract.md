@@ -1,16 +1,38 @@
 ---
 status: accepted
 date: 2026-07-24
-amended: 2026-09-20
+amended: 2026-09-24
 ---
 
 # 0009 — The bash path projection is a completeness contract, not a best-effort heuristic
 
 ## Status
 
-Accepted, as amended 2026-09-20.
+Accepted, as amended 2026-09-24.
 This decision states the contract the bash path projection upholds, and settles how a "the gate missed my path" report is triaged.
 It is the framing for [#645], which closes two gaps the contract names as in-scope; it composes with `docs/decisions/0003-git-bash-posix-path-semantics.md` (win32 token shapes) and `docs/decisions/0007-model-judge-authorizer-chain-adr.md` (the judge that absorbs false positives).
+
+### Amendment, 2026-09-24 — a redirect's target is projected by its role
+
+The guarantee list below named redirect targets, and the nonexistent-bare-write-target residual said they were "collected separately and unaffected".
+Collection was real; projection then dropped them.
+The collector tagged a target with the operator's proof but passed nothing else along, so the projection ran the shape classifiers and the existence probe on it as if its role were unknown, and a bare target that did not exist yet (`cat x > newfile`, the ordinary creating redirect) reached no surface ([#609]).
+
+A collected token now carries a role beside its effect.
+A redirect's own target carries the `redirect-destination` role when the operator proved an effect, the value is literal, and it is non-empty; the projection admits such a token without the shape gates or the probe and resolves it against the effective working directory like any other operand.
+The role decides candidacy and the effect still decides direction, so an input target (`< in.txt`) is admitted on the same terms and lands on the `_read` surface.
+
+Three boundaries keep the role from over-reaching:
+
+- **Only the first destination.**
+  `tree-sitter-bash` 0.25.1 parses the words after a redirect (`grep pat 2>/dev/null f.txt`) as further destinations, while bash passes them to the command; they keep their ordinary collection, and their attribution is [#977]'s.
+- **Only a literal value.**
+  A computed target (`> "$OUT"`, `> out-$(date).txt`) stays under the computed-paths residual below: projecting its spelling would name a file the shell never touches.
+- **Only a proven redirect.**
+  A redirect the parse could not resolve proves nothing ([#814]) and keeps the ordinary collection too.
+
+Like the 2026-09-02 amendment, this one **newly prompts**, and it shipped as a breaking change.
+Measured over 8753 distinct commands of a real review log, 90 `path` candidates and 97 external paths were gained, all literal creating-redirect targets, and none were lost; a config with no explicit `path` rule sees no new `path` prompt, because an unmatched promotion stays unrestricted.
 
 ### Amendment, 2026-09-20 — an interpreter's inline script is a script, not an operand
 
@@ -201,7 +223,7 @@ A promoted token that matches no explicit rule is therefore unrestricted for fre
 A path reaches the `path` and `external_directory` surfaces when it appears as:
 
 - A **shape-classified token** — absolute (`/x`), home-relative (`~/x`), parent-traversal (`../x`), separator-bearing (`a/b`), a Windows drive-letter path (`C:/x`, `D:\x`), or — under the win32 flavor — a backslash-relative token (`dir\file`, [#520]).
-- A **redirect target** (`> out.txt`, `2>/tmp/log`).
+- A **redirect target** (`> out.txt`, `2>/tmp/log`, `< in.txt`): the redirect's first destination, by its role and whether or not the file exists yet, unless its value is computed (2026-09-24 amendment).
 - A **value embedded in a long option** (`--file=/tmp/patterns`), split at collection time and classified by the ordinary shape rules ([#645]).
 - A **recognized pattern-first flag's value, however it is spelled** — the separated (`grep -e /tmp/patterns`), glued (`grep -e/tmp/patterns`), `=`-embedded (`grep --regexp=/tmp/patterns`), and quoted-in-either-of-the-last-two (`grep --regexp='/tmp/patterns'`, `rg -g'!docs'`, `awk -F':' '/k/{print $2}'`) spellings are one argument to the tool, so each is consumed as the flag's value and never classified as a path ([#957]).
 - A **bare token naming an existing filesystem entry** — the existence probe ([#645]).
@@ -226,7 +248,8 @@ Opacity is handled separately and conservatively: a wrapper command that hides i
 These are **accepted residuals**, not open bugs:
 
 - **Nonexistent bare write targets** (`touch newfile`, `mv a newfile`) — the probe cannot see a file that does not exist yet.
-  Redirect targets, the common creation path, are collected separately and unaffected.
+  A redirect target is not part of this residual: it is guaranteed by its role above, including one the command creates.
+  A word the grammar places after a redirect's target (`cmd 2>/dev/null newfile`) is the command's operand and is covered here, not by the role ([#977]).
 - **Glued short-option values of a flag no table lists** (`tar -f/tmp/x`) — distinguishing a glued value from a cluster of boolean flags (`-rf`) requires per-command option knowledge.
   A pattern-first command's own listed flags are the bounded exception ([#823]): there the table already names the flag, so `grep -f/tmp/patterns` is read as getopt reads it.
 - **A pattern-first flag spelling the table does not name** — an unlisted argument-consuming flag (`rg --pre CMD`), a GNU long-option abbreviation (`grep --reg=x`), a cluster whose argument-taking short flag is not first (`grep -ie pattern`, and for an interpreter `perl -pe 's|a|b|'`), and a token whose flag is quoted *whole* (`grep '-e' pattern f.txt`).
@@ -376,3 +399,6 @@ Cost is ~0.04 ms p95 per command, ~19% of the already-paid tree-sitter parse.
 [#863]: https://github.com/gotgenes/pi-packages/issues/863
 [#886]: https://github.com/gotgenes/pi-packages/issues/886
 [#957]: https://github.com/gotgenes/pi-packages/issues/957
+[#609]: https://github.com/gotgenes/pi-packages/issues/609
+[#814]: https://github.com/gotgenes/pi-packages/issues/814
+[#977]: https://github.com/gotgenes/pi-packages/issues/977

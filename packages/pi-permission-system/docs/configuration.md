@@ -739,7 +739,7 @@ Quoting is understood, so `ls "$HOME/x"` and `ls $HOME/x` are treated alike.
 
 What the bash projection resolves:
 
-- Absolute, home-relative (`~/`), parent-traversal (`../`), and separator-bearing tokens, plus redirect targets (`> out.txt`) and values embedded in long options (`--file=/tmp/patterns`).
+- Absolute, home-relative (`~/`), parent-traversal (`../`), and separator-bearing tokens, plus redirect targets (`> out.txt`, including a file the redirect creates) and values embedded in long options (`--file=/tmp/patterns`).
 - The plain shell variables `$HOME` / `${HOME}` and `$PWD` / `${PWD}`, so `$HOME/x` is gated exactly as `~/x` and the literal absolute spelling, whether or not the target exists.
 - Relative tokens, against the working directory produced by folding literal current-shell `cd` commands.
 - A bare token (`cat id_rsa`) when it names an existing filesystem entry.
@@ -859,6 +859,9 @@ A tool's identity establishes its direction, and on the bash surface a redirect 
 
 An access whose direction cannot be established consults **both** surfaces and takes the more restrictive answer.
 That is deliberate: an unproven access is never treated as the narrower one.
+
+A redirect's target reaches its surface whether or not the file exists yet, so a `path_write` pattern governs what a command may create through `>`, not only what it may overwrite.
+Only the redirect's literal target counts: a computed one (`> "$OUT"`) is not resolved, as for any other computed path.
 
 A redirect the parser could not make sense of is unproven for the same reason.
 The read-write open `<>` is the clearest case: `tree-sitter-bash` has no node for it, so neither half of the operator can be trusted to describe the whole, and its destination consults both surfaces rather than the one the surviving half would name.
