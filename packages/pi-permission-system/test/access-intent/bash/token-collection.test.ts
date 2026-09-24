@@ -33,8 +33,18 @@ function pathCandidateTokens(node: TSNode): string[] {
   return tokenTextsOf(collectPathCandidateTokens(node));
 }
 
-function tokenTextsOf(tokens: readonly PathToken[]): string[] {
+function tokenTextsOf(tokens: readonly Pick<PathToken, "token">[]): string[] {
   return tokens.map(({ token }) => token);
+}
+
+/**
+ * Each token paired with the effect it carries, and nothing else a token
+ * holds — so an effect assertion states only what it claims.
+ */
+function tokenEffectsOf(
+  tokens: readonly PathToken[],
+): Pick<PathToken, "token" | "effect">[] {
+  return tokens.map(({ token, effect }) => ({ token, effect }));
 }
 
 /** Depth-first search for the first node of the given type. */
@@ -936,12 +946,14 @@ describe("collectPathCandidateTokens", () => {
 // ── Statement operands (#839) ─────────────────────────────────────────────────
 
 describe("statement operands", () => {
-  async function tokensOf(command: string): Promise<PathToken[]> {
+  async function tokensOf(
+    command: string,
+  ): Promise<Pick<PathToken, "token" | "effect">[]> {
     const parser = await getParser();
     const tree = parser.parse(command);
     if (!tree) throw new Error("parse returned null");
     try {
-      return collectPathCandidateTokens(tree.rootNode);
+      return tokenEffectsOf(collectPathCandidateTokens(tree.rootNode));
     } finally {
       tree.delete();
     }
@@ -1178,12 +1190,14 @@ describe("extractCommandWord", () => {
 // ── Per-token effect attribution (#807) ───────────────────────────────────
 
 describe("effect attribution", () => {
-  async function attributedTokens(command: string): Promise<PathToken[]> {
+  async function attributedTokens(
+    command: string,
+  ): Promise<Pick<PathToken, "token" | "effect">[]> {
     const parser = await getParser();
     const tree = parser.parse(command);
     if (!tree) throw new Error("parse returned null");
     try {
-      return collectPathCandidateTokens(tree.rootNode);
+      return tokenEffectsOf(collectPathCandidateTokens(tree.rootNode));
     } finally {
       tree.delete();
     }
