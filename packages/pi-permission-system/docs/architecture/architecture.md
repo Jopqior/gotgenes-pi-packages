@@ -1262,6 +1262,8 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   Raising the `pi-coding-agent` peer floor and devDependency pin past 0.86 is dependency upkeep that lets the footer-shaped prompt layout [#962] keeps be deleted; it is sequenced after [#962] and touches no token role or declared effect.
 - [#973] — filed by the [#962] retrospective; out of scope for the roadmap.
   A test-running tool for TDD cycles is repo-wide tooling (`scope:repo`) that touches no token role or declared effect.
+- [#976] — filed by [#957]'s PR review (PR #972); out of scope for the roadmap.
+  It asks only for a clearer prompt reason on a parse-failure floor, which can land at any time; the parse failure involves no token role, and folding it into [#881] would make it wait on [#880].
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by [#880] (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1676,5 +1678,6 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#968]: https://github.com/gotgenes/pi-packages/issues/968
 [#970]: https://github.com/gotgenes/pi-packages/issues/970
 [#973]: https://github.com/gotgenes/pi-packages/issues/973
+[#976]: https://github.com/gotgenes/pi-packages/issues/976
 [#490]: https://github.com/gotgenes/pi-packages/issues/490
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
