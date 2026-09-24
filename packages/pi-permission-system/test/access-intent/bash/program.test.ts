@@ -37,6 +37,72 @@ describe("BashProgram", () => {
       realpathSync.mockImplementation((p: string) => p);
     });
 
+    describe("a redirect's target is projected by its role (#609)", () => {
+      /** Each rule candidate's token, effect, and policy match values. */
+      async function ruleCandidatesOf(command: string) {
+        const program = await BashProgram.parse(command, normalizer);
+        return program.pathRuleCandidates().map(({ token, effect, path }) => ({
+          token,
+          effect: effect.effect,
+          matchValues: path.matchValues(),
+        }));
+      }
+
+      /** Each rule candidate's token alone. */
+      async function ruleTokensOf(command: string): Promise<string[]> {
+        const program = await BashProgram.parse(command, normalizer);
+        return program.pathRuleCandidates().map(({ token }) => token);
+      }
+
+      it("projects a bare output target that does not exist yet", async () => {
+        expect(await ruleCandidatesOf("cat /etc/hosts > out.txt")).toEqual([
+          {
+            token: "/etc/hosts",
+            effect: "read",
+            matchValues: ["/etc/hosts"],
+          },
+          {
+            token: "out.txt",
+            effect: "write",
+            matchValues: [join(cwd, "out.txt"), "out.txt"],
+          },
+        ]);
+      });
+
+      it("projects a bare input target that does not exist", async () => {
+        expect(await ruleCandidatesOf("sort < in.txt")).toEqual([
+          {
+            token: "in.txt",
+            effect: "read",
+            matchValues: [join(cwd, "in.txt"), "in.txt"],
+          },
+        ]);
+      });
+
+      it("keeps only the literal value after a non-literal cd", async () => {
+        expect(await ruleCandidatesOf('cd "$D" && echo hi > out.txt')).toEqual([
+          { token: "out.txt", effect: "write", matchValues: ["out.txt"] },
+        ]);
+      });
+
+      it("does not admit the words the grammar appends after the target", async () => {
+        // `-type` and `d` are `find`'s arguments; only `/dev/null` is the
+        // redirect's target (#977).
+        expect(await ruleTokensOf("find /usr 2>/dev/null -type d")).toEqual([
+          "/usr",
+          "/dev/null",
+        ]);
+      });
+
+      it("does not admit a target computed at run time", async () => {
+        expect(await ruleTokensOf('echo hi > "$OUT"')).toEqual([]);
+      });
+
+      it("does not admit a redirect the parse could not resolve", async () => {
+        expect(await ruleTokensOf("cat <> rw.txt")).toEqual([]);
+      });
+    });
+
     describe("operands of nested commands hosted in a redirect (#741)", () => {
       it("projects the operand of a redirect-hosted command", async () => {
         const program = await BashProgram.parse(
@@ -445,6 +511,33 @@ describe("BashProgram", () => {
       expect(
         program.externalAccesses().map(({ path }) => path.value()),
       ).toContain("/etc/hosts");
+    });
+
+    describe("a redirect's target is projected by its role (#609)", () => {
+      /** Each external access's display path and attributed effect. */
+      async function externalsOf(command: string) {
+        const program = await BashProgram.parse(command, normalizer);
+        return program.externalAccesses().map(({ path, effect }) => ({
+          path: path.value(),
+          effect: effect.effect,
+        }));
+      }
+
+      it("flags a bare output target after a non-literal cd", async () => {
+        expect(await externalsOf('cd "$D" && echo hi > out.txt')).toEqual([
+          { path: join(cwd, "out.txt"), effect: "write" },
+        ]);
+      });
+
+      it("flags a bare input target after a non-literal cd", async () => {
+        expect(await externalsOf('cd "$D" && sort < in.txt')).toEqual([
+          { path: join(cwd, "in.txt"), effect: "read" },
+        ]);
+      });
+
+      it("leaves a bare target inside a known working directory alone", async () => {
+        expect(await externalsOf("echo hi > out.txt")).toEqual([]);
+      });
     });
 
     describe("operands a statement names directly (#839)", () => {
