@@ -9,8 +9,6 @@ This section takes precedence over inherited repository-target, roadmap, and rel
 - Reply to the operator in Chinese.
   Keep committed artifacts (plans, retros, commit messages, issue bodies) in English unless the operator asks otherwise.
 - This fork's primary branch is `main`.
-  Create feature branches from `main` and land them back on `main`.
-  Inherited ship and worktree workflows already target `main`; run those steps against this fork's `main`.
 - Track fork-specific work in this fork's issues and PRs; contact or submit changes to upstream only when the operator explicitly requests it.
 - Before GitHub mutations, verify the target repository and pass `--repo Jopqior/gotgenes-pi-packages` explicitly where supported.
   Measured on this machine, `gh repo view` resolves to `Jopqior/gotgenes-pi-packages` even with the `upstream` remote present, so wrapper tools with no repo argument (`ci_find`, `ci_watch`, `ci_list`, `issue_close`) inherit the fork target.
