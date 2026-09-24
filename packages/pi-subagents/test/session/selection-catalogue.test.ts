@@ -36,6 +36,15 @@ function selection(model: Model<any>, thinkingLevel: string): SpawnSelection {
 }
 
 describe("readSelectionChoices — the authenticated catalogue", () => {
+	it("accepts a registry exposing only authenticated availability", async () => {
+		const registry: Pick<ModelRegistry, "getAvailable"> = { getAvailable: () => [sonnet] };
+		expect(readSelectionChoices(registry)).toEqual([sonnet]);
+		expect(await validateSpawnSelection(selection(sonnet, "off"), [sonnet], registry)).toEqual({
+			model: sonnet,
+			thinkingLevel: "off",
+		});
+	});
+
 	it("lists exactly the registry's authenticated available models", () => {
 		const registry = makeRegistry([sonnet, haiku]);
 

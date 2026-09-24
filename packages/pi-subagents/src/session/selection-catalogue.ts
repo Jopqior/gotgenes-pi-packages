@@ -30,7 +30,7 @@ export interface ValidatedSpawnSelection {
  * constituency (silent inheritance), and a gated run must not offer models the
  * session cannot authenticate.
  */
-export function readSelectionChoices(registry: ModelRegistry): Model<any>[] {
+export function readSelectionChoices(registry: Pick<ModelRegistry, "getAvailable">): Model<any>[] {
 	const available = registry.getAvailable?.();
 	if (available === undefined) {
 		throw new Error(
@@ -54,7 +54,7 @@ export function readSelectionChoices(registry: ModelRegistry): Model<any>[] {
 export async function validateSpawnSelection(
 	selection: SpawnSelection,
 	choices: readonly Model<any>[],
-	registry: ModelRegistry,
+	registry: Pick<ModelRegistry, "getAvailable">,
 ): Promise<ValidatedSpawnSelection> {
 	const model = canonicalizeModel(selection.model, choices);
 	revalidateAvailability(model, registry);
@@ -110,7 +110,7 @@ function modelIdentity(model: unknown): { provider: string; id: string } {
 }
 
 /** Re-read availability and confirm the chosen model is still one of the choices. */
-function revalidateAvailability(model: Model<any>, registry: ModelRegistry): void {
+function revalidateAvailability(model: Model<any>, registry: Pick<ModelRegistry, "getAvailable">): void {
 	const fresh = registry.getAvailable?.();
 	if (!fresh?.some((candidate) => candidate.provider === model.provider && candidate.id === model.id)) {
 		throw new Error(`Selected model "${model.provider}/${model.id}" is no longer available.`);
