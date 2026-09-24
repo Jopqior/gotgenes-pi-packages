@@ -324,7 +324,12 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			expect(harness.askUser).not.toHaveBeenCalled();
 
 			world.provider!.resolveAt(0, selectedPair(world));
-			await harness.toolDone;
+			const launch = await harness.toolDone;
+			expect(launch.details).toEqual({
+				displayName: "Agent", description: "bg task", subagentType: "general-purpose",
+				modelName: "opus", tags: ["twin", "thinking: off", "background"],
+				toolUses: 0, tokens: "", durationMs: 0, status: "background", agentId: mainRecord(world).id,
+			});
 			expect(harness.askUser).toHaveBeenCalledTimes(1);
 			// Capture at the actual continuation, not after an arbitrary drain.
 			expect(harness.selectionAtContinuation()).toEqual(selectedPair(world));
@@ -485,6 +490,8 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			expect(world.provider!.select).toHaveBeenCalledTimes(1);
 			expect(toolReturned).toBe(false);
 
+			expect(updates[0].details.modelName).toBe("opus");
+			expect(updates[0].details.tags).toEqual(["twin", "thinking: high", "inherit context"]);
 			// updates[0] is the initial pre-spawn placeholder; every spinner
 			// update after it must present the pending selection and mask the
 			// caller's unresolved model/thinking, keeping the mode label and the
@@ -509,6 +516,7 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 				return latest?.details.modelName === "opus"
 					&& latest.details.tags?.includes("thinking: off") === true;
 			}, "a selected-pair streamed update");
+			expect(updates.at(-1)?.details.tags).toEqual(["twin", "thinking: off", "inherit context"]);
 			expect(mainRecord(world).isSessionReady()).toBe(false);
 
 			await settleBound(() => world.factoryGates.length >= 1, "the foreground record's factory gate");
@@ -519,7 +527,10 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			expect(toolReturned).toBe(false);
 
 			world.releaseTask(0, taskDone("child finished"));
-			const text = (await pending).content[0].text;
+			const completed = await pending;
+			const text = completed.content[0].text;
+			expect(completed.details?.modelName).toBe("opus");
+			expect(completed.details?.tags).toEqual(["twin", "thinking: off", "inherit context"]);
 			expect(text).toContain("child finished");
 			expect(text).toContain("Agent completed");
 			const record = mainRecord(world);

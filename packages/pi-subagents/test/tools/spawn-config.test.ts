@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import { resolveSpawnConfig } from "#src/tools/spawn-config";
+import { overlaySpawnPresentation } from "#src/ui/display";
 import { makeModel } from "#test/helpers/make-model";
 
 /** Minimal registry with default agents only. */
@@ -379,5 +380,119 @@ describe("resolveSpawnConfig — prompt and rawType passthrough", () => {
     if ("error" in result) return;
     expect(result.execution.prompt).toBe("search for bugs");
     expect(result.identity.rawType).toBe("Explore");
+  });
+});
+
+describe("resolved spawn presentation through the existing overlay", () => {
+  const parent = makeModel({ id: "claude-sonnet", name: "Claude Sonnet" });
+  const proposed = makeModel({ id: "gpt-5.5", name: "GPT-5.5", provider: "openai" });
+  const selected = makeModel({ id: "claude-haiku", name: "Claude Haiku" });
+  const modelInfo = makeModelInfo({
+    parentModel: parent,
+    modelRegistry: {
+      find: (provider, id) => [parent, proposed, selected].find((model) => model.provider === provider && model.id === id),
+      getAll: () => [parent, proposed, selected],
+      getAvailable: () => [parent, proposed, selected],
+    },
+  });
+
+  it("pins ordinary, absent, pending, and selected complete details without changing execution", () => {
+    const result = resolveSpawnConfig(
+      {
+        subagent_type: "general-purpose", prompt: "investigate", description: "diagnose",
+        model: "openai/gpt-5.5", thinking: "high", inherit_context: true,
+        run_in_background: true, max_turns: 9,
+      },
+      testRegistry, modelInfo, { defaultMaxTurns: 25 },
+    );
+    if ("error" in result) throw new Error(result.error);
+    const base = {
+      displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
+      modelName: "gpt-5.5", tags: ["twin", "thinking: high", "inherit context", "background", "max turns: 9"],
+    };
+    expect(result.presentation.detailBase).toEqual(base);
+    expect(result.presentation.agentTags).toEqual(base.tags);
+    expect(result.execution.agentInvocation).toEqual({
+      modelName: "gpt-5.5", thinking: "high", maxTurns: 9,
+      inheritContext: true, runInBackground: true,
+    });
+    expect(overlaySpawnPresentation(result.presentation.detailBase, undefined, parent.id)).toBe(result.presentation.detailBase);
+    expect(overlaySpawnPresentation(result.presentation.detailBase, { awaitingSelection: false }, parent.id)).toBe(result.presentation.detailBase);
+    const pair = { model: selected, thinkingLevel: "off" as const };
+    expect(overlaySpawnPresentation(base, { awaitingSelection: true, selectedPair: pair }, parent.id)).toEqual({
+      ...base, modelName: undefined, tags: ["twin", "inherit context", "background", "max turns: 9"],
+    });
+    expect(overlaySpawnPresentation(base, { awaitingSelection: false, selectedPair: pair }, parent.id)).toEqual({
+      ...base, modelName: "haiku", tags: ["twin", "thinking: off", "inherit context", "background", "max turns: 9"],
+    });
+    expect(result.execution.model).toBe(proposed);
+    expect(result.execution.thinking).toBe("high");
+    expect(result.execution.agentInvocation).toEqual({
+      modelName: "gpt-5.5", thinking: "high", maxTurns: 9,
+      inheritContext: true, runInBackground: true,
+    });
+    expect(result.presentation.detailBase).toEqual(base);
+    expect(result.notes).toEqual([]);
+  });
+
+  it("omits selected model name for the supplied parent id, not the initial proposal", () => {
+    const result = resolveSpawnConfig(
+      { subagent_type: "general-purpose", prompt: "investigate", description: "diagnose", model: "openai/gpt-5.5" },
+      testRegistry, modelInfo, defaultSettings,
+    );
+    if ("error" in result) throw new Error(result.error);
+    expect(result.presentation.detailBase.modelName).toBe("gpt-5.5");
+    expect(overlaySpawnPresentation(result.presentation.detailBase, {
+      awaitingSelection: false, selectedPair: { model: parent, thinkingLevel: "medium" },
+    }, parent.id)).toEqual({
+      displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
+      modelName: undefined, tags: ["twin", "thinking: medium"],
+    });
+  });
+
+  it("retains empty replace-mode tags while pending, then introduces selected thinking", () => {
+    const result = resolveSpawnConfig(
+      { subagent_type: "Explore", prompt: "investigate", description: "scan" },
+      testRegistry, modelInfo, defaultSettings,
+    );
+    if ("error" in result) throw new Error(result.error);
+    expect(result.presentation.detailBase).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: undefined, tags: undefined,
+    });
+    expect(overlaySpawnPresentation(result.presentation.detailBase, { awaitingSelection: true }, parent.id)).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: undefined, tags: undefined,
+    });
+    expect(overlaySpawnPresentation(result.presentation.detailBase, {
+      awaitingSelection: false, selectedPair: { model: selected, thinkingLevel: "off" },
+    }, parent.id)).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: "haiku", tags: ["thinking: off"],
+    });
+  });
+
+  it("formats an empty selected model id when it differs from the parent", () => {
+    const result = resolveSpawnConfig(
+      { subagent_type: "Explore", prompt: "investigate", description: "scan" },
+      testRegistry, modelInfo, defaultSettings,
+    );
+    if ("error" in result) throw new Error(result.error);
+    expect(overlaySpawnPresentation(result.presentation.detailBase, {
+      awaitingSelection: false,
+      selectedPair: { model: makeModel({ id: "", name: "Claude Zero" }), thinkingLevel: "off" },
+    }, parent.id)).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: "zero", tags: ["thinking: off"],
+    });
+  });
+
+  it("keeps a settings-only max-turn limit out of invocation tags", () => {
+    const result = resolveSpawnConfig(
+      { subagent_type: "general-purpose", prompt: "investigate", description: "diagnose" },
+      testRegistry, modelInfo, { defaultMaxTurns: 25 },
+    );
+    if ("error" in result) throw new Error(result.error);
+    expect(result.execution.effectiveMaxTurns).toBe(25);
+    expect(result.execution.agentInvocation.maxTurns).toBeUndefined();
+    expect(result.presentation.detailBase).toEqual({
+      displayName: "Agent", description: "diagnose", subagentType: "general-purpose", modelName: undefined, tags: ["twin"],
+    });
   });
 });

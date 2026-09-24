@@ -1,10 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AgentTypeRegistry } from "#src/config/agent-types";
 import { type ForegroundParams, runForeground } from "#src/tools/foreground-runner";
+import { resolveSpawnConfig } from "#src/tools/spawn-config";
 import { createToolDeps } from "#test/helpers/make-deps";
 import { makeModel } from "#test/helpers/make-model";
 import { createResolvedSpawnConfig } from "#test/helpers/make-spawn-config";
 import { createTestSubagent } from "#test/helpers/make-subagent";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
+
+function resolvedSelectionConfig() {
+  const parent = makeModel({ id: "claude-sonnet", name: "Claude Sonnet" });
+  const proposal = makeModel({ id: "gpt-5.5", name: "GPT-5.5", provider: "openai" });
+  const models = [parent, proposal];
+  const config = resolveSpawnConfig(
+    { subagent_type: "general-purpose", prompt: "investigate", description: "fg task", model: "openai/gpt-5.5", thinking: "high", inherit_context: true, max_turns: 9 },
+    new AgentTypeRegistry(() => new Map()),
+    { parentModel: parent, modelRegistry: {
+      find: (provider, id) => models.find((model) => model.provider === provider && model.id === id),
+      getAll: () => models,
+      getAvailable: () => models,
+    } },
+    { defaultMaxTurns: 25 },
+  );
+  if ("error" in config) throw new Error(config.error);
+  return { config, parent };
+}
 
 function makeParams(overrides: Partial<ForegroundParams> = {}): ForegroundParams {
 	return {
@@ -265,9 +285,14 @@ describe("runForeground", () => {
 			},
 		});
 		const onUpdate = vi.fn();
-		const config = createResolvedSpawnConfig({ description: "fg task", model: "gpt-5.5" });
-		config.presentation.detailBase.tags = ["thinking: high", "inherit context"];
-		const runPromise = runForeground(deps.manager, makeParams({ config }), undefined, onUpdate);
+		const { config, parent } = resolvedSelectionConfig();
+		const runPromise = runForeground(
+			deps.manager,
+			makeParams({ config, snapshot: { ...STUB_SNAPSHOT, model: parent } }),
+			undefined, onUpdate,
+		);
+		expect(onUpdate.mock.calls[0][0].details.modelName).toBe("gpt-5.5");
+		expect(onUpdate.mock.calls[0][0].details.tags).toEqual(["twin", "thinking: high", "inherit context", "max turns: 9"]);
 
 		await vi.advanceTimersByTimeAsync(100);
 		const pendingDetails = onUpdate.mock.calls
@@ -276,7 +301,7 @@ describe("runForeground", () => {
 		expect(pendingDetails.length).toBeGreaterThan(0);
 		for (const details of pendingDetails) {
 			expect(details.modelName).toBeUndefined();
-			expect(details.tags).toEqual(["inherit context"]);
+			expect(details.tags).toEqual(["twin", "inherit context", "max turns: 9"]);
 		}
 
 		held.resolve(createTestSubagent({ result: "done" }));
@@ -289,15 +314,25 @@ describe("runForeground", () => {
 			createTestSubagent({
 				selectedPair: {
 					model: makeModel({ id: "deepseek/deepseek-flash", name: "DeepSeek Flash" }),
-					thinkingLevel: "high",
+					thinkingLevel: "off",
 				},
 			}),
 		);
-		const config = createResolvedSpawnConfig({ description: "fg task", model: "gpt-5.5" });
-		config.presentation.detailBase.tags = ["thinking: low"];
-		const result = await runForeground(manager, makeParams({ config }), undefined, undefined);
+		const { config, parent } = resolvedSelectionConfig();
+		const result = await runForeground(
+			manager, makeParams({ config, snapshot: { ...STUB_SNAPSHOT, model: parent } }), undefined, undefined,
+		);
 		expect(result.details?.modelName).toBe("deepseek flash");
-		expect(result.details?.tags).toEqual(["thinking: high"]);
+		expect(result.details?.tags).toEqual(["twin", "thinking: off", "inherit context", "max turns: 9"]);
+		expect(config.execution.model?.id).toBe("gpt-5.5");
+		expect(config.execution.thinking).toBe("high");
+		expect(config.execution.agentInvocation).toEqual({
+			modelName: "gpt-5.5", thinking: "high", maxTurns: 9, inheritContext: true, runInBackground: false,
+		});
+		expect(config.presentation.detailBase).toEqual({
+			displayName: "Agent", description: "fg task", subagentType: "general-purpose", modelName: "gpt-5.5",
+			tags: ["twin", "thinking: high", "inherit context", "max turns: 9"],
+		});
 	});
 
 	it("omits modelName on completed details when the selected id equals the parent", async () => {
@@ -308,8 +343,7 @@ describe("runForeground", () => {
 				selectedPair: { model: parent, thinkingLevel: "medium" },
 			}),
 		);
-		const config = createResolvedSpawnConfig({ description: "fg task", model: "haiku" });
-		config.presentation.detailBase.tags = ["thinking: high"];
+		const { config } = resolvedSelectionConfig();
 		const result = await runForeground(
 			manager,
 			makeParams({ config, snapshot: { ...STUB_SNAPSHOT, model: parent } }),
@@ -317,7 +351,7 @@ describe("runForeground", () => {
 			undefined,
 		);
 		expect(result.details?.modelName).toBeUndefined();
-		expect(result.details?.tags).toEqual(["thinking: medium"]);
+		expect(result.details?.tags).toEqual(["twin", "thinking: medium", "inherit context", "max turns: 9"]);
 	});
 
 	it("calls onUpdate with streaming details while running", async () => {

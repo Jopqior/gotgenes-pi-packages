@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import { type BackgroundParams, spawnBackground } from "#src/tools/background-spawner";
+import { resolveSpawnConfig } from "#src/tools/spawn-config";
 import { createToolDeps } from "#test/helpers/make-deps";
 import { makeModel } from "#test/helpers/make-model";
 import { createResolvedSpawnConfig } from "#test/helpers/make-spawn-config";
@@ -132,10 +134,32 @@ describe("spawnBackground", () => {
       selectedPair: { model: selectedModel, thinkingLevel: "off" },
     });
     const deps = makeDepsWithOutcome({ kind: "selected" }, record);
-    const config = makeConfig({ model: "gpt-5.5" });
-    config.presentation.detailBase.tags = ["thinking: high", "inherit context"];
+    const parent = makeModel({ id: "claude-sonnet", name: "Claude Sonnet" });
+    const proposal = makeModel({ id: "gpt-5.5", name: "GPT-5.5", provider: "openai" });
+    const models = [parent, proposal, selectedModel];
+    const config = resolveSpawnConfig(
+      {
+        subagent_type: "general-purpose", prompt: "do something", description: "bg task",
+        run_in_background: true, model: "openai/gpt-5.5", thinking: "high",
+        inherit_context: true, max_turns: 9,
+      },
+      new AgentTypeRegistry(() => new Map()),
+      { parentModel: parent, modelRegistry: {
+        find: (provider, id) => models.find((model) => model.provider === provider && model.id === id),
+        getAll: () => models,
+        getAvailable: () => models,
+      } },
+      { defaultMaxTurns: 25 },
+    );
+    if ("error" in config) throw new Error(config.error);
+    expect(config.presentation.detailBase).toEqual({
+      displayName: "Agent", description: "bg task", subagentType: "general-purpose", modelName: "gpt-5.5",
+      tags: ["twin", "thinking: high", "inherit context", "background", "max turns: 9"],
+    });
 
-    const result = await spawnBackground(deps.manager, makeParams({ config }));
+    const result = await spawnBackground(
+      deps.manager, makeParams({ config, snapshot: { ...STUB_SNAPSHOT, model: parent } }),
+    );
     const text = result.content[0].text;
     // Selection is confirmed: the caller's proposed model never appears as the choice.
     expect(text).not.toContain("gpt-5.5");
@@ -144,7 +168,10 @@ describe("spawnBackground", () => {
     expect(text).toContain("selection confirmed");
     // The confirmed pair is the presented one.
     expect(result.details?.modelName).toBe("haiku");
-    expect(result.details?.tags).toEqual(["thinking: off", "inherit context"]);
+    expect(result.details?.tags).toEqual(["twin", "thinking: off", "inherit context", "background", "max turns: 9"]);
+    expect(config.execution.agentInvocation).toEqual({
+      modelName: "gpt-5.5", thinking: "high", maxTurns: 9, inheritContext: true, runInBackground: true,
+    });
   });
 
   it("reports a cancelled selection as a startup that produced no running child", async () => {
