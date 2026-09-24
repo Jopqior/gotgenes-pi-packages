@@ -335,4 +335,4 @@ Wrap code identifiers, filenames, and text containing underscores in backticks i
 Append with the `Edit` tool (or `Write` for a new file), not a shell heredoc.
 When appending a new stage to an existing retro, anchor the `Edit` on the file's last line or use `Write` with the full content — the repeated `### Observations` / `### Session summary` headers make header-anchored edits ambiguous.
 
-Then print a 5-line summary of the plan's key decisions and stop.
+Then print a 5-line summary of the plan's key decisions, end with the next command (`/tdd-plan` or `/build-plan`) on its own line, and stop.

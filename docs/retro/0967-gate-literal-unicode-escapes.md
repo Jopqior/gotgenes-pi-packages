@@ -69,4 +69,63 @@ Pre-completion reviewer: PASS.
   The example was rewritten in words; the gap also runs the other way (a stray backtick in one list item masks an escape in the next, reproduced with `rc=0`), so it is filed as [#974] rather than folded in after review.
   `roadmap-fit` exited at its first step: `scope:repo`, no package phase.
 
+## Stage: Final Retrospective (2026-09-24T04:39:47Z)
+
+### Session summary
+
+Planning, TDD, ship, and this retro ran in one trunk-lane session.
+The gate shipped as nine commits plus stage notes, CI went green on the pushed tip, #967 closed with nothing to release (the only package-scoped commit was a `style:` comment fix, which `next-version.sh` confirmed skips), and [#974] was filed for a masker gap the gate exposed while its own retro was being written.
+
+### Observations
+
+#### What went well
+
+- **The gate caught a real defect on its first organic input, and that input was its own retro.**
+  A malformed double-backtick example in the TDD stage note misaligned `maskCode`'s span pairing across list items; chasing the report reproduced the opposite failure (a stray backtick hiding an escape, `rc=0`), which became [#974].
+  The pre-completion reviewer had probed about 20 masker inputs by hand and missed exactly this shape, so organic data beat a careful synthetic sweep again.
+- **The mandatory verify-the-pins step earned its place on step 2.**
+  Two planned killing mutations (fence opener at column 0, closer of at least n backticks) left every test green, because a blank-line-free backtick fence masks identically as an inline span.
+  Both were test defects that a green suite would have shipped; fixing them cost two test edits before the commit.
+- **A `cmp` guard after each `perl -pi` mutation turned two silent no-op mutations into a visible `NOT APPLIED`.**
+  Without it, two surviving mutations would have read as vacuous tests.
+- **The operator's question in place of an answer improved the design.**
+  Asking how a document that means the literal survives decoding produced the `\\u` escape hatch (exactly one preceding backslash) and the visible-character guard, both of which the plan then specified and tested.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` (user-caught, indirectly) — the first `ask_user` gate asserted that `rumdl`'s reflow rejoins a split sentence without having measured it, and priced the decode option's risk without naming how a deliberate literal survives.
+  The operator answered both questions with questions; the scratch-file measurement that settled the split-sentence call ran only then.
+  The `/plan-issue` rule that a qualitative cost claim is measurable already covers this.
+  Impact: one extra gate round, no rework.
+- `other` (report shape) — the planning summary put "The next step is `/tdd-plan`" mid-paragraph in a long report, and the operator had to ask.
+  `/tdd-plan` and `/ship` end their reports on the next command; `/plan-issue` asks only for "a 5-line summary" and names no closing line.
+  Impact: one operator round-trip.
+- `other` (shell) — step 8's first chain check printed the em-dash in the *without-entry* case, because zsh's `echo` decodes `\uXXXX` in its argument.
+  It briefly read as `rumdl fmt` decoding escapes; `print -r` and `sed -n` showed the real bytes.
+  Impact: three extra tool calls, no wrong conclusion committed.
+- `missing-context` (self-identified) — the planning prototype enumerated `git ls-files`, so it skipped the still-untracked plan and only saw the frontmatter's `\\u2014` after the commit; the prototype then gained the one-backslash rule the design already specified.
+  Impact: one amended retro commit.
+
+#### What caused friction (user side)
+
+- Nothing material.
+  The operator's two question-answers were the most valuable interventions of the session, and they were redirecting questions rather than corrections.
+
+### Diagnostic details
+
+- **Model-performance correlation** — planning and TDD ran on `anthropic/claude-opus-5-5`, the ship on `anthropic/claude-sonnet-5`, and this retro on `anthropic/claude-opus-5-5`; both subagents (`tidy-first-assessor`, `pre-completion-reviewer`) ran on `anthropic/claude-sonnet-5`, per their transcripts.
+  The split fits: the ship was mechanical and clean (every SHA resolved and ancestry-checked before `issue_close`).
+  The reviewer's missed list-item case is a probe-enumeration gap, not a model mismatch: the probe list covered fence and span shapes but no multi-block span pairing.
+- **Feedback-loop gap analysis** — no gap.
+  Each step ran its test file red and green, Biome on the touched files, and its named mutations; `pnpm run lint` ran at step 7 and at the end, and `pnpm run check` at baseline, after the only `src/` edit (step 6), and at the end.
+
+### Changes made
+
+1. `docs/retro/0967-gate-literal-unicode-escapes.md` — added this Final Retrospective stage entry.
+2. `.pi/prompts/plan-issue.md` — the closing instruction now ends the summary on the next command (`/tdd-plan` or `/build-plan`), on its own line.
+3. `.pi/skills/shell-traps/SKILL.md` — in the Command flags and state section, a line that zsh's `echo` decodes backslash escapes, with `print -r --`, `printf '%s\n'`, or `sed -n` for printing bytes.
+   The operator asked whether this is zsh-specific; measured on this host, `bash` and `dash` print `\u2014` literally, `bash -e` decodes it, and macOS `/bin/sh` decodes `\n` but not `\u`, so the line names zsh and the literal-printing shells.
+
+Considered and not proposed: a gate rule that a rewrite option must name its escape hatch (covered by `/plan-issue`'s differs-and-does-not scenarios rule), a testing rule on fixtures separating overlapping mechanisms (covered by the testing skill's discriminating-assertion rule), and a reviewer probe for spans across block boundaries (one incident; [#974] fixes the mechanism).
+
 [#974]: https://github.com/gotgenes/pi-packages/issues/974
