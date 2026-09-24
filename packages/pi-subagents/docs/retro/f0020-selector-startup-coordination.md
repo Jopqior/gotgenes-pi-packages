@@ -41,3 +41,36 @@ No production implementation, push, release, or issue closure occurred; the next
 - `test/lifecycle/subagent.test.ts` and `test/lifecycle/subagent-manager.test.ts`: whole-file splitting was rejected; existing selection groups are sufficient and inherited file size is not this delivery's goal.
 - `test/lifecycle/subagent.test.ts` and `test/lifecycle/subagent-manager.test.ts`: cross-file catalogue/provider fixture consolidation was rejected; the new owner's narrow fixtures do not justify a general shared abstraction.
 - `src/lifecycle/subagent.ts`: general inherited lifecycle cleanup remains outside scope; only selector ownership and required integration points change.
+
+## Stage: Implementation — TDD (2026-09-24T14:21:53Z)
+
+### Session summary
+
+Completed all five planned steps as separate commits, with one subagent per step after the operator stopped the initial whole-plan delegation before it made changes.
+Initial selection now has a narrow lifecycle owner, and existing initial-run terminal notifications settle its acknowledgement without separate settlement statements in each terminal method; observable startup, cancellation, tool-return, and service behavior remains unchanged.
+Core tests increased from 1956 to 1984 (+28), while the companion suite remained at 68 passing tests.
+
+### Observations
+
+- The initial `main` pull reported already up to date, and root `check`, `lint`, `test`, and `fallow dead-code` passed before implementation.
+  The final independent reviewer reran all four root gates successfully against the completed delivery.
+  Public-type consumption verification and the companion suite also passed during implementation.
+- Each step used its own subagent and commit, with parent inspection between steps.
+  Characterization pins preceded observer composition, the new owner was built alongside the old implementation, and required-interface migration removed the duplicate implementation atomically.
+- Per-class killing mutations exercised terminal ordering, observer exceptions, stopped/error precedence including empty errors, ignored-abort providers, post-validation cancellation, listener detachment, late registration/disposal, immutable acknowledgement, ordinary synchronous startup, pair/signal propagation, workspace revocation, queued cancellation, and presentation getters.
+  The empty-error classification mutation was performed in step 2 once the mapping existed.
+  An initial queued-cancellation test filter matched no tests; the agent corrected the filter and obtained an actual Red before restoring Green.
+- Three runnable fixture migrations extended the anticipated changes: `test/observation/notification.test.ts`, runnable cases in `test/tools/agent-tool.test.ts`, and `test/tools/get-result-tool.test.ts`.
+  Those tests require a real selection owner rather than the passive fixture; their assertions were retained.
+  The real-tool boundary suite needed no edits and continued to run in the complete core suite.
+- Step 5 replayed actual fixed-upstream `stopQueued()` and `failRun()` bodies.
+  Each planning-baseline transplant lost its corresponding selection-settlement pin through a bounded timeout, whereas both delivered variants passed and already matched the upstream bodies.
+  All trial files were restored before final gates; `subagent-state.ts` matches the fixed upstream object, and the maintenance evidence document records literal diffs, commands, outcomes, and remaining compatibility obligations.
+  This is synthetic reconciliation evidence, not a measured future conflict rate or interactive SDK-host acceptance.
+- Pre-completion reviewer: WARN, with no required code fixes.
+  The review covered implementation through `0a1d45b37350615f19c1a7c77c6b45de7f909652` and found no blocking regression.
+  Reviewer warnings: the inherited `run()` comment still says its promise always resolves although a directly throwing observer can reject it; the reviewer's role restrictions prevented reading raw replay logs under `/tmp/pi-subagents-issue20-replay`, so it independently verified Git method bodies and state-file equality but not those timeout logs.
+  Both limitations remain disclosed rather than represented as resolved.
+- Both issue-20 architecture completion markers are present; issue 21 presentation work and issue 19 overall maintenance assessment remain separate.
+  No changelog, manifest, lockfile, release, push, or issue closure was performed.
+  The next workflow step is `/ship 20`, with publication still requiring explicit destination and scope approval.
