@@ -1373,7 +1373,7 @@ Release: independent
 
 Release: independent
 
-#### [#957] A quoted `--flag='value'` is still a flag
+#### ✅ [#957] A quoted `--flag='value'` is still a flag
 
 **Cause:** the flag branch of `collectPatternCommandTokens` is guarded on `child.type === "word"`, and quoting a long option's `=`-embedded value makes `tree-sitter-bash` emit a `concatenation` instead.
 The argument never reaches `classifyPatternCommandFlag`, falls through to the positional path, and `embeddedOptionValueToken`'s blind `--opt=value` split — the [#645] fallback, correct precisely because it runs only for flags of *unknown* role — hands the consumed value back as a token.
@@ -1383,7 +1383,9 @@ The argument never reaches `classifyPatternCommandFlag`, falls through to the po
   Dropping the type guard outright is the wrong fix: an unrecognized quoted `-`-leading argument would stop spending a pattern positional, so `sd '-old' '-new' file.txt` would join the already-broken unquoted spelling and drop `file.txt` — ADR 0009's unrecoverable direction.
   Also `docs/decisions/0009-bash-path-projection-completeness-contract.md` — the step **overturns a recorded declination**, so it amends rather than merely implements: § "What the projection deliberately omits" already names this mechanism (`rg -g'!docs'`) and declines "widening flag detection to quoted tokens" on exactly the `sd` objection above.
   That declination priced the naive widening; the narrow lever preserves `regular-flag` fall-through and so does not pay it, and [#863] is the evidence that the bullet's "over-surfaces, therefore recoverable" reasoning under-prices the cost.
-- **Outcome:** `grep --regexp='/etc/passwd' f.txt` projects `f.txt` alone, matching what the unquoted spelling already does; `node --eval='// x'` projects nothing, closing the residual [#863] records; ADR 0009's residual bullet is narrowed to the glued-quoted form (`rg -g'!docs'`) the narrow mechanism genuinely cannot reach.
+- **Outcome:** `grep --regexp='/etc/passwd' f.txt` projects `f.txt` alone, matching what the unquoted spelling already does; `node --eval='// x'` projects nothing, closing the residual [#863] records, and the glued-quoted `rg -g'!docs'` and `awk -F':'` are read as their flags too.
+  The Target's any-node-type lever did not survive measurement: it reads `sd '-old' '-new' file.txt` as `-n` with the value `ew` and drops `file.txt`.
+  What landed (PR #972) acts on a recognized flag only in a `word` or a `concatenation` whose leading `-` is unquoted, and ADR 0009's residual bullet is narrowed to a token whose flag is quoted whole (`grep '-e' pattern f.txt`).
 - **Commit type:** `fix:`.
 - **Risk note:** the amendment is the step's real content; the code change is ten lines.
   Plan it as an ADR question first.
@@ -1502,7 +1504,7 @@ Release: independent
 flowchart TD
     S945["✅ #945<br/>Hosted commands keep their operands"] -.-> S863["✅ #863<br/>Inline scripts are scripts"]
     S863 -.-> S609["#609<br/>Redirect destinations by role"]
-    S859["✅ #859<br/>.. as a whole segment"] -.-> S957["#957<br/>A quoted --flag=value is still a flag"]
+    S859["✅ #859<br/>.. as a whole segment"] -.-> S957["✅ #957<br/>A quoted --flag=value is still a flag"]
     S957 -.-> S609
     S924["#924<br/>sed/awk presumed readers"] -.-> S963["#963<br/>Execution-modifier wrappers inherit the verdict"]
     S963 -.-> S880["#880<br/>commandEffects"]

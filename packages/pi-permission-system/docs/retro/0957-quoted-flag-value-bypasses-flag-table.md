@@ -63,7 +63,7 @@ A fix has to separate the two cases without weakening the floor for valid-but-un
 One candidate recognizes the specific failure (an unterminated backtick or quote at the end of the command); another asks `bash -n`, at the cost of a process spawn on every failed parse and Git Bash on Windows.
 One risk is unverified: bash is believed to run the complete lines before a broken one in a multi-line command, so a command bash rejects may still act before the error.
 At this frequency (one instance in 1260 asks), a clearer reason in the prompt may be worth more than a classifier.
-This is out of scope for PR #972; the operator has not yet decided whether to file it.
+It is out of scope for PR #972 and was filed as #976, scoped to a clearer prompt reason; its Phase 15 disposition is out of scope for the roadmap.
 
 ### Decision and attribution
 
@@ -81,3 +81,10 @@ Co-authored-by: sam <1441336599@qq.com>
 
 The close comment on #957 and the merge comment on #972 thank @SamYue1 by name and link the landed SHAs.
 Reference the PR as `Refs #972`, never `Closes`.
+
+### Outcome
+
+PR #972 was rebase-merged after CI run `35963136555` passed.
+Two commits landed: @SamYue1's `a9721e43` (the fix) and our `e5eb6ab5`, which replaces `isQuotedGluedFlag` with `hasUnquotedLeadingDash` and carries the `Co-authored-by` trailer.
+Two deliberate breaks confirmed the new tests catch regressions: admitting any `concatenation` failed the `sd '-o'ld '-n'ew file.txt` case, and removing the `concatenation` branch failed three tests.
+The PR body's `Closes #957` closed the issue on merge, so its summary comment was posted afterwards.
