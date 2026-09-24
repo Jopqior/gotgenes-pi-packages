@@ -10,6 +10,7 @@ import type {
 import type { ServiceRuntimeLike, SubagentManagerLike } from "#src/service/service-adapter";
 import { SubagentsServiceAdapter, toSubagentRecord } from "#src/service/service-adapter";
 import { type SessionContext, Subagent } from "#src/types";
+import { makeInitialSelection } from "#test/helpers/make-initial-selection";
 import { makeModel } from "#test/helpers/make-model";
 import { createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
 import { createMockSession, createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
@@ -134,6 +135,7 @@ describe("toSubagentRecord", () => {
       description: "Check stale TODOs",
       isBackground: true,
       execution: makeStubExecution(),
+      selection: makeInitialSelection({ awaitingSelection: false, selectedPair: undefined }),
       state,
     });
 

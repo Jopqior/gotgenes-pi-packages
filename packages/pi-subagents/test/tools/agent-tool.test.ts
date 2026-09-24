@@ -1,6 +1,6 @@
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { describe, expect, it, vi } from "vitest";
-import type { SpawnSelectionOutcome } from "#src/lifecycle/subagent";
+import type { SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import { AgentTool } from "#src/tools/agent-tool";
 import {
 	createToolDeps,
@@ -8,7 +8,7 @@ import {
 	mockResumeRecord,
 	mockResumeRefusal,
 } from "#test/helpers/make-deps";
-import { createTestSubagent } from "#test/helpers/make-subagent";
+import { createRunnableTestSubagent, createTestSubagent } from "#test/helpers/make-subagent";
 
 function makeCtx(overrides: Record<string, unknown> = {}) {
 	return {
@@ -193,7 +193,7 @@ describe("AgentTool — resume path", () => {
 	describe("accepted", () => {
 		it("resumes an agent whose run never had a workspace", async () => {
 			const deps = createToolDeps();
-			const noWorkspace = createTestSubagent();
+			const noWorkspace = createRunnableTestSubagent();
 			await noWorkspace.run();
 			deps.manager.getRecord = vi.fn().mockReturnValue(noWorkspace);
 			mockResumeRecord(deps, { result: "Resumed output." });

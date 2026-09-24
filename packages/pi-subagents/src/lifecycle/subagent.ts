@@ -10,13 +10,10 @@ import type { Model } from "@earendil-works/pi-ai";
 import type { AgentSessionEvent, ToolDefinition } from "@earendil-works/pi-coding-agent";
 import { debugLog } from "#src/debug";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
+import type { InitialSelection, SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import { RunListeners } from "#src/lifecycle/run-listeners";
-import type { SelectionScopeHandle } from "#src/lifecycle/selection-scope";
-import {
-	isSelectionCancellation,
-	SelectionCancelledError,
-} from "#src/lifecycle/spawn-selection";
+import { isSelectionCancellation } from "#src/lifecycle/spawn-selection";
 import type { SubagentSession, TurnLoopResult } from "#src/lifecycle/subagent-session";
 import { SubagentState, type SubagentStatus } from "#src/lifecycle/subagent-state";
 import type { LifetimeUsage } from "#src/lifecycle/usage";
@@ -24,12 +21,7 @@ import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import { WorkspaceBracket } from "#src/lifecycle/workspace-bracket";
 import { subscribeSubagentObserver } from "#src/observation/record-observer";
 import type { RunConfig } from "#src/runtime";
-import type { SpawnSelection, SpawnSelectionProvider } from "#src/service/service";
-import {
-	readSelectionChoices,
-	type ValidatedSpawnSelection,
-	validateSpawnSelection,
-} from "#src/session/selection-catalogue";
+import type { ValidatedSpawnSelection } from "#src/session/selection-catalogue";
 import type { CompactionInfo, ParentSessionInfo, SessionMessage, SubagentType, ThinkingLevel } from "#src/types";
 
 /** Per-subagent lifecycle observer — created by SubagentManager for each spawn. */
@@ -90,25 +82,6 @@ export type SteerOutcome =
 	| { kind: "rejected"; status: SubagentStatus };
 
 /**
- * How a record's initial spawn selection ended — the one-shot milestone between
- * spawn and session creation, independent of public status and of the whole-run
- * promise (`Subagent.promise` spans the whole run; a background caller must not
- * await it to learn whether selection finished).
- *
- * A discriminated value rather than a reconstruction from `awaitingSelection ===
- * false`: the absence of that activity can mean queued, cancelled, failed, or
- * successfully selected.
- *
- * Internal lifecycle API — SubagentManager consumes it on behalf of the
- * spawning tool; it is never re-exported through the service boundary.
- */
-export type SpawnSelectionOutcome =
-	| { kind: "not-required" }
-	| { kind: "selected" }
-	| { kind: "stopped" }
-	| { kind: "failed"; error: string };
-
-/**
  * The execution machinery a Subagent needs to run. A single mandatory
  * collaborator: production (SubagentManager.spawn) always supplies it, so run()
  * needs no "not configured" guards. The genuinely-optional behavior knobs stay
@@ -127,11 +100,6 @@ export interface SubagentExecution {
 	getRunConfig?: () => RunConfig;
 	/** Resolves the registered workspace provider (if any) at run-start. */
 	getWorkspaceProvider?: () => WorkspaceProvider | undefined;
-	/**
-	 * The spawning session's retained selection scope. Supplied in production
-	 * for every spawn; a run consults it only while the root lease is active.
-	 */
-	selectionScope?: SelectionScopeHandle;
 	model?: Model<any>;
 	maxTurns?: number;
 	thinkingLevel?: ThinkingLevel;
@@ -149,12 +117,11 @@ export interface SubagentInit {
 
 	/** Execution machinery — always supplied; construct-complete, no test fallbacks. */
 	execution: SubagentExecution;
+	/** Initial selection attempt and one-shot acknowledgement, owned separately from execution. */
+	selection: InitialSelection;
 
 	/** Lifecycle status and metrics. Defaults to a fresh queued state. */
 	state?: SubagentState;
-
-	/** Seed a born-complete fixture with the pair spawn selection already chose. */
-	selectedPair?: { model: Model<any>; thinkingLevel: ThinkingLevel };
 }
 
 export class Subagent {
@@ -198,12 +165,9 @@ export class Subagent {
 	get activeTools(): ReadonlyMap<string, string> { return this.state.activeTools; }
 	get responseText(): string { return this.state.responseText; }
 	/** True while this run is waiting for a human model/thinking selection. */
-	get awaitingSelection(): boolean { return this.state.awaitingSelection; }
-	private _selectedPair: { model: Model<any>; thinkingLevel: ThinkingLevel } | undefined;
+	get awaitingSelection(): boolean { return this.selection.awaitingSelection; }
 	/** The pair spawn selection chose, if a provider has resolved one. */
-	get selectedPair(): { model: Model<any>; thinkingLevel: ThinkingLevel } | undefined {
-		return this._selectedPair;
-	}
+	get selectedPair(): ValidatedSpawnSelection | undefined { return this.selection.selectedPair; }
 	isActive(): boolean { return this.state.isActive(); }
 	isTerminalError(): boolean { return this.state.isTerminalError(); }
 	isRunning(): boolean { return this.state.isRunning(); }
@@ -218,18 +182,9 @@ export class Subagent {
 	get promise(): Promise<void> | undefined { return this._promise; }
 
 	private readonly execution: SubagentExecution;
+	private readonly selection: InitialSelection;
 	private readonly listeners = new RunListeners();
 	private readonly workspaceBracket: WorkspaceBracket;
-	/**
-	 * The initial spawn selection's one-shot milestone, created at construction
-	 * and settled exactly once by whichever transition owns it. Never reset: a
-	 * resume re-enters a session whose selection already ended.
-	 */
-	private readonly selectionOutcome = Promise.withResolvers<SpawnSelectionOutcome>();
-	/** True once the one-shot selection outcome has settled. */
-	private selectionSettled = false;
-	/** Detachers for the startup-only cancellation listeners waitForSpawnSelection() armed. */
-	private readonly startupDetachers = new Set<() => void>();
 
 	subagentSession?: SubagentSession;
 
@@ -357,6 +312,7 @@ export class Subagent {
 
 		// Lifecycle status and metrics — fresh queued state unless one is supplied
 		this.state = init.state ?? new SubagentState();
+		this.selection = init.selection;
 
 		// Abort controller — always created, never injected
 		this._abortController = new AbortController();
@@ -370,12 +326,10 @@ export class Subagent {
 				...originalObserver,
 				onRunFinished: (agent) => {
 					originalObserver?.onRunFinished?.(agent);
-					this.finishInitialSelection(agent);
+					this.selection.finished({ stopped: agent.status === "stopped", error: agent.error });
 				},
 			},
 		};
-		this._selectedPair = init.selectedPair;
-
 		// Per-run lifecycle collaborators
 		this.workspaceBracket = new WorkspaceBracket(
 			this.execution.getWorkspaceProvider ?? (() => undefined),
@@ -428,63 +382,6 @@ export class Subagent {
 		}
 	}
 
-	/** The selection gate this run passes through, or undefined on the ordinary path. */
-	private openSelectionGate(): { provider: SpawnSelectionProvider; signal: AbortSignal } | undefined {
-		const scope = this.execution.selectionScope;
-		if (!scope) return undefined;
-		const provider = scope.activeSelectionProvider();
-		if (!provider) return undefined;
-		return {
-			provider,
-			// The run's own abort and the handle's closure (its shutdown or the
-			// root's revocation) invalidate the selection together.
-			signal: AbortSignal.any([this.abortController.signal, scope.closureSignal]),
-		};
-	}
-
-	/**
-	 * Ask the scope's provider for the pair this run will use, and validate its
-	 * answer against the spawning session's authenticated catalogue.
-	 *
-	 * `undefined` from the provider is user cancellation — a stop, not an error.
-	 * Catalogue and validation failures throw and fail the run: a gated run
-	 * never falls back to the resolved or inherited pair.
-	 */
-	private async obtainSelection(gate: {
-		provider: SpawnSelectionProvider;
-		signal: AbortSignal;
-	}): Promise<ValidatedSpawnSelection> {
-		// A signal that closed before the call must not reach the provider at all.
-		this.assertSelectionLive(gate.signal);
-		const registry = this.execution.snapshot.modelRegistry;
-		const choices = readSelectionChoices(registry);
-		const answer = await raceProviderCancellation(
-			gate.provider.select(
-				{
-					agentId: this.id,
-					agentType: this.type,
-					description: this.description,
-					availableModels: choices,
-				},
-				gate.signal,
-			),
-			gate.signal,
-		);
-		if (answer === undefined) {
-			throw new SelectionCancelledError();
-		}
-		return validateSpawnSelection(answer, choices, registry);
-	}
-
-	private applySelectedPair(pair: { model: Model<any>; thinkingLevel: ThinkingLevel }): void {
-		this._selectedPair = pair;
-	}
-
-	/** Recheck after an await: an aborted run or closed lease must not reach the factory. */
-	private assertSelectionLive(signal: AbortSignal): void {
-		if (signal.aborted) throw new SelectionCancelledError();
-	}
-
 	/**
 	 * Prepare the run's child session: the selection gate (when the root lease
 	 * is active), workspace preparation (provider path only), and the
@@ -493,33 +390,12 @@ export class Subagent {
 	 * after no partial state survives (a throwing prepare leaves no workspace
 	 * bracketed, a throwing factory disposes its own session).
 	 *
-	 * The hasProvider() guard keeps the no-provider path synchronous, preserving
-	 * the original run() timing: the factory is called in the same turn as
-	 * spawn() when no workspace provider is registered. The gate is likewise
-	 * absent unless the scope holds an active provider, so an unconfigured or
-	 * revoked lease changes nothing on this path.
+	 * The conditional awaits keep the no-provider/no-workspace path synchronous:
+	 * the factory is called in the same turn as spawn().
 	 */
 	private async prepareSession(runConfig: RunConfig | undefined): Promise<SubagentSession> {
-		const gate = this.openSelectionGate();
-		let selected: ValidatedSpawnSelection | undefined;
-		if (gate) {
-			this.state.markAwaitingSelection();
-			try {
-				selected = await this.obtainSelection(gate);
-				// Before the pair is applied: an abort or closure that raced the
-				// provider's answer must not leave a confirmed pair behind.
-				this.assertSelectionLive(gate.signal);
-				this.applySelectedPair(selected);
-			} finally {
-				this.state.clearAwaitingSelection();
-			}
-			// The selection milestone: the pair is validated and the run is live.
-			// Downstream work (workspace preparation, the factory) may only proceed
-			// past this point, never before it.
-			this.settleSelectionOutcome({ kind: "selected" });
-		} else {
-			this.settleSelectionOutcome({ kind: "not-required" });
-		}
+		const attempt = this.selection.begin(this.abortController.signal);
+		const permit = attempt ? await attempt : undefined;
 		let cwd: string | undefined;
 		if (this.workspaceBracket.hasProvider()) {
 			cwd = await this.workspaceBracket.prepare({
@@ -530,15 +406,15 @@ export class Subagent {
 		}
 		// Immediately before the factory call: the lease may have closed while
 		// the workspace was being prepared.
-		if (gate) this.assertSelectionLive(gate.signal);
+		permit?.assertLive();
 		return this.execution.createSubagentSession({
 			snapshot: this.execution.snapshot,
 			type: this.type,
 			cwd,
 			parentSession: this.execution.parentSession,
-			model: selected?.model ?? this.execution.model,
-			thinkingLevel: selected?.thinkingLevel ?? this.execution.thinkingLevel,
-			...(gate ? { selectionSignal: gate.signal } : {}),
+			model: permit?.pair.model ?? this.execution.model,
+			thinkingLevel: permit?.pair.thinkingLevel ?? this.execution.thinkingLevel,
+			...(permit ? { selectionSignal: permit.signal } : {}),
 			askParent: (question) => { this.state.setPendingQuestion(question); },
 			notifyParent: this.canSendUpdates(runConfig)
 				? (message) => { this.announceUpdate(message); }
@@ -636,55 +512,7 @@ export class Subagent {
 	 * the confirmed background task.
 	 */
 	waitForSpawnSelection(signal?: AbortSignal): Promise<SpawnSelectionOutcome> {
-		// The settled value is read before the current provider is consulted, so
-		// a vanished provider cannot rewrite the outcome or re-arm cancellation.
-		if (this.selectionSettled) return this.selectionOutcome.promise;
-		if (!this.isSpawnSelectionRequired()) {
-			this.settleSelectionOutcome({ kind: "not-required" });
-			return this.selectionOutcome.promise;
-		}
-		this.attachStartupCancellation(signal);
-		return this.selectionOutcome.promise;
-	}
-
-	/**
-	 * Whether this record still owes an initial selection: a gate is in flight
-	 * (its run latched a provider), or the retained scope currently holds one.
-	 * A scope whose closure signal has already fired counts too — a revoked
-	 * root or a closed child handle is not a never-configured root, so the
-	 * requirement outlives the provider the scope no longer reports.
-	 */
-	private isSpawnSelectionRequired(): boolean {
-		const scope = this.execution.selectionScope;
-		if (!scope) return false;
-		if (scope.closureSignal.aborted) return true;
-		if (this.awaitingSelection) return true;
-		return scope.activeSelectionProvider() !== undefined;
-	}
-
-	/**
-	 * Arm the startup-only cancellation listeners: the caller's signal and the
-	 * scope's closure, whichever fires first stops the startup. Already-fired
-	 * sources dispatch immediately instead of attaching.
-	 */
-	private attachStartupCancellation(signal?: AbortSignal): void {
-		const closure = this.execution.selectionScope?.closureSignal;
-		if (signal?.aborted || closure?.aborted) {
-			this.stopForStartupCancellation();
-			return;
-		}
-		const watch = (source: AbortSignal) => {
-			const detachController = new AbortController();
-			const detach = () => detachController.abort();
-			this.startupDetachers.add(detach);
-			source.addEventListener("abort", () => {
-				this.startupDetachers.delete(detach);
-				detach();
-				this.stopForStartupCancellation();
-			}, { once: true, signal: detachController.signal });
-		};
-		if (signal) watch(signal);
-		if (closure) watch(closure);
+		return this.selection.wait(signal, () => this.stopForStartupCancellation());
 	}
 
 	/**
@@ -698,37 +526,13 @@ export class Subagent {
 	}
 
 	/**
-	 * Settle the one-shot outcome, detaching the startup listeners synchronously:
-	 * an interrupt landing in the same instant as settlement is a whole-run
-	 * concern, not a startup cancellation.
-	 */
-	private settleSelectionOutcome(outcome: SpawnSelectionOutcome): void {
-		this.selectionSettled = true;
-		const detachers = [...this.startupDetachers];
-		this.startupDetachers.clear();
-		for (const detach of detachers) detach();
-		this.selectionOutcome.resolve(outcome);
-	}
-
-	/** Project recorded initial-run terminal facts after the external observer has returned. */
-	private finishInitialSelection(agent: Subagent): void {
-		if (agent.error !== undefined) {
-			this.settleSelectionOutcome({ kind: "failed", error: agent.error });
-		} else if (agent.status === "stopped") {
-			this.settleSelectionOutcome({ kind: "stopped" });
-		}
-	}
-
-	/**
 	 * Manager teardown: stop an unfinished initial startup so its wait settles
 	 * before the record loses reachability. A provider registered after a
 	 * no-provider acknowledgement can still open a selection gate at admission.
 	 * Confirmed children keep the existing disposal path.
 	 */
 	cancelInitialSelection(): boolean {
-		if (!this.awaitingSelection && (this.selectionSettled || !this.isSpawnSelectionRequired())) return false;
-		this.stopForStartupCancellation();
-		return true;
+		return this.selection.cancelUnfinished(() => this.stopForStartupCancellation());
 	}
 
 	/**
@@ -1069,34 +873,4 @@ function settleOrAbort(run: Promise<void>, signal: AbortSignal): Promise<void> {
 		signal.addEventListener("abort", () => { resolve(); }, { once: true, signal: detach.signal });
 	});
 	return Promise.race([run, interrupted]).finally(() => { detach.abort(); });
-}
-
-/**
- * Settle with the provider's answer, or throw `SelectionCancelledError` once
- * `signal` closes — whichever comes first. A provider that ignores abort must
- * not hold the run, the spawning tool, or the concurrency slot: the losing
- * promise is drained, so its late rejection is swallowed and its late answer
- * is dropped whole — cancellation has already ended this run.
- */
-function raceProviderCancellation(
-	answer: Promise<SpawnSelection | undefined>,
-	signal: AbortSignal,
-): Promise<SpawnSelection | undefined> {
-	if (signal.aborted) {
-		observeQuietly(answer);
-		return Promise.reject(new SelectionCancelledError());
-	}
-	const detach = new AbortController();
-	const cancelled = new Promise<never>((_resolve, reject) => {
-		signal.addEventListener("abort", () => {
-			observeQuietly(answer);
-			reject(new SelectionCancelledError());
-		}, { once: true, signal: detach.signal });
-	});
-	return Promise.race([answer, cancelled]).finally(() => detach.abort());
-}
-
-/** Drain a provider promise whose result will never be used. */
-function observeQuietly(answer: Promise<SpawnSelection | undefined>): void {
-	answer.catch(() => {});
 }

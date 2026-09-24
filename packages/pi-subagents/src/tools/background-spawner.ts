@@ -1,5 +1,5 @@
+import type { SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
-import type { SpawnSelectionOutcome } from "#src/lifecycle/subagent";
 import type { AgentSpawnConfig } from "#src/lifecycle/subagent-manager";
 import { renderSpawnNotes, textResult } from "#src/tools/helpers";
 import type { ResolvedSpawnConfig } from "#src/tools/spawn-config";

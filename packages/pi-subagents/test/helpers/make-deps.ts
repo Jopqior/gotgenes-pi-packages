@@ -1,7 +1,8 @@
 import { vi } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
+import type { SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
-import type { SpawnSelectionOutcome, Subagent } from "#src/lifecycle/subagent";
+import type { Subagent } from "#src/lifecycle/subagent";
 import type { ResumeRefusalReason } from "#src/lifecycle/subagent-manager";
 import {
 	type AgentToolManager,

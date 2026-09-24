@@ -7,7 +7,7 @@ import {
   formatWorkspaceNotice,
   NotificationManager,
 } from "#src/observation/notification";
-import { createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
+import { createRunnableTestSubagent, createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
 import { makeWorkspace, makeWorkspaceProvider } from "#test/helpers/make-workspace";
 import { createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 
@@ -285,7 +285,7 @@ describe("NotificationManager", () => {
       askParent?.("Which config?");
       return Promise.resolve({ responseText: "Got partway.", aborted: true, steered: false });
     });
-    const disposed = createTestSubagent({
+    const disposed = createRunnableTestSubagent({
       id: "agent-3",
       execution: makeStubExecution({
         createSubagentSession: (params) => {

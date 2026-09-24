@@ -7,7 +7,7 @@ import {
 } from "#src/tools/get-result-tool";
 import type { Subagent } from "#src/types";
 import type { Theme } from "#src/ui/display";
-import { createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
+import { createRunnableTestSubagent, createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
 import { createMockSession, createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_CTX } from "#test/helpers/stub-ctx";
 
@@ -35,7 +35,7 @@ describe("GetResultTool — carrier claim", () => {
 	it("claims the outcome for the duration of a wait", async () => {
 		const sessionStub = createSubagentSessionStub();
 		sessionStub.runTurnLoop.mockResolvedValue({ responseText: "Done.", aborted: false, steered: false });
-		const record = createTestSubagent({
+		const record = createRunnableTestSubagent({
 			status: "queued",
 			completedAt: undefined,
 			execution: makeStubExecution({
@@ -64,7 +64,7 @@ describe("GetResultTool — carrier claim", () => {
 	it("releases the claim when the parent turn is interrupted mid-wait", async () => {
 		const sessionStub = createSubagentSessionStub();
 		sessionStub.runTurnLoop.mockReturnValue(new Promise<never>(() => {}));
-		const record = createTestSubagent({
+		const record = createRunnableTestSubagent({
 			status: "running",
 			completedAt: undefined,
 			execution: makeStubExecution({
@@ -222,7 +222,7 @@ describe("GetResultTool", () => {
 	it("waits for promise when wait=true and agent is running", async () => {
 		const sessionStub = createSubagentSessionStub();
 		sessionStub.runTurnLoop.mockResolvedValue({ responseText: "Finished after wait.", aborted: false, steered: false });
-		const record = createTestSubagent({
+		const record = createRunnableTestSubagent({
 			status: "running",
 			completedAt: undefined,
 			execution: makeStubExecution({
@@ -240,7 +240,7 @@ describe("GetResultTool", () => {
 	it("waits for a queued agent when wait=true", async () => {
 		const sessionStub = createSubagentSessionStub();
 		sessionStub.runTurnLoop.mockResolvedValue({ responseText: "Finished after the queue.", aborted: false, steered: false });
-		const record = createTestSubagent({
+		const record = createRunnableTestSubagent({
 			status: "queued",
 			completedAt: undefined,
 			execution: makeStubExecution({
@@ -267,7 +267,7 @@ describe("GetResultTool", () => {
 		const sessionStub = createSubagentSessionStub();
 		// A run that never settles — only the interrupt can end this wait.
 		sessionStub.runTurnLoop.mockReturnValue(new Promise<never>(() => {}));
-		const record = createTestSubagent({
+		const record = createRunnableTestSubagent({
 			status: "running",
 			completedAt: undefined,
 			execution: makeStubExecution({

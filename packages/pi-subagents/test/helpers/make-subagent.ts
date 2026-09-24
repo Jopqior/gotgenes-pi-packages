@@ -1,8 +1,10 @@
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
-import { Subagent, type SubagentExecution, type SubagentInit } from "#src/lifecycle/subagent";
+import { type InitialSelection, InitialSpawnSelection } from "#src/lifecycle/initial-spawn-selection";
+import { Subagent, type SubagentExecution } from "#src/lifecycle/subagent";
 import type { SubagentSession } from "#src/lifecycle/subagent-session";
 import { SubagentState, type SubagentStatus } from "#src/lifecycle/subagent-state";
 import type { SubagentType } from "#src/types";
+import { makeInitialSelection } from "#test/helpers/make-initial-selection";
 import { createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 
@@ -28,6 +30,8 @@ export interface TestSubagentOptions {
 	/** Defaults to true so a fixture survives the widget's background-only filter. */
 	isBackground?: boolean;
 	execution?: SubagentExecution;
+	/** Override the passive owner only when intentionally running this fixture. */
+	selection?: InitialSelection;
 	/** Shorthand to set execution.parentSession.toolCallId. Ignored when execution is supplied. */
 	toolCallId?: string;
 	/** Passive lifecycle state shorthands. */
@@ -62,7 +66,7 @@ export interface TestSubagentOptions {
 	/** Seed private pending-selection activity. */
 	awaitingSelection?: boolean;
 	/** Seed the pair spawn selection already chose. */
-	selectedPair?: SubagentInit["selectedPair"];
+	selectedPair?: InitialSelection["selectedPair"];
 	/** Seed responseText. */
 	responseText?: string;
 	/** Thread maxTurns into the stub execution. Ignored when `execution` is supplied. */
@@ -80,8 +84,23 @@ export interface TestSubagentOptions {
 	outputFile?: string;
 }
 
+/** Runnable variant: every run uses the real owner rather than the passive presentation fixture. */
+export function createRunnableTestSubagent(overrides: TestSubagentOptions = {}): Subagent {
+	return createTestSubagent({
+		...overrides,
+		selection: new InitialSpawnSelection({
+			identity: {
+				agentId: overrides.id ?? "agent-1",
+				agentType: overrides.type ?? "general-purpose",
+				description: overrides.description ?? "Test task",
+			},
+			registry: overrides.execution?.snapshot.modelRegistry ?? STUB_SNAPSHOT.modelRegistry,
+		}),
+	});
+}
+
 export function createTestSubagent(overrides: TestSubagentOptions = {}): Subagent {
-	const { id, type, description, isBackground, execution, toolCallId, toolUses, lifetimeUsage, compactionCount, turnCount, activeTools, responseText, runUpdates, awaitingSelection, selectedPair, maxTurns, sessionReady, outputFile, ...stateOverrides } =
+	const { id, type, description, isBackground, execution, selection, toolCallId, toolUses, lifetimeUsage, compactionCount, turnCount, activeTools, responseText, runUpdates, awaitingSelection, selectedPair, maxTurns, sessionReady, outputFile, ...stateOverrides } =
 		overrides;
 	const state = new SubagentState({
 		status: "completed",
@@ -97,7 +116,6 @@ export function createTestSubagent(overrides: TestSubagentOptions = {}): Subagen
 		...stateOverrides,
 	});
 	for (const update of runUpdates ?? []) state.recordUpdate(update);
-	if (awaitingSelection) state.markAwaitingSelection();
 	const agent = new Subagent({
 		id: id ?? "agent-1",
 		type: type ?? "general-purpose",
@@ -108,7 +126,7 @@ export function createTestSubagent(overrides: TestSubagentOptions = {}): Subagen
 			...(maxTurns !== undefined ? { maxTurns } : {}),
 		}),
 		state,
-		selectedPair,
+		selection: selection ?? makeInitialSelection({ awaitingSelection: awaitingSelection ?? false, selectedPair }),
 	});
 	// Assigned rather than passed to the constructor: run() is what sets this in
 	// production, and a passive fixture never runs.

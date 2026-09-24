@@ -12,9 +12,10 @@ import { type BackgroundRequest, resolveBackgroundMode } from "#src/config/invoc
 import { debugLog } from "#src/debug";
 import type { ConcurrencyLimiter } from "#src/lifecycle/concurrency-limiter";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
+import { InitialSpawnSelection, type SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { SelectionScopeHandle } from "#src/lifecycle/selection-scope";
-import { type ResumeRefusal, type SpawnSelectionOutcome, Subagent, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
+import { type ResumeRefusal, Subagent, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
 import type { SubagentSession } from "#src/lifecycle/subagent-session";
 import { SubagentState } from "#src/lifecycle/subagent-state";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
@@ -172,9 +173,8 @@ export interface SubagentManagerOptions {
   /** Agent registry, consulted to canonicalize a spawn's type and resolve its config. */
   registry: SpawnTypeResolver;
   /**
-   * The spawning session's retained selection scope, threaded into every
-   * record — queued records included — so an admitted run consults the tree's
-   * active provider before creating its child session.
+   * The spawning session's retained selection scope. Each record receives a
+   * selection owner that consults the live provider at admission.
    */
   selectionScope: SelectionScopeHandle;
 }
@@ -363,6 +363,11 @@ export class SubagentManager {
       type,
       description: options.description,
       isBackground,
+      selection: new InitialSpawnSelection({
+        identity: { agentId: id, agentType: type, description: options.description },
+        registry: snapshot.modelRegistry,
+        source: this.selectionScope,
+      }),
       state: new SubagentState({
         status: isBackground ? "queued" : "running",
         startedAt: Date.now(),
@@ -375,7 +380,6 @@ export class SubagentManager {
         observer: this.buildObserver(options),
         getRunConfig: this.getRunConfig,
         getWorkspaceProvider: () => this._workspaceProvider,
-        selectionScope: this.selectionScope,
         model: options.model,
         maxTurns: options.maxTurns,
         thinkingLevel: options.thinkingLevel,

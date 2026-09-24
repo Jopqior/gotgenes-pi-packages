@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { makeModel } from "./make-model";
-import { createTestSubagent } from "./make-subagent";
+import { createRunnableTestSubagent, createTestSubagent } from "./make-subagent";
 
 describe("createTestSubagent", () => {
 	describe("live-activity shorthands", () => {
@@ -89,20 +89,28 @@ describe("createTestSubagent", () => {
 	});
 
 	it("exposes promise via getter after start() is called", async () => {
-		const record = createTestSubagent({ status: "running", completedAt: undefined });
+		const record = createRunnableTestSubagent({ status: "running", completedAt: undefined });
 		expect(record.promise).toBeUndefined();
 		record.start();
 		expect(record.promise).toBeInstanceOf(Promise);
 		await record.promise;
+		expect(record.status).toBe("completed");
+		expect(record.error).toBeUndefined();
 	});
 
-	it("seeds selectedPair from init", () => {
+	it("seeds selectedPair on a passive selection fixture", () => {
 		const selectedPair = {
 			model: makeModel({ id: "claude-haiku", name: "Claude Haiku" }),
 			thinkingLevel: "high" as const,
 		};
 		const record = createTestSubagent({ selectedPair });
 		expect(record.selectedPair).toEqual(selectedPair);
+	});
+
+	it("seeds private pending activity on a passive selection fixture", () => {
+		const record = createTestSubagent({ awaitingSelection: true });
+		expect(record.awaitingSelection).toBe(true);
+		expect(record.selectedPair).toBeUndefined();
 	});
 
 	it("allows overriding defaults to undefined", () => {

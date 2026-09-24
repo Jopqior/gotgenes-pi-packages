@@ -2,10 +2,11 @@ import { getEventListeners } from "node:events";
 import type { Model } from "@earendil-works/pi-ai";
 import { describe, expect, it, vi } from "vitest";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
+import { type InitialSelection, InitialSpawnSelection, type SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { SelectionScopeHandle } from "#src/lifecycle/selection-scope";
 import { SpawnSelectionScope } from "#src/lifecycle/spawn-selection";
-import { type SpawnSelectionOutcome, Subagent, type SubagentExecution, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
+import { Subagent, type SubagentExecution, type SubagentLifecycleObserver } from "#src/lifecycle/subagent";
 import { SubagentSession, type TurnLoopResult } from "#src/lifecycle/subagent-session";
 import { SubagentState, type SubagentStateInit } from "#src/lifecycle/subagent-state";
 import type { WorkspacePrepareContext, WorkspaceProvider } from "#src/lifecycle/workspace";
@@ -38,6 +39,7 @@ interface MakeSubagentOptions extends SubagentStateInit {
 	type?: SubagentType;
 	description?: string;
 	execution?: SubagentExecution;
+	selection?: InitialSelection;
 	isBackground?: boolean;
 	/**
 	 * A caller-owned SubagentState, for tests that mutate it after construction to
@@ -48,14 +50,30 @@ interface MakeSubagentOptions extends SubagentStateInit {
 
 /** Construct a Subagent with default identity and a stub execution, overridable per test. */
 function makeSubagent(overrides: MakeSubagentOptions = {}): Subagent {
-	const { id, type, description, isBackground, execution, state, ...stateOverrides } = overrides;
+	const { id, type, description, isBackground, execution, selection, state, ...stateOverrides } = overrides;
+	const agentId = id ?? "1";
+	const agentType = type ?? "general-purpose";
+	const task = description ?? "test";
+	const machinery = execution ?? makeStubExecution();
 	return new Subagent({
-		id: id ?? "1",
-		type: type ?? "general-purpose",
-		description: description ?? "test",
+		id: agentId,
+		type: agentType,
+		description: task,
 		isBackground: isBackground ?? true,
-		execution: execution ?? makeStubExecution(),
+		execution: machinery,
+		selection: selection ?? new InitialSpawnSelection({
+			identity: { agentId, agentType, description: task },
+			registry: machinery.snapshot.modelRegistry,
+		}),
 		state: state ?? (Object.keys(stateOverrides).length > 0 ? new SubagentState(stateOverrides) : undefined),
+	});
+}
+
+function gatedSelectionOwner(scope: SelectionScopeHandle): InitialSelection {
+	return new InitialSpawnSelection({
+		identity: { agentId: "1", agentType: "general-purpose", description: "test" },
+		registry: STUB_SNAPSHOT.modelRegistry,
+		source: scope,
 	});
 }
 
@@ -484,7 +502,8 @@ describe("Subagent — stopQueued", () => {
 		scope.register({ select: vi.fn() });
 		const record = makeSubagent({
 			status: "queued",
-			execution: makeStubExecution({ selectionScope: scope }),
+			execution: makeStubExecution(),
+			selection: gatedSelectionOwner(scope),
 		});
 
 		const wait = record.waitForSpawnSelection();
@@ -631,21 +650,26 @@ function createRunnableAgent(overrides?: {
 	const createSubagentSession = overrides?.createSubagentSession ?? defaultFactory();
 	const observer = overrides?.observer ?? {};
 	const provider = overrides?.workspaceProvider;
+	const snapshot = overrides?.snapshot ?? STUB_SNAPSHOT;
 	return makeSubagent({
+		selection: new InitialSpawnSelection({
+			identity: { agentId: "run-1", agentType: "general-purpose", description: "run test" },
+			registry: snapshot.modelRegistry,
+			source: overrides?.selectionScope,
+		}),
 		id: "run-1",
 		description: "run test",
 		isBackground: overrides?.isBackground,
 		execution: {
 			createSubagentSession,
 			observer,
-			snapshot: overrides?.snapshot ?? STUB_SNAPSHOT,
+			snapshot,
 			prompt: "do something",
 			getRunConfig: overrides?.getRunConfig,
 			parentSession: overrides?.parentSession,
 			signal: overrides?.signal,
 			baseCwd: overrides?.baseCwd ?? "/base",
 			getWorkspaceProvider: provider ? () => provider : undefined,
-			selectionScope: overrides?.selectionScope,
 			model: overrides?.model,
 			thinkingLevel: overrides?.thinkingLevel,
 		},
@@ -2438,15 +2462,15 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 		it("settles queued stops and recorded failures with no external observer at all", async () => {
 			const scope = new SpawnSelectionScope();
 			scope.register({ select: vi.fn() });
-			const execution = makeStubExecution({ selectionScope: scope });
+			const execution = makeStubExecution();
 			expect(Object.hasOwn(execution, "observer")).toBe(false);
 
-			const queued = makeSubagent({ execution });
+			const queued = makeSubagent({ execution, selection: gatedSelectionOwner(scope) });
 			const queuedWait = queued.waitForSpawnSelection();
 			queued.stopQueued();
 			await expect(queuedWait).resolves.toEqual({ kind: "stopped" });
 
-			const failed = makeSubagent({ execution, status: "running" });
+			const failed = makeSubagent({ execution, selection: gatedSelectionOwner(scope), status: "running" });
 			const failedWait = failed.waitForSpawnSelection();
 			failed.failRun(new Error("selection failed"));
 			await expect(failedWait).resolves.toEqual({ kind: "failed", error: "selection failed" });
@@ -2489,8 +2513,8 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 			scope.register({ select: vi.fn() });
 			const seen: { status: string; error: string | undefined; listeners: number }[] = [];
 			const agent = makeSubagent({
+				selection: gatedSelectionOwner(scope),
 				execution: makeStubExecution({
-					selectionScope: scope,
 					observer: { onRunFinished: (record) => {
 						seen.push({ status: record.status, error: record.error, listeners: getEventListeners(startup.signal, "abort").length });
 					} },
@@ -2556,8 +2580,8 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 			const seen: { status: string; error: string | undefined }[] = [];
 			const agent = makeSubagent({
 				status: "running",
+				selection: gatedSelectionOwner(scope),
 				execution: makeStubExecution({
-					selectionScope: scope,
 					observer: { onRunFinished: (record) => seen.push({ status: record.status, error: record.error }) },
 				}),
 			});
@@ -2597,7 +2621,7 @@ describe("Subagent.run() — the per-spawn selection gate", () => {
 		});
 	});
 
-	// The initial selection outcome is the record-owned milestone between spawn
+	// The initial selection outcome is the owner's milestone between spawn
 	// and session creation. It is observed independently of the whole-run
 	// promise, so every case here reads waitForSpawnSelection() directly.
 	describe("initial selection outcome", () => {

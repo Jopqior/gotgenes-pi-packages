@@ -3,8 +3,8 @@ import { defineTool } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
 import { Type } from "@sinclair/typebox";
 import { AgentTypeRegistry } from "#src/config/agent-types";
+import type { SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
-import type { SpawnSelectionOutcome } from "#src/lifecycle/subagent";
 import type {
 	AgentSpawnConfig,
 	ResumeCallOptions,

@@ -92,6 +92,7 @@ flowchart TB
         CreateSubagentSession["createSubagentSession<br/>(assembly factory)"]
         SubagentSession["SubagentSession<br/>(turn loop, steer, dispose)"]
         Subagent["Subagent<br/>(status, behavior: abort/steer/run lifecycle)"]
+        InitialSelection["InitialSpawnSelection<br/>(attempt + one-shot acknowledgement)"]
         ParentSnapshot["ParentSnapshot<br/>(frozen parent state)"]
         Workspace["workspace<br/>(provider seam: child cwd + teardown)"]
     end
@@ -123,7 +124,8 @@ flowchart TB
 
     AgentTool --> SubagentManager
     SubagentManager --> Subagent
-    Subagent --> CreateSubagentSession & SubagentSession
+    SubagentManager --> InitialSelection
+    Subagent --> InitialSelection & CreateSubagentSession & SubagentSession
     CreateSubagentSession --> SubagentSession
     CreateSubagentSession --> SessionConfig
     SessionConfig --> AgentTypeRegistry
@@ -147,6 +149,7 @@ classDiagram
         +isBackground: boolean
         -state: SubagentState
         -execution: SubagentExecution
+        -selection: InitialSelection
         +status: SubagentStatus
         +result?: string
         +error?: string
@@ -177,6 +180,15 @@ classDiagram
         +completeResume(result)
         +failResume(err)
         +disposeSession()
+    }
+
+    class InitialSpawnSelection {
+        +awaitingSelection: boolean
+        +selectedPair: ValidatedSpawnSelection | undefined
+        +begin(runSignal): Promise~SelectionPermit~ | undefined
+        +wait(signal, cancelStartup): Promise~SpawnSelectionOutcome~
+        +cancelUnfinished(cancelStartup): boolean
+        +finished(terminal)
     }
 
     class SubagentState {
@@ -248,6 +260,8 @@ classDiagram
     }
 
     SubagentManager --> Subagent : creates/manages
+    SubagentManager --> InitialSpawnSelection : constructs per spawn
+    Subagent --> InitialSpawnSelection : uses via InitialSelection
     Subagent --> SubagentState : owns (private)
     Subagent --> SubagentExecution : runs via (mandatory)
     SubagentManager --> ParentSnapshot : receives at spawn
@@ -302,6 +316,7 @@ sequenceDiagram
     participant Mgr as SubagentManager
     participant Gate as ConcurrencyLimiter
     participant Ag as Subagent
+    participant Owner as InitialSpawnSelection
     participant Chooser as Selection provider
     participant Factory as createSubagentSession
     participant Sub as SubagentSession
@@ -313,11 +328,16 @@ sequenceDiagram
     Mgr-->>Tool: ID synchronously
     Tool->>Mgr: waitForSpawnSelection(id, tool signal)
     Mgr->>Ag: waitForSpawnSelection(signal)
+    Ag->>Owner: wait(signal, cancelStartup)
     Gate->>Ag: run() after admission
-    Ag->>Chooser: select available model/thinking pair
-    Chooser-->>Ag: choice
-    Note over Ag: validate, check cancellation, apply pair, detach startup listeners
-    Ag-->>Tool: selected outcome via manager
+    Ag->>Owner: begin(run signal) after admission
+    Owner->>Chooser: select available model/thinking pair
+    Chooser-->>Owner: choice
+    Note over Owner: validate, check cancellation, retain pair, detach startup listeners
+    Owner-->>Ag: selection permit (pair, signal, liveness check)
+    Owner-->>Ag: selected outcome for waiting tool
+    Ag-->>Mgr: selected outcome
+    Mgr-->>Tool: selected outcome
     par Parent continuation
         Tool-->>LLM: confirmed startup acknowledgement and ID
         Note over LLM: next sequential tool may now run
@@ -337,7 +357,9 @@ The `selected` outcome releases the tool wait before downstream awaits; it does 
 With no provider at wait entry, `not-required` releases the tool immediately, even while the record is queued.
 Foreground uses `spawnAndWait()` and the whole-run promise, not the background selection boundary.
 
-The outcome (`not-required`, `selected`, `stopped`, or `failed`) is one-shot record state, retained across resume and excluded from the public service and snapshots.
+The outcome (`not-required`, `selected`, `stopped`, or `failed`) is one-shot state on the record's initial-selection owner, retained across resume and excluded from the public service and snapshots.
+The manager constructs that owner with the spawn identity, snapshot catalogue, and retained scope; the record delegates admission-time selection, waiting, and disposal cancellation while keeping workspace and session orchestration.
+The record composes its initial terminal observer so the original observer runs before the owner receives the recorded status and error; resume notifications do not repeat this settlement.
 Queued stop settles it without admission; active cancellation races the provider, discarding late answers and observing late rejection.
 The tool signal and scope closure cancel unfinished startup, with listeners removed at settlement.
 Manager disposal cancels outstanding initial selection before clearing scheduled work and records, without changing confirmed-task shutdown policy.
@@ -383,12 +405,13 @@ src/
 │   └── session-dir.ts              session directory derivation
 │
 ├── lifecycle/                      agent execution and state tracking
-│   ├── subagent-manager.ts         collection manager + observer wiring + session-retention sweep (consumption-aware; an unanswered question holds the safety cap); the resume choke point, refusing from the record's own predicate and reporting a discriminated outcome, so every front door declines the same resumes
+│   ├── subagent-manager.ts         collection manager + selection-owner construction + observer wiring + session-retention sweep (consumption-aware; an unanswered question holds the safety cap); the resume choke point, refusing from the record's own predicate and reporting a discriminated outcome, so every front door declines the same resumes
 │   ├── create-subagent-session.ts  assembly factory: session creation, spawn-tool denylist, core child-tool install, binding; optional gated-run signal after loader awaits
 │   ├── subagent-session.ts         born-complete child session: turn loop, steer, shutdown-then-dispose teardown
 │   ├── turn-limits.ts              normalizeMaxTurns (turn-count policy)
-│   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); owns the one-shot initial-selection outcome and startup-only cancellation, racing provider abort after admission and confirming the selected pair before workspace/session creation; a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal, including a live run), which the resume choke point and every result carrier read rather than re-deriving; reports a resume's start as well as its end
-│   ├── subagent-state.ts           lifecycle status + metrics + result-delivery value object (transitions, accumulators, classification predicates); delivery carries a revocable carrier claim, a one-way consumption latch, and a per-run update ledger that renders only what no announcement delivered; private awaiting-selection activity, never a public status
+│   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); delegates initial selection and terminal acknowledgement to its owner after the original observer, rechecking its permit after workspace preparation before creating a session; a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal, including a live run), which the resume choke point and every result carrier read rather than re-deriving; reports a resume's start as well as its end
+│   ├── subagent-state.ts           lifecycle status + metrics + result-delivery value object (transitions, accumulators, classification predicates); delivery carries a revocable carrier claim, a one-way consumption latch, and a per-run update ledger that renders only what no announcement delivered
+│   ├── initial-spawn-selection.ts  initial provider attempt, pending activity, validated pair, cancellation race, and one-shot tool acknowledgement; receives recorded terminal facts after the original observer
 │   ├── run-listeners.ts            per-run observer-unsub and signal-detach handles
 │   ├── workspace-bracket.ts        child workspace prepare/dispose lifecycle; idempotent dispose, reports a torn-down workspace
 │   ├── concurrency-limiter.ts       background admission gate: schedules run thunks FIFO against the limit

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { SpawnSelectionOutcome } from "#src/lifecycle/subagent";
+import type { SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import { type BackgroundParams, spawnBackground } from "#src/tools/background-spawner";
 import { createToolDeps } from "#test/helpers/make-deps";
 import { makeModel } from "#test/helpers/make-model";
