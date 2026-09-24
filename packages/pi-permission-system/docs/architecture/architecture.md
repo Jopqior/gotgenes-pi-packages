@@ -1264,6 +1264,9 @@ Deferred by composition, with the reason each carries: [#804] (staging slice 7, 
   A test-running tool for TDD cycles is repo-wide tooling (`scope:repo`) that touches no token role or declared effect.
 - [#976] — filed by [#957]'s PR review (PR #972); out of scope for the roadmap.
   It asks only for a clearer prompt reason on a parse-failure floor, which can land at any time; the parse failure involves no token role, and folding it into [#881] would make it wait on [#880].
+- [#977] — filed by [#609]'s planning; **becomes a new step in this phase, directly after [#609]** (operator decision, 2026-09-24).
+  `tree-sitter-bash` 0.25.1 parses every word after a redirect as another destination of it, so `git 2>/dev/null push --force` enumerates as the unit `git` and runs under a `git push *` deny, and `find ~/x 2>/dev/null -delete` proves `~/x` a read because the `-delete` guard never sees the flag — both measured through the real `resolveBashCommandCheck`.
+  It is this phase's cause one layer down (the parse hands a command's argument the role of a redirect target), and [#609] lands the helper naming a redirect's real target, which this step reuses rather than re-derives.
 - Feature issues [#691], [#687], [#680], [#654], [#648], [#604], [#603], [#472] — out of scope for a structural phase; [#680] is narrowed further by [#880] (a declared reader needs no floor override), and [#604] by [#813].
 
 #### Deferred tidyings swept
@@ -1411,6 +1414,19 @@ ADR 0013 measured the drop and ADR 0009 lists redirect targets among the project
 
 Release: independent
 
+#### [#977] An argument after a redirect belongs to its command
+
+**Cause:** `tree-sitter-bash` 0.25.1 declares a file redirect's target as `repeat1($._literal)`, so `cmd 2>/dev/null arg` parses `arg` as a second destination rather than an argument (upstream tree-sitter/tree-sitter-bash#233, closed while the default branch still carries `repeat1`).
+Three consumers read the misparse: command enumeration drops the trailing words with the redirect, the effect proof's retraction guards never see them, and the path collector attributes them the redirect operator's effect.
+
+- **Smell:** Category C (a token's role — argument, not destination — lost before any consumer reads it).
+- **Target:** decided by the plan; the likely seam normalizes the redirected statement once so `command-enumeration.ts`, `command-effects.ts`'s guards via `token-collection.ts`, and `collectRedirectTokens` read one argument list, reusing [#609]'s redirect-target helper in `redirect-analysis.ts`.
+- **Constraint:** only the first destination is the redirect's target; `redirectMayWriteFile`'s refusal must stay fail-closed for whatever the plan cannot place.
+- **Outcome:** `git 2>/dev/null push --force` is denied by `git push *`; `find ~/x 2>/dev/null -delete` retracts the read; `grep pat 2>/dev/null ~/x/f.txt` attributes `~/x/f.txt` grep's read.
+- **Commit type:** `fix:`.
+
+Release: independent
+
 #### [#924] `sed` and `awk` are read-only until an argument withdraws the claim
 
 **Cause:** the pure-reader core excludes `sed` and `awk` outright — their program text and `-i` flag *can* write — so a plainly read-only `sed -n '1,80p' file` attributes its operand to both directional surfaces and takes the more restrictive answer.
@@ -1510,6 +1526,7 @@ flowchart TD
     S963 -.-> S880["#880<br/>commandEffects"]
     S880 --> S881["#881<br/>Blame reaches the ask"]
     S609 -.-> S881
+    S609 -.-> S977["#977<br/>Arguments after a redirect"]
     S881 -.-> S882["#882<br/>May a link dismiss a nonexistent-path ask?"]
 ```
 
@@ -1524,7 +1541,8 @@ The diagram is laid out by dependency instead, so its shape and the working sequ
 
 ### Parallel tracks
 
-- **Track A — role-carrying projection:** [#945] → [#863] → [#859] → [#957] → [#609].
+- **Track A — role-carrying projection:** [#945] → [#863] → [#859] → [#957] → [#609] → [#977].
+  [#977] also re-enters `command-enumeration.ts` and the argument words `command-effects.ts`'s guards read, which Track B's [#924] and [#880] edit — sequence it against whichever of them is in flight rather than concurrently.
   Owns `src/access-intent/bash/token-collection.ts`, `token-classification.ts`, `bash-path-resolver.ts`, and the bash-path tests.
 - **Track B — proven and declared effects, and blame:** [#924] → [#963] → [#880] → [#881].
   [#924] owns `command-effects.ts` and the pure-reader core section of `docs/configuration.md`; [#963] owns `wrapper-analysis.ts` and ADR 0013 §11; [#880] owns `src/config/` and re-enters `command-effects.ts`; [#881] owns `src/presentation/` and the two bash path gates.
@@ -1537,7 +1555,7 @@ The sandbox seam that Phase 15 briefly carried as a fourth track is now Phase 16
 
 - **Batch "declared-effects":** [#880], [#881] (ship together; tail = [#881]; release vehicle = [#880]'s `feat:` with [#881]'s `fix:` riding the same release).
   They ship together because [#881]'s blame line names the config key [#880] creates, and a prompt telling the user to declare an effect they cannot declare is worse than the prompt it replaces.
-- Independently releasable: [#945] (`fix:`), [#863] (`fix:`), [#859] (`fix:`), [#957] (`fix:`), [#609] (`fix!:` — newly prompts on a bare creating redirect under an unconfigured `path_write`), [#924] (`fix:`), [#882] (`feat:` if the checkpoint changes; a `docs:` amendment alone cuts no release).
+- Independently releasable: [#945] (`fix:`), [#863] (`fix:`), [#859] (`fix:`), [#957] (`fix:`), [#609] (`fix!:` — newly prompts on a bare creating redirect under an unconfigured `path_write`), [#977] (`fix:`), [#924] (`fix:`), [#882] (`feat:` if the checkpoint changes; a `docs:` amendment alone cuts no release).
 
 ## Refactoring history
 
@@ -1681,5 +1699,6 @@ Each phase's findings, step plan, dependency diagram, and health metrics are pre
 [#970]: https://github.com/gotgenes/pi-packages/issues/970
 [#973]: https://github.com/gotgenes/pi-packages/issues/973
 [#976]: https://github.com/gotgenes/pi-packages/issues/976
+[#977]: https://github.com/gotgenes/pi-packages/issues/977
 [#490]: https://github.com/gotgenes/pi-packages/issues/490
 [ADR-0002]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0002-extensions-on-a-minimal-core.md
