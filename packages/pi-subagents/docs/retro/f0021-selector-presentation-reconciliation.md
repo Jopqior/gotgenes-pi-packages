@@ -108,3 +108,74 @@ The final implementation review is PASS; issue 19 remains open for the overall m
 - No adopted PR or additional co-shipped issue was identified in the plan, retro, commit subjects, or changed paths.
 - Push, exact-SHA CI verification, and issue closure are pending at this entry's commit; the ship session reports their actual results separately.
   No worktree teardown applies in the trunk lane.
+
+## Stage: Final Retrospective (2026-09-24T16:54:33Z)
+
+### Session summary
+
+Reviewed the planning, implementation, review-follow-up, and ship transcripts, plus the separate subagent transcripts for design assessment, implementation, and review.
+The presentation delivery is on `main`, fork issue 21 is closed, and no package release was due; fork issue 19 remains open for the combined maintenance assessment.
+This retrospective records workflow friction without reopening the shipped implementation.
+
+### Observations
+
+#### What went well
+
+- The synthetic mode-label rename exposed a concrete maintenance obligation rather than relying on a smaller diff as evidence.
+  The delivered trials in `packages/pi-subagents/docs/architecture/selector-presentation-maintenance.md` also retained the correctly repaired old model helper as a control, distinguishing simpler adaptation from a false claim of eliminating duplicate formulas.
+- Fresh plan review caught a mutation that changed only the `twin` branch and therefore could not distinguish the `mirror` fixture.
+  Correcting the full fallback before implementation prevented a misleading test-quality requirement from reaching the TDD steps.
+- After the operator clarified delegation granularity, each implementation step ran in a fresh child and ended at its own commit boundary.
+  The parent checked the tree between steps, and independent review remained separate from implementation.
+
+#### What caused friction (agent side)
+
+- `wrong-abstraction` — the initial implementation dispatch bundled the whole plan instead of the operator's preferred one-step-per-child execution.
+  The operator redirected it before the recorded step-specific execution began; the transcript does not establish that the initial dispatch ran any child turns.
+  Impact: an avoidable user intervention and replacement dispatch, with no demonstrated code rework.
+- `missing-context` — the planning summary introduced `mirror` without immediately explaining that it was an arbitrary synthetic replacement for `twin`, not a product feature.
+  The operator asked what the label meant after the plan was committed.
+  Impact: one clarification exchange; no design or code change was needed.
+- `instruction-violation` — self-identified by the independent reviewer: `test/tools/spawn-config.test.ts` reset its module-level mock in `afterEach` despite the loaded testing skill requiring `beforeEach`.
+  The parent initially left this as a non-blocking WARN; the operator then requested an assessment and approved the fix.
+  Impact: the follow-up `test(pi-subagents): reset presentation mock before each test` commit, another review, and updated stage notes; no isolation failure was observed.
+- `other` — the isolated trial's first invocation hit pnpm's external `node_modules` link restriction before tests ran.
+  The child changed the runner to invoke the installed Vitest executable and reran successfully.
+  Impact: one failed invocation and a runner edit, without dependency or production changes.
+- `missing-context` — the parent guessed a temporary log glob that did not exist, searched `/tmp/`, and then reran the core suite to obtain its own result.
+  Impact: unnecessary artifact lookup before an otherwise legitimate independent verification; child handoff paths would have removed the lookup.
+- `other` — ship read back the close comment and issued a PATCH after `issue_close`.
+  The current GitHub comment is correctly formatted and the issue is closed; the compact transcript omits the initial tool-result body, so this review does not assign a root cause to the repair.
+  Impact: an additional readback and remote edit.
+
+#### What caused friction (user side)
+
+- Stating the one-step-per-child preference at implementation entry would avoid the initial delegation mismatch; the operator's immediate redirect nevertheless kept it from becoming implementation rework.
+- The WARN follow-up required mechanical oversight from the operator rather than a new product decision.
+  The parent could have presented the small fix's cost and recommendation with the initial warning instead of waiting for a separate assessment request.
+- Asking what `mirror` meant was useful feedback on the explanation, not missing requirements from the operator.
+  Future summaries can introduce it as an arbitrary test-only label without adding another standing rule.
+
+### Diagnostic details
+
+- Model attribution comes from inline assistant labels in unfiltered transcript reads, not agent definitions.
+  The design alternative assessment, Tidy First assessment, plan review, initial pre-completion review, and delta review ran on `openai-codex/gpt-6-astra`.
+  The characterization, common producer, activity consolidation, and reconciliation-evidence steps each ran on `openai-codex/gpt-6-sol`.
+  The mock-hook warning and mutation correction do not establish a model-capability mismatch; no comparative cost or quality measurement supports a routing change.
+- No reviewed friction sequence warrants a rabbit-hole escalation finding.
+  The isolated-runner error was followed immediately by an edit and a successful rerun, rather than repeated attempts with the same failing invocation.
+- The verification sequence was incremental, not end-only: characterization mutations preceded its commit; the shared-interface step included post-commit root typecheck; activity changes had focused/full tests; the evidence step and both reviewers ran repository gates.
+  The remaining feedback gap was deciding how to handle an already identified, inexpensive convention fix, not absence of verification.
+- Existing `.pi/skills/testing/SKILL.md` already specifies `beforeEach`, `.pi/skills/clarification-gates/SKILL.md` already requires defining unfamiliar terms, and the planning/TDD prompts already require discriminating mutations.
+  Duplicating those instructions in `AGENTS.md` would fail its admission test; this review proposes no new rule for those incidents.
+
+### Follow-up
+
+Both implementation steps in Phase 23 are marked complete in `packages/pi-subagents/docs/architecture/architecture.md`.
+The next workflow is `/finish-phase pi-subagents`, including the combined evidence assessment for still-open fork issue 19; child completion alone does not authorize closing that parent.
+Only after that disposition should `/plan-improvements pi-subagents` begin another round.
+
+### Changes made
+
+1. Appended this cross-session retrospective to `packages/pi-subagents/docs/retro/f0021-selector-presentation-reconciliation.md`, including transcript-based friction, model attribution, verification timing, and the phase-close handoff.
+2. The operator approved notes-only delivery; no changes were made to `AGENTS.md`, `.pi/prompts/`, skills, production code, tests, or `CHANGELOG.md`.
