@@ -38,3 +38,25 @@ I prototyped the design and measured it against 8746 real review-log commands, f
 
 - `src/access-intent/bash/token-collection.ts` / `bash-path-resolver.ts`: three literal re-spellings of `COMMAND_PREFIX_TYPES`, now #977's prep.
 - `src/handlers/gates/bash-path-extractor.ts` and its 1300-line test: no production caller, now #978.
+
+## Stage: Implementation — TDD (2026-09-24T22:46:05Z)
+
+### Session summary
+
+All six plan steps landed as six commits: the `test:` projection prep, `redirectTargetIndex`, `hasComputedPart`, the required `PathToken.role`, the `fix!:` projection by role, and the docs.
+The `pi-permission-system` suite went from 4614 to 4648 tests (+34), and every step's named killing mutation turned its tests red.
+The re-run corpus spike matched the plan exactly: over 8753 commands, `path` +90 tokens in 60 commands, `external_directory` +97 in 62, 0 lost, and no gained token flag-shaped or computed.
+
+### Observations
+
+- Step 1 deviated in form: instead of wrapping 19 call sites, it changed the two helpers (`tokensOf`, `attributedTokens`) to return the `{ token, effect }` projection, which has the same effect with two edits.
+  The assessor's count missed one more exact `PathToken` assertion (the `node -e "$(cat /etc/shadow)"` case in the interpreter describe), which failed at step 4 and was routed through the same `tokenEffectsOf` projection in that commit.
+- Step 4's `syntax`-source mutation **survived** the plan's `cat <> rw.txt` case, because that parse leaves an `ERROR` child after the operator, so the word is not the target index and the first-destination rule covers it anyway.
+  I added `cat <> ~/rw.txt` (the split where the parse leaves a well-formed-looking redirect), which the mutation kills.
+- The mutation for step 1 was applied in the same tool batch as its green-copy `cp`, and the tools ran concurrently, so the saved copy held the mutation; `git checkout` restored the file because it had no uncommitted green edit.
+  Sequence the save and the mutation in separate turns.
+- I emitted `\u2014` escapes three times in `Edit` bodies (source comment, ADR 0013 staging line, architecture edit); each time I caught it with a grep and replaced it by a parenthetical or a scripted substitution.
+- A test block inserted with a Python script skipped `pi-autoformat`, so the pre-commit Biome hook reformatted `program.test.ts` and rejected the first `fix!:` commit; it landed on re-stage.
+- Pre-completion reviewer: **WARN**.
+  It independently re-derived the redirect spellings (fd-prefixed, `>&-`, `<>`, herestrings, heredocs, quoted/expanded, substitution targets, redirects on compound statements) and found no gap.
+  Reviewer warnings: the TDD retro entry was missing (this entry); two decision-surface consumers outside the diff, `logging/command-redaction.ts` (for `node-text.ts`, which only gained an export) and `command-enumeration.ts` (for `redirectMayWriteFile`, which is unchanged), are not re-covered by in-range tests.
