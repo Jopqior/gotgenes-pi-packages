@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import { resolveSpawnConfig } from "#src/tools/spawn-config";
 import type { AgentConfig } from "#src/types";
@@ -9,7 +9,7 @@ vi.mock("#src/ui/display", async (importOriginal) => {
   return { ...actual, getPromptModeLabel: (...args: Parameters<typeof actual.getPromptModeLabel>) =>
     modeLabelOverride.getMockImplementation()?.() ?? actual.getPromptModeLabel(...args) };
 });
-afterEach(() => modeLabelOverride.mockReset());
+beforeEach(() => modeLabelOverride.mockReset());
 
 import { makeModel } from "#test/helpers/make-model";
 
