@@ -92,3 +92,75 @@ The plan recommends independent delivery, but the release derivation reports not
   Issues 19 and 21 remain open, and Phase 23 is not complete.
 - This delivery preserves public behavior and carries no breaking change.
   The next interactive workflow step after successful shipping is `/retro 20`.
+
+## Stage: Final Retrospective (2026-09-24T15:27:02Z)
+
+### Session summary
+
+Reviewed the planning, implementation, and shipping transcripts alongside the accumulated stage notes and the individual subagent reports.
+The delivery preserved selector behavior while demonstrating narrower reconciliation obligations through fixed-upstream method replays; shipping subsequently passed exact-SHA CI and closed fork issue 20 without a release.
+Fork issues 19 and 21 remain open, and Phase 23 still recommends presentation work next.
+
+### Observations
+
+#### What went well
+
+- The maintenance objective became a falsifiable acceptance test rather than a source-size claim: `docs(pi-subagents): record startup reconciliation evidence` compared actual upstream terminal bodies against both trees and disclosed the remaining notification contract.
+- Independent plan review caught two fixture traps before implementation: the runnable helper silently supplied an empty observer, and observer exceptions affected the run and selection promises differently.
+  Those findings became explicit characterization and mutation requirements rather than late review repairs.
+- After the operator corrected delegation granularity, each implementation step used a fresh agent, its own commit, and parent inspection before the next dispatch.
+  This preserved the introduce-alongside, migrate, and remove sequence without treating the entire plan as one opaque task.
+
+#### What caused friction (agent side)
+
+- `wrong-abstraction` — the implementation parent delegated the complete TDD plan to one agent before the operator requested one agent per step.
+  Impact: one abandoned dispatch and a user intervention; the parent checked that no files or commits had changed before restarting at step 1.
+  This was a preference mismatch, not a violation of an already-written per-step delegation rule.
+- `other` — planning obeyed the then-current mandatory feature-branch rule, which the operator rejected for this fork.
+  Impact: a temporary branch, a fast-forward back to `main`, branch deletion, and the separate `docs: remove mandatory feature branch guidance` commit.
+  The rule was already removed during planning; no additional branch-policy change is needed.
+- `missing-context` — step 2 initially used the inherited `@gotgenes/pi-subagents` filter rather than the manifest's fork identity.
+  Impact: a no-project-match invocation followed by correction to `@jopqior/pi-subagents`, with no product rework.
+- `missing-context` — required-owner migration exposed runnable uses of the nominally passive fixture in `test/observation/notification.test.ts`, `test/tools/agent-tool.test.ts`, and `test/tools/get-result-tool.test.ts`.
+  Impact: the complete suite initially failed and those callers required real-owner fixtures in the same migration step; assertions were retained.
+- `other` — the first queued-cancellation mutation filter selected no tests.
+  Impact: one ineffective mutation invocation, self-corrected by using the exact test name and obtaining an actual Red before restoring Green.
+- `missing-context` — raw replay logs lived under `/tmp/pi-subagents-issue20-replay`, outside the reviewer's permitted read scope.
+  Impact: the reviewer could verify Git bodies and state equality but not independently inspect the recorded baseline timeout logs; the handoff retained a provenance WARN rather than closing that evidence gap.
+  Future review handoffs can provide a bounded, reviewer-readable evidence copy without broadening filesystem permissions.
+
+#### What caused friction (user side)
+
+- The operator had to correct branch policy and delegation granularity rather than judge the implementation itself.
+  Both interventions were useful and early; persisting the remaining per-step preference would avoid requiring the same mechanical oversight on the next plan.
+- No evidence suggests missing product requirements from the operator caused the fixture migration or review-evidence gap.
+  Those are agent discovery and handoff responsibilities.
+
+### Diagnostic details
+
+- Model attribution comes from unfiltered rendered transcript excerpts, not agent configuration or current-session environment variables.
+  The planning design comparison and independent plan review ran on `openai-codex/gpt-6-astra`; the Tidy-First assessment ran on `openai-codex/gpt-6-sol`.
+  The abandoned whole-plan worker and each of steps 1–5 ran on `openai-codex/gpt-6-sol`; the final pre-completion reviewer ran on `openai-codex/gpt-6-astra`.
+  The parent planning, implementation, and shipping turns inspected also used `openai-codex/gpt-6-astra`.
+  No observed quality failure can be attributed to model choice; task bounds and evidence accessibility explain the concrete mismatches better.
+- Feedback-loop inspection found root baseline gates before delegation, step-level tests/typechecks and mutation restoration, then restored-tree root gates and an independent final gate run.
+  Verification was not deferred until the end; the full-suite fixture failures were caught within migration rather than after shipping.
+- No observed repeated-error sequence warrants a rabbit-hole escalation finding.
+  The missed-filter and package-filter errors were corrected locally; adding a generic escalation threshold would not address their causes.
+- Existing delegation guidance already requires raw evidence rather than inherited coverage claims, and manifest-aware package invocation is already documented in `AGENTS.md`.
+  Do not add duplicate global rules for either incident.
+
+### Proposed adjustment
+
+Add a short per-step delegation constraint to `.pi/prompts/tdd-plan.md`: when delegating implementation, use a fresh subagent for one TDD step, inspect its diff and verification evidence before the next dispatch, and keep final review separate.
+Do not change `AGENTS.md`, broaden reviewer permissions, rewrite inherited lifecycle comments, or introduce a new evidence-storage mechanism in this retrospective.
+
+### Next work
+
+The Phase 23 roadmap's next delivery is fork issue 21, `Reduce selector presentation reconciliation with upstream UI changes`; GitHub still reports it open.
+Proceed with `/plan-issue #21`, then retain issue 19 for the overall maintenance-outcome assessment rather than closing the phase now.
+
+### Changes made
+
+1. Appended this cross-session retrospective to `packages/pi-subagents/docs/retro/f0020-selector-startup-coordination.md`, including delegation friction, evidence limits, diagnostic findings, and the verified next issue.
+2. The operator chose notes only and declined the proposed `.pi/prompts/tdd-plan.md` adjustment; no prompt, skill, `AGENTS.md`, or production-code changes were made.
