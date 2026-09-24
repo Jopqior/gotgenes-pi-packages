@@ -487,7 +487,7 @@ describe("collectCommandTokens — pattern-first commands", () => {
           'node -e "$(cat /etc/shadow)"',
         );
         try {
-          expect(collectCommandTokens(node)).toEqual([
+          expect(tokenEffectsOf(collectCommandTokens(node))).toEqual([
             {
               token: "/etc/shadow",
               effect: { effect: "read", source: "core" },
@@ -1314,5 +1314,84 @@ describe("effect attribution", () => {
         { token: "~/rw.txt", effect: UNPROVEN_EFFECT },
       ]);
     });
+  });
+});
+
+describe("token role", () => {
+  async function rolesOf(
+    command: string,
+  ): Promise<Pick<PathToken, "token" | "role">[]> {
+    const parser = await getParser();
+    const tree = parser.parse(command);
+    if (!tree) throw new Error("parse returned null");
+    try {
+      return collectPathCandidateTokens(tree.rootNode).map(
+        ({ token, role }) => ({ token, role }),
+      );
+    } finally {
+      tree.delete();
+    }
+  }
+
+  describe("a redirect's own target", () => {
+    it("is a redirect destination for an output redirect", async () => {
+      expect(await rolesOf("cat a > out.txt")).toEqual([
+        { token: "a", role: "operand" },
+        { token: "out.txt", role: "redirect-destination" },
+      ]);
+    });
+
+    it("is a redirect destination for an input redirect", async () => {
+      expect(await rolesOf("sort < in.txt")).toEqual([
+        { token: "in.txt", role: "redirect-destination" },
+      ]);
+    });
+  });
+
+  describe("a redirect child that is not a proven literal target", () => {
+    it("is an operand when it is a word after the first destination", async () => {
+      // tree-sitter-bash parses `f.txt` as a second destination; bash passes
+      // it to `grep` as an argument (#977).
+      expect(await rolesOf("grep pat 2>/dev/null f.txt")).toEqual([
+        { token: "/dev/null", role: "redirect-destination" },
+        { token: "f.txt", role: "operand" },
+      ]);
+    });
+
+    it("is an operand when the target is computed at run time", async () => {
+      expect(await rolesOf('echo hi > "$OUT"')).toEqual([
+        { token: "hi", role: "operand" },
+        { token: "$OUT", role: "operand" },
+      ]);
+    });
+
+    it("is an operand when the parse could not resolve the redirect", async () => {
+      expect(await rolesOf("cat <> rw.txt")).toEqual([
+        { token: "rw.txt", role: "operand" },
+      ]);
+    });
+
+    it("is an operand when an unresolved neighbour leaves a well-formed redirect", async () => {
+      // The parse strands `<` ahead of a redirect indistinguishable from
+      // `> ~/rw.txt`, so the target is the first child after the operator and
+      // only the demoted proof keeps it from the role (#814).
+      expect(await rolesOf("cat <> ~/rw.txt")).toEqual([
+        { token: "~/rw.txt", role: "operand" },
+      ]);
+    });
+
+    it("is an operand when the target is empty", async () => {
+      expect(await rolesOf('echo hi > ""')).toEqual([
+        { token: "hi", role: "operand" },
+        { token: "", role: "operand" },
+      ]);
+    });
+  });
+
+  it("gives a command hosted in a target its own operands' role", async () => {
+    expect(await rolesOf("echo hi > $(cat /etc/shadow)")).toEqual([
+      { token: "hi", role: "operand" },
+      { token: "/etc/shadow", role: "operand" },
+    ]);
   });
 });

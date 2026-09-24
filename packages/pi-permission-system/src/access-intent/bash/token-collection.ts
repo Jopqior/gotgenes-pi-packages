@@ -4,14 +4,31 @@ import { proveCommandEffect } from "./command-effects";
 import { EXECUTION_HOST_TYPES, forEachExecutionIn } from "./nested-execution";
 import {
   ARG_NODE_TYPES,
+  hasComputedPart,
   resolveNodeText,
   SKIP_SUBTREE_TYPES,
 } from "./node-text";
 import type { TSNode } from "./parser";
-import { redirectEffectForDestination } from "./redirect-analysis";
+import {
+  redirectEffectForDestination,
+  redirectTargetIndex,
+} from "./redirect-analysis";
 
 /**
- * A collected path-candidate token paired with the effect its position proved.
+ * What a collected token is, as the collector that produced it established.
+ *
+ * The role decides candidacy and the effect decides direction; both are
+ * stamped at the same site and never re-derived downstream.
+ */
+export type TokenRole =
+  /** An operand of unknown path-hood: shape and the existence probe decide. */
+  | "operand"
+  /** A redirect's own target, which the syntax proves names a file. */
+  | "redirect-destination";
+
+/**
+ * A collected path-candidate token paired with the effect its position proved
+ * and the role its collector gave it.
  *
  * The pairing is made where the token is *produced*, never by mapping a whole
  * result: a nested execution's tokens carry their own command's attribution
@@ -20,6 +37,7 @@ import { redirectEffectForDestination } from "./redirect-analysis";
 export interface PathToken {
   readonly token: string;
   readonly effect: TokenEffect;
+  readonly role: TokenRole;
 }
 
 // ── Public surface ─────────────────────────────────────────────────────────
@@ -108,21 +126,53 @@ export function collectCommandTokens(node: TSNode): PathToken[] {
  * in front of it is. A destination the operator names as a file descriptor
  * (`2>&1`) contributes no token at all.
  *
+ * The redirect's own target carries the `redirect-destination` role when the
+ * syntax proves it names a file, so the projection admits it whether or not
+ * the file exists yet (#609). Every other child is an `operand`: a word the
+ * grammar appends after the target belongs to the redirected command (#977).
+ *
  * Reading the redirect node itself belongs to `redirect-analysis.ts`, which
  * the command enumerator consults for the same fact (#803).
  */
 export function collectRedirectTokens(node: TSNode): PathToken[] {
+  const target = redirectTargetIndex(node);
   const tokens: PathToken[] = [];
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
     if (!child) continue;
     if (ARG_NODE_TYPES.has(child.type)) {
       const effect = redirectEffectForDestination(node, child);
-      if (effect) tokens.push({ token: resolveNodeText(child), effect });
+      if (effect) {
+        const token = resolveNodeText(child);
+        const role: TokenRole =
+          i === target && provesTarget(effect, child, token)
+            ? "redirect-destination"
+            : "operand";
+        tokens.push({ token, effect, role });
+      }
     }
     tokens.push(...collectHostedExecutionTokens(child));
   }
   return tokens;
+}
+
+/**
+ * Whether a redirect's target is proven to name this literal file.
+ *
+ * The operator must have proved an effect: a redirect the parse could not
+ * resolve proves nothing (#814). The value must be literal: a computed one
+ * names a file only running the command decides (ADR 0009's computed-path
+ * residual). And it must be non-empty, since bash refuses `> ""` rather than
+ * writing anything.
+ */
+function provesTarget(
+  effect: TokenEffect,
+  destination: TSNode,
+  token: string,
+): boolean {
+  return (
+    effect.source === "syntax" && !hasComputedPart(destination) && token !== ""
+  );
 }
 
 /**
@@ -204,7 +254,11 @@ function collectStatementOperandTokens(
       tokens.push(...collectPathCandidateTokens(child));
       continue;
     }
-    tokens.push({ token: resolveNodeText(child), effect: UNPROVEN_EFFECT });
+    tokens.push({
+      token: resolveNodeText(child),
+      effect: UNPROVEN_EFFECT,
+      role: "operand",
+    });
     tokens.push(...collectHostedExecutionTokens(child));
   }
   return tokens;
@@ -323,7 +377,9 @@ function collectEmbeddedOptionValues(
     if (!ARG_NODE_TYPES.has(child.type)) continue;
 
     const value = OPTION_VALUE_PATTERN.exec(resolveNodeText(child))?.[1];
-    if (value !== undefined) values.push({ token: value, effect });
+    if (value !== undefined) {
+      values.push({ token: value, effect, role: "operand" });
+    }
   }
   return values;
 }
@@ -334,7 +390,7 @@ function embeddedOptionValueToken(
   effect: TokenEffect,
 ): PathToken[] {
   const value = OPTION_VALUE_PATTERN.exec(text)?.[1];
-  return value === undefined ? [] : [{ token: value, effect }];
+  return value === undefined ? [] : [{ token: value, effect, role: "operand" }];
 }
 
 /**
@@ -802,7 +858,11 @@ function collectPatternCommandTokens(
             break;
           case "inline-value":
             if (directive.role === "script-file")
-              tokens.push({ token: directive.value, effect });
+              tokens.push({
+                token: directive.value,
+                effect,
+                role: "operand",
+              });
             if (suppliesScript(directive.role)) hasExplicitScript = true;
             break;
           case "regular-flag":
@@ -819,7 +879,7 @@ function collectPatternCommandTokens(
     if (!hasExplicitScript && positionalsSeen < patternPositionals) {
       positionalsSeen++; // Skip: this is an inline pattern/script.
     } else {
-      tokens.push({ token: text, effect });
+      tokens.push({ token: text, effect, role: "operand" });
     }
     // A quoted token that did not act as a flag above has its embedded value
     // split here instead.
@@ -874,7 +934,10 @@ function dischargePendingConsumption(
 ): ConsumptionDischarge {
   switch (role) {
     case "script-file":
-      return { consumed: true, token: { token: text, effect } };
+      return {
+        consumed: true,
+        token: { token: text, effect, role: "operand" },
+      };
     case "script":
     case "value":
       return { consumed: true };
@@ -923,7 +986,7 @@ function collectGenericCommandTokens(
 
     // Argument nodes: resolve their text and collect.
     if (ARG_NODE_TYPES.has(child.type)) {
-      tokens.push({ token: resolveNodeText(child), effect });
+      tokens.push({ token: resolveNodeText(child), effect, role: "operand" });
       continue;
     }
 
