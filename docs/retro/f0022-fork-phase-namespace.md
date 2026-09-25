@@ -43,3 +43,30 @@ The next entry point is `/tdd-plan docs/plans/f0022-fork-phase-namespace.md`; th
 - `test/roadmap/parse-roadmap.test.mjs` and `test/roadmap/roadmap-check.test.mjs`: wholesale assertion strengthening or test-tree reorganization was rejected because it does not prepare the scoped compatibility additions.
 
 These are rejected cleanup candidates, not implementation commitments.
+
+## Stage: Implementation — TDD (2026-09-25T08:56:41Z)
+
+### Session summary
+
+Completed the characterization-test step and the atomic convention-and-record migration, followed by the verification and handoff step.
+Fork phases now use independent per-package identities beginning at `f1`, and the former fork Phase 23 archive and retro have moved to `phase-f1-upstream-integration-maintenance.md` with original-name mappings.
+Added 9 tests: the root script suite increased from 270 to 279 passing tests, with package-suite counts unchanged.
+
+### Observations
+
+- `git pull --ff-only` reported already up to date; the initial working tree was clean.
+  Baseline and final `pnpm run check`, `pnpm run lint`, `pnpm run test`, and `pnpm fallow dead-code` all passed.
+- Characterization tests were initially green as planned.
+  Five separately applied mutations established discrimination: numeric-only headings killed 6 new tests, empty steps killed 5, empty edges killed 2, unconditional empty validation findings killed 2, and stripping the fork prefix from reports killed 3.
+  Each mutation was restored from a saved green file before the final focused and root-script runs; production parser, checker, and validator files remain unchanged.
+- Normalized before/after comparisons passed for the migrated archive, phase retro, and fork issue records.
+  Diagram bytes and inherited numeric phase records were preserved; old-path and anchor searches, uncached Markdown lint after clearing the rename cache, and the roadmap checker passed.
+- Allocation and lookup checks included numeric-only history, higher upstream phases, numeric suffix ordering, active roadmaps in either namespace, numeric/fork coexistence, retained planning retros, and duplicate-record reconciliation.
+  The templates preserve early session naming and resolve predecessor context through history links rather than arithmetic.
+- No scope deviations or changes to predicted-unchanged production files were required.
+  No phase was opened or archived, no follow-up issue was filed, and no package publication is required.
+- Pre-completion reviewer: PASS.
+  The fresh-context reviewer independently reran all four repository gates and checked migration preservation, namespace rules, tests, links, commits, and Mermaid rendering.
+- Implementation commits are `test: preserve fork and upstream roadmap title compatibility (#22)` and `feat!: separate fork improvement phase identities (#22)`.
+  The latter includes the planned repository-workflow breaking-change footer.
+  Next step: `/ship #22` without package publication; reload or start a fresh Pi session before using the edited planning or archival templates.
