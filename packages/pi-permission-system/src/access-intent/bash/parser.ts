@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { memoizeAsyncWithRetry } from "./async-cache";
+import { reattachRedirectArguments } from "./redirect-arguments";
 
 /**
  * Minimal subset of web-tree-sitter's SyntaxNode used by the AST walker.
@@ -67,8 +68,34 @@ async function initParser(): Promise<TSParser> {
 
 /**
  * The parser every consumer reads the bash grammar through.
+ *
+ * Its trees are the grammar's with one correction applied where they enter the
+ * package: a word `tree-sitter-bash` hung on a redirect is handed back to the
+ * command it belongs to (`reattachRedirectArguments`, #977). Every walker, the
+ * salvage re-parse, and the log masker read that corrected tree, so none of
+ * them has to learn the grammar's quirk on its own.
  */
-export const getParser = memoizeAsyncWithRetry(() => getGrammarParser());
+export const getParser = memoizeAsyncWithRetry(async () =>
+  correctingParser(await getGrammarParser()),
+);
+
+function correctingParser(grammar: TSParser): TSParser {
+  return {
+    parse: (input) => {
+      const tree = grammar.parse(input);
+      if (!tree) return null;
+      return {
+        rootNode: reattachRedirectArguments(tree.rootNode),
+        delete: () => {
+          tree.delete();
+        },
+      };
+    },
+    delete: () => {
+      grammar.delete();
+    },
+  };
+}
 
 /**
  * `tree-sitter-bash`'s own parser, whose trees are exactly what the grammar

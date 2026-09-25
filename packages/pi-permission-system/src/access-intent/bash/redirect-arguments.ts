@@ -97,15 +97,20 @@ function reattachStatement(
 
 /**
  * Whether the words after a redirect on `body` belong to a command: `body` is
- * one, or is a `list` whose last element reaches one (`cd a && git 2>… push`,
- * which the grammar groups under a single redirected statement).
+ * one, or is a `list` or `pipeline` whose last element reaches one. The grammar
+ * hangs a redirect on the last command of `cd a && git 2>/dev/null push` or
+ * `rg x | xargs ls 2>&1 ~/x` off the whole list or pipeline, while bash gives
+ * it, and its words, to that last command.
  */
 function reachesCommand(body: TSNode): boolean {
   if (body.type === "command") return true;
-  if (body.type !== "list") return false;
+  if (!GROUPING_TYPES.has(body.type)) return false;
   const last = lastNamedChild(body);
   return last !== undefined && reachesCommand(last);
 }
+
+/** The bodies whose last element a statement-level redirect belongs to. */
+const GROUPING_TYPES: ReadonlySet<string> = new Set(["list", "pipeline"]);
 
 /**
  * `redirect` as it belongs in the command: truncated after its own target and
@@ -134,7 +139,7 @@ function splitRedirect(redirect: TSNode, source: Source): TSNode[] {
 
 /**
  * `body` with `moved` appended to its rightmost command: the command itself,
- * or the last element of a `list`, recursively. Each node on the way grows to
+ * or the last element of a `list` or `pipeline`, recursively. Each node on the way grows to
  * the end of the last moved node.
  */
 function appendToRightmostCommand(

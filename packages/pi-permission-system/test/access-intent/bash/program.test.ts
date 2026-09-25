@@ -1020,6 +1020,14 @@ describe("BashProgram", () => {
         expect(program.externalAccesses()).toHaveLength(0);
       });
 
+      it("folds a cd whose target follows its redirect", async () => {
+        const program = await BashProgram.parse(
+          "cd 2>/dev/null a && cat ../b",
+          normalizer,
+        );
+        expect(program.externalAccesses()).toHaveLength(0);
+      });
+
       it("folds a cd whose redirect precedes its target", async () => {
         // The redirect is not cd's operand; `a` is. ../b resolves to cwd/b.
         const program = await BashProgram.parse(
@@ -1180,6 +1188,16 @@ describe("BashProgram", () => {
         // pipeline: ../b resolves against cwd/a (inside), not cwd (#454).
         const program = await BashProgram.parse(
           "cd a && pnpm x 2>&1 | tail ; cat ../b",
+          normalizer,
+        );
+        expect(program.externalAccesses()).toHaveLength(0);
+      });
+
+      it("folds it too when the redirect carries the command's words", async () => {
+        // The correction hands `x` back to `pnpm`, leaving the first stage a
+        // plain list, which folds its leading `cd a` the same way.
+        const program = await BashProgram.parse(
+          "cd a && pnpm 2>&1 x | tail ; cat ../b",
           normalizer,
         );
         expect(program.externalAccesses()).toHaveLength(0);
@@ -1346,6 +1364,43 @@ describe("BashProgram", () => {
       it("names what an indirection wrapper runs past a leading redirect", async () => {
         const program = await BashProgram.parse(
           "2>/dev/null sudo rm -rf /",
+          normalizer,
+        );
+        expect(program.commands()).toEqual([
+          {
+            text: "sudo rm -rf /",
+            wrapperKind: "indirection",
+            executedUnit: "rm -rf /",
+          },
+        ]);
+      });
+    });
+
+    describe("a redirect the grammar hung the command's words on", () => {
+      it.each([
+        ["git 2>/dev/null push --force", "git push --force"],
+        ["git push 2>&1 --force", "git push --force"],
+        ["grep pat 2>/dev/null f.txt", "grep pat f.txt"],
+        ["cmd >&- arg", "cmd arg"],
+      ])("keeps the words of %s in its unit", async (command, text) => {
+        const program = await BashProgram.parse(command, normalizer);
+        expect(program.commands()).toEqual([{ text }]);
+      });
+
+      it("gives the words to the last command of a list", async () => {
+        const program = await BashProgram.parse(
+          "cd a && git 2>/dev/null push --force",
+          normalizer,
+        );
+        expect(program.commands()).toEqual([
+          { text: "cd a" },
+          { text: "git push --force" },
+        ]);
+      });
+
+      it("names what an indirection wrapper runs from the words", async () => {
+        const program = await BashProgram.parse(
+          "sudo 2>/dev/null rm -rf /",
           normalizer,
         );
         expect(program.commands()).toEqual([
@@ -2059,6 +2114,13 @@ describe("BashProgram", () => {
             "core-reader",
           ]);
         });
+
+        it("keeps it when a word follows a descriptor duplication", async () => {
+          // `~/x` is `ls`'s operand, not a file `2>&1` writes.
+          await expect(
+            exemptions("rg -l x | xargs ls -1t 2>&1 ~/x"),
+          ).resolves.toEqual([undefined, "core-reader"]);
+        });
       });
 
       describe("a redirect that writes no file", () => {
@@ -2352,6 +2414,49 @@ describe("BashProgram", () => {
           effect: { effect: "write", source: "syntax" },
         },
       ]);
+    });
+
+    describe("a word after a redirect's target", () => {
+      /** The rule candidates of `command`, as token and effect. */
+      async function candidateEffects(command: string) {
+        const program = await BashProgram.parse(command, normalizer);
+        return program
+          .pathRuleCandidates()
+          .map(({ token, effect }) => ({ token, effect }));
+      }
+
+      it("carries the command's read, not the operator's write", async () => {
+        await expect(
+          candidateEffects("grep pat 2>/dev/null /etc/hosts"),
+        ).resolves.toEqual([
+          { token: "/dev/null", effect: { effect: "write", source: "syntax" } },
+          { token: "/etc/hosts", effect: { effect: "read", source: "core" } },
+        ]);
+      });
+
+      it("carries the command's read after a close operator", async () => {
+        await expect(candidateEffects("cat >&- /etc/hosts")).resolves.toEqual([
+          { token: "/etc/hosts", effect: { effect: "read", source: "core" } },
+        ]);
+      });
+
+      it("reaches the command's retraction guards", async () => {
+        const program = await BashProgram.parse(
+          "find /tmp/x 2>/dev/null -delete",
+          normalizer,
+        );
+        expect(
+          program.externalAccesses().map(({ path, effect }) => ({
+            path: path.value(),
+            effect,
+          })),
+        ).toEqual([
+          {
+            path: "/tmp/x",
+            effect: { effect: "unproven", source: "retracted" },
+          },
+        ]);
+      });
     });
 
     it("proves nothing for a token a non-core command owns", async () => {

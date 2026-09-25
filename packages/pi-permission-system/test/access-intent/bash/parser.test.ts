@@ -32,6 +32,46 @@ describe("getGrammarParser", () => {
   });
 });
 
+describe("the words after a redirect's target", () => {
+  /** The named child types under the first statement of `command`'s parse. */
+  async function firstStatement(
+    parser: Awaited<ReturnType<typeof getParser>>,
+    command: string,
+  ): Promise<string[]> {
+    const tree = parser.parse(command);
+    if (!tree) throw new Error("parser.parse returned null");
+    try {
+      const statement = tree.rootNode.child(0);
+      const types = [statement?.type ?? ""];
+      for (let i = 0; i < (statement?.childCount ?? 0); i++) {
+        const child = statement?.child(i);
+        if (child?.isNamed) types.push(child.type);
+      }
+      return types;
+    } finally {
+      tree.delete();
+    }
+  }
+
+  it("are the command's own words through getParser", async () => {
+    await expect(
+      firstStatement(await getParser(), "git 2>/dev/null push --force"),
+    ).resolves.toEqual([
+      "command",
+      "command_name",
+      "file_redirect",
+      "word",
+      "word",
+    ]);
+  });
+
+  it("stay on the redirect through getGrammarParser", async () => {
+    await expect(
+      firstStatement(await getGrammarParser(), "git 2>/dev/null push --force"),
+    ).resolves.toEqual(["redirected_statement", "command", "file_redirect"]);
+  });
+});
+
 describe("warm parser", () => {
   beforeEach(() => {
     resetWarmBashParser();

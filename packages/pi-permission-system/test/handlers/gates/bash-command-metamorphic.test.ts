@@ -190,6 +190,21 @@ describe("bash command gate — a redirect's position does not weaken", () => {
       label: "as a herestring after the head word",
       place: (h, r) => `${h} <<< x ${r}`,
     },
+    {
+      label: "after the head word",
+      place: (h, r) => `${h} 2>/dev/null ${r}`,
+    },
+    {
+      label: "between the arguments",
+      place: (h, r) => {
+        const [first = "", ...others] = r.split(" ");
+        return `${h} ${first} 2>&1 ${others.join(" ")}`;
+      },
+    },
+    {
+      label: "after the head word of a list's last command",
+      place: (h, r) => `cd a && ${h} 2>/dev/null ${r}`,
+    },
   ];
 
   const cases: {

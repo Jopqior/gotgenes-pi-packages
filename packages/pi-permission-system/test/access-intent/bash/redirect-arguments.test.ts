@@ -105,6 +105,14 @@ describe("reattachRedirectArguments", () => {
         '(program (list (list (command (command_name "cd") "a") (command (command_name "b"))) (command (command_name "git") (file_redirect "2" "/dev/null") "push")))',
       );
     });
+
+    it("hands the words to the last stage of a pipeline the grammar grouped", async () => {
+      // A redirect on the last stage hangs off the whole pipeline in the
+      // grammar; bash gives it and its words to that stage.
+      await expect(correctedShape("rg -l x | xargs ls 2>&1 ~/x")).resolves.toBe(
+        '(program (pipeline (command (command_name "rg") "-l" "x") (command (command_name "xargs") "ls" (file_redirect "2" "1") "~/x")))',
+      );
+    });
   });
 
   describe("a statement nested in another node", () => {
