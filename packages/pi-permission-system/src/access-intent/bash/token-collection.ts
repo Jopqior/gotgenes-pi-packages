@@ -128,8 +128,10 @@ export function collectCommandTokens(node: TSNode): PathToken[] {
  *
  * The redirect's own target carries the `redirect-destination` role when the
  * syntax proves it names a file, so the projection admits it whether or not
- * the file exists yet (#609). Every other child is an `operand`: a word the
- * grammar appends after the target belongs to the redirected command (#977).
+ * the file exists yet (#609). Every other child is an `operand`. A word the
+ * grammar appends after the target reaches here only in a statement whose parse
+ * failed: everywhere else `getParser` has already handed it back to the command
+ * it belongs to (#977).
  *
  * Reading the redirect node itself belongs to `redirect-analysis.ts`, which
  * the command enumerator consults for the same fact (#803).
