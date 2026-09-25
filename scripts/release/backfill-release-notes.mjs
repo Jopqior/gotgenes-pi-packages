@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readCoreSyncState } from "./core-sync-state.mjs";
-import { CoreSyncError } from "./core-sync-values.mjs";
+import { CoreSyncError, parseStrictSemVer } from "./core-sync-values.mjs";
 import {
   readReleasePackages,
   renderUpstreamCorrespondence,
@@ -113,19 +113,13 @@ function proposedBody(body, provenance) {
       "malformed or duplicate managed correspondence block",
     );
   if (starts === 1) {
-    if (
-      !body.includes(block) ||
-      !body
-        .slice(body.indexOf(START))
-        .match(new RegExp(`^${escapeRegex(block)}\\n?$`))
-    )
+    const start = body.indexOf(START);
+    const end = body.indexOf(END);
+    if (end < start || body.slice(start, end + END.length) !== block)
       throw new CoreSyncError("conflicting managed correspondence block");
     return body;
   }
   return `${body}${body.endsWith("\n") ? "\n" : "\n\n"}${block}\n`;
-}
-function escapeRegex(text) {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** Parse a reviewed artifact without silently dropping unknown, missing, or mistyped fields. */
@@ -166,9 +160,10 @@ export function readReview(text) {
       );
       if (
         typeof entry.tag !== "string" ||
-        !/^pi-subagents-v\d+\.\d+\.\d+$/.test(entry.tag) ||
+        !entry.tag.startsWith("pi-subagents-v") ||
+        !parseStrictSemVer(entry.tag.slice("pi-subagents-v".length)) ||
         seen.has(entry.tag) ||
-        !/^[a-f0-9]{40}$/.test(entry.tagOid)
+        !isCommitOid(entry.tagOid)
       )
         throw new CoreSyncError("invalid or duplicate reviewed tag/OID");
       seen.add(entry.tag);
@@ -205,9 +200,9 @@ export function readReview(text) {
         entry.identity.upstream.repository !== "gotgenes/pi-packages" ||
         entry.identity.upstream.directory !== "packages/pi-subagents" ||
         entry.evidence.forkTag !== entry.tag ||
-        !/^\d+\.\d+\.\d+$/.test(entry.evidence.upstream.version) ||
-        !/^[a-f0-9]{40}$/.test(entry.evidence.upstream.commit) ||
-        !/^[a-f0-9]{40}$/.test(entry.evidence.upstreamTip) ||
+        !parseStrictSemVer(entry.evidence.upstream.version) ||
+        !isCommitOid(entry.evidence.upstream.commit) ||
+        !isCommitOid(entry.evidence.upstreamTip) ||
         entry.provenance.kind !== "fork" ||
         entry.provenance.upstreamPackage !== entry.identity.upstream.name ||
         entry.provenance.upstreamVersion !== entry.evidence.upstream.version ||
@@ -227,6 +222,9 @@ export function readReview(text) {
   if (seen.size === 0)
     throw new CoreSyncError("review has no selected fork releases");
   return review;
+}
+function isCommitOid(value) {
+  return typeof value === "string" && /^[a-f0-9]{40}$/.test(value);
 }
 function exactKeys(value, keys, what) {
   if (

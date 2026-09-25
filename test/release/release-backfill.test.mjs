@@ -16,6 +16,7 @@ import {
   previewReview,
   readReview,
 } from "../../scripts/release/backfill-release-notes.mjs";
+import { findReleaseSection } from "../../scripts/release/release-correspondence.mjs";
 import { createReleaseArtifacts } from "./helpers/release-artifacts.mjs";
 
 const root = path.resolve(
@@ -113,6 +114,48 @@ describe("historical backfill preview", () => {
       }),
     ).toThrow(/uncommitted release evidence/);
   });
+  it("recognizes a prepared Release's block despite its preserved section separator and postscript", () => {
+    const { artifact, repo } = preview(["pi-subagents-v1.0.1"]);
+    const tag = "pi-subagents-v1.0.1";
+    const proposed = artifact.releases[0].proposedBody;
+    const start = proposed.indexOf("<!-- upstream-correspondence:start -->");
+    const block = proposed.slice(start, -1);
+    const generated = findReleaseSection(
+      `## [1.0.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v1.0.0...${tag}) (2026-09-13)\n\n- changes\n\n${block}\n\n## [1.0.0] Older release\n`,
+      tag,
+      "pi-subagents",
+    );
+    expect(generated).toBe(
+      `## [1.0.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v1.0.0...${tag}) (2026-09-13)\n\n- changes\n\n${block}\n\n`,
+    );
+    const bodies = [
+      generated, // The tagged section reader retains the separator after the block.
+      `${proposed}\n`,
+      `## [1.0.1] Release notes\n\n${block}\n\n`,
+      `Preface\n\n${block}\n\nPostscript\n`,
+      `${block}\n\nPostscript\n`,
+    ];
+    for (const body of bodies) {
+      const readRelease = () => release(tag, body);
+      const review = previewReview({
+        repo: repo.dir,
+        tags: [tag],
+        readRelease,
+      });
+      expect(review.releases[0].release.body).toBe(body);
+      expect(review.releases[0].proposedBody).toBe(body);
+      const edits = [];
+      expect(
+        applyReview({
+          repo: repo.dir,
+          review: readReview(JSON.stringify(review)),
+          readRelease,
+          editRelease: (...args) => edits.push(args),
+        }),
+      ).toBe(1);
+      expect(edits).toEqual([]);
+    }
+  });
   it("rejects duplicate, malformed, and conflicting blocks, and makes identical blocks a no-op", () => {
     const first = preview(["pi-subagents-v1.0.1"]);
     const body = first.artifact.releases[0].proposedBody;
@@ -140,6 +183,72 @@ describe("historical backfill preview", () => {
 });
 
 describe("reviewed apply", () => {
+  it("rejects mistyped IDs and versions in both existing and missing Release records", () => {
+    const { artifact } = preview(
+      ["pi-subagents-v1.0.0", "pi-subagents-v1.0.1"],
+      { "pi-subagents-v1.0.0": null },
+    );
+    expect(readReview(JSON.stringify(artifact))).toEqual(artifact);
+    const paths = [
+      ["tagOid"],
+      ["evidence", "upstream", "commit"],
+      ["evidence", "upstreamTip"],
+      ["evidence", "upstream", "version"],
+    ];
+    for (const kind of ["releases", "missing"]) {
+      for (const keys of paths) {
+        const original = keys.reduce(
+          (value, key) => value[key],
+          artifact[kind][0],
+        );
+        for (const invalid of [
+          [original],
+          123,
+          null,
+          false,
+          { value: original },
+        ]) {
+          const altered = structuredClone(artifact);
+          const owner = keys
+            .slice(0, -1)
+            .reduce((value, key) => value[key], altered[kind][0]);
+          owner[keys.at(-1)] = invalid;
+          expect(
+            () => readReview(JSON.stringify(altered)),
+            `${kind}.${keys.join(".")} as ${JSON.stringify(invalid)}`,
+          ).toThrow();
+        }
+      }
+    }
+  });
+  it("rejects invalid stable SemVer in reviewed tags and upstream versions", () => {
+    const { artifact } = preview(["pi-subagents-v1.0.1"]);
+    expect(readReview(JSON.stringify(artifact))).toEqual(artifact);
+    for (const version of [
+      "01.0.0",
+      "1.01.0",
+      "1.0.01",
+      "9007199254740992.0.0",
+      "1.0.0-rc.1",
+    ]) {
+      for (const field of ["tag", "upstream version"]) {
+        const altered = structuredClone(artifact);
+        if (field === "tag") {
+          altered.releases[0].tag = `pi-subagents-v${version}`;
+          altered.releases[0].evidence.forkTag = altered.releases[0].tag;
+          altered.releases[0].release.tagName = altered.releases[0].tag;
+          altered.releases[0].release.url = `https://github.com/Jopqior/gotgenes-pi-packages/releases/tag/${altered.releases[0].tag}`;
+        } else {
+          altered.releases[0].evidence.upstream.version = version;
+          altered.releases[0].provenance.upstreamVersion = version;
+        }
+        expect(
+          () => readReview(JSON.stringify(altered)),
+          `${field} ${version}`,
+        ).toThrow();
+      }
+    }
+  });
   it("round-trips every field through a strict reader and refuses missing/extra/tampered fields", () => {
     const { artifact } = preview();
     expect(readReview(JSON.stringify(artifact))).toEqual(artifact);
