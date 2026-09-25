@@ -116,3 +116,85 @@ Issue #24 is closed, the approved historical notes are applied, and `pi-subagent
 - No co-shipped issue, adopted PR, worktree cleanup, or roadmap phase closure applied.
   The breaking change is confined to release-tooling registration and artifact requirements; extension runtime APIs and core version calculation remain unchanged.
 - The next workflow step is `/retro 24` at the root on `main`.
+
+## Stage: Final Retrospective (2026-09-25T15:34:23Z)
+
+### Session summary
+
+Reviewed the planning, implementation, and ship transcripts alongside their stage notes and the implementation agents' final reports.
+The work delivered verified release correspondence, approved historical notes-only backfill, and the published fork release; this retrospective changes no release artifacts or runtime code.
+The main workflow lesson is to reconcile individual review findings across rounds instead of treating a delta-scoped PASS as a complete status ledger.
+
+### Observations
+
+#### What went well
+
+- Independent review found cross-boundary defects despite green deterministic gates: tagged evidence was not bound to the working tree actually published, and newly generated notes did not satisfy the backfill no-op assumptions.
+  The resulting commits, `fix(release): block dirty package artifacts before publication (#24)` and `fix(release): keep backfill idempotent and reject mistyped reviews (#24)`, corrected the consumers as well as their tests before any publication.
+- Fresh per-step agents plus parent inspection exposed different weaknesses: step 2 mutations revealed weak ancestry probes, while parent inspection caught step 3's closed-world historical expectations before the next step.
+  The separate final reviewer still added value rather than merely repeating the step reports.
+- The operator deferred remote approval until the same immutable JSON snapshot had a readable HTML presentation.
+  Ship later checked the saved hashes, applied the approved snapshot, read it back, and repeated apply to exercise completed-entry no-ops without recreating the missing historical Release.
+
+#### What caused friction (agent side)
+
+- `wrong-abstraction` — Planning introduced package-role shorthand (`core` / `selector`) while asking about provenance classes (`fork` / `original`).
+  Impact: the operator needed terminology clarification and a second explanation before confirming the actual unknown-package rejection policy; no code rework resulted.
+- `premature-convergence` — Implementation initially dispatched the entire TDD sequence to one agent before the operator specified fresh agents per step.
+  Impact: the dispatch was cancelled before startup and replaced; no implementation was discarded.
+  This was a newly supplied execution preference, not a violation of an already stated per-step requirement.
+- `missing-context` — Step 5 validated tagged artifacts without binding the working tree consumed by publication, and its mixed-selection fixture did not actually select both packages at HEAD.
+  Step 6 additionally assumed a suffix-only canonical block and allowed coercive OID validation.
+  Impact: independent review required two corrective code cycles and renewed verification after the nominal implementation steps were complete.
+- `instruction-violation` — Self-identified through independent review: historical suffix assertions used `trim` despite the plan's explicit byte-preservation requirement, and release guidance retained an unregistered dispatch example despite the planned documentation sweep.
+  Impact: tests and documentation required corrections; the reviewer also discovered its own commit-type whitelist disagreed with `committed.toml`, which was repaired rather than rewriting a valid `build:` commit.
+- `premature-convergence` — The implementation summary said there were no remaining FAIL or WARN findings without presenting the disposition of each first-round finding.
+  The delta review did check the repaired defects, but the operational approval gate was distinct from those defects.
+  Impact: the operator asked twice about review status; the parent then fetched the first report and reread the relevant guidance, publication tests, and retro before giving a warning-by-warning answer.
+- `wrong-abstraction` — The first approval handoff exposed JSON and diff paths rather than a directly readable review page.
+  Impact: approval was deferred and a separate HTML-generation agent was needed; the authorization artifact itself did not change.
+- `other` — Concurrent heavy verification in step 4 coincided with upstream-sync fixture timeouts.
+  Impact: the root script suite had to be rerun alone; subsequent gates were serialized rather than weakening assertions or increasing timeouts.
+  The load explanation is the step agent's diagnosis, supported by a passing isolated rerun, not a controlled performance experiment.
+
+#### What caused friction (user side)
+
+- Stating the fresh-agent-per-step preference and the human-readable approval format at the implementation handoff could avoid the initial dispatch cancellation and late presentation work.
+  The agent still owns explaining terminology and supplying usable decision material; the operator should not need to infer either from internal shorthand or file paths.
+- The questions about old WARN findings were mechanical oversight the agent could have eliminated with a complete disposition list.
+  Approval of exact remote edits and publication destinations, by contrast, remained appropriate operator judgment.
+
+### Diagnostic details
+
+- Model assignments were read from inline assistant labels in the saved transcripts, not agent definitions or current environment variables.
+  The planning Tidy First assessor and both independent reviewers reported on `openai-codex/gpt-6-astra`.
+  Each of implementation steps 1–7, the resumed step-3 correction, the publication correction, the backfill correction, the documentation correction, the step-8 preview, and the HTML presentation reported on `openai-codex/gpt-6-sol`.
+  Parent planning, implementation, and ship turns inspected here used `openai-codex/gpt-6-astra`.
+  No clear reasoning-capability mismatch follows from these results; the failed first review exposed integration assumptions, not evidence that a different model alone would prevent them.
+  The bounded HTML conversion is a candidate for cheaper execution, but these transcripts do not establish comparative cost or quality.
+- Feedback-loop gap: verification did not wait until the end; the baseline, per-step targeted runs, mutation checks, and integration gates are recorded before the final review.
+  The missing feedback was at consumer boundaries and review-status handoff, not a general lack of test runs.
+  The first-review report and final delta-review report should be reconciled before the next user-facing completion summary.
+- No sustained rabbit-hole sequence was identified in the reviewed parent transcripts, so no escalation-delay count or unused Explore/Plan dispatch is claimed.
+  The review-status follow-up used the already available `get_subagent_result` tool only after the operator questioned the summary; retrieving and reconciling that report earlier would have avoided the clarification.
+
+### Proposal disposition
+
+The operator chose notes only and declined the proposed workflow edit.
+The proposal was a short reconciliation requirement in `.pi/skills/pre-completion/SKILL.md`: account for every earlier FAIL/WARN finding and state the latest review's scope before summarizing a re-review.
+Retain this as an observation, not a new rule or a committed follow-up obligation.
+
+Do not add duplicate terminology guidance: `.pi/skills/clarification-gates/SKILL.md` already requires terms and substance before choices.
+Do not mandate HTML for every approval, change model defaults, or rewrite the TDD delegation policy from this one session's preferences.
+The reviewer-policy mismatch was already repaired during implementation and needs no second retro patch.
+
+### Next work
+
+The issue plan explicitly identifies repository tooling rather than a package roadmap step, and names no successor.
+The newest inherited triage, `docs/triage/2026-09-18-backlog.md`, concerns upstream work, not an approved fork queue.
+A live `gh issue list --repo Jopqior/gotgenes-pi-packages --state open` returned no issues; there is no fork issue or phase-close command to recommend from this delivery.
+
+### Changes made
+
+1. Appended the cross-session final retrospective, diagnostic findings, proposal disposition, and next-work check to `docs/retro/f0024-release-upstream-correspondence.md`.
+2. Honored the operator's notes-only decision: no changes to `AGENTS.md`, prompts, skills, code, tests, or release artifacts.
