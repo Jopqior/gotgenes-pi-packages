@@ -73,3 +73,47 @@ The planning commit was fast-forwarded onto local `main`; the extra planning bra
 No fetch, production implementation, or publication is authorized by this clarification.
 Start implementation planning with `/plan-issue #20`; afterward use `/plan-issue #21` against the delivered startup facts.
 Preserve behavior unless a change is explicitly approved, and keep issue 19 open until actual combined maintenance outcomes are assessed or the operator explicitly defers/stops.
+
+## Stage: Phase Archive (2026-09-25T05:34:05Z)
+
+### Session summary
+
+The operator requested `/finish-phase pi-subagents` for Phase 23.
+`git pull --ff-only` reported already up to date, and the worktree was clean.
+Implementation issues 20 and 21 were closed, but overall objective 19 remained open without a recorded combined assessment.
+The operator chose to assess the combined outcome in this session, then explicitly accepted the bounded maintenance benefit and authorized closing issue 19 and archiving the phase.
+Issue 19 was closed as completed in the fork.
+
+The full roadmap moved to [the phase archive](../architecture/history/phase-23-upstream-integration-maintenance.md), preserving its findings, step wording, diagram, tracks, and release accounting.
+The archive adds the accepted before/after assessment, residual obligations, issue mapping, and delivered supporting metrics.
+The current architecture retains the history table entry and structural-issue mapping rather than a duplicate completion narrative.
+Its stale inherited structural metrics were refreshed; the delivered module descriptions and lifecycle diagrams already matched the inspected implementation.
+
+### Evidence and limits
+
+- Source inspection checked the initial-selection owner, terminal observer composition, session-factory cancellation checks, common display producer, and foreground/background/widget integrations.
+  The lifecycle and composition-root paths matched the recorded startup delivery; tools/UI matched the presentation delivery; ordinary lifecycle state matched the fixed upstream file.
+- Core tests passed: 86 files / 1,988 tests.
+  Companion tests passed: 9 files / 68 tests.
+  These were local suite runs, not an interactive host or packed-new-core compatibility replay.
+- The existing fixed-source startup transplant and synthetic presentation trial reports were read against current code, not rerun.
+  Their evidence supports reduced repeated settlement and formatted-tag reconciliation, not a prediction of future merge conflicts or maintenance time.
+- Health remained 78/B, average/p90 cyclomatic complexity 1.3/2, with no dead-code or production-duplication findings.
+  Maintainability was 90.9 against the planning baseline 91.0; no increase was promised.
+  Source totals were 73 files / 12,121 LOC.
+- The package-labeled issue sweep from the planning date returned only issues 20 and 21, already accounted for; no residual disposition was needed.
+  The live roadmap checker reported two steps and zero findings before archival.
+- Deterministic normalized comparison confirmed the full original roadmap was preserved after heading promotion, link rebasing, and table formatting.
+  The archive retains two step headings and one Mermaid fence; architecture retains no roadmap, step, or completion-summary heading for this phase.
+  Numbered issue definitions in both documents are complete and used.
+- Repository lint passed.
+  Mermaid CLI rendered the unchanged dependency diagram; GitHub/vivify preview was not performed, so the inherited renderer-specific caveat remains explicit.
+
+### Observations and handoff
+
+The package skill's 73-file count and per-domain module counts still agree with the source layout, but its architectural-direction sentence still describes the history as phases 14 through 18.
+That stale phase-range prose was noted, not expanded into a skill rewrite during archival.
+The structural metrics are supporting evidence only; the lifecycle observer contract, scope inheritance timing, cancellation-before-binding checks, UI input mapping, and new abstraction upkeep remain real maintenance obligations.
+
+Next entry point: `/plan-improvements pi-subagents` when another round is desired.
+This archive proposes no next phase and dispatches no release.
