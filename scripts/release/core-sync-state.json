@@ -2,6 +2,30 @@
   "schemaVersion": 1,
   "releases": [
     {
+      "forkTag": "pi-subagents-v1.0.0",
+      "upstream": {
+        "version": "21.7.0",
+        "commit": "b3b6159399f541fd0623f65818557dd3e707a34f"
+      },
+      "upstreamTip": "045213317de608c04a7b6052b2b843e3a0f2176f"
+    },
+    {
+      "forkTag": "pi-subagents-v1.0.1",
+      "upstream": {
+        "version": "21.7.0",
+        "commit": "b3b6159399f541fd0623f65818557dd3e707a34f"
+      },
+      "upstreamTip": "045213317de608c04a7b6052b2b843e3a0f2176f"
+    },
+    {
+      "forkTag": "pi-subagents-v1.0.2",
+      "upstream": {
+        "version": "21.7.0",
+        "commit": "b3b6159399f541fd0623f65818557dd3e707a34f"
+      },
+      "upstreamTip": "045213317de608c04a7b6052b2b843e3a0f2176f"
+    },
+    {
       "forkTag": "pi-subagents-v2.0.0",
       "upstream": {
         "version": "21.7.3",

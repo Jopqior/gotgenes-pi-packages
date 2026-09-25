@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "directory": "pi-subagents",
+      "name": "@jopqior/pi-subagents",
+      "kind": "fork",
+      "upstream": {
+        "name": "@gotgenes/pi-subagents",
+        "repository": "gotgenes/pi-packages",
+        "directory": "packages/pi-subagents"
+      },
+      "evidence": "core-sync"
+    },
+    {
+      "directory": "pi-subagents-model-selector",
+      "name": "@jopqior/pi-subagents-model-selector",
+      "kind": "original"
+    }
+  ]
+}
