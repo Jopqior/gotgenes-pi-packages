@@ -94,3 +94,25 @@ Measured full-suite totals increased from 7,584 to 7,673 passing tests (+89), en
   The next workflow step is `/ship 24`; obtain explicit approval of the exact preview before any notes-only apply, and separate approval before any package publication.
   Temporary artifacts may disappear between sessions; regenerate and obtain fresh approval if missing or changed.
   Apply must revalidate the complete snapshot, and another editor can still race its final read; no multi-Release transaction or compare-and-swap guarantee is claimed.
+
+## Stage: Ship (2026-09-25T15:24:59Z)
+
+### Session summary
+
+Shipped through the trunk lane from the root checkout on `main`.
+The operator explicitly approved the unchanged historical preview, publication of `@jopqior/pi-subagents` to npmjs.org with GitHub Releases in this fork, and the exact issue-close comment.
+Issue #24 is closed, the approved historical notes are applied, and `pi-subagents-v4.0.2` was released successfully.
+
+### Observations
+
+- The preview JSON and HTML remained available and matched the implementation-stage SHA-256 values.
+  Applying the reviewed JSON revalidated and read back the selected remote notes; repeating apply also succeeded, exercising the completed-entry no-op path.
+  The missing `1.0.0` Release was not created, and historical npm artifacts and tags were not changed.
+- Root lint and dead-code checks passed before pushing the 13 implementation/planning commits.
+  CI run `36153223363` passed for `910cd46f169ce84497c4a4bf145974a0c9bb6685`.
+- The touched-package scan selected only `pi-subagents`; prediction returned `pi-subagents-v4.0.2`.
+  Release run `36153868173` passed preparation, npm publication, and GitHub Release creation with the approved package and pinned SHA.
+  A fast-forward pull retrieved the release commit and its `pi-subagents-v4.0.2` tag.
+- No co-shipped issue, adopted PR, worktree cleanup, or roadmap phase closure applied.
+  The breaking change is confined to release-tooling registration and artifact requirements; extension runtime APIs and core version calculation remain unchanged.
+- The next workflow step is `/retro 24` at the root on `main`.
