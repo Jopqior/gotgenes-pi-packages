@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [21.7.7](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.6...pi-subagents-v21.7.7) (2026-09-25)
+
+
+### Bug Fixes
+
+* **pi-subagents:** render a relocated or portable child's project context in pi 0.86's block shape ([5efc8b9](https://github.com/gotgenes/pi-packages/commit/5efc8b9c8eed77f754d0d4f4855542e1cc465875)), closes [#961](https://github.com/gotgenes/pi-packages/issues/961)
+* **pi-subagents:** wrap a portable child's appended prompt in pi 0.86's addendum section ([4484832](https://github.com/gotgenes/pi-packages/commit/4484832b0842fcac75dbb4ca051101feeac37736)), closes [#961](https://github.com/gotgenes/pi-packages/issues/961)
+
 ## [21.7.6](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v21.7.5...pi-subagents-v21.7.6) (2026-09-22)
 
 
