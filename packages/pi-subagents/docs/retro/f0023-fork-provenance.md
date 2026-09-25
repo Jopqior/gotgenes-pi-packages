@@ -69,3 +69,23 @@ No runtime, dependency, version, license, changelog, or publication changes were
   GitHub/vivify preview remains unverified.
 - No plan steps remain; the next workflow stage is `/ship 23`.
   Any publication still requires explicit approval of destination and scope.
+
+## Stage: Ship (2026-09-25T11:21:44Z)
+
+### Session summary
+
+Shipped from the root checkout on `main` in the trunk lane.
+The operator explicitly approved publication of `@jopqior/pi-subagents` to npmjs.org through `Jopqior/gotgenes-pi-packages`, and approved the issue close comment before posting.
+Closed issue #23 and released `pi-subagents-v4.0.1`.
+
+### Observations
+
+- Root lint and dead-code checks passed before pushing the implementation.
+  CI run 36128349000 succeeded on the pushed implementation tip.
+- The release candidate scan identified only `pi-subagents`; the version script returned a patch release from the existing `pi-subagents-v4.0.0` tag.
+  Release run 36128760250 completed prepare, publish, and GitHub release successfully.
+  Pulled the release commit and verified its `pi-subagents-v4.0.1` tag.
+- No co-shipped issues or adopted PRs required closing.
+  Issue [#24] remains separate; this issue is not a roadmap phase step.
+- No worktree merge or teardown was needed.
+  The next step is `/retro 23` at the root on `main`.
