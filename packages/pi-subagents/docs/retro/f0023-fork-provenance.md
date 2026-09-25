@@ -89,3 +89,70 @@ Closed issue #23 and released `pi-subagents-v4.0.1`.
   Issue [#24] remains separate; this issue is not a roadmap phase step.
 - No worktree merge or teardown was needed.
   The next step is `/retro 23` at the root on `main`.
+
+## Stage: Final Retrospective (2026-09-25T11:28:15Z)
+
+### Session summary
+
+Reviewed the planning, build, ship, and reviewer transcripts alongside the plan and accumulated stage notes.
+The issue clarified package provenance and selector responsibilities, verified the packed publication surface, and shipped as `@jopqior/pi-subagents@4.0.1` without runtime changes.
+This retrospective isolates review-handoff friction rather than reopening the shipped documentation scope.
+
+### Observations
+
+#### What went well
+
+- Real tarball inspection during planning exposed the companion link that escaped the published package; implementation verified its absolute replacement and compared the packed README and license with source.
+  This caught a publication-surface defect that repository rendering alone would miss.
+- The operator's historical-comparison decision preserved useful gotgenes/tintinweb context without creating a new three-project matrix.
+  The commits `docs(pi-subagents): clarify fork lineage and selector purpose (#23)` and `docs(pi-subagents): distinguish historical comparisons and fork support (#23)` kept current identity separate from historical attribution.
+
+#### What caused friction (agent side)
+
+- `other` — Review output contracts disagree: `.pi/skills/pre-completion/SKILL.md` demands a literal `Overall: PASS|WARN|FAIL` line, while `.pi/agents/pre-completion-reviewer.md` demonstrates a `### Overall` heading followed by the verdict.
+  The reviewer followed the demonstrated format; the parent resumed it requesting the literal form alongside an artifact-access request.
+  Impact: one additional reviewer continuation, without new artifact evidence.
+- `missing-context` — The dispatch supplied `/tmp/issue23-build.tgz` and its extracted directory despite the reviewer's repository-only scope.
+  A follow-up attempted to authorize those reads through a lower-priority message; the reviewer declined under its existing instructions.
+  Impact: packed README, license, and manifest verification remained the implementer's direct check rather than independent review.
+- `other` — HTTP checks encountered npm-page 403 responses and TLS failure at the inherited Pi badge destination.
+  Registry lookups established package identities, not page rendering; the limitations were retained rather than silently replacing links.
+  Impact: added verification friction, no documentation rework.
+- `other` — This retrospective initially appended an accidental word to the Markdown skill path, causing a failed read.
+  Impact: one corrected read, no file changes or broader search.
+
+#### What caused friction (user side)
+
+- No user correction or late requirement reversal appears in the reviewed stage transcripts.
+  The comparison decision and publication authorization were strategic choices, not mechanical oversight.
+  Future artifact-review requests can identify independent verification as a requirement before dispatch; arranging an accessible artifact remains the agent's responsibility.
+
+### Diagnostic details
+
+- **Model-performance correlation:** the planning, build, and ship turns and the reviewer transcript identify `openai-codex/gpt-6-astra`.
+  Build dispatched one reviewer and resumed that same reviewer once; the configured agent model is not evidence of the model that ran.
+  The observed failure concerns incompatible instructions and access scope, not demonstrated reasoning weakness or a basis for changing model policy.
+- **Escalation-delay tracking:** the artifact-access obstacle received one continuation before the limitation was accepted; no sequence exceeded five consecutive calls on the same error.
+- **Unused-tool detection:** reading `.pi/agents/pre-completion-reviewer.md` before requesting external artifact access would have exposed the boundary.
+  Another search or exploration agent would not resolve the instruction conflict.
+- **Feedback-loop gap analysis:** build ran baseline `pnpm run check` and `pnpm run lint`, lint after each implementation step, and real packing before review.
+  The reviewer independently ran type, lint, test, and dead-code gates; ship verified CI before release.
+  The gap is independent artifact access, not checks deferred until completion.
+
+### Proposal disposition
+
+The operator chose retrospective notes only and declined the proposed verdict-format adjustment for this session.
+The mismatch between `.pi/skills/pre-completion/SKILL.md` and `.pi/agents/pre-completion-reviewer.md` remains recorded, not fixed.
+No review-scope expansion, global rule, or root README change was made.
+
+### Next work
+
+This issue has no roadmap successor and did not close an active phase.
+The newest triage, `docs/triage/2026-09-18-backlog.md`, ranks inherited `gotgenes/pi-packages` work, not this fork's queue.
+A live fork issue query found only [#24] open; it is adjacent release-correspondence work, not a triage-ranked successor.
+Recommend `/plan-issue 24` without inventing a rank or severity.
+
+### Changes made
+
+1. Appended this final retrospective to `packages/pi-subagents/docs/retro/f0023-fork-provenance.md`, preserving all earlier stage entries and recording the operator's notes-only decision.
+2. Left `AGENTS.md`, prompts, skills, reviewer instructions, runtime files, and `CHANGELOG.md` unchanged.
