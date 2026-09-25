@@ -13,11 +13,18 @@ export interface ContextFile {
 }
 
 /**
- * Render context files as Pi's `<project_context>` block, byte for byte.
+ * Render context files as the `<project_context>` section pi 0.86 and later
+ * write, byte for byte.
  *
- * Pi writes a lead-in sentence and separates each `<project_instructions>`
- * block with a blank line; matching it exactly is what keeps a block this
- * package renders indistinguishable from one `buildSystemPrompt` wrote.
+ * That renderer joins a lead-in sentence and each `<project_instructions>`
+ * block with a blank line, inside the section wrapper's own newlines. Pi
+ * through 0.85 also wrote a blank line below the opening tag and above the
+ * closing one; on such a host this block differs from Pi's by those two lines
+ * alone, and nothing reads a child's own block positionally. One shape is
+ * rendered for every host rather than detecting which one is running.
+ *
+ * `buildSystemPrompt` is not exported, so the tests pin this against a
+ * hand-built copy of 0.86.1's output rather than against Pi's renderer.
  *
  * Returns undefined when there are no files, so a caller can tell "this
  * directory carries no project instructions" from "here they are".
@@ -26,11 +33,14 @@ export function renderProjectContext(
   contextFiles: readonly ContextFile[] | undefined,
 ): string | undefined {
   if (!contextFiles || contextFiles.length === 0) return undefined;
-  const blocks = contextFiles.map(
-    ({ path, content }) =>
-      `<project_instructions path="${path}">\n${content}\n</project_instructions>\n`,
-  );
-  return `<project_context>\n\nProject-specific instructions and guidelines:\n\n${blocks.join("\n")}\n</project_context>`;
+  const body = [
+    "Project-specific instructions and guidelines:",
+    ...contextFiles.map(
+      ({ path, content }) =>
+        `<project_instructions path="${path}">\n${content}\n</project_instructions>`,
+    ),
+  ].join("\n\n");
+  return `<project_context>\n${body}\n</project_context>`;
 }
 
 /** The project-context block a session working in `cwd` would carry. */

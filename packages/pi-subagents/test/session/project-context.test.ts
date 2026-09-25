@@ -7,21 +7,21 @@ import {
 
 describe("renderProjectContext", () => {
   describe("Pi's block format", () => {
-    // Byte-exact against core/system-prompt.ts, which writes the lead-in
-    // sentence and separates each block with a blank line.
-    it("renders one context file the way Pi's buildSystemPrompt does", () => {
+    // Byte-exact against pi 0.86.1's dist/core/system-prompt.js, measured by
+    // calling its buildSystemPrompt: the lead-in and each block are joined by
+    // a blank line, and the section wrapper adds no blank line inside either
+    // tag. Pi through 0.85 wrote one below the opening and above the closing.
+    it("renders one context file the way pi ≥0.86's buildSystemPrompt does", () => {
       expect(
         renderProjectContext([{ path: "/repo/AGENTS.md", content: "Repo rules." }]),
       ).toBe(
         [
           "<project_context>",
-          "",
           "Project-specific instructions and guidelines:",
           "",
           '<project_instructions path="/repo/AGENTS.md">',
           "Repo rules.",
           "</project_instructions>",
-          "",
           "</project_context>",
         ].join("\n"),
       );
@@ -36,7 +36,6 @@ describe("renderProjectContext", () => {
       ).toBe(
         [
           "<project_context>",
-          "",
           "Project-specific instructions and guidelines:",
           "",
           '<project_instructions path="/repo/AGENTS.md">',
@@ -46,7 +45,6 @@ describe("renderProjectContext", () => {
           '<project_instructions path="/repo/sub/AGENTS.md">',
           "Nested rules.",
           "</project_instructions>",
-          "",
           "</project_context>",
         ].join("\n"),
       );
