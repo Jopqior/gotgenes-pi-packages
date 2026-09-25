@@ -365,6 +365,7 @@ Backfill never rewrites historical CHANGELOG sections, old npm tarballs, tags, o
 | 3.0.0                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
 | 4.0.0                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
 | 4.0.1                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
+| 4.0.2                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
 
 <!-- release-correspondence:end -->
 
