@@ -76,3 +76,17 @@ The `pi-permission-system` suite went from 4648 to 4743 tests (+95), and every n
 - An `oldText` carrying an em-dash failed twice because it arrived as a `\u2014` escape; both were rerouted through line-number or ASCII-anchor scripted edits.
 - Pre-completion reviewer: **PASS**.
   Its own spike re-derived byte-identity, #814's unproven attribution, floor-exemption semantics (no exemption newly granted against bash semantics), masked offsets including non-ASCII, and nested cases, and found no gap.
+
+## Stage: Sync (worktree) (2026-09-25T21:13:15Z)
+
+### Session summary
+
+Pre-push checks (`pnpm run lint`, `pnpm fallow dead-code`) both pass on the branch as landed by the TDD stage; nothing further to fix before rebase.
+The plan's `**Release:** ship independently` marker holds — no batch, no deferral.
+Follow-ups [#978] and [#979] are filed and dispositioned into Phase 15; neither is implemented here.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-977--/2026-09-25T05-31-01-163Z_01a0d70b-aaab-7148-a606-9d2067543279.jsonl` — read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time.
+
+### Observations
+
+Nothing further beyond the TDD stage's own observations — this is a clean rebase-and-handoff, no fixups needed.
