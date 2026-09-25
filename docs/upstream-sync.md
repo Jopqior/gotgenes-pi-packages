@@ -326,10 +326,19 @@ Add a row for each newly published fork core version.
 Do not write an unreleased fork version number here.
 The first data row lands in [#3] as `1.0.0 ← 21.7.0`.
 
-| Fork `@jopqior/pi-subagents` | Upstream `pi-subagents` tag |
-| ---------------------------- | --------------------------- |
-| 1.0.0                        | 21.7.0                      |
-| 2.0.0                        | 21.7.3                      |
+<!-- release-correspondence:start -->
+
+| Fork `@jopqior/pi-subagents` | Direct upstream release | Fixed source                                                                                                          |
+| ---------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| 1.0.0                        | `21.7.0`                | [source](https://github.com/gotgenes/pi-packages/blob/b3b6159399f541fd0623f65818557dd3e707a34f/packages/pi-subagents) |
+| 1.0.1                        | `21.7.0`                | [source](https://github.com/gotgenes/pi-packages/blob/b3b6159399f541fd0623f65818557dd3e707a34f/packages/pi-subagents) |
+| 1.0.2                        | `21.7.0`                | [source](https://github.com/gotgenes/pi-packages/blob/b3b6159399f541fd0623f65818557dd3e707a34f/packages/pi-subagents) |
+| 2.0.0                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
+| 3.0.0                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
+| 4.0.0                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
+| 4.0.1                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
+
+<!-- release-correspondence:end -->
 
 ## Sync log
 

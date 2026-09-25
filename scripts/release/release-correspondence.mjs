@@ -1,5 +1,6 @@
 // Provenance resolution at release artifact boundaries. Registration is an
 // explicit classification, never inferred from the workspace or dependencies.
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
@@ -9,6 +10,125 @@ import {
   verifyPublishedCoreTail,
 } from "./core-sync-evidence.mjs";
 import { CoreSyncError, parseStrictSemVer } from "./core-sync-values.mjs";
+
+/**
+ * Render a single bounded claim from verified provenance; originals have no
+ * upstream release to claim.
+ *
+ * @param {{ kind: "original" } | { kind: "fork", upstreamPackage: string, upstreamVersion: string, sourceUrl: string }} provenance
+ * @returns {string}
+ */
+export function renderUpstreamCorrespondence(provenance) {
+  if (provenance.kind === "original") {
+    return "";
+  }
+  return (
+    "<!-- upstream-correspondence:start -->\n" +
+    "### Upstream correspondence\n\n" +
+    `Direct upstream package: \`${provenance.upstreamPackage}\`  \n` +
+    `Incorporated upstream release: \`${provenance.upstreamVersion}\`  \n` +
+    `Source: [fixed upstream release commit](${provenance.sourceUrl})\n\n` +
+    "This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.\n" +
+    "<!-- upstream-correspondence:end -->"
+  );
+}
+
+/**
+ * Read the exact tagged fork section without trimming Git's stdout. An
+ * inherited upstream section with the same version is not a match.
+ *
+ * @param {{ repo: string, tag: string, packageDirectory: string }} input
+ * @returns {string}
+ */
+export function readTaggedReleaseSection(input) {
+  const { repo, tag, packageDirectory } = input;
+  if (
+    !/^[a-z][a-z0-9-]*$/.test(packageDirectory) ||
+    !tag.startsWith(`${packageDirectory}-v`) ||
+    !parseStrictSemVer(tag.slice(`${packageDirectory}-v`.length))
+  ) {
+    throw new CoreSyncError(`invalid package release tag ${tag}`);
+  }
+  let text;
+  try {
+    text = execFileSync(
+      "git",
+      ["show", `${tag}:packages/${packageDirectory}/CHANGELOG.md`],
+      { cwd: repo, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
+    );
+  } catch (error) {
+    throw new CoreSyncError(
+      `cannot read tagged CHANGELOG for ${tag}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  return findReleaseSection(text, tag, packageDirectory);
+}
+
+/**
+ * Match the section in already-rendered text before a new tag exists.
+ * @param {string} text
+ * @param {string} tag
+ * @param {string} directory
+ * @returns {string}
+ */
+export function findReleaseSection(text, tag, directory) {
+  const version = tag.slice(`${directory}-v`.length);
+  const headings = [];
+  let fence = null;
+  let offset = 0;
+  for (const match of text.matchAll(/[^\r\n]*(?:\r\n|\n|\r|$)/g)) {
+    const entireLine = match[0];
+    if (!entireLine) {
+      continue;
+    }
+    const line = entireLine.replace(/\r\n$|[\r\n]$/, "");
+    if (fence) {
+      const closing = /^ {0,3}(`+|~+)[ \t]*$/.exec(line);
+      if (
+        closing &&
+        closing[1][0] === fence.character &&
+        closing[1].length >= fence.length
+      ) {
+        fence = null;
+      }
+    } else {
+      const opening = /^ {0,3}(`{3,}|~{3,})/.exec(line);
+      if (opening) {
+        fence = { character: opening[1][0], length: opening[1].length };
+      } else if (line.startsWith("## ")) {
+        const heading =
+          /^## \[(\d+\.\d+\.\d+)\]\(https:\/\/github\.com\/Jopqior\/gotgenes-pi-packages\/compare\/([^)]*)\) \([^\r\n]*\)[ \t]*$/.exec(
+            line,
+          );
+        const previous = heading?.[2].split("...");
+        headings.push({
+          start: offset,
+          matches:
+            heading?.[1] === version &&
+            previous?.length === 2 &&
+            previous[0].startsWith(`${directory}-v`) &&
+            parseStrictSemVer(previous[0].slice(`${directory}-v`.length)) !==
+              null &&
+            previous[1] === tag,
+        });
+      }
+    }
+    offset += entireLine.length;
+  }
+  if (fence) {
+    throw new CoreSyncError(
+      `unclosed Markdown fence in tagged CHANGELOG ${tag}`,
+    );
+  }
+  const matches = headings.filter((heading) => heading.matches);
+  if (matches.length !== 1) {
+    throw new CoreSyncError(
+      `${matches.length === 0 ? "missing" : "ambiguous"} exact fork section for ${tag}`,
+    );
+  }
+  const next = headings.find((heading) => heading.start > matches[0].start);
+  return text.slice(matches[0].start, next?.start ?? text.length);
+}
 
 /** @typedef {{ directory: string, name: string, kind: "original" }} OriginalPackage */
 /** @typedef {{ directory: string, name: string, kind: "fork", upstream: { name: string, repository: string, directory: string }, evidence: "core-sync" }} ForkPackage */
