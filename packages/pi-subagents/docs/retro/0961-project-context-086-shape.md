@@ -30,3 +30,27 @@ The plan has three steps: decouple the fixture (`test:`), then a `fix:` for each
   The plan records the measured version.
 - ADRs 0009/0010 are left unedited as historical records.
   Only the `project-context.ts` module-tree entry in `architecture.md` changes.
+
+## Stage: Implementation — TDD (2026-09-25T08:29:53Z)
+
+### Session summary
+
+All three planned steps landed as separate commits.
+First the `test:` step decoupled `parentPrompt()` from `renderProjectContext`.
+Then came the two `fix:` steps: the child's own block now uses pi 0.86's shape, and a portable child's appended prompt is wrapped in `<addendum>`.
+The `pi-subagents` suite went from 1830 to 1831 tests, the one addition being the append-only portable case.
+
+### Observations
+
+- Every killing mutation the plan named turned its tests red.
+  Deleting the `openAt + 2` lead-in arm turned the same 6 tests red after both step 1 and step 2, so the ≤0.85 arm is still pinned.
+- In step 3, mutation (b) (wrap the append unconditionally) turned 4 tests red instead of the plan's 2.
+  The plan named "omits a section whose input is absent" and the whitespace-only test.
+  Two more absence tests also caught it: "is undefined when the captured options carry no operator-authored parts" and "carries no project context…".
+  That is a superset of the prediction, not a gap.
+- Emitting `≥` in `Edit` bodies failed twice: once it came out as a tab plus stray text in a doc comment, once as a tab in a test comment.
+  Both were caught by scanning with `rg -n '\t'` and reworded ("pi 0.86 and later").
+  Where the character did survive (the test name, the architecture entry), it was written by `perl` or emitted correctly.
+- In `renderProjectContext`, the outer variable was renamed from `content` to `body` so it does not shadow the destructured `content`.
+- Pre-completion reviewer: PASS.
+  It re-derived both shapes on its own: the 0.86.1 tarball for the new shape, and the pinned 0.84.4 dist for the fixture's byte-identity.
