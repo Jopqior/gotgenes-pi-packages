@@ -70,3 +70,20 @@ Added 9 tests: the root script suite increased from 270 to 279 passing tests, wi
 - Implementation commits are `test: preserve fork and upstream roadmap title compatibility (#22)` and `feat!: separate fork improvement phase identities (#22)`.
   The latter includes the planned repository-workflow breaking-change footer.
   Next step: `/ship #22` without package publication; reload or start a fresh Pi session before using the edited planning or archival templates.
+
+## Stage: Ship (2026-09-25T08:59:46Z)
+
+### Session summary
+
+Shipping through the trunk lane from the root checkout on `main`.
+The plan requires no npm publication; the only touched package, `pi-subagents`, has no pending release according to `next-version.sh`.
+
+### Observations
+
+- Fetch and fast-forward pull succeeded; five local commits were ahead of `origin/main` before this stage note.
+- Root lint and dead-code gates passed on the implementation tree.
+- The range contains only issue #22 work; edits to closed issues 19, 20, and 21 are historical-reference migration, not newly co-shipped implementations.
+- No third-party PR close target or worktree teardown is involved.
+- Push and exact-commit CI verification follow this note; issue closure is conditional on CI success.
+- The breaking change concerns repository phase identities and document paths, not package runtime APIs.
+- This migration opens or completes no roadmap phase; the next workflow after successful shipping is `/retro 22`.
