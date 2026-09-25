@@ -27,3 +27,26 @@ The next stage is `/build-plan`.
   The change is non-breaking and independently releasable, subject to explicit publication approval.
 
 [#24]: https://github.com/Jopqior/gotgenes-pi-packages/issues/24
+
+## Publication-surface verification (2026-09-25T11:02:13Z)
+
+- Packed locally with `pnpm -C packages/pi-subagents pack --out /tmp/issue23-build.tgz` and extracted into the fresh `mktemp` directory `/tmp/issue23-build-9tfvOg`.
+  The declaration build passed; no publication was performed.
+- Source-versus-packed `README.md` and `LICENSE` comparisons passed using `cmp`; the license has no diff against the pre-implementation commit.
+  The packed manifest retains author, MIT license, package identity, exports, dependencies, and fork-owned repository/homepage/bugs destinations, with the revised description.
+  Pnpm expands catalog dev-dependencies and omits the `prepack` script in the packed manifest.
+- Checked the packed README's relative document targets: all referenced files exist in the tarball.
+  The selector link is absolute and targets this fork's companion; support targets the fork issue tracker, while gotgenes/tintinweb links identify provenance or external integrations.
+- HTTP GET checks with redirects returned 200 for the fork repository/support/companion/sync/history links, gotgenes and tintinweb project links, npm README documentation, and retained screenshot and video URLs.
+  The inherited Pi badge destination `https://pi.mariozechner.at/` failed TLS negotiation; it was retained rather than silently replaced.
+  Npm package pages returned 403; `pnpm view` against `https://registry.npmjs.org/` confirmed the core and both linked gotgenes companion package identities.
+  HTTP checks establish reachability at verification time, not browser rendering or fragment correctness.
+- Audited provenance-related wording across packed documentation.
+  Superseded ADR 0001, historical phase records, Pi-specific compositor references, and fixed-input selection maintenance trials retain their historical contexts.
+  No historical records were rewritten.
+- Baseline `pnpm run check` and `pnpm run lint` passed.
+  Per-step and final lint, package `lint:md`, root-skill Markdown lint, and manifest Biome checks passed.
+  No source or test files changed, so no runtime test cycle was added.
+- The architecture's changed package-name label renders with `mmdc` to `/tmp/issue23-core.svg`; GitHub/vivify preview was not available in this session.
+- Minor plan detail: corrected the architecture's stale `./service` export prose and gotgenes import example to the actual fork `.` export, replacing its unrelated gotgenes version range with verified-range guidance.
+  Runtime service symbols and real companion package names remain unchanged.
