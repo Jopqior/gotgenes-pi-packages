@@ -1,0 +1,14 @@
+{
+  "body": "\n## [1.0.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v1.0.0...pi-subagents-v1.0.1) (2026-09-13)\n\n\n### Bug Fixes\n\n* **pi-subagents:** show the selected model on the foreground tool card ([2af893e](https://github.com/Jopqior/gotgenes-pi-packages/commit/2af893e0a1f97e6fc4dfad874f0b5d5af5a7a8f5)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)\n* **pi-subagents:** strip pending model from background launch details ([b97c4bd](https://github.com/Jopqior/gotgenes-pi-packages/commit/b97c4bdb4002ace1348e1fa2296328ca3afad2f1)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)\n\n### Documentation\n\n* note that the tool card names the selected pair ([49b3a66](https://github.com/Jopqior/gotgenes-pi-packages/commit/49b3a66e743d0094e61cd43059ef70c0ba1e4214)), closes [#10](https://github.com/Jopqior/gotgenes-pi-packages/issues/10)\n\n## Source-history restoration\n\nThe tag now points to the restored upstream ancestry described in [issue #13](https://github.com/Jopqior/gotgenes-pi-packages/issues/13).\nBoth historical package directory trees are unchanged at this tag; repository tooling outside those trees may differ in GitHub source archives.\nPreviously published npm tarballs and their provenance are unchanged and still refer to the original publication, not the replacement Git commit.\nOlder commit links and workflow records may still identify the superseded history.\n",
+  "createdAt": "2026-09-13T17:30:34Z",
+  "databaseId": 387977151,
+  "id": "RE_kwDOUM8y9s4XIA-_",
+  "isDraft": false,
+  "isImmutable": false,
+  "isPrerelease": false,
+  "name": "pi-subagents-v1.0.1",
+  "publishedAt": "2026-09-13T17:31:23Z",
+  "tagName": "pi-subagents-v1.0.1",
+  "targetCommitish": "main",
+  "url": "https://github.com/Jopqior/gotgenes-pi-packages/releases/tag/pi-subagents-v1.0.1"
+}
