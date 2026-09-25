@@ -1309,6 +1309,73 @@ describe("BashProgram", () => {
       expect(program.commands()).toEqual([{ text: "npm install" }]);
     });
 
+    describe("a redirect hosted inside the command", () => {
+      it.each([
+        ["2>/dev/null git push --force", "git push --force"],
+        ["FOO=1 2>/dev/null git push --force", "git push --force"],
+        ["git <<< x push --force", "git push --force"],
+        ["cat f <<< hi", "cat f"],
+      ])("leaves the redirect out of %s", async (command, text) => {
+        const program = await BashProgram.parse(command, normalizer);
+        expect(program.commands()).toEqual([{ text }]);
+      });
+
+      it("reads the head word past a leading redirect", async () => {
+        const program = await BashProgram.parse(
+          ">/dev/null bash -c 'rm -rf /tmp/x'",
+          normalizer,
+        );
+        expect(program.commands()).toEqual([
+          {
+            text: "bash -c 'rm -rf /tmp/x'",
+            wrapperKind: "opaque-payload",
+            executedUnit: "rm -rf /tmp/x",
+          },
+        ]);
+      });
+
+      it("names what an indirection wrapper runs past a leading redirect", async () => {
+        const program = await BashProgram.parse(
+          "2>/dev/null sudo rm -rf /",
+          normalizer,
+        );
+        expect(program.commands()).toEqual([
+          {
+            text: "sudo rm -rf /",
+            wrapperKind: "indirection",
+            executedUnit: "rm -rf /",
+          },
+        ]);
+      });
+    });
+
+    describe("the unit text of a command with no hosted redirect", () => {
+      it("keeps the source spacing verbatim", async () => {
+        const command = "git  push \\\n  --force";
+        const program = await BashProgram.parse(command, normalizer);
+        expect(program.commands()).toEqual([{ text: command }]);
+      });
+
+      it("leaves out the operand a heredoc absorbs", async () => {
+        // A project deny rule is spelled against this unit text (#941).
+        const program = await BashProgram.parse(
+          "git commit -F - <<'EOF'\nfeat: x\nEOF",
+          normalizer,
+        );
+        expect(program.commands()).toEqual([{ text: "git commit -F" }]);
+      });
+
+      it("keeps the operand a plain file argument supplies", async () => {
+        const program = await BashProgram.parse(
+          "git commit -F /tmp/msg.txt",
+          normalizer,
+        );
+        expect(program.commands()).toEqual([
+          { text: "git commit -F /tmp/msg.txt" },
+        ]);
+      });
+    });
+
     describe("commands hosted in a redirect target (#741)", () => {
       it.each([
         ["echo hi > $(rm x)", "echo hi", "rm x"],
@@ -1389,7 +1456,7 @@ describe("BashProgram", () => {
       it("descends into a herestring substitution", async () => {
         const program = await BashProgram.parse("cat <<< $(rm x)", normalizer);
         expect(program.commands()).toEqual([
-          { text: "cat <<< $(rm x)" },
+          { text: "cat" },
           { text: "rm x", context: "command_substitution" },
         ]);
       });
@@ -1968,6 +2035,20 @@ describe("BashProgram", () => {
           await expect(
             exemptions("xargs grep foo > $(mktemp)"),
           ).resolves.toEqual([undefined, undefined]);
+        });
+      });
+
+      describe("a redirect hosted inside the command", () => {
+        it("withholds the exemption when it writes", async () => {
+          await expect(exemptions(">/tmp/o xargs grep foo")).resolves.toEqual([
+            undefined,
+          ]);
+        });
+
+        it("keeps the exemption for a descriptor duplication", async () => {
+          await expect(exemptions("2>&1 xargs grep foo")).resolves.toEqual([
+            "core-reader",
+          ]);
         });
       });
 

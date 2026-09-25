@@ -26,6 +26,19 @@ import { parseUnresolvedAt, type TSNode } from "./parser";
  */
 
 /**
+ * The redirect node types a `command` or a statement can host.
+ *
+ * A redirect is not a word of the command it sits in, wherever it sits: bash
+ * accepts one before, between, or after the words (`2>/dev/null git push`), and
+ * none of them changes which command runs (#977).
+ */
+export const REDIRECT_NODE_TYPES: ReadonlySet<string> = new Set([
+  "file_redirect",
+  "herestring_redirect",
+  "heredoc_redirect",
+]);
+
+/**
  * The effect `redirect` proves for `destination`, or `null` when the redirect
  * names no file and no token should be collected.
  *
