@@ -109,9 +109,9 @@ BASE=$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=
 git log --oneline $BASE..HEAD
 ```
 
-Confirm each commit message follows `type(scope): description` or `type: description`.
-Valid types: `feat`, `fix`, `docs`, `test`, `refactor`, `style`, `chore`, `ci`.
-The `feat!:` form with a `BREAKING CHANGE:` footer is also valid.
+Confirm each commit message follows `type(scope): description` or `type: description`, with a type allowed by `committed.toml`'s `allowed_types` (the `prek.toml` `commit-msg` hook runs `committed`).
+The allowed types include `build`, `perf`, and `revert`; do not substitute a narrower changelog-type list for the commit-message gate.
+For a breaking change, `type(scope)!:` or `type!:` with a `BREAKING CHANGE:` footer is valid; `type!(scope):` is malformed.
 Report any non-conforming commit as **FAIL**.
 
 ### 2c. Developer documentation

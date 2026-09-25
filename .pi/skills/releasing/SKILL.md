@@ -14,10 +14,11 @@ Load this skill before touching anything that decides what ships: a release disp
 `.github/workflows/release.yml` triggers only on `workflow_dispatch` and takes an explicit package list plus an optional expected-SHA guard:
 
 ```bash
-gh workflow run release.yml --repo Jopqior/gotgenes-pi-packages -f packages="pi-subagents pi-colgrep" -f sha="$(git rev-parse HEAD)"
+gh workflow run release.yml --repo Jopqior/gotgenes-pi-packages -f packages="pi-subagents" -f sha="$(git rev-parse HEAD)"
 ```
 
-Naming packages explicitly is the point: several can be releasable at once, and only the named ones go.
+The example names a registered fork package, but registration is not publication approval: obtain explicit operator approval of this fork's npm scope and release destination before dispatching.
+Only approved, registered package identities may be named; several can be releasable at once, and only the named ones go.
 Deferring a release is therefore an omission with no state to clean up — just do not name the package.
 A `release` concurrency group serializes runs.
 Pass `--repo Jopqior/gotgenes-pi-packages` explicitly on this fork — it is a mutation, and the fork-header rule is to name the repo rather than rely on resolution.
@@ -35,6 +36,7 @@ Never name a package that `next-version.sh` prints nothing for — `prepare-rele
 The run's three jobs are `prepare` → `publish` → `github-release`.
 If `prepare` fails, nothing was tagged and the release can simply be re-dispatched.
 If a later job fails, the tags are already pushed — fix the cause and re-run that job; re-dispatching would refuse on the existing tag.
+Before rerunning publication, ensure its checked-out package paths match the tags: `pnpm publish --no-git-checks` packs the working checkout, so the preflight rejects Git-visible tracked or untracked package drift and compares each package's `package.json` and `CHANGELOG.md` against its tag byte-for-byte.
 
 Versions and changelogs come from [git-cliff](https://git-cliff.org) reading local git, with no network in the derivation.
 The fork core's release level additionally uses verified correspondence (below).
@@ -102,7 +104,7 @@ Do not remove it, and do not reach for `minimumReleaseAge: 0` (which also disabl
 When adding a new package, wire it into all of:
 
 1. `.pi/settings.json` — add the `../packages/<pkg>` load path.
-   Add the `{ "source": "npm:@gotgenes/<pkg>", "extensions": [], "skills": [] }` disable entry (prevents double-load) **only after the package's first npm publish** — before that, the `npm:` reference makes Pi and the subagent launcher `npm install` a nonexistent package and fail.
+   Add the `{ "source": "npm:<approved-npm-name>", "extensions": [], "skills": [] }` disable entry (prevents double-load) **only after the package's approved first npm publish**, using the registered manifest identity rather than assuming an inherited `@gotgenes/*` scope — before that, the `npm:` reference makes Pi and the subagent launcher `npm install` a nonexistent package and fail.
 2. `README.md` — add the package to the Packages table, and to the no-dedicated-skill note unless it ships a `package-<pkg>` skill.
 3. `.github/ISSUE_TEMPLATE/bug_report.yml` and `.github/ISSUE_TEMPLATE/feature_request.yml` — add the package to the `Package` dropdown in **both** forms.
    The dropdown is `required: true` and `blank_issues_enabled: false`, so a package missing here cannot be reported at all.
