@@ -1,6 +1,7 @@
 import { type TokenEffect, UNPROVEN_EFFECT } from "#src/access-intent/effect";
 import { redirectDestinationEffect } from "./command-effects";
-import { parseUnresolvedAt, type TSNode } from "./parser";
+import { parseUnresolvedAt } from "./parse-health";
+import type { TSNode } from "./parser";
 
 /**
  * What a redirect node in the parse tree proves.

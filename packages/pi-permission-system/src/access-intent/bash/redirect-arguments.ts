@@ -1,3 +1,4 @@
+import { parseUnresolvedWithin } from "./parse-health";
 import type { TSNode } from "./parser";
 import { trailingArgumentIndex } from "./redirect-analysis";
 
@@ -49,11 +50,13 @@ function correct(node: TSNode): TSNode | undefined {
     children.push(corrected ?? child);
   }
 
-  if (node.type === "redirected_statement" && !node.hasError) {
+  if (node.type === "redirected_statement" && !parseUnresolvedWithin(node)) {
     const reattached = reattachStatement(node, children);
     if (reattached) return reattached;
   }
-  return changed ? adoptingView(node, children, node.hasError) : undefined;
+  return changed
+    ? adoptingView(node, children, parseUnresolvedWithin(node))
+    : undefined;
 }
 
 /**
@@ -226,7 +229,7 @@ function lastNamedChild(node: TSNode): TSNode | undefined {
 function asView(node: TSNode): TSNode {
   return node instanceof NodeView
     ? node
-    : new NodeView(node, childrenOf(node), node.hasError);
+    : new NodeView(node, childrenOf(node), parseUnresolvedWithin(node));
 }
 
 /** The fields a {@link NodeView} copies from the node it stands for. */

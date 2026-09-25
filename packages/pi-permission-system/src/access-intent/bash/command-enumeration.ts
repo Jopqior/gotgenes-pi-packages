@@ -1,6 +1,7 @@
 import type { BashCommandContext, FloorExemption } from "#src/types";
 import { EXECUTION_HOST_TYPES, forEachExecutionIn } from "./nested-execution";
-import { parseUnresolvedWithin, type TSNode } from "./parser";
+import { parseUnresolvedWithin } from "./parse-health";
+import type { TSNode } from "./parser";
 import { REDIRECT_NODE_TYPES, redirectMayWriteFile } from "./redirect-analysis";
 import {
   type CommandWord,
