@@ -52,6 +52,8 @@ import {
   requireAncestor,
   requireCommitObject,
   runGit,
+  verifyPublishedCoreCorrespondence,
+  verifyPublishedCoreTail,
   verifyUpstreamReleaseManifest,
 } from "./core-sync-evidence.mjs";
 import { CORE_TAG_PREFIX, readCoreSyncState } from "./core-sync-state.mjs";
@@ -99,32 +101,7 @@ export function decideCoreRelease(input) {
     `${input.currentTag} is not an ancestor of HEAD`,
   );
 
-  // The recorded upstream evidence for the current release must exist and
-  // actually be incorporated by that release.
-  requireCommitObject(repo, release.upstream.commit);
-  requireCommitObject(repo, release.upstreamTip);
-  requireAncestor(
-    repo,
-    release.upstream.commit,
-    release.upstreamTip,
-    `release ${input.currentTag} correspondence is inconsistent`,
-  );
-  requireAncestor(
-    repo,
-    release.upstream.commit,
-    peeled,
-    `release ${input.currentTag} does not incorporate recorded upstream ${release.upstream.version}`,
-  );
-  requireAncestor(
-    repo,
-    release.upstreamTip,
-    peeled,
-    `release ${input.currentTag} does not incorporate its recorded upstream tip`,
-  );
-  // The recorded correspondence must name a real upstream release: the core
-  // manifest at the recorded commit has to claim exactly the recorded
-  // version. Tag names alone prove nothing; this is the binding check.
-  verifyUpstreamReleaseManifest(repo, release.upstream);
+  verifyPublishedCoreCorrespondence(repo, release, peeled);
 
   // Every two-parent commit in the window that changes core paths must be a
   // recorded, reviewed sync. Fork work lands linearly, so an unrecorded
@@ -224,19 +201,7 @@ export function decideCoreRelease(input) {
       );
     }
   }
-  // The release record's own span gets the same check: the recorded tip
-  // must not carry in-scope work past the recorded upstream release.
-  const baselineUnreleased = coreCommitsBetween(
-    repo,
-    release.upstream.commit,
-    release.upstreamTip,
-  );
-  if (baselineUnreleased.length > 0) {
-    throw new CoreSyncError(
-      `unreleased upstream core changes follow ${release.upstream.version}: ${baselineUnreleased.join(", ")}. ` +
-        "The recorded correspondence must end at the released upstream state.",
-    );
-  }
+  verifyPublishedCoreTail(repo, release);
 
   // One comparison across the whole window: baseline versus the final
   // verified target. Deferred intermediate releases never sum.

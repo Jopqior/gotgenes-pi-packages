@@ -417,6 +417,39 @@ describe("evidence failures", () => {
     );
   });
 
+  it("reports an invalid window before an unreleased baseline tail", () => {
+    repo.commitInScope(
+      "docs(pi-subagents): unreleased baseline guide",
+      "packages/pi-subagents/docs/guide.md",
+    );
+    const tail = repo.gitOut("rev-parse", "HEAD");
+    repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", tail);
+
+    const branch = uniqueUpstreamBranch();
+    repo.git("checkout", "-b", branch);
+    repo.commitInScope(
+      "feat(pi-subagents): unreviewed upstream core change",
+      "packages/pi-subagents/unreviewed.txt",
+    );
+    repo.git("checkout", "main");
+    repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", branch);
+    const merge = repo.gitOut("rev-parse", "HEAD");
+    writeCoreSyncState({
+      releases: [
+        {
+          forkTag: BASE_TAG,
+          upstream: baseUpstream,
+          upstreamTip: tail,
+        },
+      ],
+    });
+
+    expect(errorOf(() => decide()).message).toBe(
+      `merge ${merge} changes core paths but has no reviewed sync record. ` +
+        "Record it with: scripts/upstream-sync.sh --record-core-sync <merge>",
+    );
+  });
+
   it("blocks an unrecorded merge whose core path git would quote", () => {
     // With the default `core.quotePath`, git prints this path C-quoted
     // ("packages/pi-subagents/…") and the old line-based enumeration read

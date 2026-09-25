@@ -17,6 +17,8 @@ import { execFileSync } from "node:child_process";
 import { CORE_PACKAGE } from "./core-sync-state.mjs";
 import { CoreSyncError } from "./core-sync-values.mjs";
 
+/** @typedef {import("./core-sync-state.mjs").CoreReleaseRecord} CoreReleaseRecord */
+
 /**
  * Run `git` inside `repo` and return its stripped stdout.
  *
@@ -162,6 +164,61 @@ export function verifyUpstreamReleaseManifest(repo, release) {
   if (manifestVersion !== release.version) {
     throw new CoreSyncError(
       `upstream release tag ${release.version} points at a manifest claiming ${JSON.stringify(manifestVersion)}`,
+    );
+  }
+}
+
+/**
+ * Validate the released upstream evidence against a peeled fork release tag.
+ * Baseline-tag-to-HEAD ancestry and the window remain decision concerns.
+ *
+ * @param {string} repo
+ * @param {CoreReleaseRecord} release
+ * @param {string} peeled
+ */
+export function verifyPublishedCoreCorrespondence(repo, release, peeled) {
+  requireCommitObject(repo, release.upstream.commit);
+  requireCommitObject(repo, release.upstreamTip);
+  requireAncestor(
+    repo,
+    release.upstream.commit,
+    release.upstreamTip,
+    `release ${release.forkTag} correspondence is inconsistent`,
+  );
+  requireAncestor(
+    repo,
+    release.upstream.commit,
+    peeled,
+    `release ${release.forkTag} does not incorporate recorded upstream ${release.upstream.version}`,
+  );
+  requireAncestor(
+    repo,
+    release.upstreamTip,
+    peeled,
+    `release ${release.forkTag} does not incorporate its recorded upstream tip`,
+  );
+  // A recorded version must match the upstream manifest, not just its tag.
+  verifyUpstreamReleaseManifest(repo, release.upstream);
+}
+
+/**
+ * Reject in-scope work between a published upstream release and its tip.
+ * Call after window checks when deriving the next core release so window
+ * diagnostics retain precedence over an invalid baseline tail.
+ *
+ * @param {string} repo
+ * @param {CoreReleaseRecord} release
+ */
+export function verifyPublishedCoreTail(repo, release) {
+  const baselineUnreleased = coreCommitsBetween(
+    repo,
+    release.upstream.commit,
+    release.upstreamTip,
+  );
+  if (baselineUnreleased.length > 0) {
+    throw new CoreSyncError(
+      `unreleased upstream core changes follow ${release.upstream.version}: ${baselineUnreleased.join(", ")}. ` +
+        "The recorded correspondence must end at the released upstream state.",
     );
   }
 }
