@@ -67,3 +67,52 @@ The plan's `**Release:** ship independently` marker stands — no roadmap step n
 ### Observations
 
 Nothing further to flag; the branch is ready for the root's `/ship 961` once this rebase lands.
+
+## Stage: Final Retrospective (2026-09-25T19:24:05Z)
+
+### Session summary
+
+The root session fast-forward-merged the branch, pushed, verified CI, closed the issue, and released `pi-subagents-v21.7.7`, then tore down the worktree.
+Across all four stages the issue ran without rework: the plan measured both pi shapes against real dists, the TDD stage landed three commits whose planned mutations all killed, and the ship needed no recovery.
+The one recurring friction was non-ASCII corruption in `Edit` bodies, which no gate catches when it arrives as a tab.
+
+### Observations
+
+#### What went well
+
+- The plan measured instead of reading: a scratch install of pi 0.86.1 ran the real `buildSystemPrompt`, because the function is not exported and a test cannot pin it.
+  That same habit caught the tidy-first assessor's inverted claim (it said the 6 tests go red *after* the change without the prep; they go red *today* and go green after it) before it reached the plan.
+- The planning session found the `openAt + 2` coverage trap by running the killing mutation against both renderer shapes, not by reasoning about the fixture.
+  That turned a silent coverage loss into a `test:` prep step, and the TDD stage re-ran the same mutation after steps 1 and 2 as an invariant check.
+- The sync session wrote a literal `\u2014` escape into the retro file and the #967 decoder repaired it before the agent looked; the agent's follow-up `grep` found nothing.
+  This is the first observed catch by that gate in a live session.
+
+#### What caused friction (agent side)
+
+- `other` (model output corruption) — in TDD steps 2 and 3, `≥` in an `Edit` body arrived as a bare tab, once in a doc comment in `src/session/project-context.ts` and once in a test comment in `test/lifecycle/parent-snapshot.test.ts`.
+  A third edit left placeholder text that needed an immediate rewrite (turns 21–23).
+  The agent self-caught both tab cases with `rg -n '\t'` and reworded to "pi 0.86 and later".
+  No gate would have caught them: `scripts/lint/invisible-characters.mjs` deliberately excludes `0x09`, Biome does not format comment interiors, and `pi-subagents` indents with tabs, so a tab is legitimate whitespace there.
+  Impact: about 4 extra tool calls, no rework past a commit.
+- `instruction-violation` (self-identified at retro) — `/ship` step 1.4 names the `releasing` and `worktrees` skills for the worktree lane; the ship session loaded only `git-workflow` and `github-voice`.
+  Impact: none; the release and teardown followed the prompt's own steps without needing either skill's body.
+- `other` — the `/ship` close comment named `pi-subagents` v21.7.7 in step 9, before step 10 dispatched the release; the version was `next-version.sh`'s prediction at that point.
+  Impact: none, since the release succeeded; a failed `prepare` would have left a published comment citing a version that did not exist.
+- `other` — the planning session's scratch `pnpm add @earendil-works/pi-coding-agent@0.86.1` failed on `minimumReleaseAge` and needed a retry with `--config.minimum-release-age=0`.
+  Impact: 2 extra tool calls.
+
+#### What caused friction (user side)
+
+- None observed; the one operator gate (the shape-dispatch direction in planning) was answered in a single round.
+
+### Diagnostic details
+
+- **Model-performance correlation** — planning and TDD ran on `anthropic/claude-opus-5-5`, sync on `anthropic/claude-sonnet-5`, and this ship and retro on `anthropic/claude-opus-5-5`.
+  Both subagents ran on `anthropic/claude-sonnet-5` (per their own transcripts): the `tidy-first-assessor` (06:02) and the `pre-completion-reviewer` (06:16 transcript timestamp).
+  The assessor's one error was a judgment-heavy claim about measurement direction, which the Opus parent caught; the reviewer independently re-derived both shapes from the real dists, which suits Sonnet.
+- **Mid-line tab probe** — `rg -c '\S\t' packages --glob '*.ts' --glob '*.md'` reports zero matches across the tracked tree, so a mid-line tab is a zero-false-positive signal for this corruption today.
+
+### Changes made
+
+1. `packages/pi-subagents/docs/retro/0961-project-context-086-shape.md`: appended this Final Retrospective entry.
+   The operator declined both proposals: a tab-evades-gates note in `.pi/skills/markdown-conventions/SKILL.md` and a filed issue for a mid-line-tab lint rule in `scripts/lint/invisible-characters.mjs`.
