@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -130,9 +131,13 @@ describe("all-selected preparation", () => {
     );
     const result = prepare("pi-subagents");
     expect(result.status, result.stderr).toBe(0);
-    const text = repo.gitOut("show", "HEAD:packages/pi-subagents/CHANGELOG.md");
+    const text = execFileSync(
+      "git",
+      ["show", "HEAD:packages/pi-subagents/CHANGELOG.md"],
+      { cwd: repo.dir, encoding: "utf8" },
+    );
     expect(text.slice(text.indexOf("## [1.0.0]"))).toBe(
-      oldText.slice(oldText.indexOf("## [1.0.0]")).trimEnd(),
+      oldText.slice(oldText.indexOf("## [1.0.0]")),
     );
     expect(text).toContain("<!-- upstream-correspondence:start -->");
     const row = JSON.parse(
@@ -250,6 +255,61 @@ describe("all-selected preparation", () => {
       readFileSync(effects.calls, "utf8").match(/gh release create/g)?.length,
     ).toBe(before);
   });
+  for (const input of [
+    {
+      name: "dirty manifest version",
+      file: "package.json",
+      from: '"version": "1.0.1"',
+      to: '"version": "9.9.9"',
+      hideFromStatus: false,
+    },
+    {
+      name: "manifest version hidden from Git status",
+      file: "package.json",
+      from: '"version": "1.0.1"',
+      to: '"version": "9.9.9"',
+      hideFromStatus: true,
+    },
+    {
+      name: "dirty CHANGELOG correspondence",
+      file: "CHANGELOG.md",
+      from: "<!-- upstream-correspondence:start -->",
+      to: "<!-- upstream-correspondence:broken -->",
+      hideFromStatus: false,
+    },
+  ]) {
+    it(`refuses ${input.name} in the later fork before publishing any selected package`, () => {
+      scenario.syncUpstream({ version: "21.7.1" });
+      repo.commitInScope("feat(demo)!: baseline", "packages/demo/a.txt");
+      repo.git("tag", "demo-v1.0.0");
+      repo.commitInScope("fix(demo): next", "packages/demo/a.txt");
+      repo.writeManifest("demo", "1.0.0");
+      scaffold({ original: true });
+      expect(prepare("demo", "pi-subagents").status).toBe(0);
+      expect(repo.gitOut("tag", "--points-at", "HEAD").split("\n")).toEqual([
+        "demo-v1.0.1",
+        "pi-subagents-v1.0.1",
+      ]);
+      const effects = installEffects();
+      expect(effects.run("publish-released.sh").status).toBe(0);
+      expect(
+        readFileSync(effects.calls, "utf8").match(/pnpm --filter/g)?.length,
+      ).toBe(2);
+      writeFileSync(effects.calls, "");
+      const relative = `packages/pi-subagents/${input.file}`;
+      const file = path.join(repo.dir, relative);
+      const original = readFileSync(file, "utf8");
+      writeFileSync(file, original.replace(input.from, input.to));
+      expect(readFileSync(file, "utf8")).not.toBe(original);
+      if (input.hideFromStatus) {
+        repo.git("update-index", "--assume-unchanged", relative);
+        expect(repo.gitOut("status", "--porcelain", "--", relative)).toBe("");
+      }
+      const result = effects.run("publish-released.sh");
+      expect(result.status, result.stderr).not.toBe(0);
+      expect(readFileSync(effects.calls, "utf8")).toBe("");
+    });
+  }
   it("refuses invalid later tagged fork evidence before any npm or GitHub side effect", () => {
     scenario.syncUpstream({ version: "21.7.1" });
     repo.commitInScope("feat(demo)!: baseline", "packages/demo/a.txt");
@@ -270,6 +330,11 @@ describe("all-selected preparation", () => {
     repo.git("add", "packages/pi-subagents/CHANGELOG.md");
     repo.git("commit", "-m", "test: corrupt tagged provenance");
     repo.git("tag", "-f", "pi-subagents-v1.0.1");
+    repo.git("tag", "-f", "demo-v1.0.1");
+    expect(repo.gitOut("tag", "--points-at", "HEAD").split("\n")).toEqual([
+      "demo-v1.0.1",
+      "pi-subagents-v1.0.1",
+    ]);
     expect(effects.run("publish-released.sh").status).not.toBe(0);
     expect(effects.run("create-github-releases.sh").status).not.toBe(0);
     expect(readFileSync(effects.calls, "utf8")).toBe("");

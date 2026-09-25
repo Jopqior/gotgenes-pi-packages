@@ -137,7 +137,38 @@ export function validatePublishedArtifacts(repo, out, tags) {
       packageDirectory: directory,
     });
     assertReleaseProvenance(section, provenance);
+    // pnpm publish --no-git-checks packs the checkout, not the tagged tree.
+    // A dirty package could publish different bits after the tag validates.
+    assertTaggedPublishCheckout(repo, tag, directory);
     writeFileSync(path.join(out, `notes-${index}`), section);
+  }
+}
+
+function assertTaggedPublishCheckout(repo, tag, directory) {
+  const packagePath = `packages/${directory}`;
+  const changes = execFileSync(
+    "git",
+    ["status", "--porcelain=v1", "--untracked-files=all", "--", packagePath],
+    { cwd: repo, encoding: "utf8" },
+  );
+  if (changes) {
+    throw new CoreSyncError(
+      `working package ${packagePath} differs from validated tag ${tag}: ${changes.trimEnd()}`,
+    );
+  }
+  // Check critical published claims by bytes even if Git index flags suppress
+  // a working-tree status entry (e.g. assume-unchanged).
+  for (const file of ["package.json", "CHANGELOG.md"]) {
+    const relative = `${packagePath}/${file}`;
+    const tagged = execFileSync("git", ["show", `${tag}:${relative}`], {
+      cwd: repo,
+    });
+    const working = readFileSync(path.join(repo, relative));
+    if (!working.equals(tagged)) {
+      throw new CoreSyncError(
+        `working ${relative} differs from validated tag ${tag}`,
+      );
+    }
   }
 }
 
