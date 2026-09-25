@@ -54,3 +54,16 @@ The `pi-subagents` suite went from 1830 to 1831 tests, the one addition being th
 - In `renderProjectContext`, the outer variable was renamed from `content` to `body` so it does not shadow the destructured `content`.
 - Pre-completion reviewer: PASS.
   It re-derived both shapes on its own: the 0.86.1 tarball for the new shape, and the pinned 0.84.4 dist for the fixture's byte-identity.
+
+## Stage: Sync (worktree) (2026-09-25T18:56:30Z)
+
+### Session summary
+
+Pre-push checks are clean: `pnpm run lint` and `pnpm fallow dead-code` both pass with no findings.
+The plan's `**Release:** ship independently` marker stands — no roadmap step names this issue, nothing to defer.
+
+**Peer session transcript:** `/Users/chris/.pi/agent/sessions/--Users-chris-development-pi-pi-packages-worktrees-issue-961--/2026-09-25T05-32-23-190Z_01a0d70c-eb15-76fa-9d8e-b4a7d1241a7f.jsonl` — read with `read_session_file({ path: "<path>" })` for message-level verification at land/retro time.
+
+### Observations
+
+Nothing further to flag; the branch is ready for the root's `/ship 961` once this rebase lands.
