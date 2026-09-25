@@ -414,10 +414,13 @@ describe("buildAgentPrompt", () => {
      * Assemble a parent prompt from the layers `buildSystemPrompt` writes, in
      * its order and with its separators.
      *
-     * The skills layer goes through Pi's own `formatSkillsForPrompt`, and the
-     * project-context layer through this package's byte-replica of Pi's block,
-     * so an upstream rewording of either fails these tests rather than silently
-     * changing which layer the inherited prompt is cut at.
+     * The skills layer goes through Pi's own `formatSkillsForPrompt`, so an
+     * upstream rewording of it fails these tests rather than silently changing
+     * which layer the inherited prompt is cut at. The project-context layer is
+     * hand-built from the ≤0.85 dist's `buildSystemPrompt` — blank lines inside
+     * both tags — as `sectionParentPrompt` hand-builds 0.86.1's, so the block
+     * this package renders for a child cannot change the parent shape these
+     * tests feed the anchors.
      */
     function parentPrompt(
       layers: {
@@ -432,7 +435,12 @@ describe("buildAgentPrompt", () => {
       if (layers.contextFiles) {
         // buildSystemPrompt opens the block with a blank line and closes it
         // with a newline of its own, before whichever layer follows.
-        prompt += `\n\n${renderProjectContext(layers.contextFiles) ?? ""}\n`;
+        prompt += "\n\n<project_context>\n\n";
+        prompt += "Project-specific instructions and guidelines:\n\n";
+        for (const { path, content } of layers.contextFiles) {
+          prompt += `<project_instructions path="${path}">\n${content}\n</project_instructions>\n\n`;
+        }
+        prompt += "</project_context>\n";
       }
       if (layers.skills) {
         prompt += formatSkillsForPrompt(layers.skills);
