@@ -314,8 +314,7 @@ function commandArgumentWords(node: TSNode): string[] {
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
     if (!child) continue;
-    if (child.type === "command_name" || child.type === "variable_assignment")
-      continue;
+    if (COMMAND_PREFIX_TYPES.has(child.type)) continue;
     if (!ARG_NODE_TYPES.has(child.type)) continue;
     words.push(resolveNodeText(child));
   }
@@ -334,7 +333,7 @@ function commandArgumentWords(node: TSNode): string[] {
  * different state machines and so each carry their own skip, which is why the
  * question is named here once rather than spelled twice (#742).
  */
-const COMMAND_PREFIX_TYPES: ReadonlySet<string> = new Set([
+export const COMMAND_PREFIX_TYPES: ReadonlySet<string> = new Set([
   "command_name",
   "variable_assignment",
 ]);
@@ -372,8 +371,7 @@ function collectEmbeddedOptionValues(
   for (let i = 0; i < node.childCount; i++) {
     const child = node.child(i);
     if (!child) continue;
-    if (child.type === "command_name" || child.type === "variable_assignment")
-      continue;
+    if (COMMAND_PREFIX_TYPES.has(child.type)) continue;
     if (!ARG_NODE_TYPES.has(child.type)) continue;
 
     const value = OPTION_VALUE_PATTERN.exec(resolveNodeText(child))?.[1];

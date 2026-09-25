@@ -15,6 +15,7 @@ import {
   classifyTokenAsRuleCandidate,
 } from "./token-classification";
 import {
+  COMMAND_PREFIX_TYPES,
   collectCommandTokens,
   collectPathCandidateTokens,
   collectRedirectTokens,
@@ -739,8 +740,7 @@ function cdLiteralTarget(commandNode: TSNode): string | null {
   for (let i = 0; i < commandNode.childCount; i++) {
     const child = commandNode.child(i);
     if (!child) continue;
-    if (child.type === "command_name" || child.type === "variable_assignment")
-      continue;
+    if (COMMAND_PREFIX_TYPES.has(child.type)) continue;
     if (!child.isNamed) continue;
     // Skip the `--` end-of-flags marker; the next argument is the target.
     if (child.type === "word" && child.text === "--") continue;
