@@ -17,6 +17,8 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 > Already-published npm artifacts are unchanged, and artifacts published after that restoration are built from the restored history.
 > See [History restoration](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/history-restoration.md) for what this means for old commit links and existing clones.
 
+Media retained from the gotgenes project:
+
 <img width="600" alt="pi-subagents screenshot" src="https://github.com/gotgenes/pi-subagents/raw/main/media/screenshot.png" />
 
 <https://github.com/user-attachments/assets/8685261b-9338-4fea-8dfe-1c590d5df543>
@@ -271,7 +273,7 @@ Selection cancellation or failure returns the agent ID and the startup outcome r
 This protects a sequential parent continuation: a tool awaited before `ask_user` cannot finish while its required selection is pending.
 It does not serialize tool calls already executing in parallel, dialogs in independent sessions, or direct synchronous service callers.
 This changes the previous immediate-return tool contract when a provider is installed; no configuration migration is needed.
-See [`@jopqior/pi-subagents-model-selector`](../pi-subagents-model-selector/README.md) for load order, nested routing, and non-interactive refusal.
+See [`@jopqior/pi-subagents-model-selector`](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/packages/pi-subagents-model-selector/README.md) for load order, nested routing, and non-interactive refusal.
 
 ## Worktree Isolation
 
@@ -500,17 +502,17 @@ The [architecture doc](./docs/architecture/architecture.md#scope-and-non-goals) 
 **Where adjacent requests belong.**
 Tool restriction and per-agent permission policy → [@gotgenes/pi-permission-system](https://www.npmjs.com/package/@gotgenes/pi-permission-system).
 Worktree isolation → [@gotgenes/pi-subagents-worktrees](https://www.npmjs.com/package/@gotgenes/pi-subagents-worktrees).
-Per-spawn model and thinking selection → this fork's `@jopqior/pi-subagents-model-selector` (local companion).
+Per-spawn model and thinking selection → this fork's [`@jopqior/pi-subagents-model-selector`](https://github.com/Jopqior/gotgenes-pi-packages/tree/main/packages/pi-subagents-model-selector).
 Timed dispatch, telemetry, and alternate UIs → a consumer over the lifecycle events and the typed service.
 The earlier batteries-included project → [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents).
 
 ## Documentation
 
-| Document                                                       | Contents                                                                                                       |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| [Configuration](./docs/configuration.md)                       | Default agent types, custom agent files and their frontmatter fields, and the `subagents.json` settings file   |
-| [Architecture](./docs/architecture/architecture.md)            | Design principles, domain decomposition, module dependency flow, Mermaid diagrams, and the improvement roadmap |
-| [Comparison with upstream](./docs/comparison-with-upstream.md) | Feature-by-feature comparison against the current upstream release                                             |
+| Document                                                    | Contents                                                                                                       |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [Configuration](./docs/configuration.md)                    | Default agent types, custom agent files and their frontmatter fields, and the `subagents.json` settings file   |
+| [Architecture](./docs/architecture/architecture.md)         | Design principles, domain decomposition, module dependency flow, Mermaid diagrams, and the improvement roadmap |
+| [Historical comparison](./docs/comparison-with-upstream.md) | Retained gotgenes-versus-tintinweb comparison, not a current fork benchmark                                    |
 
 ## Architecture
 
@@ -524,6 +526,14 @@ Synchronization follows this repository's [upstream sync procedure](https://gith
 
 The earlier project, [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb), supplied the original foundation.
 The retained [historical comparison](./docs/comparison-with-upstream.md) explains the gotgenes-versus-tintinweb scope split; it is not a current three-way comparison.
+
+## Support and documentation updates
+
+Report issues with this fork in [Jopqior/gotgenes-pi-packages](https://github.com/Jopqior/gotgenes-pi-packages/issues).
+The gotgenes and tintinweb links above identify project lineage; linked permission and worktree packages are external integrations with their own support destinations.
+
+Updating documentation on GitHub alone does not refresh npm's README: npm requires a new package publication, as described in its [README documentation](https://docs.npmjs.com/about-package-readme-files#updating-an-existing-package-readmemd-file).
+Publication follows this repository's approved release workflow; a documentation edit does not authorize a release.
 
 ## License
 
