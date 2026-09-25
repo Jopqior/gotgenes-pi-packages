@@ -17,6 +17,13 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 > Already-published npm artifacts are unchanged, and artifacts published after that restoration are built from the restored history.
 > See [History restoration](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/history-restoration.md) for what this means for old commit links and existing clones.
 
+## Release provenance
+
+For each new fork release, the shipped [CHANGELOG](./CHANGELOG.md) records that release's verified direct upstream package, incorporated version, and fixed source commit.
+The same tagged CHANGELOG section supplies the [fork's GitHub Release notes](https://github.com/Jopqior/gotgenes-pi-packages/releases); see the [version correspondence guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream-sync.md#version-correspondence) for the generated historical table and evidence procedure.
+An incorporated upstream baseline documents source provenance, not behavioral equivalence with upstream.
+Earlier published npm artifacts remain unchanged: adding historical correspondence to repository evidence or GitHub Release notes does not insert it into those tarballs or re-attest their original build history.
+
 Media retained from the gotgenes project:
 
 <img width="600" alt="pi-subagents screenshot" src="https://github.com/gotgenes/pi-subagents/raw/main/media/screenshot.png" />

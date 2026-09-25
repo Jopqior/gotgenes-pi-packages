@@ -78,7 +78,7 @@ git remote set-url upstream git@github.com:gotgenes/pi-packages.git
 
    The merge OID binds the review to its committed resolutions, and a core release stays blocked until the record exists.
 9. Record a sync-log row below.
-   Do not write an unreleased fork version into the correspondence table.
+   Release preparation generates the correspondence table from verified state; a sync alone does not add an unreleased fork version.
 
 ## Forbidden commands
 
@@ -111,8 +111,8 @@ Then re-run the script.
 Do not take ours or theirs wholesale.
 Keep fork-only spawn-selection and `fNNNN-` issue lookup, and keep incoming upstream behavior.
 Fork improvement phases have package-scoped `f` identities independent of upstream numeric phases (see `markdown-conventions` → Improvement phase identities).
-Keep incoming numeric history files, phase retros, and table rows unchanged; preserve fork `phase-f1-*.md` records and their full identity in headings, links, and the architecture index.
-If upstream adds a numeric phase with the same suffix as a fork phase, retain both archives and retros; reconcile table conflicts as separate rows, never by renaming one onto the other or using an upstream number to allocate a fork phase.
+Keep incoming numeric history files, phase retros, and architecture history table rows unchanged; preserve fork `phase-f1-*.md` records and their full identity in headings, links, and the architecture index.
+If upstream adds a numeric phase with the same suffix as a fork phase, retain both archives and retros; reconcile architecture history table conflicts as separate rows, never by renaming one onto the other or using an upstream number to allocate a fork phase.
 
 ### Startup selection after [#20]
 
@@ -190,6 +190,7 @@ Upstream release commits touch `packages/pi-subagents/package.json` and `package
   Do not hand-edit fork entries to match upstream version numbers.
 
 If upstream adds a new package directory, wire it per the AGENTS.md four-place list (`.pi/settings.json`, README Packages table, both issue-form Package dropdowns, `pkg:<name>` label) and do not add the npm disable entry until that package's first publish.
+Workspace discovery does not grant publication: register the approved npm identity and provenance in `scripts/release/release-packages.json` before release preparation.
 
 ### Auto-merged both-sides paths
 
@@ -251,8 +252,9 @@ Core release levels therefore derive from verified correspondence evidence inste
 
 The authoritative record is `scripts/release/core-sync-state.json`, committed to Git.
 It stores, for every published fork core release, the upstream release that release incorporated, and for every reviewed sync merge, the selected upstream release plus the reviewed fork-core contribution of the conflict resolution.
-The [version correspondence table](#version-correspondence) below stays as historical explanation; where a published row overlaps the JSON record, the two must agree.
-Recording (`--record-core-sync`) and release preparation are the only writers; a conflicting record is resolved by hand after review.
+The [version correspondence table](#version-correspondence) below is generated from verified published rows in that JSON record, not maintained independently.
+The sync recorder (`--record-core-sync`) writes reviewed merge evidence; release preparation writes the released row and regenerated table together.
+Resolve conflicting evidence in the state file only after review, then regenerate and check the table.
 
 ### Mapping rule
 
@@ -308,9 +310,13 @@ The `--fork-level` review classifies what the conflict resolution itself did to 
 
 ### Release correspondence lifecycle
 
-`scripts/release/prepare-release.sh` resolves and validates the core correspondence in its all-packages preflight, before any write, and the decision must agree with the prediction entry.
-When a core release is selected, it appends the release's verified correspondence to the state file in the same commit as the manifest and changelog.
-Publishing only a sibling leaves the core state untouched.
+`scripts/release/prepare-release.sh` resolves and validates every selected package's registration and the core correspondence in its all-packages preflight, before any write; the core decision must agree with the predicted tag.
+The registry at `scripts/release/release-packages.json` classifies actual directory/npm identities as `fork` or `original`; an unregistered package or unsupported fork evidence blocks preparation, publication, and Release creation.
+Workspace discovery and read-only version prediction remain independent of registration, and registration never authorizes publication.
+When a core release is selected, preparation commits its verified correspondence, decorated CHANGELOG section, and regenerated table together with the manifest.
+An original package gets no upstream correspondence block; publishing only a sibling leaves the core state and table untouched.
+Publishing checks the complete tagged set before the first npm call.
+GitHub Release creation checks the same tagged artifacts and takes each body from that tag's exact CHANGELOG section, not from a new git-cliff render; reruns leave existing Release bodies unchanged.
 After publication, the next window anchors at the recorded fork tag and upstream release, so prediction works offline from committed evidence and local Git objects alone.
 Offline prediction revalidates the baseline and every window sync's release manifest, checks their incorporated tips for unreleased core changes, and verifies that successive upstream tips form a continuous ancestry chain.
 It also rejects malformed git-cliff context entries or commit IDs rather than silently discarding fork changes.
@@ -318,13 +324,35 @@ Recording evidence does not exempt it from these read-time checks.
 
 ## Version correspondence
 
-Each published `@jopqior/pi-subagents` version maps to the newest upstream `pi-subagents-v*` contained in that release's merge base.
-Many-to-one is legal: several fork versions may share one upstream tag.
-Automated derivation reads `scripts/release/core-sync-state.json` (see [Core sync evidence](#core-sync-evidence)); this table is the historical explanation and must agree with the JSON for published rows.
-Add a row for each newly published fork core version.
+Each published `@jopqior/pi-subagents` version records its own verified direct upstream baseline; several fork releases may share one upstream release.
+The fixed source link identifies the upstream release commit and package path, not today's upstream `main` or a claim of behavioral equivalence.
+This generated region derives from `scripts/release/core-sync-state.json`; the verified pending core row is included only during release preparation, in the resulting release commit.
+Never add or repair rows by hand, including after a sync or historical backfill.
+To verify committed evidence against the table, run:
 
-Do not write an unreleased fork version number here.
-The first data row lands in [#3] as `1.0.0 ← 21.7.0`.
+```bash
+node scripts/release/correspondence-table.mjs --check
+```
+
+After reviewing a corrected state file, use `node scripts/release/correspondence-table.mjs --write` to regenerate only the marked region, then run `--check` again.
+The first data row was released under [#3] with fork `1.0.0` incorporating upstream `21.7.0`.
+Old npm artifacts remain immutable: historical state rows and any later GitHub Release notes cannot change what an already-published tarball contained.
+
+### Historical GitHub Release notes
+
+Backfill is a separate, approval-gated notes-only operation, not part of sync or release preparation.
+The default preview requires explicit fork release tags and creates a review JSON file without editing GitHub:
+
+```bash
+node scripts/release/backfill-release-notes.mjs --output /tmp/release-notes-review.json pi-subagents-v1.0.1
+```
+
+Review each captured Release body and proposed appended block alongside tag OID, registered identity, and historical evidence; preserve any `Source-history restoration` disclosure verbatim.
+A missing GitHub Release is reported but not created.
+Only after the operator approves those exact remote edits, use `node scripts/release/backfill-release-notes.mjs --apply /tmp/release-notes-review.json`.
+Apply rechecks the entire batch against live Releases and committed evidence before editing notes, reads back each edit, and skips completed identical entries on a resumed run.
+Another editor may race the final read; coordinate the edit window and retain before/after snapshots.
+Backfill never rewrites historical CHANGELOG sections, old npm tarballs, tags, or Release metadata.
 
 <!-- release-correspondence:start -->
 
