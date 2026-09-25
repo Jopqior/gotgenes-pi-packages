@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v4.0.0...pi-subagents-v4.0.1) (2026-09-25)
+
+
+### Documentation
+
+* **pi-subagents:** clarify fork lineage and selector purpose ([#23](https://github.com/Jopqior/gotgenes-pi-packages/issues/23)) ([ab015a6](https://github.com/Jopqior/gotgenes-pi-packages/commit/ab015a6fd251df72ab718a40db1911690f672c1a))
+* **pi-subagents:** distinguish historical comparisons and fork support ([#23](https://github.com/Jopqior/gotgenes-pi-packages/issues/23)) ([b506ce7](https://github.com/Jopqior/gotgenes-pi-packages/commit/b506ce71b06de2145f9b20176da1a2d3a426cc4f))
+
 ## [4.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v3.0.0...pi-subagents-v4.0.0) (2026-09-21)
 
 
