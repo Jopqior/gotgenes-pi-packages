@@ -24,7 +24,7 @@
     "#src/*": "./src/*",
     "#test/*": "./test/*"
   },
-  "description": "A focused, in-process sub-agent core for pi — autonomous agents plus a typed API and lifecycle events other extensions build on. Friendly fork of @tintinweb/pi-subagents.",
+  "description": "Fork of @gotgenes/pi-subagents: an in-process sub-agent core for pi with per-spawn model/thinking selection support; @jopqior/pi-subagents-model-selector supplies the interactive UI.",
   "author": {
     "name": "Chris Lasher"
   },

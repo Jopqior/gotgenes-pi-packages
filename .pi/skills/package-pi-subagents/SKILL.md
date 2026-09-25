@@ -1,7 +1,7 @@
 ---
 name: package-pi-subagents
 description: |
-  Package-specific context for @gotgenes/pi-subagents.
+  Package-specific context for @jopqior/pi-subagents.
   Load when working on code, tests, or docs in packages/pi-subagents/.
 ---
 
@@ -9,8 +9,8 @@ description: |
 
 Pi extension that adds a focused, in-process autonomous subagent core to the Pi coding agent.
 
-This package is a **hard fork** of [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents).
-The fork diverges intentionally from upstream with material scope reduction and a typed API boundary.
+This package forks [`@gotgenes/pi-subagents` in `gotgenes/pi-packages`](https://github.com/gotgenes/pi-packages/tree/main/packages/pi-subagents), with earlier lineage from [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents).
+It retains the gotgenes minimal-core scope and typed API boundary, adding per-spawn model/thinking selection support; `@jopqior/pi-subagents-model-selector` supplies the interactive UI.
 See `docs/architecture/architecture.md` for the full decomposition plan and `docs/decisions/0001-deferred-patches.md` (superseded) for the original thin-patch rationale.
 
 The fork carries two original patches from the thin-patch era, still present in the codebase:
@@ -34,7 +34,7 @@ The boundary the `tools:` allowlist draws is **capability**, not provenance — 
 They are appended to the allowlist at `createSubagentSession` and passed as SDK `customTools`; both halves are needed, because Pi filters `customTools` through the allowlist and drops an unlisted one with no error.
 This replaced the `<question-for-parent>` text marker and its 222-line fence-aware parser (#858) — do not reintroduce a marker protocol.
 
-Upstream PRs for these patches ([#71](https://github.com/tintinweb/pi-subagents/pull/71), [#72](https://github.com/tintinweb/pi-subagents/pull/72), [#73](https://github.com/tintinweb/pi-subagents/pull/73)) are open but the fork continues independently regardless.
+Historical contributions to tintinweb ([#71](https://github.com/tintinweb/pi-subagents/pull/71), [#72](https://github.com/tintinweb/pi-subagents/pull/72), [#73](https://github.com/tintinweb/pi-subagents/pull/73)) record the earlier lineage, not their present PR status.
 
 `buildAgentPrompt` embeds only the **identity** region of the inherited parent prompt, per `docs/decisions/0006-inherited-prompt-is-identity-only.md`.
 Pi's `buildSystemPrompt` ends every prompt with layers it resolves per session — the `<available_skills>` catalogue, then a `Current working directory:` footer — and extensions append further blocks after those from `before_agent_start`, rebuilt from the base prompt every turn.
@@ -124,7 +124,7 @@ service-adapter ─wraps─→ SubagentManager
   Pending selection is private activity (public status stays `running`) and is withheld from `SubagentRecord`.
   Capture the service instance at extension initialization; a child registration is `inherited` and must not replace the root.
 - Remove scheduling subsystem (done); ad-hoc RPC and group-join (done); output-file porting to Pi session format tracked in #61.
-- Cherry-pick upstream fixes when they align with this fork's scope; do not track upstream as a merge target.
+- Synchronize gotgenes changes only through the repository's `scripts/upstream-sync.sh`; follow the root `docs/upstream-sync.md` procedure and preserve fork selection support.
 
 ### Architectural direction
 
@@ -152,7 +152,7 @@ This package publishes two public subpath entries, each with a rolled self-conta
 | `.`          | `src/service/service.ts`  | `dist/public.d.ts`   | Cross-extension service contract: spawn/abort/steer/resume/workspace/selection seams |
 | `./settings` | `src/layered-settings.ts` | `dist/settings.d.ts` | Generic layered JSON config loader for `@gotgenes/pi-*` extensions                   |
 
-Use `loadLayeredSettings<T>({ agentDir, cwd, filename, sanitize, warnLabel })` from `@gotgenes/pi-subagents/settings` to read global + project JSON config with the standard `@gotgenes/pi-*` layering convention.
+Use `loadLayeredSettings<T>({ agentDir, cwd, filename, sanitize, warnLabel })` from `@jopqior/pi-subagents/settings` to read global + project JSON config with the standard `@gotgenes/pi-*` layering convention.
 See the `## For Extension Authors` section of `README.md` for the full wiring example.
 
 What `SubagentRecord` may carry is settled by `docs/decisions/0005-subagent-record-admission-policy.md`, not by a per-field vote: the snapshot admits identity, resolved spawn facts, cumulative metrics, and durable-artifact pointers, and withholds live objects, momentary activity (`activeTools`, `responseText`, `awaitingSelection`), package-internal bookkeeping, and display snapshots.
@@ -182,7 +182,7 @@ When working in this package:
 
 1. New features and removals follow the phase plan in `docs/architecture/architecture.md`.
    Document architectural decisions in `docs/decisions/`.
-2. The upstream test suite is run periodically as a regression canary for the session assembly core.
+2. Use the verification gates in the root `docs/upstream-sync.md` when integrating gotgenes changes; do not assume a separate periodic upstream-suite run.
 3. Modules marked `← removing` or `← replacing` in the architecture doc's current-state listing are slated for deletion - do not add features to them.
 
 [ADR-0003]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0003-publish-bundled-type-declarations.md

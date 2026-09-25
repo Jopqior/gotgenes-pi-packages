@@ -6,8 +6,10 @@ A [pi](https://pi.dev) extension that gives pi **a focused, in-process sub-agent
 Spawn specialized agents that run in isolated sessions — each with its own tools, system prompt, model, and thinking level.
 Run them in foreground or background, steer them mid-run, resume completed sessions, and define your own custom agent types.
 
-> Originally forked from [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb), now an independently maintained hard fork.
-> See [Comparison with upstream](./docs/comparison-with-upstream.md) for a feature-by-feature comparison and guidance on which to choose.
+> This package forks [`@gotgenes/pi-subagents`](https://github.com/gotgenes/pi-packages/tree/main/packages/pi-subagents) from [`gotgenes/pi-packages`](https://github.com/gotgenes/pi-packages), adding support for per-spawn model and thinking selection.
+> The core exposes selection support; [`@jopqior/pi-subagents-model-selector`](https://github.com/Jopqior/gotgenes-pi-packages/tree/main/packages/pi-subagents-model-selector) provides the interactive selector.
+> Without a registered provider, ordinary model and thinking resolution is unchanged.
+> Earlier lineage traces to [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb).
 
 <!-- -->
 
@@ -482,7 +484,7 @@ Anything attaching to the core either subscribes to a lifecycle event, or regist
 **Non-goals.**
 
 - _Capability the fork deliberately left behind._
-  Scheduling, cross-extension RPC, model-scope enforcement, and a built-in tool denylist belong to upstream — see [Relationship to upstream](#relationship-to-upstream).
+  Scheduling, cross-extension RPC, model-scope enforcement, and a built-in tool denylist belong to the earlier tintinweb project's scope — see [Relationship to upstream](#relationship-to-upstream).
 - _Policy about what a child may do._
   Tool restriction is allow/ask/deny in a permission layer, not a binary hide in a spawner — see [Migrating from `disallowed_tools`](#migrating-from-disallowed_tools).
 - _Widening a child's tool allowlist with **capability** tools on the agent's behalf._
@@ -500,7 +502,7 @@ Tool restriction and per-agent permission policy → [@gotgenes/pi-permission-sy
 Worktree isolation → [@gotgenes/pi-subagents-worktrees](https://www.npmjs.com/package/@gotgenes/pi-subagents-worktrees).
 Per-spawn model and thinking selection → this fork's `@jopqior/pi-subagents-model-selector` (local companion).
 Timed dispatch, telemetry, and alternate UIs → a consumer over the lifecycle events and the typed service.
-A batteries-included alternative → upstream [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents).
+The earlier batteries-included project → [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents).
 
 ## Documentation
 
@@ -516,12 +518,14 @@ This extension is a minimal, composable core: it owns agent spawning, execution,
 
 ## Relationship to upstream
 
-This package is an independently maintained hard fork of [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb).
-It has diverged substantially in scope and architecture: a minimal core with a typed service API and lifecycle events, with tool-restriction policy and worktree isolation delegated to companion packages.
-Upstream remains the batteries-included option, keeping scheduling, cross-extension RPC, model-scope enforcement, and a built-in tool denylist in a single package.
+The direct upstream is [`@gotgenes/pi-subagents`](https://github.com/gotgenes/pi-packages/tree/main/packages/pi-subagents), maintained by [Chris Lasher](https://github.com/gotgenes).
+This fork retains its minimal-core architecture and adds the selection support described [above](#per-spawn-model-and-thinking-selection).
+Synchronization follows this repository's [upstream sync procedure](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream-sync.md).
 
-See [Comparison with upstream](./docs/comparison-with-upstream.md) for a full feature-by-feature comparison against the current upstream release and guidance on which to choose.
+The earlier project, [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb), supplied the original foundation.
+The retained [historical comparison](./docs/comparison-with-upstream.md) explains the gotgenes-versus-tintinweb scope split; it is not a current three-way comparison.
 
 ## License
 
-MIT — [tintinweb](https://github.com/tintinweb) (upstream) and [Chris Lasher](https://github.com/gotgenes) (fork)
+MIT — see the complete notice in [LICENSE](./LICENSE).
+Original project by [tintinweb](https://github.com/tintinweb); direct upstream maintained by [Chris Lasher](https://github.com/gotgenes); this fork maintained in [Jopqior/gotgenes-pi-packages](https://github.com/Jopqior/gotgenes-pi-packages).

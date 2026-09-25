@@ -10,7 +10,7 @@ This document describes the architecture of the pi-subagents fork: a focused, co
 3. **Typed API boundary** — this package exports a `SubagentsService` interface and `Symbol.for()` accessors (`publishSubagentsService` / `getSubagentsService`).
    Consumers declare this package as an optional peer dependency and use dynamic import for compile-time types.
    The runtime bridge is `Symbol.for("@gotgenes/pi-subagents:service")` on `globalThis` — no separate API package.
-4. **No time-based scheduling** — cron-style timed dispatch (upstream's `schedule.ts` subsystem) is removed from the core (#52).
+4. **No time-based scheduling** — cron-style timed dispatch (tintinweb's `schedule.ts` subsystem) is removed from the core (#52).
    Timed dispatch is a separate concern that any extension can implement by calling `spawn()` on the published API.
    The max-concurrent admission gate is not scheduling in this sense — concurrency management stays in core.
 5. **UI is an in-core, substitutable consumer** — [ADR-0004](../decisions/0004-reconsider-ui-direction.md) records the per-component decision: the widget shrinks to background agents only, the bespoke conversation viewer is replaced by native session navigation, the `/agents` command is dissolved into focused surfaces, and the surviving UI stays in the core as a reactive consumer (not extracted to a separate package).
@@ -379,7 +379,7 @@ src/
 ├── types.ts                        shared type definitions
 ├── settings.ts                     SettingsManager (persistent operational settings)
 ├── debug.ts                        debug logging utility
-├── layered-settings.ts             loadLayeredSettings helper (published as @gotgenes/pi-subagents/settings)
+├── layered-settings.ts             loadLayeredSettings helper (published as @jopqior/pi-subagents/settings)
 │
 ├── config/                         agent type definitions and resolution
 │   ├── agent-types.ts              AgentTypeRegistry class
@@ -477,7 +477,7 @@ The `/subagents:sessions` navigator reads messages via `Subagent.agentMessages` 
 
 ```mermaid
 flowchart TD
-    subgraph core["@gotgenes/pi-subagents"]
+    subgraph core["@jopqior/pi-subagents"]
         direction TB
         exports["SubagentsService API<br/>publish / getSubagentsService<br/>SubagentRecord, SubagentStatus"]
         engine["Tools: subagent, get_subagent_result,<br/>steer_subagent<br/>SubagentManager, createSubagentSession, SubagentSession"]
@@ -548,26 +548,16 @@ It reaches the SDK as the `excludeTools` denylist, which Pi reapplies on every t
 
 ## SubagentsService
 
-The `SubagentsService` interface, accessor functions, and serializable types are exported from `@gotgenes/pi-subagents` via the `./service` export map entry.
+The `SubagentsService` interface, accessor functions, and serializable types are exported from `@jopqior/pi-subagents` via the `.` export map entry.
 No separate API package is needed.
 
-Consumers declare this package as an optional peer dependency:
-
-```json
-{
-  "peerDependencies": {
-    "@gotgenes/pi-subagents": ">=5.0.0"
-  },
-  "peerDependenciesMeta": {
-    "@gotgenes/pi-subagents": { "optional": true }
-  }
-}
-```
+Consumers declare `@jopqior/pi-subagents` as an optional peer dependency using a range they have verified against the fork's releases.
+Gotgenes version numbers do not identify fork compatibility.
 
 At runtime, consumers use dynamic import for type-safe access to the accessor functions:
 
 ```typescript
-const { getSubagentsService } = await import("@gotgenes/pi-subagents");
+const { getSubagentsService } = await import("@jopqior/pi-subagents");
 const svc = getSubagentsService();
 if (svc) {
   svc.spawn("Explore", "Check for stale TODOs");
@@ -902,15 +892,12 @@ Of the tracks recorded under Phase 21's deferred-work dispositions, [#482], [#60
 
 ## Relationship with upstream
 
-This fork (`@gotgenes/pi-subagents` in the [gotgenes/pi-packages] monorepo) is a hard fork of [tintinweb/pi-subagents].
-The decomposition diverges materially from upstream's direction.
+This package, `@jopqior/pi-subagents`, directly forks `@gotgenes/pi-subagents` from [gotgenes/pi-packages].
+The gotgenes minimal-core decomposition derives from the earlier [tintinweb/pi-subagents] project.
+This fork adds per-spawn model/thinking selection support, with interactive UI supplied by `@jopqior/pi-subagents-model-selector` rather than the core.
 
-The three upstream PRs (#71, #72, #73) remain open.
-If they land, upstream gains the peer-dep fix and the two RepOne patches.
-This fork continues independently regardless.
-
-Upstream fixes and ideas are cherry-picked when they align with this fork's scope.
-The upstream test suite is run periodically as a regression canary for the session assembly core.
+The [historical comparison](../comparison-with-upstream.md) preserves the gotgenes-versus-tintinweb scope split and contribution links without asserting current PR status.
+Gotgenes synchronization and its verification gates follow this repository's [upstream sync procedure](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream-sync.md), not the earlier cherry-pick-only policy.
 
 [earendil-works/pi#4207]: https://github.com/earendil-works/pi/issues/4207
 [gotgenes/pi-packages]: https://github.com/gotgenes/pi-packages

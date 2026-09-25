@@ -104,7 +104,7 @@ Agents are discovered from two locations (higher priority wins):
 | 2           | `$PI_CODING_AGENT_DIR/agents/<name>.md` (default `~/.pi/agent/agents/<name>.md`) | Global — available everywhere |
 
 Project-level agents override global ones with the same name, so you can customize a global agent for a specific project.
-The global location follows the upstream `PI_CODING_AGENT_DIR` env var — set it to relocate all pi-coding-agent state (agents, skills, settings) to a custom directory.
+The global location follows Pi's `PI_CODING_AGENT_DIR` env var — set it to relocate all pi-coding-agent state (agents, skills, settings) to a custom directory.
 
 ### Example: `.pi/agents/auditor.md`
 
