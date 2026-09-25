@@ -9,6 +9,7 @@ import type { PathNormalizer } from "#src/path/path-normalizer";
 import { isSafeSystemPath } from "#src/path/safe-system-paths";
 import { ARG_NODE_TYPES, SKIP_SUBTREE_TYPES } from "./node-text";
 import type { TSNode } from "./parser";
+import { REDIRECT_NODE_TYPES } from "./redirect-analysis";
 import {
   classifyBareTokenCandidate,
   classifyTokenAsPathCandidate,
@@ -741,6 +742,8 @@ function cdLiteralTarget(commandNode: TSNode): string | null {
     const child = commandNode.child(i);
     if (!child) continue;
     if (COMMAND_PREFIX_TYPES.has(child.type)) continue;
+    // A redirect is not cd's operand, wherever it sits (`2>/dev/null cd a`).
+    if (REDIRECT_NODE_TYPES.has(child.type)) continue;
     if (!child.isNamed) continue;
     // Skip the `--` end-of-flags marker; the next argument is the target.
     if (child.type === "word" && child.text === "--") continue;

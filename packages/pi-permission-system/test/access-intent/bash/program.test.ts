@@ -1020,6 +1020,15 @@ describe("BashProgram", () => {
         expect(program.externalAccesses()).toHaveLength(0);
       });
 
+      it("folds a cd whose redirect precedes its target", async () => {
+        // The redirect is not cd's operand; `a` is. ../b resolves to cwd/b.
+        const program = await BashProgram.parse(
+          "2>/dev/null cd a && cat ../b",
+          normalizer,
+        );
+        expect(program.externalAccesses()).toHaveLength(0);
+      });
+
       it("does not fold a backgrounded cd", async () => {
         // `cd a &` runs in a subshell, so it must not update the running
         // directory; ../b resolves against cwd and escapes.
