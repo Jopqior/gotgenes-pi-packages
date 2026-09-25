@@ -123,6 +123,61 @@ describe("parseRoadmap", () => {
     expect(parseRoadmap("# Architecture\n\nNo roadmap here.\n")).toBeNull();
   });
 
+  describe("phase identity in issue-keyed roadmaps", () => {
+    const titles = [
+      "Improvement roadmap — Phase 23: Resume delivery",
+      "Improvement roadmap — Phase f1: Resume delivery",
+    ];
+
+    for (const title of titles) {
+      describe(title, () => {
+        const roadmap = parseRoadmap(
+          ISSUE_ROADMAP.replace(
+            "## Improvement roadmap — Phase 23: Resume delivery",
+            `## ${title}`,
+          ),
+        );
+
+        it("preserves the complete phase title", () => {
+          expect(roadmap?.phaseTitle).toBe(title);
+        });
+
+        it("retains issue-keyed steps and their releases", () => {
+          expect(
+            roadmap?.steps.map(({ issue, ordinal, title, releaseTags }) => ({
+              issue,
+              ordinal,
+              title,
+              releaseTags,
+            })),
+          ).toEqual([
+            {
+              issue: 857,
+              ordinal: null,
+              title: "Re-prepare or refuse a workspace-backed resume",
+              releaseTags: ["independent"],
+            },
+            {
+              issue: 878,
+              ordinal: null,
+              title:
+                "Stop advertising a resume that will be refused (with [#892])",
+              releaseTags: ["independent"],
+            },
+          ]);
+        });
+
+        it("retains hard and soft dependency edges", () => {
+          expect(roadmap?.edges).toEqual([
+            { from: 857, to: 878, kind: "hard" },
+            { from: 857, to: 878, kind: "soft" },
+            { from: 857, to: 878, kind: "soft" },
+          ]);
+        });
+      });
+    }
+  });
+
   describe("the ordinal heading shape", () => {
     const roadmap = parseRoadmap(ORDINAL_ROADMAP);
 

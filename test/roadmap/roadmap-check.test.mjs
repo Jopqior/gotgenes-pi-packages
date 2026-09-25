@@ -30,14 +30,16 @@ function givenPackage(pkg, document) {
  * @param {object} options
  * @param {number} options.priority the published Priority, which should be 8
  * @param {string} [options.tracks]
+ * @param {string} [options.phase] the complete phase identity
  */
 function roadmapDocument({
   priority,
   tracks = "- **Track A — Example:** [#857].",
+  phase = "1",
 }) {
   return `# Architecture
 
-## Improvement roadmap — Phase 1: Example
+## Improvement roadmap — Phase ${phase}: Example
 
 ### Steps
 
@@ -114,6 +116,38 @@ describe("checkRoadmaps", () => {
         packages: ["pi-example"],
       });
       expect(result.code).toBe(2);
+    });
+  });
+
+  describe("fork phase identity", () => {
+    it("reports the complete f1 title for a clean roadmap", () => {
+      givenPackage("pi-example", roadmapDocument({ priority: 8, phase: "f1" }));
+      expect(checkRoadmaps({ root: workspace, packages: [] })).toEqual({
+        code: 0,
+        report:
+          "packages/pi-example/docs/architecture/architecture.md — Improvement roadmap — Phase f1: Example (1 steps, 0 findings)\n",
+      });
+    });
+
+    it("keeps a score error and failure status under f1", () => {
+      givenPackage("pi-example", roadmapDocument({ priority: 9, phase: "f1" }));
+      expect(checkRoadmaps({ root: workspace, packages: [] })).toEqual({
+        code: 1,
+        report:
+          "packages/pi-example/docs/architecture/architecture.md — Improvement roadmap — Phase f1: Example (1 steps, 1 findings)\n  error   #857 published Priority 9, but Impact 2 × (6 − Risk 2) is 8\n",
+      });
+    });
+
+    it("keeps a warning and successful status under f1", () => {
+      givenPackage(
+        "pi-example",
+        roadmapDocument({ priority: 8, phase: "f1", tracks: "- No tracks." }),
+      );
+      expect(checkRoadmaps({ root: workspace, packages: [] })).toEqual({
+        code: 0,
+        report:
+          "packages/pi-example/docs/architecture/architecture.md — Improvement roadmap — Phase f1: Example (1 steps, 1 findings)\n  warning #857 is named in no parallel track\n",
+      });
     });
   });
 
