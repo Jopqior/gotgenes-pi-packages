@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ARG_NODE_TYPES } from "#src/access-intent/bash/node-text";
-import { getParser, type TSNode } from "#src/access-intent/bash/parser";
+import { getGrammarParser, type TSNode } from "#src/access-intent/bash/parser";
 import {
   redirectEffectForDestination,
   redirectMayWriteFile,
@@ -26,13 +26,16 @@ function findNodes(node: TSNode, type: string, out: TSNode[] = []): TSNode[] {
  * A command can carry several, and an unresolvable one does not contaminate a
  * resolvable neighbour — so a test asserting that needs the whole list from one
  * parse, not the first match.
+ *
+ * Parsed by the grammar's own parser: this module reads a redirect node as
+ * `tree-sitter-bash` produced it, words after its target included.
  */
 async function withRedirects<T>(
   command: string,
   type: string,
   read: (redirects: TSNode[]) => T,
 ): Promise<T> {
-  const parser = await getParser();
+  const parser = await getGrammarParser();
   const tree = parser.parse(command);
   if (!tree) throw new Error("parser.parse returned null");
   try {

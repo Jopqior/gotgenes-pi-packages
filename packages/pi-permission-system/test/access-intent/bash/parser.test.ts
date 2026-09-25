@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  getGrammarParser,
   getParser,
   getWarmBashParser,
   parseUnresolvedAt,
@@ -22,6 +23,14 @@ describe("getParser", () => {
   it("returns the same memoized parser instance on repeated calls", async () => {
     const first = await getParser();
     const second = await getParser();
+    expect(first).toBe(second);
+  });
+});
+
+describe("getGrammarParser", () => {
+  it("returns the same memoized parser instance on repeated calls", async () => {
+    const first = await getGrammarParser();
+    const second = await getGrammarParser();
     expect(first).toBe(second);
   });
 });

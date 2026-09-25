@@ -125,7 +125,20 @@ async function initParser(): Promise<TSParser> {
 // Memoize on success but drop a rejected result so a transient init failure
 // (e.g. a slow WASM load) is retried on the next tool call instead of poisoning
 // the parser for the process lifetime.
-export const getParser = memoizeAsyncWithRetry(initParser);
+
+/**
+ * The parser every consumer reads the bash grammar through.
+ */
+export const getParser = memoizeAsyncWithRetry(() => getGrammarParser());
+
+/**
+ * `tree-sitter-bash`'s own parser, whose trees are exactly what the grammar
+ * produced.
+ *
+ * Production code reads {@link getParser}; this one exists so a test whose
+ * subject is the grammar's own shape can still see it.
+ */
+export const getGrammarParser = memoizeAsyncWithRetry(initParser);
 
 // Resolved parser cached for synchronous access after warm-up. The tree-sitter
 // parser is stateless (parse is a pure function of its input), so caching it at
