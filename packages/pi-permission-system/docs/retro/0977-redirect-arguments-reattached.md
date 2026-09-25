@@ -41,3 +41,38 @@ It filed #979 (a heredoc's tail) and dispositioned it into Phase 15 directly aft
 
 - `src/access-intent/bash/command-enumeration.ts`: splitting `commandUnitText` ahead of the change was rejected; the change replaces it wholesale.
 - The five target files' long doc comments: a `/plan-improvements` concern, not this change's.
+
+## Stage: Implementation — TDD (2026-09-25T19:46:19Z)
+
+### Session summary
+
+All eight planned steps landed, plus one unplanned `refactor:` step (extracting `parse-health.ts`), as nine commits.
+`getParser` now hands out trees with each word the grammar hung on a redirect moved into its command, and the enumerator leaves a redirect hosted anywhere in a command out of the unit.
+The `pi-permission-system` suite went from 4648 to 4743 tests (+95), and every named killing mutation turned its predicted tests red.
+
+### Observations
+
+- **Import cycle (unplanned step).**
+  Wiring the correction into `parser.ts` made `parser.ts` → `redirect-arguments.ts` → `redirect-analysis.ts` → `parser.ts` a cycle, which `fallow dead-code` rejects.
+  The operator chose to extract `parseUnresolvedAt`/`parseUnresolvedWithin` into `parse-health.ts` rather than split `redirect-analysis.ts`.
+  The correction now asks `parseUnresolvedWithin` instead of reading `hasError` itself.
+  The plan's import graph was never checked against the new edge; a `fallow guard`-style check of "does the module I am wiring in import back into me?"
+  would have caught it at planning.
+- **Pipeline body (plan gap).**
+  The grammar hangs a redirect on a pipeline's last stage off the whole pipeline (`rg -l x | xargs ls -1t 2>&1 ~/x` parses as `redirected_statement(pipeline, file_redirect)`), so the correction also descends `pipeline`.
+  The plan's census checked body types only in real traffic (4 `command` bodies), and its own step-7 exemption test surfaced the gap.
+- **Predicted change, unlisted test.**
+  `cat <<< $(rm x)` was pinned as the unit `cat <<< $(rm x)`; the trailing hosted herestring now leaves the unit (`cat`).
+  The plan predicted the behavior but did not grep the tests for it.
+- **Plan mutation that did not apply.**
+  The [#941] pin's named mutation ("include hosted `heredoc_redirect` text") cannot touch that command, because its heredoc is statement-level.
+  I mutated the `redirected_statement` branch to emit the whole statement instead, which killed the pin.
+- The step-3 metamorphic describe needed a prefix-anchored resolver: the file's substring resolver finds `git` in `2>/dev/null git push` and proves nothing.
+  Its "between the arguments" placements pass before the fix, because a two-word prefix never reads the third word; the `program.test.ts` unit cases carry that discrimination.
+- A test identity check (`toBe` on the root) needed `tree.rootNode` read once: web-tree-sitter builds a new wrapper on every access.
+- **Corpus re-measurement.**
+  Over 8891 intact distinct review-log commands, comparing the pre-change source (retro commit) against `HEAD`, exactly the 4 census commands change, each only by its reattached words.
+  One token's effect moved from `write (syntax)` to `read (core)`; this matches the plan's prediction.
+- An `oldText` carrying an em-dash failed twice because it arrived as a `\u2014` escape; both were rerouted through line-number or ASCII-anchor scripted edits.
+- Pre-completion reviewer: **PASS**.
+  Its own spike re-derived byte-identity, #814's unproven attribution, floor-exemption semantics (no exemption newly granted against bash semantics), masked offsets including non-ASCII, and nested cases, and found no gap.
