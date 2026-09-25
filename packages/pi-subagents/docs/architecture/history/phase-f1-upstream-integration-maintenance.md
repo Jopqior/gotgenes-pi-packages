@@ -1,4 +1,6 @@
-# Phase 23: Upstream integration maintenance
+# Phase f1: Upstream integration maintenance
+
+This fork phase was originally recorded as Phase 23 and is now Phase f1; its findings, evidence, and completion assessment are retained.
 
 ## Completion assessment
 
@@ -58,7 +60,7 @@ The upstream comparison is fixed at `edb35ee28535aac4e12431e47e440f6933911834`; 
 Planning HEAD matches that inventory snapshot.
 Do not fetch or replace the upstream baseline during this planning cycle; compare any later local implementation separately.
 The full investigation, behavior obligations, historical merge evidence, test limits, and operator decisions live in [the issue checkpoint](../../retro/f0019-upstream-integration-maintenance.md).
-Phase planning notes live in [the phase retro](../../retro/phase-23-upstream-integration-maintenance.md).
+Phase planning notes live in [the phase retro](../../retro/phase-f1-upstream-integration-maintenance.md).
 
 The operator approved startup coordination and presentation reconciliation as separate deliveries, each carrying its own behavior and maintenance evidence.
 Construction/inheritance preservation is included in startup acceptance, not a separate isolation issue.

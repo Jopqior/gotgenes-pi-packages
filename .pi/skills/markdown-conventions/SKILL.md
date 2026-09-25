@@ -92,6 +92,20 @@ issue_title: "Short descriptive title" # required
 - Do not duplicate frontmatter fields as inline metadata in the body (e.g., `Issue #N` in the H1 is fine; a separate `**Issue:** #N` line is not).
 - Other doc types (`README.md`) do not use frontmatter.
 
+### Improvement phase identities
+
+A phase identity is the complete token: inherited upstream phases use numeric identities such as `22`, while fork phases use lowercase `f` plus a positive, unpadded decimal suffix such as `f1`.
+Fork phase allocation is independent **per package**: after checking that no detailed roadmap is active, inventory that package's committed fork identities in history files, phase retros, and architecture phase records; select one more than the greatest suffix **numerically**, or `f1` when none exists.
+Count a history/retro pair once; a retained planning retro reserves its identity even without an archive.
+An active roadmap in either namespace must be finished before planning another phase.
+Read predecessor findings from the latest completed fork archive linked in the history table, or from the latest incorporated upstream archive if no fork archive is complete; upstream numeric identities never influence fork allocation.
+Stop and reconcile duplicate or inconsistent records instead of choosing a file by sort order.
+
+Carry the complete identity through roadmap headings, session names, commit subjects, history rows, and matching `history/phase-PHASE-<slug>.md` and `retro/phase-PHASE-<slug>.md` paths.
+Look up `phase-f1-*.md` only for `f1` and `phase-1-*.md` only for `1`; neither namespace falls back to the other.
+Fork phase retros use a quoted string field (`phase: "f1"`); inherited numeric retros retain numeric fields (`phase: 22`).
+These phase-scoped names are separate from the fork GitHub **issue** convention `fNNNN-<slug>.md`, whose `issue: N` stays numeric.
+
 ### Retro file format
 
 Get each stage timestamp from `date -u +"%Y-%m-%dT%H:%M:%SZ"` — never write one from memory; a model has no clock.

@@ -21,7 +21,9 @@ Load `docs/architecture/architecture.md` for the current domain model, health me
 Check which bags/hotspots have already been addressed vs. remain open.
 Before touching any tool, write down a **cause hypothesis** — the first-principles structural problem the next phase should dissolve (structural fusion, a coupling/boundary flaw, a dead subsystem).
 The later steps corroborate, refine, or refute it.
-The prior phase's history file carries candidates beyond any explicit "leading candidate" line: a ⚠️ metric miss in its health-metrics table and any in-step "deferred" remark are implicit candidates, and each metric miss gets an explicit disposition in the new roadmap (re-target / accept with rationale / supersede) — never a silent drop.
+Select a package's fork phase identity and predecessor archive independently, following `markdown-conventions` → Improvement phase identities: check for any active roadmap, allocate the next fork suffix numerically from committed records, and read the actual latest completed fork history-table link (or the latest incorporated upstream link if there is no completed fork archive).
+An inherited numeric phase is context, never a fork numbering input or a fallback lookup for an `f` identity.
+The predecessor's history file carries candidates beyond any explicit "leading candidate" line: a ⚠️ metric miss in its health-metrics table and any in-step "deferred" remark are implicit candidates, and each metric miss gets an explicit disposition in the new roadmap (re-target / accept with rationale / supersede) — never a silent drop.
 A cause-level finding must trace to a named target concept in the architecture doc's first-principles section (the pattern: pi-permission-system's "The authority model").
 When no such section exists, writing one — naming the organizing concept and recording resolved design directions — is itself a phase deliverable, not an emergent artifact: settled-in-writing directions are what make the next phase's plan cheap.
 
@@ -285,6 +287,7 @@ The plan should produce:
   A phase may mix commit types: a `fix:` (or unhidden `docs:`) step is the phase's release vehicle, while `refactor:`/`test:` steps are hidden changelog types that cut no release on their own — name the release vehicle in the `Release batches` subsection instead of assuming a refactor-only phase.
 
 6. **A format a checker reads.**
+   Put the full phase identity in the `## Improvement roadmap — Phase PHASE: …` heading and preserve it when archiving; GitHub issue numbers in `#### [#N]` step headings, `S<issue>` nodes, and `Release:` tags are independent of the phase namespace.
    `./scripts/roadmap-check.mjs <pkg>` validates the published inputs above against each other, so four structural anchors are load-bearing: the `### Steps` subsection steps are taken from, the single ```mermaid fence, `### Parallel tracks`, and `### Release batches`.
    It verifies that `Priority` equals `Impact × (6 − Risk)` rather than taking the published product on trust, that every step carries exactly one recognized `Release:` tag whose batch resolves to a bullet, that steps and diagram nodes correspond, and that the hard-dependency graph is acyclic.
    It also holds each `**Hard dependency:**` bullet to the diagram's solid edges in both directions — the diagram is the dependency authority and the bullet is the explanation — and reports a step named in no track or no release batch.

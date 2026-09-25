@@ -121,7 +121,7 @@ No full repository lint/check, published-core compatibility matrix, interactive 
 ### Scope reconciliation
 
 The fork open-issue sweep returned only this issue; the open-PR sweep returned none.
-The inherited Phase 22 roadmap is archived, so no previous-phase archival gate blocks planning; the next phase number would be 23 if a phase is approved.
+The inherited Phase 22 roadmap is archived, so no previous-phase archival gate blocks planning; the first fork phase identity is f1 if a phase is approved.
 No phase has been opened by this checkpoint.
 The inherited history's running-child observability candidates (`gotgenes/pi-packages` issues 912, 947, and 755) and cancellation candidate 949 are context, not fork obligations or automatically approved scope.
 The archived metrics report no missed targets.
@@ -174,7 +174,7 @@ The operator approved continuing on this basis, but has not approved specific ch
 3. Present candidate deliverable boundaries, dependencies, trade-offs, and inspectable maintenance outcomes to the operator.
    Distinguish mechanical merge work from semantic review, test/host compatibility obligations, and the upkeep of any added abstraction.
    Seek confirmation before filing child issues or writing a roadmap; no approval from the earlier single-issue gate should be inferred.
-4. If a phase is approved, Phase 22 is already archived and the next number is 23.
+4. If a phase is approved, Phase 22 is already archived and the first fork phase identity is f1.
    Use the phase workflow's roadmap and phase retro, keeping this issue-level checkpoint as the bridge and issue 19 as the overall acceptance tracker.
    File approved work items in the fork only, then hand each to its own `/plan-issue` session.
 5. Keep issue 19 open until actual delivered maintenance outcomes are assessed or the operator explicitly defers/stops.
@@ -291,13 +291,13 @@ Concrete mechanism, package boundary, and release classification remain for each
 Each delivery must name the upstream-change scenarios it improves, compare the judgments required before and after, preserve its affected selector behavior, and state residual or relocated obligations and abstraction upkeep.
 A smaller diff or a new helper alone is insufficient.
 The next discussion should tighten A/C's problem statements and acceptance conditions, then explicitly obtain approval for roadmap composition and child-issue filing.
-No approval to file or open Phase 23 had been given at this investigation checkpoint.
+No approval to file or open Phase f1 had been given at this investigation checkpoint.
 
 ## Stage: Roadmap approval and filing (2026-09-24T09:00:03Z)
 
 ### Confirmed composition
 
-After reviewing the tightened A/C scopes and acceptance criteria, the operator explicitly approved creating the fork child issues and writing the Phase 23 roadmap.
+After reviewing the tightened A/C scopes and acceptance criteria, the operator explicitly approved creating the fork child issues and writing the Phase f1 roadmap.
 This supersedes the earlier pending-filing gate, not the no-fetch or behavior-preservation constraints.
 No commit, push, or release was authorized.
 
@@ -309,7 +309,7 @@ Issue 19 remains the overall acceptance tracker and stays open.
 
 ### Handoff
 
-The approved composition is written in `packages/pi-subagents/docs/architecture/architecture.md` under Phase 23, with stage notes in [the phase retro](phase-23-upstream-integration-maintenance.md).
+The approved composition is written in `packages/pi-subagents/docs/architecture/architecture.md` under Phase f1, with stage notes in [the phase retro](phase-f1-upstream-integration-maintenance.md).
 The files remain uncommitted for operator review.
 Next obtain commit authorization, then start `/plan-issue #20`; use `/plan-issue #21` after inspecting the startup delivery.
 Each plan must establish concrete implementation and verification rather than treating the roadmap's outcome as proven feasibility.

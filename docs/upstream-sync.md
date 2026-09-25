@@ -109,7 +109,10 @@ Then re-run the script.
 ## Conflict handbook
 
 Do not take ours or theirs wholesale.
-Keep fork-only spawn-selection and `fNNNN-` lookup, and keep incoming upstream behavior.
+Keep fork-only spawn-selection and `fNNNN-` issue lookup, and keep incoming upstream behavior.
+Fork improvement phases have package-scoped `f` identities independent of upstream numeric phases (see `markdown-conventions` → Improvement phase identities).
+Keep incoming numeric history files, phase retros, and table rows unchanged; preserve fork `phase-f1-*.md` records and their full identity in headings, links, and the architecture index.
+If upstream adds a numeric phase with the same suffix as a fork phase, retain both archives and retros; reconcile table conflicts as separate rows, never by renaming one onto the other or using an upstream number to allocate a fork phase.
 
 ### Startup selection after [#20]
 
@@ -193,6 +196,7 @@ If upstream adds a new package directory, wire it per the AGENTS.md four-place l
 Read through after every merge even when git reports zero markers.
 
 Restore any dropped `fNNNN-` short-circuit in `.pi/prompts/ship.md` and `.pi/prompts/plan-issue.md`.
+Check `.pi/prompts/plan-improvements.md`, `.pi/prompts/finish-phase.md`, the architecture history table, and phase retros for full `f` identities and independent per-package allocation; an auto-merged numeric maximum, arithmetic predecessor, or fallback from `phase-f1-*.md` to `phase-1-*.md` is a regression.
 Restore any dropped spawn-selection sentence in `AGENTS.md` or `packages/pi-subagents/**`.
 `pnpm-lock.yaml` is untrusted after an auto-merge; always `pnpm install`.
 

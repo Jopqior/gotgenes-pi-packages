@@ -54,7 +54,8 @@ The work still happens under the filed issue, on its own schedule.
 
 Append a bullet to the roadmap's `#### Open-issue sweep dispositions` subsection, inside `### Findings (planned <date>)`.
 Create that subsection at the end of `### Findings` if the roadmap has none.
-The list must stay inside the roadmap section: `/finish-phase` moves that section wholesale into `history/phase-N-<slug>.md`, so a disposition recorded anywhere else is orphaned at archive time.
+Use the complete active phase identity (`PHASE`, such as `f1` or inherited `22`) for archive paths and commit subjects; `#N` here is the new GitHub issue number.
+The list must stay inside the roadmap section: `/finish-phase` moves that section wholesale into `history/phase-PHASE-<slug>.md`, so a disposition recorded anywhere else is orphaned at archive time.
 
 ```markdown
 - [#N] — filed by <[#M]'s planning | [#M]'s implementation | the #X retrospective>; <disposition>.
@@ -71,7 +72,7 @@ When the disposition narrows a step that has already **shipped**, edit that step
 
 ```bash
 git add packages/<PKG>/docs/architecture/architecture.md
-git commit -m "docs(<PKG>): disposition #N against Phase N"
+git commit -m "docs(<PKG>): disposition #N against Phase PHASE"
 ```
 
 Keep it out of the session's own commits — it is roadmap bookkeeping, not part of the change under way.

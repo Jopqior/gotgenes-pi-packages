@@ -6,7 +6,7 @@ description: Form a cause hypothesis from the architecture doc, corroborate with
 
 Package: `$1`
 
-Your job is to analyze the package, identify structural improvements, and propose a numbered phase plan.
+Your job is to analyze the package, identify structural improvements, and propose a fork phase plan.
 Do **not** start implementation — only produce the analysis and plan.
 
 ## Sync with remote (do this first)
@@ -42,14 +42,21 @@ Note:
 - Complexity hotspots
 - Churn hotspots
 
-Determine the next phase number N (last completed phase + 1), then immediately call `set_session_name` with `$1 — Phase N Planning` so the session is labelled for the rest of the work.
+**Hard gate — finish any active phase before allocating.**
+If `architecture.md` still contains a detailed `## Improvement roadmap — Phase …` section (steps with `Outcome:` lines and a dependency diagram), stop and tell the user to run `/finish-phase $1` first, then resume `/plan-improvements $1`.
+This applies to active upstream numeric and fork phases alike; archiving and doc reconciliation are `/finish-phase`'s job, not this step's.
 
-**Hard gate — the previous phase must be archived first.**
-If Phase N−1's full detailed roadmap (its steps with `Outcome:` lines and a dependency diagram) is still inline in `architecture.md` rather than archived to a `history/phase-(N−1)-<slug>.md` file with only a "Refactoring history" table row left behind, stop and tell the user to run `/finish-phase $1` first, then resume `/plan-improvements $1`.
-Archiving the prior phase — with its step-completion gate and doc reconciliation — is `/finish-phase`'s job; do not do it inline here.
+Use the `markdown-conventions` phase-identity rule to inventory this package's committed fork phase identities in `docs/architecture/history/phase-f[0-9]*-*.md`, `docs/retro/phase-f[0-9]*-*.md`, and the architecture phase records.
+Count a matching archive/retro pair once, compare suffixes numerically, and choose `f1` if none exists or the next suffix after the greatest allocated fork identity otherwise (for example `f2` and `f10` advance to `f11`).
+A retained planning retro reserves its identity; incoming or incorporated upstream numeric phases are never allocation inputs.
+Stop for reconciliation if the records duplicate or disagree about an identity rather than picking a filename by sort order.
+Call the complete selected token `PHASE` (for example `f1`), then immediately call `set_session_name` with `$1 — Phase PHASE Planning` so the session is labelled for the rest of the work.
+Preserve that complete token in all subsequent headings, filenames, and commit subjects.
 
-A declared direction for Phase N most often lives **not** in `architecture.md` but in the previous phase's history file — `history/phase-(N−1)-<slug>.md`, whose **Findings** section is where `/finish-phase` records the "leading Phase N candidate."
-Read that history file's Findings before deep-tracing.
+Resolve predecessor **context separately**: read the greatest completed fork identity's archive from its `Refactoring history` table link, or the latest incorporated upstream numeric archive from that table if no fork archive is complete.
+Use its exact linked path (for example `history/phase-f1-<slug>.md`, never `phase-1-*.md` for `f1`), and read its Findings before deep-tracing.
+If upstream has arrived since the last fork archive, read the new upstream archives as additional integration context, not as the fork phase's predecessor or numbering source.
+A declared direction for Phase PHASE most often lives **not** in `architecture.md` but in that predecessor's Findings, where `/finish-phase` may record the leading next-phase candidate.
 If it (or `architecture.md`) already declares a direction, treat it as a hypothesis, not a commitment — but put the declared candidate in front of the user in your **first** `ask_user`, up front, not a follow-up: a declared candidate surfaced late forces a second round-trip after the composition is already drafted.
 When no explicit candidate line exists, the history file still carries **implicit candidates**: a ⚠️ metric miss recorded in its health-metrics table, and any "deferred" remark inside a step's Landed notes — treat both as declared-candidate carriers with the same first-`ask_user` treatment.
 Every ⚠️ metric miss in the prior history file gets an explicit disposition in the new roadmap — re-target it, accept it with recorded rationale, or supersede it — never a silent drop (Phase 21 planning silently dropped one; this rule closes that gap).
@@ -199,7 +206,7 @@ Steps adopted from already-filed issues need no new issue; file only the steps w
 
 ## Output
 
-Write the proposed plan as a new `## Improvement roadmap — Phase N: <title>` section in `packages/$1/docs/architecture/architecture.md`, inserted **immediately above the `## Refactoring history` section**.
+Write the proposed plan as a new `## Improvement roadmap — Phase PHASE: <title>` section in `packages/$1/docs/architecture/architecture.md`, inserted **immediately above the `## Refactoring history` section**.
 `/finish-phase` archives prior phases to `history/` and leaves only their "Refactoring history" table rows — there is no completed-phase summary chain to sit above, so the active roadmap you are writing is the only `## Improvement roadmap` section in the doc while it is in progress.
 
 The section should include:
@@ -240,7 +247,7 @@ If confirmed, commit with:
 
 ```bash
 git add packages/$1/docs/architecture/architecture.md
-git commit -m "docs($1): propose Phase N improvement roadmap"
+git commit -m "docs($1): propose Phase PHASE improvement roadmap"
 git push
 ```
 
@@ -250,18 +257,18 @@ Finally, restate the recommended working sequence: list the issues as `#N — ti
 
 Before stopping, persist planning observations for cross-session continuity — `/plan-improvements` is phase-scoped, not issue-scoped, so it uses a **phase retro** file rather than the issue-keyed `fNNNN-<slug>.md` convention.
 
-1. Write `packages/$1/docs/retro/phase-N-<slug>.md` (create `packages/$1/docs/retro/` if needed), using the phase number N and slug from Step 1.
-   Derive the slug from the phase title so `/finish-phase` reuses it for `history/phase-N-<slug>.md` — the two files should share a slug and stay greppable as a pair.
-   This is distinct from the `history/phase-N-<slug>.md` archive `/finish-phase` owns — do not touch that.
+1. Write `packages/$1/docs/retro/phase-PHASE-<slug>.md` (create `packages/$1/docs/retro/` if needed), using the complete fork identity from Step 1.
+   Derive the slug from the phase title so `/finish-phase` reuses it for `history/phase-PHASE-<slug>.md` — the two files should share a slug and stay greppable as a pair.
+   This is distinct from the `history/phase-PHASE-<slug>.md` archive `/finish-phase` owns — do not touch that.
 2. If the file does not exist, create it with this frontmatter (a phase-scoped variant — `package`/`phase` keys, not the issue-keyed schema):
 
    ```markdown
    ---
    package: $1
-   phase: N
+   phase: "f2" # replace f2 with the complete selected fork identity
    ---
 
-   # Retro: $1 — Phase N Planning (<slug>)
+   # Retro: $1 — Phase PHASE Planning (<slug>)
    ```
 
 3. Append a stage entry:
@@ -278,7 +285,7 @@ Before stopping, persist planning observations for cross-session continuity — 
    The cause the phase dissolves, alternatives or deferrals considered, the deferral-gate outcome, and any feasibility-probe results that reshaped a step.
    ```
 
-4. Commit with `docs($1): add Phase N planning retro notes` and push.
+4. Commit with `docs($1): add Phase PHASE planning retro notes` and push.
 
 Wrap code identifiers, filenames, and underscore-bearing text in backticks.
 Append with the `Edit`/`Write` tools, not a shell heredoc.

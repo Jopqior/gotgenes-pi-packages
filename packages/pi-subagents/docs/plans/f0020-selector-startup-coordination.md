@@ -9,7 +9,7 @@ issue_title: "Reduce selector startup coordination with upstream lifecycle chang
 
 **Release:** ship independently
 
-Phase 23 assigns this delivery `Release: independent`; presentation work in [#21] is neither a hard dependency nor a release batch.
+Phase f1 assigns this delivery `Release: independent`; presentation work in [#21] is neither a hard dependency nor a release batch.
 This is a behavior-preserving `refactor:`/`test:` delivery, not a breaking change or an automatic publication request.
 Obtain separate approval for the fork destination and npm scope before publishing.
 
@@ -286,7 +286,7 @@ Paths are relative to `packages/pi-subagents/` unless marked repository-root.
 | `test/lifecycle/create-subagent-session.test.ts`                                                      | Add a deterministic handoff cancellation characterization while keeping real factory execution and stub session IO                                                                                                                                                |
 | `test/tools/spawn-selection-boundary.test.ts`                                                         | Retain real tool/manager/record coverage; add any missing assertion needed to discriminate relocated settlement, not a mocked startup owner                                                                                                                       |
 | `docs/architecture/selector-startup-maintenance.md`                                                   | Record source-derived replay inputs, before/after results, remaining hooks, compatibility limits, and abstraction upkeep                                                                                                                                          |
-| `docs/architecture/architecture.md`                                                                   | Update domain ownership, module tree, class/sequence diagrams, and startup prose; mark Phase 23 issue-20 heading and Mermaid node complete with a measured `Landed:` note only after acceptance                                                                   |
+| `docs/architecture/architecture.md`                                                                   | Update domain ownership, module tree, class/sequence diagrams, and startup prose; mark Phase f1 issue-20 heading and Mermaid node complete with a measured `Landed:` note only after acceptance                                                                   |
 | Repository-root `.pi/skills/package-pi-subagents/SKILL.md`                                            | Update selection ownership and module listing, re-deriving any affected counts; keep behavior requirements                                                                                                                                                        |
 | Repository-root `docs/upstream-sync.md`                                                               | Add the delivered startup reconciliation rule and residual checks; preserve historical merge records and issue-21 display instructions                                                                                                                            |
 

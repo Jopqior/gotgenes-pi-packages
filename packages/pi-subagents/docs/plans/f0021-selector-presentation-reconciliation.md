@@ -9,7 +9,7 @@ issue_title: "Reduce selector presentation reconciliation with upstream UI chang
 
 **Release:** ship independently
 
-Phase 23 assigns this delivery `Release: independent`, with no joint release batch.
+Phase f1 assigns this delivery `Release: independent`, with no joint release batch.
 The planned changes are non-breaking `test:`, `refactor:`, and `docs:` work, not a new user-visible feature or an automatic publication request.
 Confirm release derivation at ship time; publishing still requires approval of the fork destination and package scope.
 
@@ -262,7 +262,7 @@ Paths are relative to `packages/pi-subagents/` except where noted.
 | `test/ui/agent-widget.test.ts`                           | Add or strengthen pending-to-normal projection assertions through the real widget callback, including running status; keep existing lifecycle/disposal tests.                                                                                                                                                         |
 | `test/tools/spawn-selection-boundary.test.ts`            | Strengthen exact presentation assertions on the existing real tool/manager path, including background selected details and foreground final details; do not replace phase gates.                                                                                                                                      |
 | `docs/architecture/selector-presentation-maintenance.md` | New inspectable reconciliation trials and residual-contract inventory.                                                                                                                                                                                                                                                |
-| `docs/architecture/architecture.md`                      | Update current module descriptions and Phase 23 issue-21 heading/node completion markers, commit type, and `Landed:` note at implementation completion. No phase archival or parent-issue closure.                                                                                                                    |
+| `docs/architecture/architecture.md`                      | Update current module descriptions and Phase f1 issue-21 heading/node completion markers, commit type, and `Landed:` note at implementation completion. No phase archival or parent-issue closure.                                                                                                                    |
 | Repository `docs/upstream-sync.md`                       | Replace the old formatter pin and cross-file transfer steps with the actual common-producer integration recipe and link the trials; retain the separate startup handbook.                                                                                                                                             |
 
 The removed-symbol search covered package `src/`, `test/`, architecture docs, all `.pi/skills/`, and the root sync handbook.

@@ -89,7 +89,7 @@ The plan recommends independent delivery, but the release derivation reports not
 - Root lint and dead-code gates passed before this stage note; the final tree will be checked again before pushing.
   Push and exact-SHA CI verification are still pending at this note's commit; issue closure remains gated on CI success.
 - The plan-to-HEAD range contains no co-shipped issue or adopted PR close target.
-  Issues 19 and 21 remain open, and Phase 23 is not complete.
+  Issues 19 and 21 remain open, and Phase f1 is not complete.
 - This delivery preserves public behavior and carries no breaking change.
   The next interactive workflow step after successful shipping is `/retro 20`.
 
@@ -99,7 +99,7 @@ The plan recommends independent delivery, but the release derivation reports not
 
 Reviewed the planning, implementation, and shipping transcripts alongside the accumulated stage notes and the individual subagent reports.
 The delivery preserved selector behavior while demonstrating narrower reconciliation obligations through fixed-upstream method replays; shipping subsequently passed exact-SHA CI and closed fork issue 20 without a release.
-Fork issues 19 and 21 remain open, and Phase 23 still recommends presentation work next.
+Fork issues 19 and 21 remain open, and Phase f1 still recommends presentation work next.
 
 ### Observations
 
@@ -157,7 +157,7 @@ Do not change `AGENTS.md`, broaden reviewer permissions, rewrite inherited lifec
 
 ### Next work
 
-The Phase 23 roadmap's next delivery is fork issue 21, `Reduce selector presentation reconciliation with upstream UI changes`; GitHub still reports it open.
+The Phase f1 roadmap's next delivery is fork issue 21, `Reduce selector presentation reconciliation with upstream UI changes`; GitHub still reports it open.
 Proceed with `/plan-issue #21`, then retain issue 19 for the overall maintenance-outcome assessment rather than closing the phase now.
 
 ### Changes made

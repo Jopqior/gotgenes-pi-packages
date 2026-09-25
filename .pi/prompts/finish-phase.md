@@ -30,18 +30,19 @@ Load these skills before starting:
 
 ## Step 1: Identify the current phase
 
-Read `packages/$1/docs/architecture/architecture.md` and locate the active **"Improvement roadmap (Phase N — …)"** section (or the package's equivalent open-phase section).
+Read `packages/$1/docs/architecture/architecture.md` and locate the active `## Improvement roadmap — Phase PHASE: …` section (or the package's equivalent open-phase section).
+`PHASE` is the complete identity token, such as fork `f1` or inherited numeric `22`; replace that placeholder in every example path, command, and commit subject with the exact token, never with an issue number.
 
 Record:
 
-- The phase number N and its title/slug.
+- The complete phase identity PHASE and its title/slug.
 - The phase goal and the per-step outcomes (each `Outcome:` / `✅ Delivered` line).
 - Every step's GitHub issue number.
 - Any abandoned, superseded, parked, or closed-not-planned issues the phase references.
 - Any **follow-on** issues the phase spawned (later-resolved cleanups, deferred migrations that landed after a step shipped — e.g. a builder unification or a sibling-package migration).
   They are non-gating but belong in the archive's issue table; record them under a separate "follow-on" grouping rather than as steps.
 
-Then immediately call `set_session_name` with `$1 — Phase N Archive` so the session is labelled for the rest of the work.
+Then immediately call `set_session_name` with `$1 — Phase PHASE Archive` so the session is labelled for the rest of the work.
 
 If no open roadmap section exists (every phase is already archived), stop and report that there is nothing to finish.
 
@@ -69,10 +70,12 @@ An issue spun off *during* the phase — by a step's implementation, by one step
 The `roadmap-fit` skill dispositions these at filing time; this is the net for the ones that escaped it, including any filed by hand outside a prompt.
 
 1. Take the phase-window start from the roadmap's `### Findings (planned YYYY-MM-DD)` heading.
-   When it carries no date, fall back to the commit that added the roadmap section:
+   When it carries no date, fall back to the commit that added the roadmap section.
+   Set `PHASE` to the exact token from Step 1 before the read-only lookup (replace the example assignment with `PHASE=22` for inherited Phase 22):
 
    ```bash
-   git log --diff-filter=M --format=%ad --date=short -S'Improvement roadmap — Phase N' -- packages/$1/docs/architecture/architecture.md | tail -1
+   PHASE=f1
+   git log --diff-filter=M --format=%ad --date=short -G"^## Improvement roadmap.*Phase ${PHASE}([^[:alnum:]]|$)" -- packages/$1/docs/architecture/architecture.md | tail -1
    ```
 
 2. List the issues created inside the window:
@@ -123,7 +126,7 @@ Do not copy a doc metric forward — recompute it:
   The fallow subcommands are root-level and take `--workspace @gotgenes/$1`; the `--filter`/`-C package` forms used elsewhere do **not** apply to them.
 - "Total LOC" / "Source LOC" counts `src/` only (`find packages/$1/src -name '*.ts' | wc -l` for the file count; `… -exec wc -l {} +` for LOC).
   Test counts come from `pnpm --filter @gotgenes/$1 run test`.
-- If a doc metric carries a mid-phase label ("as of Step N", "Phase N Step M", "as of [#N]"), replace it with the end-of-phase value and drop the label — the archived doc should read as the settled post-phase baseline, not a snapshot.
+- If a doc metric carries a mid-phase label ("as of Step N", "Phase PHASE Step M", "as of [#N]"), replace it with the end-of-phase value and drop the label — the archived doc should read as the settled post-phase baseline, not a snapshot.
 - When the phase findings table records a recompute command for a target metric (a `grep -c`, `wc -l`, or fallow field), run it and record predicted vs. delivered in the history file's health-metrics table (a "delivered" column) and summarise it in the reconciliation commit body.
   Report misses honestly — they are retro input for the next planning round, not something to paper over (the Phase 8 precedent: "fallow refactoring targets did not clear to 0" was recorded verbatim).
 
@@ -142,9 +145,9 @@ This is not a full-doc rewrite: mirror the tidy-first "only touch what the chang
 Without this pass, every phase close re-inflates the document and the read cost `/plan-improvements` Step 1 pays keeps climbing (Refs #601, #605).
 
 1. No completion summary on archive — two tiers only.
-   An archived phase gets exactly two representations: the **"Refactoring history" table row** (title + history link) and the **`history/phase-N-*.md`** file that carries the full narrative.
-   Do **not** write a `## Phase N (complete)` / `## Improvement roadmap — Phase N (complete)` prose summary in `architecture.md`, and do **not** write a `### Phase N` prose paragraph under "Refactoring history".
-   Both are the near-verbatim third copy that #601 and #605 deleted; the completion-summary tier itself was retired because each `history/phase-N-*.md` already opens with the same abstract and the table row indexes it.
+   An archived phase gets exactly two representations: the **"Refactoring history" table row** (title + history link) and the **`history/phase-PHASE-*.md`** file that carries the full narrative.
+   Do **not** write a `## Phase PHASE (complete)` / `## Improvement roadmap — Phase PHASE (complete)` prose summary in `architecture.md`, and do **not** write a `### Phase PHASE` prose paragraph under "Refactoring history".
+   Both are the near-verbatim third copy that #601 and #605 deleted; the completion-summary tier itself was retired because each `history/phase-PHASE-*.md` already opens with the same abstract and the table row indexes it.
    Step 5.2 deletes the whole roadmap section outright — the table row is the only thing about the phase that stays in `architecture.md`.
 2. Strip provenance from touched module-tree entries.
    For each module-tree entry the phase changed, reduce it to what the module is **now**; cite an issue only when the ref encodes an active constraint (a lint-guarded boundary, an ADR string boundary, a structural invariant), never as a provenance trail ("relocated #559, dissolved #505, renamed #510…"), which belongs in git log and `history/`.
@@ -156,9 +159,9 @@ Without this pass, every phase close re-inflates the document and the read cost 
 ## Step 5: Archive the phase
 
 Follow the package's **existing** convention — read `history/` and the document's "Refactoring history" section first, and match the established style (both packages now use an intro paragraph plus a per-phase table under "Refactoring history" — pi-subagents adds a structural-issues table).
-Do not impose a new format, and per Step 4 do **not** add a completion-summary paragraph or a `### Phase N (complete)` prose subsection — the table row plus the history file are the only two tiers.
+Do not impose a new format, and per Step 4 do **not** add a completion-summary paragraph or a `### Phase PHASE (complete)` prose subsection — the table row plus the history file are the only two tiers.
 
-1. Create `packages/$1/docs/architecture/history/phase-N-<slug>.md` (create the `history/` directory if the package does not have one yet) and move the **full** detailed roadmap — findings table, steps with outcomes, dependency diagram, and tracks — into it.
+1. Create `packages/$1/docs/architecture/history/phase-PHASE-<slug>.md` (create the `history/` directory if the package does not have one yet) and move the **full** detailed roadmap — findings table, steps with outcomes, dependency diagram, and tracks — into it.
    Move the prose verbatim, but **rebase link targets**: same-doc anchors become `../architecture.md#…`, and relative paths gain one `../` level (`../decisions/…` → `../../decisions/…`).
    "Verbatim" applies to the words, not the paths — an un-rebased anchor dangles silently.
    "Verbatim" governs the step *content and wording*, not the heading level: promoting a `##`-rooted roadmap into a standalone doc shifts every heading up one (`##` → `#` title, `###` → `##`, `#### ✅ [#N] Title` → `### ✅ [#N] Title`).
@@ -166,11 +169,12 @@ Do not impose a new format, and per Step 4 do **not** add a completion-summary p
    Before moving, verify every `[#N]` reference in the block has a matching `[#N]:` definition somewhere in `architecture.md`; a live roadmap can carry a reference whose definition was never added (it renders as literal `[#N]` text on GitHub) — add the missing definitions to the history file when you move the references.
    Mechanics: author the history file fresh with the `Write` tool, then delete the roadmap from `architecture.md` with a scripted start/end-marker replacement (a small `python3` or `sed` block keyed on the section heading and the next `##` heading).
    Do **not** attempt an `Edit` `oldText` match on the roadmap block — it is typically multiple KB and the match is impractical and error-prone.
-2. In `architecture.md`, **delete** the detailed roadmap section entirely — the `history/phase-N-*.md` file now carries it and the "Refactoring history" table row (Step 5.3) indexes it.
+2. In `architecture.md`, **delete** the detailed roadmap section entirely — the `history/phase-PHASE-*.md` file now carries it and the "Refactoring history" table row (Step 5.3) indexes it.
    Do not leave a completion-summary paragraph behind.
    Any abandoned / superseded / parked / not-planned issues live in the history file (and in the package's structural-issues table, if it keeps one), not in a summary paragraph.
-3. Update the "Refactoring history" table/section: mark Phase N **Complete**, link the new history file, and add it to any structural-refactoring-issues mapping table the package keeps.
-4. Update the intro/summary line that enumerates completed phases (e.g. "Phases 1–N complete").
+3. Update the "Refactoring history" table/section: mark Phase PHASE **Complete**, link the new history file using the exact identity, and add it to any structural-refactoring-issues mapping table the package keeps.
+   Keep the phase retro's complete matching identity (`phase: "f1"` for fork phases; numeric frontmatter for inherited phases), matching slug, and exact-namespace links; never resolve `f1` through `phase-1-*.md`.
+4. Keep inherited numeric and fork phases distinct in the history introduction; report each namespace separately rather than extending the inherited numeric range with a fork suffix.
 5. Use reference-style issue links (`[#N]` in the body, `[#N]:` definitions at the end of the file) per `markdown-conventions`, and verify every definition has a matching reference (MD053).
    Removing the roadmap **orphans** any `[#N]:` definition that was referenced only inside the moved block — after the move, re-run the markdown lint and delete each now-orphaned definition from `architecture.md` (its references moved to history), while confirming the history file defines everything *it* now references.
    `rumdl` flags these as `MD053` "unused link/image reference"; fix them before committing rather than in a follow-up round-trip.
@@ -182,20 +186,20 @@ Do not impose a new format, and per Step 4 do **not** add a completion-summary p
    Do **not** hardcode `^### Step` — the step heading shape varies by `✅` prefix, by heading level on promotion, and by **identity scheme**: phases planned before issue identity carry an ordinal (`#### ✅ Step 15: Title ([#878])`) while later ones carry the issue (`#### ✅ [#878] Title`), and the two live phases will archive under ordinals.
    One regex covers both.
    Detect the actual heading first (`grep -nE '^#+ .*(\bStep [0-9]|\[#[0-9]+\])' …`), then:
-   - a tolerant count — `grep -cE '^#+ .*(\bStep [0-9]|\[#[0-9]+\])' …/history/phase-N-<slug>.md` — equals the step count.
+   - a tolerant count — `grep -cE '^#+ .*(\bStep [0-9]|\[#[0-9]+\])' …/history/phase-PHASE-<slug>.md` — equals the step count.
      Read it as a **loss check** against the step count you already know from Step 1, not as an authority on what a step is: any heading carrying a `[#N]` matches (there are none besides steps in either live document today, but the regex does not know that).
    - `grep -c '```mermaid' …` accounts for the dependency diagram (and any others moved).
    - the tracks table and findings table are present.
    - `architecture.md` no longer contains the phase's roadmap section at all — only its "Refactoring history" table row.
-     Confirm nothing was left behind: `grep -nE '^## (Improvement roadmap — Phase N|Phase N \(complete\))' architecture.md` returns nothing, and no step heading for the archived phase survives outside the history file (same dual regex).
-   - No dangling inbound anchor links: for any section heading this archive removed or renamed (the archived roadmap section, plus any Step 4 hygiene deletions), grep the package docs for links to its slug — `grep -rn '#<slug>' packages/$1/docs` (e.g. `#phase-N-complete`, `#improvement-roadmap-phase-N`) — and repoint each hit to the history file or the new anchor.
-     `rumdl` does **not** catch cross-file anchor breaks, so a sibling doc's `[label](./architecture.md#phase-N-complete)` renders fine in source but silently 404s on GitHub once the section is gone (this session broke `client-server-opportunities.md`'s `[Phase 18]` link that way).
+     Confirm nothing was left behind: `grep -nE '^## (Improvement roadmap — Phase PHASE[^[:alnum:]]|Phase PHASE \(complete\))' architecture.md` returns nothing, and no step heading for the archived phase survives outside the history file (same dual regex).
+   - No dangling inbound anchor links: for any section heading this archive removed or renamed (the archived roadmap section, plus any Step 4 hygiene deletions), grep the package docs for links to its slug — `grep -rn '#<slug>' packages/$1/docs` (e.g. `#phase-PHASE-complete`, `#improvement-roadmap-phase-PHASE`) — and repoint each hit to the history file or the new anchor.
+     `rumdl` does **not** catch cross-file anchor breaks, so a sibling doc's `[label](./architecture.md#phase-PHASE-complete)` renders fine in source but silently 404s on GitHub once the section is gone (this session broke `client-server-opportunities.md`'s `[Phase 18]` link that way).
    - Also confirm the package skill (`.pi/skills/package-$1/SKILL.md`) — note any stale phase-scored numbers it carries (test counts, file/domain counts); flag them in the hand-off but do not necessarily fix them here.
 3. Once checks pass, commit and push automatically:
 
 ```bash
-git add packages/$1/docs/architecture/architecture.md packages/$1/docs/architecture/history/phase-N-<slug>.md
-git commit -m "docs($1): archive Phase N to history"
+git add packages/$1/docs/architecture/architecture.md packages/$1/docs/architecture/history/phase-PHASE-<slug>.md
+git commit -m "docs($1): archive Phase PHASE to history"
 git push
 ```
 
@@ -207,7 +211,7 @@ Do not put `Closes #N` / `Fixes #N` in the message — reference issues as `Refs
 
 After the push succeeds, report:
 
-- The archived phase (number, title, history file path).
+- The archived phase (complete identity, title, history file path).
 - The closed issues it covered (steps and any follow-on issues).
 - Any stale phase-scored numbers noted in the package skill (`.pi/skills/package-$1/SKILL.md`) that a future pass should refresh.
 - A reminder to run `/plan-improvements $1` to scope the next round.

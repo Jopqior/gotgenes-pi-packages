@@ -128,7 +128,7 @@ service-adapter ─wraps─→ SubagentManager
 
 ### Architectural direction
 
-The target architecture is documented in `docs/architecture/architecture.md` under "Architecture direction", and its phase table under "Refactoring history" is the record of which phases (14 through 18) have landed.
+The target architecture is documented in `docs/architecture/architecture.md` under "Architecture direction"; its "Refactoring history" table indexes completed inherited numeric phases and independent fork `f` phases without requiring a cached range here.
 
 ## Display glyphs
 

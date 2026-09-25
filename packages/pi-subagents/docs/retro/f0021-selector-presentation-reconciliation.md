@@ -171,7 +171,7 @@ This retrospective records workflow friction without reopening the shipped imple
 
 ### Follow-up
 
-Both implementation steps in Phase 23 are marked complete in `packages/pi-subagents/docs/architecture/architecture.md`.
+Both implementation steps in Phase f1 are marked complete in `packages/pi-subagents/docs/architecture/architecture.md`.
 The next workflow is `/finish-phase pi-subagents`, including the combined evidence assessment for still-open fork issue 19; child completion alone does not authorize closing that parent.
 Only after that disposition should `/plan-improvements pi-subagents` begin another round.
 

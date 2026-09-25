@@ -1,9 +1,11 @@
 ---
 package: pi-subagents
-phase: 23
+phase: "f1"
 ---
 
-# Retro: pi-subagents — Phase 23 Planning (upstream-integration-maintenance)
+# Retro: pi-subagents — Phase f1 Planning (upstream-integration-maintenance)
+
+This fork phase was originally recorded as Phase 23 and is now Phase f1; its planning and archival stage records are retained.
 
 ## Stage: Improvement Planning (2026-09-24T09:00:03Z)
 
@@ -22,7 +24,7 @@ The phase adopts fork issue 20 for startup coordination and fork issue 21 for pr
   Recommended working order is issue 20 then issue 21; no hard dependency or joint release batch is established.
 - Concrete implementation design, module placement, and release classification belong in each issue's `/plan-issue` session.
   No runtime mechanism, package split, file-size threshold, generic lifecycle rewrite, or generic tag-system redesign was selected.
-- The operator authorized creation of fork child issues and a Phase 23 roadmap, but not a commit, push, or release.
+- The operator authorized creation of fork child issues and a Phase f1 roadmap, but not a commit, push, or release.
 
 ### Evidence and limits
 
@@ -78,13 +80,13 @@ Preserve behavior unless a change is explicitly approved, and keep issue 19 open
 
 ### Session summary
 
-The operator requested `/finish-phase pi-subagents` for Phase 23.
+The operator requested `/finish-phase pi-subagents` for Phase f1.
 `git pull --ff-only` reported already up to date, and the worktree was clean.
 Implementation issues 20 and 21 were closed, but overall objective 19 remained open without a recorded combined assessment.
 The operator chose to assess the combined outcome in this session, then explicitly accepted the bounded maintenance benefit and authorized closing issue 19 and archiving the phase.
 Issue 19 was closed as completed in the fork.
 
-The full roadmap moved to [the phase archive](../architecture/history/phase-23-upstream-integration-maintenance.md), preserving its findings, step wording, diagram, tracks, and release accounting.
+The full roadmap moved to [the phase archive](../architecture/history/phase-f1-upstream-integration-maintenance.md), preserving its findings, step wording, diagram, tracks, and release accounting.
 The archive adds the accepted before/after assessment, residual obligations, issue mapping, and delivered supporting metrics.
 The current architecture retains the history table entry and structural-issue mapping rather than a duplicate completion narrative.
 Its stale inherited structural metrics were refreshed; the delivered module descriptions and lifecycle diagrams already matched the inspected implementation.
