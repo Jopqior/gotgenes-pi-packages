@@ -87,3 +87,68 @@ The plan requires no npm publication; the only touched package, `pi-subagents`, 
 - Push and exact-commit CI verification follow this note; issue closure is conditional on CI success.
 - The breaking change concerns repository phase identities and document paths, not package runtime APIs.
 - This migration opens or completes no roadmap phase; the next workflow after successful shipping is `/retro 22`.
+
+## Stage: Final Retrospective (2026-09-25T09:06:58Z)
+
+### Session summary
+
+Reviewed the planning, implementation, and shipping transcripts, plus all four child transcripts, against the accumulated stage notes.
+The compatibility tests and atomic fork-phase migration shipped through `test: preserve fork and upstream roadmap title compatibility (#22)` and `feat!: separate fork improvement phase identities (#22)`; the shipping transcript records exact-commit CI success and issue closure without publication.
+This retrospective changes no runtime behavior or phase status.
+
+### Observations
+
+#### What went well
+
+- The parser probe disproved the need for a production change before implementation: existing title handling already accepted fork identities.
+  Characterization tests then used separately restored killing mutations rather than manufacturing a production defect to obtain an initial red.
+- The operator's `f1` decision survived separate planning, implementation, reviewer, and ship sessions despite the issue body retaining `f23`.
+  The plan, handoff prompts, and close comment consistently named the override.
+- Migration verification combined normalized record comparisons, unchanged diagram bytes, exact-namespace lookups, and a cold link check.
+  This preserved historical evidence without adding a runtime allocator or old-path redirect documents.
+
+#### What caused friction (agent side)
+
+- `premature-convergence` — planning initially carried the issue's `f23` suffix into the choice set instead of contrasting it with a genuinely independent `f1` sequence.
+  The operator prompted the reconsideration before the plan was written.
+  Impact: an additional clarification exchange, but no implementation rework.
+- `missing-context` — planning attempted `.pi/skills/colgrep/SKILL.md` instead of the catalogued `packages/pi-colgrep/skills/colgrep/SKILL.md`.
+  Impact: one failed read, followed by a successful read of the supplied path.
+- `other` — the planning command `pnpm run test:scripts -- test/roadmap` ran the root suite rather than the intended focused tests.
+  Impact: an unnecessary broad run; the plan recorded `pnpm exec vitest run test/roadmap`, which implementation subsequently used.
+- `other` — the migration child encountered four rejected `Edit` calls across the planning template, archival template, issue-19 retro, and architecture document.
+  Each was recovered locally; the architecture cleanup also used two string-length probes to reduce table-formatting churn.
+  Impact: retry and cosmetic-edit work before the atomic migration commit, with no follow-up repair commit.
+
+#### What caused friction (user side)
+
+- The `f1` preference emerged during planning rather than in the original issue, which still requested `f23`.
+  Stating the desired independent starting point earlier could remove that clarification, but the operator's intervention was useful strategic judgment, not mechanical supervision.
+  The agent should still have surfaced that alternative without requiring the intervention.
+
+### Diagnostic details
+
+- Model attribution comes from unfiltered child transcripts: `openai-codex/gpt-6-astra` performed the Tidy-First assessment and pre-completion review; `openai-codex/gpt-6-sol` performed the characterization-test and migration steps.
+  The test child handled mutation discrimination, and the migration child handled preservation checks as well as edits; neither assignment was purely formatting work.
+  No model-quality mismatch is established, and no comparative latency or cost was measured.
+- The migration child transcript contains the edit retries and cosmetic probes omitted from its clean completion summary.
+  Keep transcript-level review for friction analysis; a successful stage summary is not evidence that execution had no rework.
+- No repeated-error sequence exceeded five consecutive calls before recovery or a strategy change.
+  No additional Explore or Plan dispatch is justified by the observed retries; the missing skill location was already supplied by the catalog.
+- Verification was incremental: focused tests and mutations preceded the test commit, migration checks preceded its commit, and repository gates ran at baseline, completion, and independent review.
+  Shipping additionally checked the pushed commit's CI run; there was no end-only verification gap.
+
+### Follow-up disposition
+
+No new workflow rule is proposed: `clarification-gates` already addresses shared premises, and `edit-tool` already addresses exact anchors and atomic retries.
+The focused test invocation is already preserved in the plan and planning notes.
+Adding these again would duplicate existing guidance rather than address missing policy.
+
+This repository-level issue has no roadmap successor and did not complete a phase.
+The newest triage, `docs/triage/2026-09-18-backlog.md`, concerns inherited `gotgenes/pi-packages` work rather than this fork's queue.
+The live fork queue contains issues #23 and #24, neither ranked by that triage; no inherited rank or severity is assigned to them.
+
+### Changes made
+
+1. Appended this cross-session retrospective to `docs/retro/f0022-fork-phase-namespace.md`, including child-transcript diagnostics and the fork-specific queue disposition.
+2. With operator approval, left `AGENTS.md`, skills, and prompt templates unchanged; no follow-up issue or package release was created.
