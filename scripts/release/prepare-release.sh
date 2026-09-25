@@ -65,14 +65,14 @@ fi
 # across these files (two lines in most, seven in pi-subagents and
 # pi-permission-system), so it is found rather than assumed.
 insert_release_section() {
-  local file=$1 section=$2 pkg=$3 tmp line
+  local file=$1 section=$2 header=$3 tmp line
   tmp=$(mktemp)
 
   if [ ! -f "$file" ]; then
-    # A package releasing for the first time has no changelog to splice into,
-    # so render one complete with the configured header.
-    cliff_args "$pkg"
-    git-cliff "${CLIFF_ARGS[@]}" --tag "$tag" --unreleased -o "$file"
+    # The complete header and already-decorated section were preflighted as
+    # one artifact. Never re-render here and silently discard provenance.
+    cp "$header" "$file"
+    cat "$section" >> "$file"
     rm -f "$tmp"
     return
   fi
@@ -99,12 +99,11 @@ insert_release_section() {
 pkgs=()
 tags=()
 
-# The core release's verified upstream correspondence, resolved in the
-# preflight below and consumed by phase 2 to persist the release record.
-# Empty until pi-subagents is named and its evidence checks out.
-core_upstream_version=""
-core_upstream_commit=""
-core_upstream_tip=""
+# Temporary rendering and projected artifacts must never dirty the checkout
+# when any member of the selected set fails validation.
+artifacts=$(mktemp -d)
+trap 'rm -rf "$artifacts"' EXIT
+printf '[]\n' > "$artifacts/spec.json"
 
 for pkg in ${PACKAGES//,/ }; do
   require_package "$pkg"
@@ -122,6 +121,7 @@ for pkg in ${PACKAGES//,/ }; do
     exit 1
   fi
 
+  core_decision=null
   if [ "$pkg" = "pi-subagents" ]; then
     # Resolve and validate the core correspondence here, in the preflight, so
     # a blocked core fails before any sibling manifest, changelog, tag, or
@@ -137,10 +137,24 @@ for pkg in ${PACKAGES//,/ }; do
       echo "Error: core release decision '${core_next}' disagrees with the predicted tag '${tag}'." >&2
       exit 1
     fi
-    core_upstream_version=$(printf '%s\n' "$core_decision" | jq -r '.upstream.version')
-    core_upstream_commit=$(printf '%s\n' "$core_decision" | jq -r '.upstream.commit')
-    core_upstream_tip=$(printf '%s\n' "$core_decision" | jq -r '.upstreamTip')
   fi
+
+  # Render every section before the first manifest changes. The Node boundary
+  # validates its exact heading, decorates it, and projects state and docs.
+  cliff_args "$pkg"
+  index=${#pkgs[@]}
+  section="$artifacts/raw-$index"
+  generated="$artifacts/generated-$index"
+  git-cliff "${CLIFF_ARGS[@]}" --tag "$tag" --unreleased --strip header > "$section"
+  if [ ! -f "packages/$pkg/CHANGELOG.md" ]; then
+    git-cliff "${CLIFF_ARGS[@]}" --tag "$tag" --unreleased > "$generated"
+  fi
+  spec_tmp="$artifacts/spec-next.json"
+  jq --arg directory "$pkg" --arg tag "$tag" --arg section "$section" \
+    --arg generated "$generated" --argjson decision "$core_decision" \
+    '. += [{directory:$directory, tag:$tag, section:$section, generated:$generated, decision:$decision}]' \
+    "$artifacts/spec.json" > "$spec_tmp"
+  mv "$spec_tmp" "$artifacts/spec.json"
 
   pkgs+=("$pkg")
   tags+=("$tag")
@@ -151,6 +165,9 @@ if [ ${#pkgs[@]} -eq 0 ]; then
   echo "Error: PACKAGES named no packages." >&2
   exit 1
 fi
+
+# The complete selected set is checked before the first tracked mutation.
+node scripts/release/release-artifacts.mjs prepare "$PWD" "$artifacts" "$artifacts/spec.json"
 
 # ── Phase 2: write versions and changelogs ───────────────────────────────────
 
@@ -179,29 +196,14 @@ while [ "$i" -lt ${#pkgs[@]} ]; do
   # which have no tag or commit here, plus tagged releases cut entirely from
   # paths that were added to the exclusion list later. A full regeneration
   # silently deletes both (Refs #865).
-  cliff_args "$pkg"
-  section=$(mktemp)
-  git-cliff "${CLIFF_ARGS[@]}" --tag "$tag" --unreleased --strip header > "$section"
-  insert_release_section "packages/$pkg/CHANGELOG.md" "$section" "$pkg"
-  rm -f "$section"
+  insert_release_section "packages/$pkg/CHANGELOG.md" "$artifacts/section-$i" "$artifacts/header-$i"
 
   git add "packages/$pkg/package.json" "packages/$pkg/CHANGELOG.md"
 
   if [ "$pkg" = "pi-subagents" ]; then
-    # Append the release's verified correspondence in the same commit as the
-    # artifacts. The next release window anchors at this tag and the upstream
-    # release it actually incorporated, recorded as evidence rather than
-    # inferred from the manifest; the strict reader rejects a malformed
-    # append on the next prediction.
-    state_file=scripts/release/core-sync-state.json
-    tmp=$(mktemp)
-    jq --arg forkTag "$tag" \
-      --arg version "$core_upstream_version" \
-      --arg commit "$core_upstream_commit" \
-      --arg tip "$core_upstream_tip" \
-      '.releases += [{ forkTag: $forkTag, upstream: { version: $version, commit: $commit }, upstreamTip: $tip }]' \
-      "$state_file" > "$tmp" && mv "$tmp" "$state_file"
-    git add "$state_file"
+    cp "$artifacts/state.json" scripts/release/core-sync-state.json
+    cp "$artifacts/upstream-sync.md" docs/upstream-sync.md
+    git add scripts/release/core-sync-state.json docs/upstream-sync.md
   fi
 
   subjects+=("$pkg $version")

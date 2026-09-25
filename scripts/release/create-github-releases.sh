@@ -1,63 +1,63 @@
 #!/usr/bin/env bash
-# Create one GitHub Release per tag at HEAD, with notes rendered by git-cliff.
-#
-# release-please created these as a side effect of tagging. With git-cliff the
-# tag and the release are separate acts, so this runs after the publish job and
-# is the last step of a release (Refs #865).
-#
-# Required environment variables:
-#   GH_TOKEN   GitHub token with contents:write.
-#
-# Usage:
-#   ./scripts/release/create-github-releases.sh
-
+# Create Releases from the exact tagged CHANGELOG sections, never --latest.
 set -euo pipefail
-
 cd "$(dirname "$0")/../.."
 # shellcheck source=scripts/release/lib.sh
 . scripts/release/lib.sh
-
 : "${GH_TOKEN:?Required: set GH_TOKEN}"
 
-git fetch --tags --force origin
-
-created=0
-
-while IFS= read -r tag; do
-  [ -n "$tag" ] || continue
-
+tags=()
+for tag in $(git tag --points-at HEAD); do
   pkg=""
   while IFS= read -r candidate; do
     case "$tag" in
       "${candidate}-v"*)
-        if [ ${#candidate} -gt ${#pkg} ]; then
-          pkg=$candidate
-        fi
+        if [ ${#candidate} -gt ${#pkg} ]; then pkg=$candidate; fi
         ;;
     esac
   done < <(release_packages)
-
   if [ -z "$pkg" ]; then
     echo "Note: tag '$tag' matches no package; skipping." >&2
     continue
   fi
-
-  if gh release view "$tag" >/dev/null 2>&1; then
-    echo "Release $tag already exists; skipping."
-    continue
-  fi
-
-  notes=$(mktemp)
-  cliff_args "$pkg"
-  # `--latest` is the newest tagged release for this package, which is `$tag`
-  # because prepare-release.sh has already pushed it.
-  git-cliff "${CLIFF_ARGS[@]}" --latest --strip header > "$notes"
-
-  echo "Creating GitHub Release $tag"
-  gh release create "$tag" --title "$tag" --notes-file "$notes"
-  created=$((created + 1))
-done < <(git tag --points-at HEAD)
-
-if [ "$created" -eq 0 ]; then
+  tags+=("$tag")
+done
+if [ ${#tags[@]} -eq 0 ]; then
   echo "No GitHub Releases to create."
+  exit 0
 fi
+
+artifacts=$(mktemp -d)
+trap 'rm -rf "$artifacts"' EXIT
+node scripts/release/release-artifacts.mjs published "$PWD" "$artifacts" "${tags[@]}"
+
+# Preflight the entire remote set: a rerun never overwrites a Release, and a
+# conflicting managed block blocks *all* new creations, even if it is last.
+i=0
+while [ "$i" -lt ${#tags[@]} ]; do
+  tag=${tags[$i]}
+  if gh release view "$tag" --repo Jopqior/gotgenes-pi-packages --json body -q .body > "$artifacts/body-$i" 2> "$artifacts/error-$i"; then
+    node scripts/release/release-artifacts.mjs existing "$artifacts/body-$i" "$artifacts/notes-$i"
+    touch "$artifacts/exists-$i"
+  elif ! grep -Eiq 'release not found|HTTP 404' "$artifacts/error-$i"; then
+    echo "Error: cannot inspect existing Release $tag" >&2
+    cat "$artifacts/error-$i" >&2
+    exit 1
+  fi
+  i=$((i + 1))
+done
+
+created=0
+i=0
+while [ "$i" -lt ${#tags[@]} ]; do
+  tag=${tags[$i]}
+  if [ -f "$artifacts/exists-$i" ]; then
+    echo "Release $tag already exists; skipping."
+  else
+    echo "Creating GitHub Release $tag"
+    gh release create "$tag" --repo Jopqior/gotgenes-pi-packages --title "$tag" --notes-file "$artifacts/notes-$i"
+    created=$((created + 1))
+  fi
+  i=$((i + 1))
+done
+if [ "$created" -eq 0 ]; then echo "No GitHub Releases to create."; fi

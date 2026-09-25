@@ -49,11 +49,12 @@ function noneContribution() {
  * have. Fixture truth: a manifest mismatch in a test is always a deliberate
  * forge of exactly one property, never an inherited accident.
  *
- * @param {{ baselineUpstreamVersion?: string }} [options]
+ * @param {{ baselineUpstreamVersion?: string, releaseArtifacts?: boolean }} [options]
  * @returns {CoreSyncScenario}
  */
 export function createCoreSyncScenario(options = {}) {
   const baselineUpstreamVersion = options.baselineUpstreamVersion ?? "21.7.0";
+  const releaseArtifacts = options.releaseArtifacts ?? false;
   const repo = createScratchReleaseRepository({ pkg: "pi-subagents" });
   const coreArgs = () => repo.cliffArgs("pi-subagents");
   let syncCounter = 0;
@@ -70,6 +71,12 @@ export function createCoreSyncScenario(options = {}) {
     "packages/pi-subagents/src/b.ts",
   );
   repo.writeManifest("pi-subagents", baselineUpstreamVersion);
+  if (options.releaseArtifacts) {
+    writeFileSync(
+      path.join(repo.dir, "packages/pi-subagents/package.json"),
+      `${JSON.stringify({ name: "@gotgenes/pi-subagents", version: baselineUpstreamVersion }, null, 2)}\n`,
+    );
+  }
   repo.git("add", "packages/pi-subagents/package.json");
   repo.git(
     "commit",
@@ -80,6 +87,14 @@ export function createCoreSyncScenario(options = {}) {
   const baseUpstream = { version: baselineUpstreamVersion, commit: baseCommit };
   const baseUpstreamTip = baseCommit;
   repo.commitOutOfScope("docs: release marker");
+  if (options.releaseArtifacts) {
+    writeFileSync(
+      path.join(repo.dir, "packages/pi-subagents/package.json"),
+      `${JSON.stringify({ name: "@jopqior/pi-subagents", version: "1.0.0" }, null, 2)}\n`,
+    );
+    repo.git("add", "packages/pi-subagents/package.json");
+    repo.git("commit", "-m", "chore: establish fork release identity");
+  }
   repo.git("tag", "-a", BASE_TAG, "-m", "core v1.0.0");
 
   /**
@@ -158,6 +173,12 @@ export function createCoreSyncScenario(options = {}) {
       repo.commitInScope(change.message, change.file);
     }
     repo.writeManifest("pi-subagents", options.version);
+    if (releaseArtifacts) {
+      writeFileSync(
+        path.join(repo.dir, "packages/pi-subagents/package.json"),
+        `${JSON.stringify({ name: "@gotgenes/pi-subagents", version: options.version }, null, 2)}\n`,
+      );
+    }
     repo.git("add", "packages/pi-subagents/package.json");
     // An equal-version sync re-marks the already-claimed release with an
     // empty bump commit; a new version carries a real manifest change.
@@ -172,11 +193,20 @@ export function createCoreSyncScenario(options = {}) {
     repo.git(
       "merge",
       "--no-ff",
+      ...(releaseArtifacts ? ["-X", "theirs"] : []),
       "-m",
       options.mergeMessage ?? "chore: merge upstream/main",
       branch,
     );
     const merge = repo.gitOut("rev-parse", "HEAD");
+    if (releaseArtifacts) {
+      writeFileSync(
+        path.join(repo.dir, "packages/pi-subagents/package.json"),
+        `${JSON.stringify({ name: "@jopqior/pi-subagents", version: "1.0.0" }, null, 2)}\n`,
+      );
+      repo.git("add", "packages/pi-subagents/package.json");
+      repo.git("commit", "-m", "chore: retain fork package identity");
+    }
     const upstreamParent = repo.gitOut("rev-parse", `${merge}^2`);
     recordedSyncs.push({
       merge,

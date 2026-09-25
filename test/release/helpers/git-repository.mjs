@@ -173,10 +173,9 @@ export function createScratchReleaseRepository(options = {}) {
    * fixture's package, and runs a git-cliff rendering invocation with the
    * flags a release script passes. `prepare-release.sh` renders the section
    * it splices into a changelog with `--tag <tag> --unreleased --strip
-   * header`, and `create-github-releases.sh` renders the notes for the tag at
-   * HEAD with `--latest --strip header`; passing the flags through verbatim
-   * exercises the scripts' real invocation shapes rather than a convenient
-   * approximation.
+   * header`. Generic git-cliff tests may still supply `--latest`, but
+   * GitHub Release creation reads the tagged CHANGELOG instead of rendering
+   * independently.
    *
    * @param {...string} flags the literal flags the release script passes
    * @returns {string} stdout of git-cliff

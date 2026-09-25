@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -29,7 +29,7 @@ let syncUpstream;
 let uniqueUpstreamBranch;
 
 beforeEach(() => {
-  scenario = createCoreSyncScenario();
+  scenario = createCoreSyncScenario({ releaseArtifacts: true });
   repo = scenario.repo;
   recordedSyncs = scenario.recordedSyncs;
   writeCoreSyncState = scenario.writeCoreSyncState;
@@ -63,8 +63,39 @@ describe("release preparation", () => {
       "core-sync-state.mjs",
       "core-sync-evidence.mjs",
       "core-sync-cliff.mjs",
+      "release-correspondence.mjs",
+      "correspondence-table.mjs",
+      "release-artifacts.mjs",
     );
-    repo.writeManifest("pi-subagents", "1.0.0");
+    const registrations = [
+      {
+        directory: "pi-subagents",
+        name: "@jopqior/pi-subagents",
+        kind: "fork",
+        upstream: {
+          name: "@gotgenes/pi-subagents",
+          repository: "gotgenes/pi-packages",
+          directory: "packages/pi-subagents",
+        },
+        evidence: "core-sync",
+      },
+    ];
+    if (existsSync(path.join(repo.dir, "packages", "demo", "package.json"))) {
+      registrations.push({
+        directory: "demo",
+        name: "@fixture/demo",
+        kind: "original",
+      });
+    }
+    writeFileSync(
+      path.join(repo.dir, "scripts/release/release-packages.json"),
+      `${JSON.stringify({ schemaVersion: 1, packages: registrations })}\n`,
+    );
+    mkdirSync(path.join(repo.dir, "docs"), { recursive: true });
+    writeFileSync(
+      path.join(repo.dir, "docs/upstream-sync.md"),
+      "<!-- release-correspondence:start -->\n\nold\n\n<!-- release-correspondence:end -->\n",
+    );
     repo.writeChangelog(
       "pi-subagents",
       [
@@ -175,7 +206,7 @@ describe("release preparation", () => {
 
     const result = prepareRelease("demo");
 
-    expect(result.status).toBe(0);
+    expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain("Released: demo-v1.0.1");
     expect(repo.gitOut("tag", "--points-at", "HEAD")).toBe("demo-v1.0.1");
     expect(repo.gitOut("show", "HEAD:packages/demo/package.json")).toContain(

@@ -85,13 +85,10 @@ commit_preprocessors = [
 # Parsers are evaluated in order and the first match wins, so the release
 # commit's own `chore(release):` is skipped ahead of the general `chore` rule.
 #
-# That skip is load-bearing, and the reason is narrower than it looks. The
-# CHANGELOG entry is rendered before the release commit exists, and the *next*
-# release's range starts after the tag, so neither of those needs the skip.
-# The GitHub Release notes do: scripts/release/create-github-releases.sh runs
-# `git-cliff --latest` once the commit and tag are both in place, and that range
-# includes the release commit. Without this rule, a release's own notes carry
-# `* **release:** <pkg> <version>` under Miscellaneous Chores.
+# The release commit is bookkeeping, not a user-facing change. Keep it skipped
+# for generic git-cliff renders that include the tag's commit; preparation
+# renders before that commit exists, and GitHub notes now read the exact tagged
+# CHANGELOG section rather than re-rendering with `--latest`.
 #
 # The `<!-- N -->` prefixes force the section order release-please used (its
 # `changelog-sections` array order); `group_by` would otherwise sort them
