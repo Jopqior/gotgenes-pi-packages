@@ -1,0 +1,32 @@
+---
+issue: 961
+issue_title: "pi-subagents: renderProjectContext still emits pi ≤0.85's block shape, so a relocated child's own project context no longer matches Pi's"
+---
+
+# Retro: #961 — pi-subagents: renderProjectContext still emits pi ≤0.85's block shape
+
+## Stage: Planning (2026-09-25T06:06:43Z)
+
+### Session summary
+
+Checked the issue's claim against pi 0.86.1's real `buildSystemPrompt` (scratch install), the 0.87.1 tarball, and Pi's `main` checkout: all three write the section-shaped block.
+The operator chose to emit the ≥0.86 shape unconditionally, with no shape dispatch, and to fold in a sibling gap: `buildPortablePrompt` omits 0.86's `<addendum>` wrapper.
+The plan has three steps: decouple the fixture (`test:`), then a `fix:` for each function.
+
+### Observations
+
+- The planning measurement that shaped the TDD order: the ≤0.85 fixture `parentPrompt()` in `test/session/prompts.test.ts` builds its block by calling `renderProjectContext`.
+  Today, deleting `projectContextStart`'s `openAt + 2` lead-in arm turns 6 tests red; with the replica switched to 0.86 shape, the same deletion leaves all 74 green.
+  Step 1 hand-builds the 0.85 block so those 6 pins survive, and steps 1 and 2 re-run that mutation.
+- Rejected the dispatch-on-parent-shape option, which would reuse #958's cwd-layer rule.
+  It would change the `ProjectContextLoader` signature and add an arm that dies once the floor passes 0.85, all for a two-blank-line difference nothing reads.
+- Other readers were checked in source, and none parses a child's own block or its portable identity:
+  - pi-permission-system's `LATER_PI_SECTION_OPENS`: on a portable child, `<addendum>` now protects a `<tools>` section quoted in the appended text, which is a mild improvement.
+  - pi-anthropic-auth passes a portable child through untouched, since it has no Pi-owned sections.
+  - pi-claude-bridge keys a child's capture on the child's exact prompt.
+  - Aside: the bridge's own `formatProjectContext` still writes the ≤0.85 shape, which is the bridge's concern.
+- The tidy-first assessor recommended only the fixture decoupling (step 1).
+  Its report misstated the direction of the 6-red measurement: the 6 go red today, and all 74 stay green without the prep.
+  The plan records the measured version.
+- ADRs 0009/0010 are left unedited as historical records.
+  Only the `project-context.ts` module-tree entry in `architecture.md` changes.
