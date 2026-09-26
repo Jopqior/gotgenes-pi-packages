@@ -84,7 +84,7 @@ These limits must remain visible in the handoff; they do not authorize script ch
 
 ## Index
 
-S01 through S14, M01 through M09, and F01 through F07 have operator-confirmed dispositions, using the independent subitems for S02, S06, S07, F06, and F07; all other item IDs remain pending individual disposition.
+S01 through S14, M01 through M09, F01 through F11, and N01 through N03 have operator-confirmed dispositions, using their independent subitems where defined; all other item IDs remain pending individual disposition.
 S04 requires a mechanism handoff before activation, not a claim that HTTPS already works.
 Confirmation here is a handoff decision, not activation.
 
@@ -516,23 +516,36 @@ Original source: H `First merge`, fixed method-preservation list.
 
 ### F08: Fork manifest identity
 
-Existing: retain `@jopqior/pi-subagents` and the fork version.
-Decide exact covered fields and situations, separately from other manifest content.
+Original source: H `After issue 3`, fork manifest identity preservation.
+
+#### F08a: Fork package name
+
+**Retain, confirmed:** during requested synchronization, preserve or precisely restore `packages/pi-subagents/package.json`'s `name` as `@jopqior/pi-subagents` and report the action; this authorizes no other rename (gate F08a answer “Fork 包名: 保留，可按规则恢复并报告”).
+
+#### F08b: Fork version
+
+**Retain, confirmed:** preserve or precisely restore that manifest's pre-sync fork version and report the action; do not substitute the upstream version or manually select the next fork version, which belongs to release calculation (gate F08b answer “Fork 版本: 保留，可按规则恢复并报告”).
 
 ### F09: Other manifest changes
 
-Existing: accept upstream dependency and metadata changes except fork name/version.
-Decide dependencies and metadata individually if their effects differ; this broad instruction is not confirmed authority.
+Original source: H `After issue 3`, taking upstream changes outside name/version.
+
+#### F09a: Dependencies
+
+**Change, confirmed:** remove blanket permission to select upstream dependency fields when authoring a conflict resolution or extra dependency adjustment; present differences, compatibility effects, and the proposed handling for approval first (gate F09a answer “依赖冲突: 取消，先报告方案并批准”).
+The briefing distinguished ordinary Git auto-merged upstream changes within the requested merge from authored resolutions or subsequent repairs; this decision does not introduce per-field approval for the former.
+
+#### F09b: Non-identity metadata
+
+**Change, confirmed:** remove blanket permission to choose upstream non-identity metadata; authored conflict resolutions or extra changes, including exports, files, and scripts, require a presented proposal and approval, while ordinary automatic merging is not per-field approval (gate F09b answer “元数据冲突: 取消，人工调整先批准”).
 
 ### F10: Preserve fork changelog entries
 
-Existing H: keep fork entries unchanged at the top; do not change their versions to upstream numbers.
-Decide this preservation safeguard independently of permission to splice incoming sections.
+**Retain, confirmed:** keep published fork changelog entries unchanged in content, version, and order; do not rewrite them to align with upstream (source H `After issue 3`, gate F10 answer “Fork 历史: 保留”).
 
 ### F11: Insert incoming upstream changelog sections
 
-Existing H: splice newly arrived upstream sections below fork entries and above the shared baseline.
-Decide exact insertion bounds and escalation for reordered, overlapping, or corrected history.
+**Retain with bounds, confirmed:** when the shared baseline and genuinely new sections are unambiguous, insert incoming upstream changelog sections verbatim after fork entries and before shared history, and report the edit; overlapping entries, reordering, or revisions to historical entries require approval first (source H `After issue 3`, gate F11 answer “上游条目拼接: 允许精确、无歧义的拼接”).
 
 ## New-package wiring
 
@@ -541,18 +554,15 @@ H's reference to an “AGENTS.md four-place list” is stale; the actual list is
 
 ### N01: Local package loading
 
-Existing: add the package load path in `.pi/settings.json`.
-Decide whether discovery may cause automatic extension loading or must first be approved.
+**Change, confirmed:** discovering a new upstream package does not authorize adding its local Pi load path; explain its purpose and loading effects and obtain approval before editing settings (source H `After issue 3` and R `Adding a new package`, gate N01 answer “加载新扩展: 不自动加载，先批准”).
 
 ### N02: README package entry
 
-Existing: add the package to the Packages table.
-Decide the bounds of an automatic documentation-only entry, if any.
+**Change, confirmed:** report a missing README package entry and include the proposed addition in a documentation proposal for approval before writing it (source R `Adding a new package`, gate N02 answer “README 包表: 纳入文档方案先批准”).
 
 ### N03: Dedicated-skill note
 
-Existing: add to the no-dedicated-skill note unless a package skill exists.
-Decide separately from package installation or loading.
+**Remove sync-specific recipe, confirmed:** do not duplicate the no-dedicated-skill wiring instruction in the sync workflow; if a change is needed, include it in the documentation proposal for approval (source R `Adding a new package`, gate N03 answer “Skill 分类说明: 删除同步中的专门规则”).
 
 ### N04: Bug-report dropdown
 
@@ -1093,6 +1103,10 @@ M04 permits only verified current-sync resumption; M05 stops on an existing reba
 M07 removes unrelated feature-landing prose from the sync workflow; M08 allows whole-file side selection only with specific approval; M09 makes broad preservation a review goal, not repair authority.
 F01 through F05 remove first-merge import/concatenation recipes without relocating their historical bodies; F06a removes mechanical documentation unions.
 F06b removes a duplicate recount reminder; F07a/F07b remove duplicate method-name reminders without changing API contracts.
+F08a/F08b authorize exact preservation/restoration of fork name and pre-sync version with reporting; F09a/F09b require approval for authored dependency/metadata resolutions or extra adjustments.
+F10 preserves published fork changelog entries; F11 authorizes only verbatim, unambiguous insertion of new upstream sections with reporting.
+N01/N02 require approval for extra package-loading and README-table edits; N03 removes the sync-specific skill-classification recipe.
+These decisions concern authored extra wiring, not a second approval of ordinary auto-merged upstream commits.
 Concise dispositions and original source identification suffice.
 All other items remain pending.
 S04 adds a transport mechanism requirement beyond this documentation-only implementation; hand it to issue 27 for ownership and verified implementation, without changing the current script here.
