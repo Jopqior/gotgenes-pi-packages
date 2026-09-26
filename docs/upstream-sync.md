@@ -375,6 +375,7 @@ Backfill never rewrites historical CHANGELOG sections, old npm tarballs, tags, o
 | -------------------- | ---------------------------------------- | --------------------------- | ---------------------------------------- |
 | 2026-09-12T14:16:33Z | 045213317de608c04a7b6052b2b843e3a0f2176f | pi-subagents-v21.7.0        | 2d8cea699b08afa0f6a2c06eeb1507a52d699636 |
 | 2026-09-19T14:03:45Z | edb35ee28535aac4e12431e47e440f6933911834 | pi-subagents-v21.7.3        | 0408aa5ff9d9811d98df17dde436e7fd45a5a3ad |
+| 2026-09-26T06:54:31Z | 4dd378ca97a35e380ed946cd5ce0bcb9050ced5a | pi-subagents-v21.7.7        | d4d90b3de6c19be1516ce0a92c1ad611e8543ba5 |
 
 [#3]: https://github.com/Jopqior/gotgenes-pi-packages/issues/3
 [#14]: https://github.com/Jopqior/gotgenes-pi-packages/issues/14

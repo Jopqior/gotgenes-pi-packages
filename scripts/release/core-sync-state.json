@@ -78,6 +78,18 @@
         "rationale": "integration carried upstream 21.7.x compatibility work; conflict resolutions kept fork identity without changing the core contract",
         "paths": []
       }
+    },
+    {
+      "merge": "d4d90b3de6c19be1516ce0a92c1ad611e8543ba5",
+      "upstream": {
+        "version": "21.7.7",
+        "commit": "1c8c78e888e3b6b404bafeb9221420c204b6e1fe"
+      },
+      "forkCore": {
+        "level": "none",
+        "rationale": "Preserved fork package identity and spawn-selection behavior while incorporating upstream prompt-context and widget changes; conflict fixes only updated a UI test stub and type-only architecture boundaries.",
+        "paths": []
+      }
     }
   ]
 }
