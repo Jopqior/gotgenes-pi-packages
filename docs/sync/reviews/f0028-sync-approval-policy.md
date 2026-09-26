@@ -100,7 +100,9 @@ These limits must remain visible in the handoff; they do not authorize script ch
 
 S01 through S14, M01 through M09, F01 through F11, N01 through N07, and I01 through I08 have operator-confirmed dispositions, using their independent subitems where defined.
 B01–B10, P01–P11, and H01–H09, including their subitems, are removed from workflow guidance under explicitly approved group-removal decisions below.
-V01–V05 are confirmed; all other item IDs remain pending.
+V01–V10, E01–E03, E05/E06, and C01 are confirmed.
+E04, E07–E12, C02, C03, C05, and C06 have a confirmed group disposition: remove duplicate mechanism explanations from synchronization policy while retaining the owning release mechanisms.
+All other item IDs remain pending.
 The later package-scope clarification below narrows how N01/N02 apply.
 S04 requires a mechanism handoff before activation, not a claim that HTTPS already works.
 Confirmation here is a handoff decision, not activation.
@@ -701,28 +703,25 @@ Issue 27 may reference the generic cleanup instruction instead of repeating its 
 
 ### V06: Script tests
 
-Recent integration reported script tests in addition to package suites.
-Decide whether release/sync script suites are required for each integration and how their scope is selected.
+**Retain complete suite, confirmed:** run root `pnpm run test`, which currently executes all workspace package tests followed by root script tests; do not separately repeat package tests just to satisfy V05 (gate V06 answer “脚本测试: 是，复用 pnpm run test”; root package.json was inspected).
 
 ### V07: Dependency-change analysis
 
-Existing R: run `pnpm fallow dead-code` before pushing a new or dependency-changed package.
-Decide this conditional check without authorizing suppression of findings.
+**Retain conditional check, confirmed:** run `pnpm fallow dead-code` when synchronization introduces a new package or changes dependencies; the check grants no suppression or repair permission (source R `Docs-in-distribution convention`, gate V07 answer “Dead-code 检查: 保留条件检查”).
 
 ### V08: Validation-induced writes
 
-Candidate from plan: classify unexpected file writes by checks or formatters; validation intent does not authorize them.
-Decide how to stop, inspect, and seek permission without erasing operator work.
+**Confirm boundary:** inspect and classify unexpected project-file changes from validation tools; proceed only within existing exact rule/approval coverage, otherwise request approval before deciding how to handle them, without automatically committing or reverting them (gate V08 answer “意外改写: 是，保留这条边界”).
+Ordinary cache/test artifacts are not reported individually as source edits; the explicit rumdl cleanup exception in V02 remains applicable.
 
 ### V09: Manual merge completion
 
-Existing: stage reviewed resolutions and run `GIT_EDITOR=true git merge --continue`.
-Decide the authorization accounting required before staging/completion; “reviewed” alone is not approval evidence.
+**Change, confirmed:** before staging authored resolutions and continuing a manual merge, match each actual change to exact confirmed rule coverage or operator approval; proceed without redundant approval only when no uncovered scope remains, otherwise stop (source H `Procedure`, gate V09 answer “继续合并: 是，核对后继续”).
+This does not promise to intercept Git's own conflict-free merge commit before creation; later extra edits remain gated.
 
 ### V10: Sync execution log
 
-Existing: append a sync-log row after completion.
-Decide its migration into the per-sync execution record, avoiding duplicate manual logs and release correspondence.
+**Change, confirmed:** store sync inputs and relevant OIDs in the per-sync execution record instead of maintaining a second manual sync-log table; issue 27 migrates necessary old history (source H `Procedure`, gate V10 answer “同步日志: 是，不重复维护日志”).
 
 ## Release evidence and calculations
 
@@ -731,63 +730,61 @@ The current algorithms are evidence inputs, not targets for alteration in this i
 
 ### E01: Committed evidence ownership
 
-Existing: `scripts/release/core-sync-state.json` is authoritative for published correspondence and reviewed merges.
-Decide preserving the machine record separately from the human authorization/execution record.
+**Retain separation, confirmed:** the existing machine record remains responsible for release evidence and calculation, while the per-sync record captures proposals, operator approvals, and execution; neither substitutes for the other and no new approval database is introduced (source H `Core sync evidence`, gate E01 answer “发布证据: 保留分离”).
 
 ### E02: Reviewed merge identity
 
-Existing: the recorded merge OID binds evidence to committed resolutions before release prediction.
-Decide the review requirement, without equating an evidence record with source-change authorization.
+**Retain, confirmed:** bind the evidence review to the actual final merge OID and its reviewed diff, not a different revision; writing evidence does not retroactively authorize source edits (source H `Core sync evidence`, gate E02 answer “绑定实际合并: 保留”).
 
 ### E03: Fork contribution classification
 
-Existing: record `none|patch|minor|major` plus rationale for resolution effects, not the merge message's type.
-Decide who confirms this semantic assessment and what supporting diff must be shown.
+**Confirm agent classification with reporting:** the agent may classify approved actual resolution effects as `none|patch|minor|major`, provide the rationale and supporting diff, and record that input; ambiguity or insufficient evidence requires asking the operator (gate E03 selection `agent_classify_report`).
+The operator asked whether the script already decides this; inspection of `record-core-sync.mjs` and `core-sync.mjs` confirmed that the recorder accepts an explicit reviewed `forkLevel`, while final version calculation combines upstream distance, fork commits, and that input.
+After this distinction was explained, the operator answered “同意，继续。”
+This grants no manual version selection or publication permission; final versions remain script-produced.
 
 ### E04: Non-none justification
 
-Existing: a non-none contribution requires package paths whose merged result differs from both parents.
-Decide preserving this evidence obligation independently from permitting those changes.
+**Remove duplicate explanation, confirmed:** the justification guard remains in the release mechanism, not copied into sync policy; see the release-mechanism group decision below.
 
 ### E05: Recorder entry and commit
 
-Existing: invoke through the sync script after merge completion, then commit the state update.
-Decide the allowed action scope, including the script's fetch side effect.
+**Retain scoped recording, confirmed:** after completing and reviewing the actual merge, use the existing sync entry to record that merge's reviewed contribution and commit the state update, following the confirmed transport/tag safeguards and reporting the result; its current fetch side effect is not exempted as an offline write (source H `Recording a completed sync`, gate E05 answer “正常记录: 允许，遵守已有保护并报告”).
 
 ### E06: State conflict correction
 
-Existing: resolve conflicting state evidence only after review, then regenerate/check the table.
-Decide explicit approval for a proposed correction; review by an agent alone is not sufficient.
+**Require explicit approval, confirmed:** before correcting conflicting or erroneous existing evidence, present the contradiction, supporting facts, and exact proposed state changes for operator approval; a release blocker does not authorize historical-state repair (source H `Core sync evidence`, gate E06 answer “纠正已有证据: 是，展示依据和精确修改”).
 
 ### E07: Highest incorporated stable upstream release
 
-Existing: choose the highest stable release contained in the upstream parent, verify its manifest, and reject unreleased package work.
-Decide mechanism-reference retention; no algorithm modification is proposed.
+**Remove duplicate explanation, confirmed:** incorporated-release selection remains the release mechanism's responsibility; no algorithm or guard is removed.
 
 ### E08: Upstream SemVer distance
 
-Existing: equal stable baseline with no unreleased work gives none; patch/minor/major distance supplies the corresponding contribution across the entire window.
-Decide retaining this mechanism description in its owning documentation rather than duplicating it in workflow policy.
+**Remove duplicate explanation, confirmed:** upstream SemVer calculation remains with the release mechanism, not repeated in sync policy.
 
 ### E09: Maximum contribution, not accumulation
 
-Existing: combine upstream distance, fork-owned commits, and reviewed resolution levels by their maximum; deferred patch syncs do not sum.
-Decide reference destination; sibling/root-only commits are excluded by the current mechanism.
+**Remove duplicate explanation, confirmed:** contribution combination remains with the release mechanism, unchanged.
 
 ### E10: Fail-closed evidence cases
 
-Existing: reject missing correspondence or reviewed merges, invalid parent topology, regressing versions, manifest disagreement, discontinuous ancestry, unreleased package work, and missing objects.
-Each guard is a separate preservation obligation, not permission to repair evidence; obtain separate decisions if any guard is proposed for change.
+**Remove duplicate explanation, confirmed:** E10a–E10h remain enforced release-evidence checks; the workflow calls validation and stops on errors instead of duplicating or bypassing the checks.
 
 ### E11: Idempotence and no override
 
-Existing: identical repeated review is idempotent; conflicting evidence errors and there is no override flag.
-Decide preserve-as-mechanism versus duplicate workflow wording.
+**Remove duplicate explanation, confirmed:** E11a–E11c remain properties of the owning mechanism, including conflict refusal and no override.
 
 ### E12: Offline revalidation
 
-Existing: prediction rereads committed evidence and local objects, rechecks manifests/ancestry/unreleased work, and rejects malformed git-cliff context instead of discarding entries.
-Decide reference placement without claiming recording waives subsequent checks.
+**Remove duplicate explanation, confirmed:** E12a/E12b remain release read-time checks; recording evidence does not exempt it from validation.
+
+### Release-mechanism group decision
+
+At gate `release_mechanism_group`, the operator selected `remove_duplicate_mechanism`, visible answer “算法说明去重: 是，引用所属发布机制”.
+The explicitly listed scope was E04, E07–E12, C02, C03, C05, and C06, including their subitems, as an alternative to continued per-algorithm deliberation.
+Retain existing algorithms, data, and checks in their owning release implementation/documentation; the sync workflow calls the mechanism and stops on failures rather than copying its internals.
+Issue 27 coordinates destinations with issue 29; this is neither data deletion nor authority to repair inconsistent state.
 
 ## Correspondence and release lifecycle
 
@@ -795,18 +792,16 @@ Source: H `Release correspondence lifecycle` and `Version correspondence`; R `Di
 
 ### C01: Generated correspondence ownership
 
-Existing: derive table rows from verified state; never add or repair rows manually.
-Decide preservation and migration responsibility under issue 27.
+**Retain generated-only ownership, confirmed:** never hand-add or repair correspondence rows; after an approved state change, use the generator and validator without a redundant approval for the same derived result, while normal release generation remains with the release mechanism (source H `Version correspondence`, gate C01 answer “生成对应表: 保留”).
+Generation does not authorize an unapproved state edit; issue 27 migrates required data and generator consumers.
 
 ### C02: No unreleased row on sync alone
 
-Existing: only release preparation includes a pending release row, with state, manifest, and decorated changelog committed together.
-Decide retaining the distinction between sync completion and publication.
+**Remove duplicate explanation, confirmed:** keep release-row generation with the release mechanism; a sync alone does not create a released version (release-mechanism group decision).
 
 ### C03: Exact upstream provenance
 
-Existing: each fork release has a direct fixed upstream baseline, not a claim of behavioral equivalence; several releases may share it.
-Decide preserving data and disclosure while deleting the old handbook.
+**Remove duplicate explanation, confirmed:** preserve fixed-source provenance data and its non-equivalence disclosure in the owning release artifacts, not another sync-policy copy (release-mechanism group decision).
 
 ### C04: Registered identities and all-package preflight
 
@@ -815,13 +810,11 @@ Decide workflow reference and independent package/scope/destination approval.
 
 ### C05: Tagged artifacts and Release bodies
 
-Existing: publication checks the full tagged set before npm; Release creation uses exact tagged changelog sections and leaves existing bodies unchanged on rerun.
-Decide mechanism-reference retention rather than automatic permission to edit remote releases.
+**Remove duplicate explanation, confirmed:** C05a–C05c remain tagged-artifact and Release-body protections in the release mechanism (release-mechanism group decision).
 
 ### C06: Sibling-only publication isolation
 
-Existing: publishing only siblings leaves fork state/table unchanged; original packages have no upstream block.
-Decide preserving this boundary without adding another fork package now.
+**Remove duplicate explanation, confirmed:** preserve sibling-publication isolation in the owning release mechanism without adding another fork package (release-mechanism group decision).
 
 ### C07: Immutable published history
 
@@ -995,6 +988,11 @@ The operator explicitly changed review granularity to remove all B/P selector im
 The operator also approved group removal of H01–H09's obsolete migration/one-time-permission chapter.
 V01 permits bounded routine installation and requires escalation of unexpected effects; V02 permits exact rumdl cache cleanup after moves without a separate report.
 V03/V04/V05 retain workspace typechecking, repository lint, and all-package tests without implied repair authority.
+V06 uses the full root test command including script tests; V07 retains conditional dead-code checking; V08 gates handling unexpected project-file writes without treating ordinary cache output as source edits.
+V09 requires authorization accounting before manual merge completion; V10 replaces the duplicate sync log with execution records; E01 preserves machine/human record separation.
+E02 binds review to the actual merge; E03 permits agent classification of approved resolution effects with reporting, not manual final version selection.
+The explicitly approved release-mechanism group removes only duplicate explanations, retaining all existing algorithms, data, and checks.
+E05 permits normal scoped evidence recording; E06 gates existing-evidence corrections; C01 preserves generated-only correspondence and allows regeneration from approved state.
 Concise dispositions and original source identification suffice.
 All other items remain pending.
 S04 adds a transport mechanism requirement beyond this documentation-only implementation; hand it to issue 27 for ownership and verified implementation, without changing the current script here.
