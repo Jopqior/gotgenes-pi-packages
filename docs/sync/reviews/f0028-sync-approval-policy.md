@@ -36,6 +36,20 @@ After inspecting `sync-worktree.md`, `ship-no-issue.md`, and `audit-agent-docs.m
 That confirmation applies to F01, F02, and F03 and to concise recordkeeping, not blanket deletion of the remaining review queue.
 Do not recreate an archive of obsolete recipes or copy them into the workflow.
 
+## Later package-scope clarification
+
+The operator clarified: “除了我真正修改/新增的包，对于其他就直接合并就行了，比如上游的新增包。”
+Confirmed direction: incorporate unchanged upstream packages, including newly added upstream packages, as supplied rather than requiring a separate adoption decision for each package.
+Identify actual fork customizations instead of treating every upstream package as fork-maintained; the current read-only `git diff --name-only upstream/main HEAD -- packages` showed package differences only under `pi-subagents` and `pi-subagents-model-selector`, not a permanent allowlist.
+Fork-customized or fork-added packages retain the approval boundary for uncovered resolutions and extra changes; repository targeting, tags, push, and publication safeguards remain applicable.
+This does not grant an open-ended repair pass if upstream integration exposes incompatibilities with fork customizations.
+
+At follow-up gate `upstream_package_wiring_scope`, the operator selected `upstream_as_is_extra_ask`, visible answer “新增包接线: 上游已有的直接合入，额外补写先问”.
+Thus upstream-supplied loading configuration and README wiring may arrive as part of the ordinary merge; N01/N02 approval applies to additional agent-authored wiring, not to separately approving incoming upstream content.
+The alternative explicitly allowing the agent to fill missing loading/README wiring automatically was not selected.
+The independently approved bounded form/label actions in N04/N05/N06 remain specific rule coverage, not blanket package-adoption or publication authority.
+This clarification is a handoff requirement for issue 27, not an upstream synchronization executed during this review.
+
 ## Source snapshot and evidence limits
 
 The working baseline was `f6c67319970c1661216b40c68ea6c4ccfbab10f5`.
@@ -84,7 +98,8 @@ These limits must remain visible in the handoff; they do not authorize script ch
 
 ## Index
 
-S01 through S14, M01 through M09, F01 through F11, and N01 through N03 have operator-confirmed dispositions, using their independent subitems where defined; all other item IDs remain pending individual disposition.
+S01 through S14, M01 through M09, F01 through F11, N01 through N07, and I01 through I04 have operator-confirmed dispositions, using their independent subitems where defined; all other item IDs remain pending individual disposition.
+The later package-scope clarification below narrows how N01/N02 apply.
 S04 requires a mechanism handoff before activation, not a claim that HTTPS already works.
 Confirmation here is a handoff decision, not activation.
 
@@ -566,24 +581,27 @@ H's reference to an “AGENTS.md four-place list” is stale; the actual list is
 
 ### N04: Bug-report dropdown
 
-Existing: add the package to the bug-report form's required Package dropdown.
-Decide whether this mutation is covered by discovery or requires confirmation.
+**Retain automatic action, confirmed:** for a real newly added upstream package, add its missing Package option to the fork's bug-report form and report the edit; no other form redesign is covered (source R `Adding a new package`, gate N04 answer “Bug 表单: 允许自动补齐并报告”).
 
 ### N05: Feature-request dropdown
 
-Existing: update the feature-request form as well.
-Decide this independent consumer rather than assuming the bug-form answer covers it.
+**Retain automatic action, confirmed:** for a real newly added upstream package, add its missing Package option to the fork's feature-request form and report the edit; no other form redesign is covered (source R `Adding a new package`, gate N05 answer “Feature 表单: 允许自动补齐并报告”).
 
 ### N06: GitHub package label
 
-Existing: create `pkg:<name>` before an issue selects the new package.
-Decide remote-write authorization, explicitly targeting the fork.
+**Retain bounded automatic action, confirmed:** create the missing `pkg:<name>` GitHub label for a real newly added upstream package in `Jopqior/gotgenes-pi-packages` and report it, subject to verified explicit fork targeting; this does not authorize editing unrelated existing labels (source R `Adding a new package`, gate N06 answer “GitHub Label: 允许自动创建并报告”).
 
 ### N07: Release registration and npm disable entry
 
-Existing: register actual identity/provenance before release preparation; add the npm disable entry only after the approved first publish.
-These are separate actions: obtain separate dispositions for registration and the later disable entry before either becomes an active rule.
-No registration grants publication permission or a supported evidence route to another fork package.
+Original source: H `After issue 3` and R `Adding a new package`.
+
+#### N07a: Release registration
+
+**Remove sync-specific recipe, confirmed:** leave package registration to the separate publishing workflow and preserve its existing identity/provenance gates; synchronization does not automatically register discovered packages (gate N07a answer “发布注册: 从同步规则删除”).
+
+#### N07b: Post-publication npm disable entry
+
+**Remove sync-specific recipe, confirmed:** leave duplicate-load prevention configuration to the separate publishing/installation workflow rather than prescribe another synchronization action (gate N07b answer “防重复加载: 从同步规则删除”).
 
 ## Fork lookup, phases and auto-merged documents
 
@@ -591,23 +609,31 @@ Source: H `Conflict handbook`, `Auto-merged both-sides paths`, and `Compatibilit
 
 ### I01: Fork issue lookup
 
-Existing: restore dropped `fNNNN-` short-circuit lookup in lifecycle prompts.
-Decide exact restoration bounds and escalation when upstream changes lookup semantics.
+**Retain exact restoration, confirmed:** restore an unambiguously dropped fork issue lookup that checks `fNNNN-` first and falls back to `NNNN-` only when no fork match exists, and report the edit; changed lookup structure or multiple valid implementation choices require approval first (source H `Auto-merged both-sides paths`, gate I01 answer “Issue 查找: 保留精确恢复并报告”).
 
 ### I02: Fork issue naming
 
-Existing: new fork files use `fNNNN-`, never the next inherited numeric slot.
-Decide preserving this invariant without authorizing bulk renaming of historical records.
+**Remove duplicate, confirmed:** omit the repeated fork issue filename convention from the sync workflow; the existing AGENTS and Markdown-skill convention remains unchanged (gate I02 answer “Issue 文件名: 删除重复说明”).
 
 ### I03: Independent fork phase allocation
 
-Existing: use full `f` phase identities and independent per-package allocation, never numeric upstream maxima or arithmetic predecessors.
-Decide invariant and inspection scope separately from reconciliation edits.
+**Remove duplicate, confirmed:** omit the repeated fork phase identity/allocation definition from the sync workflow; existing independent phase conventions remain binding and repairs still require coverage or approval (source H `Conflict handbook`, gate I03 answer “Phase 编号: 删除重复定义”).
 
 ### I04: Coexisting phase archives
 
-Existing: retain numeric upstream and fork archives/retros even with matching suffixes; reconcile table conflicts as separate rows.
-Decide exact coverage and stop cases such as duplicate fork identities.
+Original source: H `Conflict handbook`, independent archive identities and history rows.
+
+#### I04a: Upstream numeric archives
+
+**Remove duplicate, confirmed:** omit the separate numeric-archive preservation instruction, covered by merging non-customized upstream content as supplied (gate I04a answer “上游归档: 删除重复说明”).
+
+#### I04b: Fork archives
+
+**Retain, confirmed:** do not overwrite or rename a fork phase archive because an upstream numeric phase has the same numeric suffix; this grants no unrelated history-reorganization authority (gate I04b answer “Fork 归档: 保留”).
+
+#### I04c: Independent added history rows
+
+**Retain bounded reconciliation, confirmed:** preserve verbatim and report both sides' newly added independent history-table rows when their identities are distinct and unambiguous; conflicting versions of one record, duplicate identities, or unclear links require approval first (gate I04c answer “历史表新增行: 允许，并报告”).
 
 ### I05: Auto-merged path inspection
 
@@ -1105,8 +1131,12 @@ F01 through F05 remove first-merge import/concatenation recipes without relocati
 F06b removes a duplicate recount reminder; F07a/F07b remove duplicate method-name reminders without changing API contracts.
 F08a/F08b authorize exact preservation/restoration of fork name and pre-sync version with reporting; F09a/F09b require approval for authored dependency/metadata resolutions or extra adjustments.
 F10 preserves published fork changelog entries; F11 authorizes only verbatim, unambiguous insertion of new upstream sections with reporting.
-N01/N02 require approval for extra package-loading and README-table edits; N03 removes the sync-specific skill-classification recipe.
-These decisions concern authored extra wiring, not a second approval of ordinary auto-merged upstream commits.
+N01/N02 require approval for extra package-loading and README-table edits; N03 removes the sync-specific skill-classification recipe; N04/N05/N06 allow bounded missing dropdown/label additions with reporting.
+The later package-scope clarification confirms that non-customized upstream packages, including new ones and their supplied wiring, merge as supplied without individual adoption approval.
+Extra agent-authored loading/README wiring still requires approval, while specifically confirmed form/label rules provide their own bounded coverage.
+N07a/N07b remove sync-specific release-registration and post-publication loading recipes without weakening the owning workflows' safeguards.
+I01 permits only unambiguous restoration of fork-first issue lookup with reporting; I02/I03/I04a remove duplicate issue/phase/upstream-archive instructions.
+I04b protects fork archive identity; I04c permits only unambiguous independent added history rows to coexist verbatim, with reporting.
 Concise dispositions and original source identification suffice.
 All other items remain pending.
 S04 adds a transport mechanism requirement beyond this documentation-only implementation; hand it to issue 27 for ownership and verified implementation, without changing the current script here.
