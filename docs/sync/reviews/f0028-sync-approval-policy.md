@@ -102,7 +102,8 @@ S01 through S14, M01 through M09, F01 through F11, N01 through N07, and I01 thro
 B01–B10, P01–P11, and H01–H09, including their subitems, are removed from workflow guidance under explicitly approved group-removal decisions below.
 V01–V10, E01–E03, E05/E06, and C01 are confirmed.
 E04, E07–E12, C02, C03, C05, and C06 have a confirmed group disposition: remove duplicate mechanism explanations from synchronization policy while retaining the owning release mechanisms.
-All other item IDs remain pending.
+C04a, C08a–C08d, and G01–G07 (including subitems) are removed as duplicate or out-of-sync-scope workflow material, with the owning release safeguards retained.
+C04b/C07 and X01–X04 are confirmed; other X items and the detailed A clauses remain pending.
 The later package-scope clarification below narrows how N01/N02 apply.
 S04 requires a mechanism handoff before activation, not a claim that HTTPS already works.
 Confirmation here is a handoff decision, not activation.
@@ -805,8 +806,15 @@ Generation does not authorize an unapproved state edit; issue 27 migrates requir
 
 ### C04: Registered identities and all-package preflight
 
-Existing: unregistered identities or unsupported fork evidence fail preparation/publication/Release creation; registration does not authorize publication.
-Decide workflow reference and independent package/scope/destination approval.
+Original source: H `Release correspondence lifecycle` and R release gates.
+
+#### C04a: Registration and all-package preflight
+
+**Remove duplicate, confirmed:** reference the owning release mechanism instead of repeating its registration and all-package checks in sync policy; those checks remain unchanged and mandatory (gate C04a answer “发布预检查: 删除重复说明，校验不变”).
+
+#### C04b: Independent publication approval
+
+**Confirm explicit release gate:** after synchronization, proactively predict and report releasable packages and versions; if a release is needed, obtain approval naming the packages, npm scope, and destination, then execute and verify it rather than wait for another reminder; sync/registration/push authority does not authorize publication (gate C04b answer “发布批准: 确认”, consistent with issue 27).
 
 ### C05: Tagged artifacts and Release bodies
 
@@ -818,52 +826,17 @@ Decide workflow reference and independent package/scope/destination approval.
 
 ### C07: Immutable published history
 
-Existing: published tarballs, tags, and historical changelog sections are not rewritten to change correspondence.
-Decide explicit retention of this safeguard; correcting notes is a separate operation.
+**Retain, confirmed:** do not rewrite published tarballs, tags, or historical changelog sections; separately authorized Release-note backfill does not waive those protections (source H `Version correspondence`, gate C07 answer “已发布历史: 保留”).
 
 ### C08: First release and retry boundaries
 
-Existing R: first release is operator-chosen; an unsupported new fork stops for evidence review; retry prepared releases by the failed job after tagged-checkout verification, not blind redispatch.
-Review first-release approval and post-prepare retry separately before either becomes workflow authority.
+**Remove duplicate group, confirmed:** C08a–C08d remain with the owning release workflow, including operator-chosen first publication, new-fork evidence review, failed-job retry after preparation, and checkout/tag verification; reference that workflow rather than maintain another sync-specific copy (gate C08 answer “首次发布与重试: 整组去重，引用发布流程”).
 
-## Historical Release editing
+## Historical Release editing: outside synchronization
 
-Source: H `Historical GitHub Release notes`.
-
-### G01: Separate notes-only operation
-
-Existing: backfill is not part of sync or ordinary release preparation.
-Decide preserving the independent approval gate.
-
-### G02: Explicit preview inputs
-
-Existing: preview explicit fork tags into a review JSON without editing GitHub.
-Decide preview scope; creating the local review file is distinct from remote edits.
-
-### G03: Exact remote-edit approval
-
-Existing: review current body, proposed block, tag OID, identity, and historical evidence; approve the exact edits before apply.
-Decide the scope and evidence required on resume.
-
-### G04: Preservation and missing Releases
-
-Existing: preserve `Source-history restoration` disclosures verbatim; report missing Releases without creating them.
-Review these separate safeguards individually if either is proposed to change.
-
-### G05: Batch revalidation and readback
-
-Existing: revalidate the whole batch against live Releases/evidence before editing and read back each edit.
-Decide verification obligations separately from initial approval.
-
-### G06: Resumption and races
-
-Existing: skip identical completed entries on resume, coordinate an edit window, retain before/after snapshots because another editor can race the final read.
-Decide changed-input escalation and the evidence needed to skip an edit safely.
-
-### G07: Excluded artifacts
-
-Existing: backfill never rewrites historical changelogs, tarballs, tags, or Release metadata.
-Decide exact notes-only bounds, independently of general sync or publication approval.
+**Remove from sync workflow as a group, confirmed:** G01–G07 and their subitems belong to independently authorized release maintenance, not synchronization (source H `Historical GitHub Release notes`, gate G_group answer “历史文案回填: 移出同步，独立审批保护保留”).
+Preserve the backfill tool, exact-edit approval, preview/revalidation/readback, disclosure and artifact protections; issue 27 gives necessary guidance an appropriate release-owned home when deleting the handbook.
+This does not authorize running backfill during synchronization or deleting its safeguards.
 
 ## Recent practices and adjacent authority hazards
 
@@ -871,23 +844,21 @@ Source: the integration evidence above; A environment/target rules; D `Scope bou
 
 ### X01: Remerge-diff accounting
 
-Observed: remerge diff distinguished conflict resolutions from extra adaptations; later commits were inspected separately.
-Decide making both views mandatory inspection without claiming remerge diff proves authorization or semantic completeness.
+**Retain, confirmed:** inspect remerge diff together with post-merge commits to account for authored resolutions and extra adaptations against authorization; neither tool output nor a clean final diff proves approval or semantic completeness (gate X01 answer “整合改动核对: 保留该检查”).
 
 ### X02: Independent integration review
 
-Observed: an independent reviewer inspected conflicted and automatically merged paths.
-Decide required review scope and disclosure of checks not performed; reviewer recommendations grant no editing permission.
+**Retain independent read-only review, confirmed:** after verification and before pushing, review affected fork customizations including automatically merged paths, and disclose unperformed checks; reviewer findings are proposals, not permission to edit (gate X02 answer “独立审查: 保留”).
 
 ### X03: Manifest-derived workspace identity
 
-Observed: workflow commands were changed to read actual package names rather than assume `@gotgenes/`.
-Decide a narrowly bounded replacement rule versus case-specific approval; package renaming and wider command changes are separate.
+**Allow narrow adaptation with reporting, confirmed:** replace an assumed workspace identity in a check command with the actual manifest name only when it still targets the same package with unchanged purpose, scope, and check strength; other command semantics or scope changes require approval first (gate X03 answer “实际包名: 允许窄范围适配并报告”).
+This permits neither renaming the package nor using the adjustment as a pretext to alter checks.
 
 ### X04: Publication visibility recheck
 
-Observed: successful publication logs preceded registry visibility; the session waited and queried again rather than republish blindly.
-Decide the release-stage practice and uncertainty reporting; successful CI alone is not registry confirmation.
+**Retain, confirmed:** when publication reports success but registry visibility lags, wait and recheck rather than blindly republish; if visibility remains unverified, report workflow success and pending visibility separately, not verified publication (gate X04 answer “Registry 可见性: 保留该做法”).
+The owning release workflow sets the practical wait/recheck procedure.
 
 ### X05: Analysis allowance hazard
 
@@ -993,6 +964,9 @@ V09 requires authorization accounting before manual merge completion; V10 replac
 E02 binds review to the actual merge; E03 permits agent classification of approved resolution effects with reporting, not manual final version selection.
 The explicitly approved release-mechanism group removes only duplicate explanations, retaining all existing algorithms, data, and checks.
 E05 permits normal scoped evidence recording; E06 gates existing-evidence corrections; C01 preserves generated-only correspondence and allows regeneration from approved state.
+C04a/C08 remove duplicate release-preflight/bootstrap/retry prose; G01–G07 move out of sync workflow responsibility while retaining their independent tools and approval safeguards.
+C04b confirms proactive prediction and independently approved publication; C07 protects immutable history; X04 requires honest visibility verification without blind republication.
+X01 requires integration-diff authorization accounting; X02 requires independent read-only review before push; X03 permits only same-workspace, same-semantics manifest-name adaptation with reporting.
 Concise dispositions and original source identification suffice.
 All other items remain pending.
 S04 adds a transport mechanism requirement beyond this documentation-only implementation; hand it to issue 27 for ownership and verified implementation, without changing the current script here.
