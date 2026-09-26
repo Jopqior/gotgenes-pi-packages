@@ -31,6 +31,11 @@ A remove disposition must distinguish removing automatic authority, deleting dup
 Unanswered questions remain pending; recommendations and assistant summaries are not operator approval.
 Changed decisions append a superseding entry rather than erase the original scope.
 
+The operator subsequently requested that historical explanations be brief and questioned whether they needed retaining at all.
+After inspecting `sync-worktree.md`, `ship-no-issue.md`, and `audit-agent-docs.md`, the assistant proposed deleting the first-merge import recipes from the new workflow, retaining only a one-sentence disposition and source per item here, and leaving the original recipes solely in Git history; the operator answered “好，继续。”
+That confirmation applies to F01, F02, and F03 and to concise recordkeeping, not blanket deletion of the remaining review queue.
+Do not recreate an archive of obsolete recipes or copy them into the workflow.
+
 ## Source snapshot and evidence limits
 
 The working baseline was `f6c67319970c1661216b40c68ea6c4ccfbab10f5`.
@@ -79,7 +84,7 @@ These limits must remain visible in the handoff; they do not authorize script ch
 
 ## Index
 
-S01 through S14 and M01 through M09 have operator-confirmed dispositions, using the independent subitems for S02, S06, and S07; all other item IDs remain pending individual disposition.
+S01 through S14, M01 through M09, and F01 through F07 have operator-confirmed dispositions, using the independent subitems for S02, S06, S07, F06, and F07; all other item IDs remain pending individual disposition.
 S04 requires a mechanism handoff before activation, not a claim that HTTPS already works.
 Confirmation here is a handoff decision, not activation.
 
@@ -467,38 +472,47 @@ The first-merge instructions describe particular historical inputs, not a curren
 
 ### F01: Manager import union
 
-Existing: retain selection-scope and upstream resume/lifecycle type imports in `subagent-manager.ts`.
-Decide historical-only versus any narrowly reusable import reconciliation rule.
+**Remove, confirmed:** delete the first-merge manager import recipe from workflow guidance; original source is H `First merge`, and the recipe remains only in Git history (operator confirmation recorded under Review method).
 
 ### F02: Service import union
 
-Existing: union model, thinking, resume, and status imports in `service.ts`.
-Decide separately from preserving the public service methods.
+**Remove, confirmed:** delete the first-merge service import recipe from workflow guidance, without removing service methods; original source is H `First merge`, retained only in Git history (operator confirmation recorded under Review method).
 
 ### F03: Adapter import union
 
-Existing: retain both resume and selection-provider types in `service-adapter.ts`.
-Decide whether the historical example has any future automatic-edit authority.
+**Remove, confirmed:** delete the first-merge adapter import recipe from workflow guidance, without changing functionality; original source is H `First merge`, retained only in Git history (operator confirmation recorded under Review method).
 
 ### F04: Background presentation concatenation
 
-Existing: concatenate fork pending-selection presentation with upstream annotated details.
-Decide whether this remains only an account of that merge.
+**Remove, confirmed:** delete the historical background-presentation concatenation recipe from workflow guidance, not the functionality; source H `First merge`, gate F04 answer “后台代码拼接: 删除”.
 
 ### F05: Test import union
 
-Existing: keep model and workspace helpers in `subagent-manager.test.ts`.
-Decide whether this stale concrete recipe should be history-only or removed from workflow guidance.
+**Remove, confirmed:** delete the historical test-import recipe from workflow guidance, not the tests; source H `First merge`, gate F05 answer “测试 imports: 删除”.
 
 ### F06: Module-list union and recount
 
-Existing: keep every unique module token in package skill and architecture listings, then recount rather than add old counts.
-Decide whether union is valid only for verified current modules, not arbitrary incoming phrases.
+Original source: H `First merge`, unique module/token union followed by recounting.
+
+#### F06a: Module/token union
+
+**Remove, confirmed:** delete the mechanical union recipe; documentation should describe the actual implementation rather than preserve every old token, and edits still require coverage or approval (gate F06a answer “文档取并集: 删除”).
+
+#### F06b: Recompute counts
+
+**Remove duplicate, confirmed:** omit the first-merge recount reminder from the workflow; the repository-wide requirement to derive numbers from commands remains unchanged (gate F06b answer “重新计数: 删除重复提醒”).
 
 ### F07: Service method preservation
 
-Existing: do not drop `resume(...)` or `registerSpawnSelectionProvider(...)`.
-Decide invariant versus resolution authority; no contract narrowing is proposed here.
+Original source: H `First merge`, fixed method-preservation list.
+
+#### F07a: Resume
+
+**Remove duplicate, confirmed:** omit the fixed `resume(...)` preservation line from the workflow, without changing the API or approving removal; review affected interfaces against their current contracts (gate F07a answer “resume 方法: 删除重复说明”).
+
+#### F07b: Provider registration
+
+**Remove duplicate, confirmed:** omit the fixed `registerSpawnSelectionProvider(...)` preservation line from the workflow, without removing selection functionality or authorizing an API change (gate F07b answer “选择注册方法: 删除重复说明”).
 
 ### F08: Fork manifest identity
 
@@ -1077,6 +1091,9 @@ S12 requires tag-name/object comparison; S13 gates exact tag deletions; S14 gate
 M01 requires main; M02 requires complete origin identity verification; M03 requires clean tracked/index state and review of untracked-file risks.
 M04 permits only verified current-sync resumption; M05 stops on an existing rebase; M06 retains genuine two-parent integration with ancestry preflight and an implementation handoff.
 M07 removes unrelated feature-landing prose from the sync workflow; M08 allows whole-file side selection only with specific approval; M09 makes broad preservation a review goal, not repair authority.
+F01 through F05 remove first-merge import/concatenation recipes without relocating their historical bodies; F06a removes mechanical documentation unions.
+F06b removes a duplicate recount reminder; F07a/F07b remove duplicate method-name reminders without changing API contracts.
+Concise dispositions and original source identification suffice.
 All other items remain pending.
 S04 adds a transport mechanism requirement beyond this documentation-only implementation; hand it to issue 27 for ownership and verified implementation, without changing the current script here.
 The first gate's elaboration result omitted the S02a/S02b selections; a follow-up gate recovered both explicitly instead of inferring them from the operator's general confirmation.
