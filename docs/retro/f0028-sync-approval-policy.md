@@ -32,3 +32,29 @@ The next stage is `/build-plan` for individual rule deliberation, not synchroniz
 
 [#27]: https://github.com/Jopqior/gotgenes-pi-packages/issues/27
 [#29]: https://github.com/Jopqior/gotgenes-pi-packages/issues/29
+
+## Stage: Implementation — Build (2026-09-26T15:25:52Z)
+
+### Session summary
+
+Completed plan steps 1–3 through operator deliberation and committed the inventory, dispositions, and handoff in `docs/sync/reviews/f0028-sync-approval-policy.md`.
+The implementation produced 12 commits before this stage note, ending with `022ef0376`; the plan now links the decisions, approved review adjustments, manual acceptance walkthrough, and blocked activation criterion.
+Step 4 remains pending [#27], whose workflow was absent at the final inspection; no synchronization, push, publication, or issue closure occurred.
+
+### Observations
+
+- The operator favored concise dispositions over preserving obsolete recipes and explicitly approved grouped removal of selector implementation details, historical compatibility material, and duplicated release responsibilities.
+  These approved changes to review granularity are documented in the review record rather than treated as blanket inheritance.
+- Non-customized upstream packages and their supplied wiring merge as supplied; extra agent-authored loading/README wiring remains gated, while the specifically approved form/label additions have narrow coverage.
+  The review record owns exact bounds and answer provenance, not this retro.
+- Calling `/upstream-sync` itself requests synchronization; the first gate's wording incorrectly suggested a redundant start confirmation and was clarified.
+  An elaboration response omitted other selections, which were recovered explicitly rather than inferred.
+- The operator requested SSH and HTTPS support, but the current script is SSH-only.
+  Issue [#27] must coordinate transport support, complete repository-identity checks, tag-name/object comparison, and topology handling; this documentation stage changed no script, runtime, test, or active-policy files.
+- Routine installation remains permitted within bounds; exact rumdl cache cleanup after moves requires no separate report.
+  Release contribution classification is a reviewed input, while final version calculation remains script-owned; that distinction was verified against the actual recorder and decision code after an operator question.
+- Fresh-context review ran `pnpm run check`, `pnpm run lint`, `pnpm run test`, and `pnpm fallow dead-code`; all passed.
+  The reviewer found no blocking defect in steps 1–3, but returned **Overall: FAIL** because the whole issue's workflow-integration acceptance criterion is unmet.
+  It did not independently verify local operator transcript quotations or execute a real synchronization.
+- The operator explicitly accepted this partial handoff despite the overall FAIL and authorized recording the incomplete integration status.
+  This is not an override of the missing criterion: do not close the issue or run an ordinary closing `/ship 28`; after [#27] and naming coordination with [#29], inspect the actual workflow, repeat acceptance scenarios, verify migration/deletion, and obtain a fresh final review.
