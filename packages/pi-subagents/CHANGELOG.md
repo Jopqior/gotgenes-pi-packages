@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.3](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v4.0.2...pi-subagents-v4.0.3) (2026-09-26)
+
+
+### Bug Fixes
+
+* **pi-subagents:** recognize pi ≥0.86's section-shaped prompt in the tail anchors ([b580282](https://github.com/Jopqior/gotgenes-pi-packages/commit/b580282588476c2e74e3771ada47cb73186af0fa)), closes [#958](https://github.com/Jopqior/gotgenes-pi-packages/issues/958)
+* **pi-subagents:** keep the agents widget inside the terminal viewport ([123c7f9](https://github.com/Jopqior/gotgenes-pi-packages/commit/123c7f9dd387a658979b3af587163dcdc7fe5a1c)), closes [#864](https://github.com/Jopqior/gotgenes-pi-packages/issues/864)
+* **pi-subagents:** stop widget animation while no subagent is running ([fe6269a](https://github.com/Jopqior/gotgenes-pi-packages/commit/fe6269ab11a3f93fcaa5084c15067051f7b11628)), closes [#864](https://github.com/Jopqior/gotgenes-pi-packages/issues/864)
+* **pi-subagents:** count hidden queued agents in the widget overflow summary ([c2b78e3](https://github.com/Jopqior/gotgenes-pi-packages/commit/c2b78e3ea26a091eeb832b02c5256b08d333cfe3)), closes [#864](https://github.com/Jopqior/gotgenes-pi-packages/issues/864)
+* **pi-subagents:** render a relocated or portable child's project context in pi 0.86's block shape ([5efc8b9](https://github.com/Jopqior/gotgenes-pi-packages/commit/5efc8b9c8eed77f754d0d4f4855542e1cc465875)), closes [#961](https://github.com/Jopqior/gotgenes-pi-packages/issues/961)
+* **pi-subagents:** wrap a portable child's appended prompt in pi 0.86's addendum section ([4484832](https://github.com/Jopqior/gotgenes-pi-packages/commit/4484832b0842fcac75dbb4ca051101feeac37736)), closes [#961](https://github.com/Jopqior/gotgenes-pi-packages/issues/961)
+
+### Performance Improvements
+
+* **pi-subagents:** slow the agents widget animation to 250 ms ([2eb6292](https://github.com/Jopqior/gotgenes-pi-packages/commit/2eb62924f6f0a86165497df1aca4d84a9b78a72b)), closes [#864](https://github.com/Jopqior/gotgenes-pi-packages/issues/864)
+
+### Documentation
+
+* **pi-subagents:** record when the 0.85 project-context offset goes dead ([bdc32f5](https://github.com/Jopqior/gotgenes-pi-packages/commit/bdc32f5704c07a363a617aed29ed6efc01219c63)), closes [#959](https://github.com/Jopqior/gotgenes-pi-packages/issues/959)
+* **pi-subagents:** record the widget's viewport bound and 250 ms cadence ([6f863da](https://github.com/Jopqior/gotgenes-pi-packages/commit/6f863da50e96ccda0231fb448a24815365023083)), closes [#864](https://github.com/Jopqior/gotgenes-pi-packages/issues/864)
+* snapshot fallow vital signs per package and trend them at phase close ([bc8bbc3](https://github.com/Jopqior/gotgenes-pi-packages/commit/bc8bbc34e32f30c99260aaa05a044df3f445857a)), closes [#966](https://github.com/Jopqior/gotgenes-pi-packages/issues/966)
+
+### Miscellaneous Chores
+
+* merge upstream/main ([d4d90b3](https://github.com/Jopqior/gotgenes-pi-packages/commit/d4d90b3de6c19be1516ce0a92c1ad611e8543ba5))
+
+<!-- upstream-correspondence:start -->
+### Upstream correspondence
+
+Direct upstream package: `@gotgenes/pi-subagents`  
+Incorporated upstream release: `21.7.7`  
+Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents)
+
+This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
+<!-- upstream-correspondence:end -->
+
 ## [4.0.2](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v4.0.1...pi-subagents-v4.0.2) (2026-09-25)
 
 
