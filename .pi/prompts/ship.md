@@ -197,7 +197,8 @@ The comment should include:
 - A note flagging any breaking change (matches `feat!:` commits).
 - If the change unblocks or partially addresses other issues, mention them.
 - Credit by `@login` any third party whose comment supplied the shipped design or measured the defect — read `gh issue view $1 --json comments` first; the commits carry a `Co-authored-by:` only if planning recorded one (Refs #962).
-- If the release was deferred (mid-batch), note that the fix is on `main` and releases with the batch — do not cite a released version.
+- Do not cite a released version — step 10 dispatches the release after this comment, so a version here is a prediction.
+  When the release was deferred (mid-batch), say the fix is on `main` and releases with the batch.
 
 Before calling `issue_close`, re-resolve every hex token in the finished draft (`git rev-parse <sha>^{commit}`) and confirm each is an ancestor of `main` (`git merge-base --is-ancestor <sha> main`).
 Verify the draft, not your intent to cite — a pre-draft resolve cannot cover a hash drafting itself introduced, and after the call it can no longer prevent publishing one (Refs #788, #814, #890).

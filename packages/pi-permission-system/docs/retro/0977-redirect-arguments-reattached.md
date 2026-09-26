@@ -90,3 +90,60 @@ Follow-ups [#978] and [#979] are filed and dispositioned into Phase 15; neither 
 ### Observations
 
 Nothing further beyond the TDD stage's own observations — this is a clean rebase-and-handoff, no fixups needed.
+
+## Stage: Final Retrospective (2026-09-26T02:30:05Z)
+
+### Session summary
+
+The root session fast-forward-merged the peer branch (`74b80b30..af1cafb4`), passed lint and `fallow dead-code` on the merged tree, pushed, and CI went green on the first run.
+It closed #977 citing `73c41a5c` as the landing commit, released `pi-permission-system-v34.0.1`, and tore down the worktree.
+Across all four stages the issue needed one unplanned step (the `parse-health.ts` extraction) and three failed `Edit` calls, with no rework commits.
+
+### Observations
+
+#### What went well
+
+- The worktree lane ran end to end with no stop: `merge-base --is-ancestor` predicted the fast-forward, and `PRE_MERGE` was an ancestor of the plan's parent, so the plan-anchored range was complete.
+- The pre-completion reviewer (claude-sonnet-5) ran its own disposable spike over byte-identity, #814's attribution, floor exemptions, masked offsets, and nested shapes, and deleted it afterwards.
+  That is re-derivation rather than a checklist read, which is what a security-boundary change needs.
+- The corpus re-measurement at TDD (8891 commands, before vs. after source) matched the planning census exactly: the same 4 commands changed.
+  A prediction written at planning and checked by the same measurement at implementation is a strong pattern for parser-boundary changes.
+
+#### What caused friction (agent side)
+
+- `missing-context` — the plan wired `redirect-arguments.ts` into `parser.ts` without checking whether the new module already reached back into `parser.ts` (through `redirect-analysis.ts`).
+  `fallow dead-code` rejected the cycle at TDD step 7, so the step was parked, an operator decision was needed, and the saved step-7 diff was re-applied with `git apply --3way` after the extraction.
+  The same class of mid-TDD cycle deviation happened on #573; #474 and #438 caught theirs at planning.
+  `fallow guard` does not catch it: same-zone imports are always allowed, and all four modules sit in `access-intent`.
+  Impact: one unplanned `refactor:` commit and one operator interruption; no rework commits.
+- `other` — the close comment for #977 ended "Released as pi-permission-system-v34.0.1" before step 10 dispatched the release.
+  The version came from `next-version.sh`, so it was command output, but at that point it predicted an event that had not happened; a failed `prepare` would have left a false claim on the issue.
+  No earlier ship comment in this repo cites a version.
+  Impact: none (the release succeeded with that exact tag); the claim was a prediction, not a fact.
+- `instruction-violation` (self-identified at retro) — `/ship` step 9 says to re-resolve every hex token in the finished draft before `issue_close`.
+  Only the landing SHA was re-resolved; the other seven (three full, four short) were pasted from `git log` output and not re-checked.
+  The retro re-resolved all eight: every one resolves and is an ancestor of `main`.
+  Impact: none.
+  The shortcut rested on "it came from command output", which the rule deliberately does not accept.
+- `other` — the root lint gate was written as `...; [ $rc -ne 0 ] && tail ...`, so a passing lint made the tool report `exit code 1`, which briefly looked like a failure.
+  Impact: one moment of re-reading; the `fallow` call switched to `if ...; then ...; fi`.
+
+#### What caused friction (user side)
+
+- The operator's involvement was strategic: one mid-TDD decision (extract `parse-health.ts` vs. split `redirect-analysis.ts`) and the planning design choice (parser boundary vs. per-walker helper).
+  No corrections were needed.
+
+### Diagnostic details
+
+- **Model-performance correlation** — Planning and TDD ran on `anthropic/claude-opus-5-5`, sync on `anthropic/claude-sonnet-5` (mechanical, appropriate), ship and retro on `anthropic/claude-opus-5-5`.
+  Both subagents ran on `anthropic/claude-sonnet-5`: the `tidy-first-assessor` (its recommendation matched the planner's own count) and the `pre-completion-reviewer` (PASS, with an independent spike).
+  No mismatch.
+- **Escalation-delay tracking** — no rabbit holes; the longest error run was two consecutive failed `Edit` calls on em-dash text, rerouted to a scripted substitution per the `markdown-conventions` skill.
+- **Unused-tool detection** — the `tidy-first-assessor` reported `fallow guard <file>` failing on an undefined zone (`pi-subagents/config`) in the worktree.
+  At the root on `main` today, `pnpm --silent fallow guard packages/pi-permission-system/src/access-intent/bash/parser.ts` exits 0, so the failure is not reproducible now; not pursued.
+- **Feedback-loop gap analysis** — TDD ran `pnpm run check` and the package suite after each step, and `fallow dead-code` before each commit, which is how the cycle surfaced at step 7 rather than at sync.
+
+### Changes made
+
+1. `.pi/prompts/plan-issue.md` — Design Overview gains a check that a new same-directory import edge does not close a cycle, since `fallow guard` allows same-zone edges.
+2. `.pi/prompts/ship.md` — step 9's close comment never cites a released version, because the release is dispatched after it; the deferred-release wording folds into the same bullet.
