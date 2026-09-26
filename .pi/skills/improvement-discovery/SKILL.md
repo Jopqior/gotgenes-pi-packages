@@ -38,34 +38,38 @@ Record the verdicts under the `#### Open-issue sweep dispositions` heading (see 
 ### 3. Run fallow for corroboration and baseline
 
 Fallow **corroborates** the cause hypothesis and supplies outcome baselines — it does not set the agenda.
-Run from the repo root — the `fallow:*` scripts exist only in the root `package.json`, and `--workspace` scopes the analysis:
+Run from the repo root — the `fallow:*` scripts exist only in the root `package.json`, and `--workspace` scopes the analysis.
+Resolve the package name from its manifest rather than assuming the `@gotgenes/` scope; replace `<PKG>` with the package directory in these examples:
 
 ```bash
-pnpm fallow health --score --hotspots --targets --workspace @gotgenes/<PKG> 2>&1 || true
-pnpm fallow dead-code --workspace @gotgenes/<PKG> 2>&1 || true
-pnpm fallow dupes --workspace @gotgenes/<PKG> 2>&1 || true
+PKG_NAME=$(node -p "require('./packages/<PKG>/package.json').name")
+pnpm fallow health --score --hotspots --targets --workspace "$PKG_NAME" 2>&1 || true
+pnpm fallow dead-code --workspace "$PKG_NAME" 2>&1 || true
+pnpm fallow dupes --workspace "$PKG_NAME" 2>&1 || true
 ```
 
 Capture: health score, dead exports, production duplication (`fallow dupes` excludes test files by default), hotspots, refactoring targets.
 
-Four further reads, each answering something the three commands above cannot (the `fallow` skill carries the details and the caveats):
+Four further reads, each answering something the three commands above cannot (the `fallow` skill carries the details and the caveats).
+Re-resolve the manifest name if these commands run in another shell:
 
 ```bash
+PKG_NAME=$(node -p "require('./packages/<PKG>/package.json').name")
 # Real CRAP scores: the estimate both hides hotspots and invents them.
-pnpm --filter @gotgenes/<PKG> exec vitest run --coverage --coverage.provider istanbul \
+pnpm --filter "$PKG_NAME" exec vitest run --coverage --coverage.provider istanbul \
   --coverage.reporter json --coverage.reportsDirectory /tmp/cov-<PKG>
-pnpm fallow health --coverage /tmp/cov-<PKG>/coverage-final.json --score --hotspots --targets --workspace @gotgenes/<PKG> 2>&1 || true
+pnpm fallow health --coverage /tmp/cov-<PKG>/coverage-final.json --score --hotspots --targets --workspace "$PKG_NAME" 2>&1 || true
 
 # Drift since the last phase close, against the committed snapshot.
 rm -rf .fallow/snapshots && mkdir -p .fallow/snapshots
 cp packages/<PKG>/docs/fallow-snapshot.json .fallow/snapshots/baseline.json
-pnpm fallow health --trend --workspace @gotgenes/<PKG> 2>&1 || true
+pnpm fallow health --trend --workspace "$PKG_NAME" 2>&1 || true
 
 # Untested-but-reachable files and exports (discount barrel re-exports).
-pnpm fallow health --coverage-gaps --workspace @gotgenes/<PKG> 2>&1 || true
+pnpm fallow health --coverage-gaps --workspace "$PKG_NAME" 2>&1 || true
 
 # Public-signature type coupling: a file that depends on many and is used by none is a bag lead.
-pnpm fallow health --type-aware --type-aware-project packages/<PKG>/tsconfig.json --type-coupling --workspace @gotgenes/<PKG> 2>&1 || true
+pnpm fallow health --type-aware --type-aware-project packages/<PKG>/tsconfig.json --type-coupling --workspace "$PKG_NAME" 2>&1 || true
 ```
 
 `similar-code` finds intent-level overlap `dupes` misses, but needs an explicit local model download (`fallow similar-code setup`); treat it as opt-in and do not run it as part of discovery.
