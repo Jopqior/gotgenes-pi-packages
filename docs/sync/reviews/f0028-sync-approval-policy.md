@@ -79,7 +79,7 @@ These limits must remain visible in the handoff; they do not authorize script ch
 
 ## Index
 
-S01, S02a, S02b, S03, S04, S05, and S06a/S06b/S06c have operator-confirmed dispositions; all other item IDs remain pending individual disposition.
+S01 through S14 have operator-confirmed dispositions, using the independent subitems for S02, S06, and S07; all other item IDs remain pending individual disposition.
 S04 requires a mechanism handoff before activation, not a claim that HTTPS already works.
 Confirmation here is a handoff decision, not activation.
 
@@ -240,42 +240,113 @@ Intended destination: issue 27 transport safeguards and execution accounting.
 ### S07: GitHub default targeting
 
 Existing: pin the CLI default to `Jopqior/gotgenes-pi-packages` when adding upstream; recheck the default for tools without a repository parameter.
-Decide whether a mismatch permits configuration repair or requires stopping and using explicitly targeted commands.
+
+#### S07a: Default repository configuration
+
+Disposition: **change, confirmed by the operator**.
+At gate `S07a`, the operator selected `change_ask_before_set`, visible answer “默认仓库配置: 修改默认值前先确认”.
+The alternatives were approval before changing the default, automatically pinning it to the fork, or removing configuration changes from the workflow.
+
+Confirmed handoff wording: Prefer explicitly targeted GitHub commands; adding an upstream remote does not authorize changing the GitHub CLI default repository.
+If changing that default is necessary, present the change and obtain operator approval before writing it.
+Intended destination: issue 27 GitHub targeting and configuration recovery.
+
+#### S07b: Tools without a repository argument
+
+Disposition: **retain, confirmed by the operator**.
+At gate `S07b`, the operator selected `retain_check_fallback`, visible answer “无仓库参数工具: 保留，错目标时用显式 gh”.
+The alternatives were verified wrappers with explicit-command fallback, using only explicit gh commands, or deferring.
+
+Confirmed handoff wording: Before using tools without a repository argument, verify that the GitHub CLI default resolves to `Jopqior/gotgenes-pi-packages`.
+If it does not, use an equivalent `gh` command with an explicit fork repository argument instead; do not silently repair the default.
+If no suitable explicit alternative is available, stop and request a decision rather than operate against the wrong repository.
+Intended destination: issue 27 GitHub inspection and CI stages.
 
 ### S08: Explicit GitHub mutation target
 
 Existing: verify the target and pass `--repo Jopqior/gotgenes-pi-packages` where supported.
-Decide its placement in the unified workflow without weakening the current safeguard.
+
+Disposition: **retain, confirmed by the operator**.
+At gate `S08`, the operator selected `retain_explicit_target`, visible answer “GitHub 写操作: 保留”.
+The alternatives were retention, requesting an adjusted requirement, or deferring without weakening the current safeguard.
+
+Confirmed handoff wording: Before a GitHub mutation, verify the target repository and explicitly pass `--repo Jopqior/gotgenes-pi-packages` where supported.
+Target verification does not authorize the mutation itself.
+Intended destination: issue 27 GitHub mutation checkpoints.
 
 ### S09: Explicit push target
 
 Existing: verify the remote URL and name the remote and branch before pushing.
-Decide the required verification separately from the operator's push authorization.
+
+Disposition: **retain, confirmed by the operator**.
+At gate `S09`, the operator selected `retain`, visible answer “推送目标: 保留”.
+The alternatives were retention, a specified adjustment, or deferral.
+Confirmed handoff wording: Before an authorized push, verify the intended remote URL and explicitly name the remote and branch in the push command.
+This target check does not authorize pushing.
+Intended destination: issue 27 push checkpoint.
 
 ### S10: No upstream tag imports
 
 Existing: never import upstream tags; forbidden examples include tag-forcing fetches, flagless upstream fetch, and `git fetch --all`.
-Decide wording that preserves the safeguard without relying on an inaccurate explanation of Git defaults.
+
+Disposition: **retain, confirmed by the operator**.
+At gate `S10`, the operator selected `retain`, visible answer “上游标签: 保留”.
+The alternatives were retention, an explicitly evaluated adjustment, or deferral.
+Confirmed handoff wording: Never import upstream tags into the fork's tag namespace.
+The workflow's concrete forbidden-command examples must be checked against actual Git behavior; do not rely solely on the remote default because explicit tag flags can override it.
+Existing command prohibitions remain binding during review.
+Intended destination: issue 27 transport safeguards.
 
 ### S11: No upstream push
 
 Existing: `git push upstream` is forbidden and the remote push URL is disabled.
-Decide its scope; contacting or submitting to upstream still requires an explicit operator request under A.
+
+Disposition: **retain, confirmed by the operator**.
+At gate `S11`, the operator selected `retain`, visible answer “上游推送: 保留”.
+The alternatives were retention, a specified adjustment, or deferral.
+Confirmed handoff wording: The synchronization workflow must not push to upstream.
+Any future request to contribute upstream is a separately authorized operation, not an implied part of synchronization.
+Intended destination: issue 27 transport and push safeguards.
 
 ### S12: Tag-set verification
 
 Existing: S compares sorted local tag names before and after fetch; the later checklist prints only a tag count.
-Decide what evidence the workflow must retain and what mismatches must stop execution.
+
+Disposition: **change, confirmed by the operator**.
+At gate `S12`, the operator selected `change_name_oid`, visible answer “标签检查: 比较标签名和对象 OID”.
+The alternatives were name-and-object comparison, retaining the name-set comparison with its limitations, or deferring.
+The read-only command `git for-each-ref --format='%(refname) %(objectname)' refs/tags` was run successfully during this review and printed local tag refs and their object OIDs.
+
+Confirmed handoff wording: Capture and compare local tag names and their referenced object OIDs before and after synchronization fetch operations.
+A change stops the workflow for reporting and investigation; detection does not authorize recovery.
+Retain the compared evidence in the execution record or an identified supporting artifact.
+This catches same-name ref changes as well as added/deleted names; a mere count is insufficient.
+Intended destination: issue 27 workflow verification, not a script edit in this issue.
 
 ### S13: Imported-tag recovery
 
 Existing: delete accidentally imported tags, then rerun the script.
-Decide whether each proposed tag deletion needs explicit destructive-action approval and verified provenance.
+
+Disposition: **change, confirmed by the operator**.
+At gate `S13`, the operator selected `change_approve_deletion`, visible answer “误导入标签: 列明依据，批准后删除”.
+The alternatives were exact-list approval, automatic deletion only for proven current-operation imports, or manual operator recovery.
+
+Confirmed handoff wording: Report the suspected imported tags, their provenance evidence, and the exact proposed deletion list; obtain operator approval before deleting them.
+Uncertain provenance requires investigation, not an assumption that a tag is disposable.
+Permission to synchronize or detect tag drift does not authorize deletion.
+Intended destination: issue 27 tag-recovery gate.
 
 ### S14: Abandoning a merge
 
 Existing: run `git merge --abort` to abandon conflicts and restore the pre-merge state.
-Decide whether this is an operator-selected recovery, not an automatic response to difficulty.
+
+Disposition: **change, confirmed by the operator**.
+At gate `S14`, the operator selected `change_explicit_abort`, visible answer “放弃合并: 我明确选择放弃时”.
+The alternatives were an explicit abandon decision, retaining abort as explanatory guidance only, or manual-only execution.
+
+Confirmed handoff wording: Explain the merge work that abort would discard and execute `git merge --abort` only when the operator explicitly chooses to abandon that merge.
+Complex conflicts or failed verification do not authorize automatic abort.
+Intended destination: issue 27 merge-recovery gate.
 
 ## Merge checks, topology and generic handling
 
@@ -937,6 +1008,9 @@ The following subitems split compound source paragraphs into separate decision u
 Each subitem is pending and inherits the original source and evidence limits from its parent section.
 Individual deliberation has started: S01 confirms entry semantics; S02a/S02b limit discovery obligations to synchronization; S03 retains the bounded script entry; S04 requests SSH and HTTPS support; S05 requires approval before existing-URL changes.
 S06a requires a protocol choice before creating a missing upstream remote; S06b/S06c authorize their exact protective configuration writes with recording.
+S07a requires approval before changing the GitHub default; S07b retains verified wrapper use with explicit-command fallback; S08 retains explicit fork targeting for mutations.
+S09 retains explicit verified push targets; S10 prohibits upstream tag imports; S11 prohibits upstream pushes within synchronization.
+S12 requires tag-name/object comparison; S13 gates exact tag deletions; S14 gates abort on an explicit abandon decision.
 All other items remain pending.
 S04 adds a transport mechanism requirement beyond this documentation-only implementation; hand it to issue 27 for ownership and verified implementation, without changing the current script here.
 The first gate's elaboration result omitted the S02a/S02b selections; a follow-up gate recovered both explicitly instead of inferring them from the operator's general confirmation.
