@@ -98,7 +98,9 @@ These limits must remain visible in the handoff; they do not authorize script ch
 
 ## Index
 
-S01 through S14, M01 through M09, F01 through F11, N01 through N07, and I01 through I04 have operator-confirmed dispositions, using their independent subitems where defined; all other item IDs remain pending individual disposition.
+S01 through S14, M01 through M09, F01 through F11, N01 through N07, and I01 through I08 have operator-confirmed dispositions, using their independent subitems where defined.
+B01–B10, P01–P11, and H01–H09, including their subitems, are removed from workflow guidance under explicitly approved group-removal decisions below.
+V01–V05 are confirmed; all other item IDs remain pending.
 The later package-scope clarification below narrows how N01/N02 apply.
 S04 requires a mechanism handoff before activation, not a claim that HTTPS already works.
 Confirmation here is a handoff decision, not activation.
@@ -637,186 +639,35 @@ Original source: H `Conflict handbook`, independent archive identities and histo
 
 ### I05: Auto-merged path inspection
 
-Existing: reread both-sides paths even with zero conflict markers; the `ship.md` grep is a spot check, not a semantic proof.
-Decide review obligation and report limits.
+**Retain scoped review, confirmed:** inspect actual affected fork-customized paths for semantic preservation even when Git reports no conflicts; do not turn this into per-package adoption approval for non-customized upstream packages, and do not repair uncovered findings without approval (source H `Auto-merged both-sides paths`, gate I05 answer “无冲突也检查: 保留，按定制影响范围检查”).
 
 ### I06: Restore dropped selection prose
 
-Existing: restore any dropped spawn-selection sentence in `AGENTS.md` or `packages/pi-subagents/**`.
-Decide whether this broad restoration authority becomes inspection-only or receives specific bounds.
+**Remove, confirmed:** delete the blanket authority to restore every dropped spawn-selection sentence; evaluate current contracts rather than automatically restore potentially obsolete wording (source H `Auto-merged both-sides paths`, gate I06 answer “恢复旧句子: 删除”).
 
 ### I07: Fork scope header and adjacent conventions
 
-Existing: retain the fork header and reconcile repository targeting, registry flags, and skill/lifecycle references.
-Decide whether preservation is an invariant only; implementation choices remain independently gated.
+**Change to review only, confirmed:** verify that fork priority and safeguards remain effective, but obtain approval for header or related rule rewrites not covered by a precise confirmed rule; preservation is not authority to compose replacement policy (source H `Compatibility integration for fork issue 14`, gate I07 answer “Fork 规则头部: 核对边界，未覆盖的改写先问”).
 
 ### I08: Move dispositions with archived roadmaps
 
-Existing: when an upstream roadmap moves to history, move fork dispositions rather than drop them.
-Decide covered source/destination conditions and handling of ambiguous ownership.
-
-## Selection startup obligations
-
-Source: H `Startup selection after issue 20`, T, and P `Implementation Priorities`.
-These are technical review inputs, not permission to modify runtime code in this issue.
-
-### B01: Initial selection owner
-
-Existing: `InitialSpawnSelection` owns the attempt, pair, cancellation race, listeners, and acknowledgement.
-Decide retaining the ownership invariant versus treating its current class layout as a permanent recipe.
-
-### B02: Terminal observer ordering
-
-Existing: the original observer runs before handing recorded terminal facts to the selection owner.
-Decide the required ordering review and escalation for incoming notification changes.
-
-### B03: Terminal-method settlement avoidance
-
-Existing: when incoming terminal methods preserve recording, cleanup, and notification order, do not reintroduce settlement lines.
-Decide narrow applicability rather than general transplant permission.
-
-### B04: Ordinary lifecycle state
-
-Existing: do not restore private selection activity into `subagent-state.ts`.
-Decide invariant and review obligation; the empty fixed-source diff is not proof for future sources.
-
-### B05: Cancellation and registration review
-
-Existing: review queued/active cancellation and late provider registration.
-Decide required checks separately from choosing repairs.
-
-### B06: Resume and construction review
-
-Existing: review resume and manager construction.
-Decide inspection coverage and how unperformed checks must be reported.
-
-### B07: Tool acknowledgement boundary
-
-Existing: retain wait-before-return for selected background tools while the service remains synchronous and no-provider acknowledgement non-blocking.
-Decide the preserved contract and approval requirements for any adaptation.
-
-### B08: Scope lifetime
-
-Existing: capture scope during initialization and close it before shutdown disposal.
-Decide review obligation without granting arbitrary lifecycle rewiring authority.
-
-### B09: Factory cancellation safety
-
-Existing: retain factory wrapping, selection-signal checks, and late-session disposal before extension binding.
-Decide each independent invariant during review rather than assuming one answer approves all factory edits.
-
-### B10: Catalogue and host timing
-
-Existing: authenticated catalogue validation and host loader timing remain semantic obligations.
-Decide required evidence and disclosure of absent live-host testing.
-
-## Selection presentation obligations
-
-Source: H `Spawn presentation after issue 21`; U `Remaining reconciliation and verification boundaries`.
-
-### P01: Shared ordinary builder
-
-Existing: ordinary and selected display use `buildSpawnDisplay`.
-Decide the invariant without granting unspecified refactoring authority.
-
-### P02: Incoming formatting formula
-
-Existing: adapt incoming model formatting into `formatSpawnModelName` in the same file, not a second inline formula or a move to `ui/display.ts`.
-Decide whether this concrete adaptation instruction is reusable or needs case-specific approval.
-
-### P03: Empty model ID behavior
-
-Existing: preserve the fork equality guard rather than upstream truthiness semantics unless deliberately changed and tested.
-Decide the contract; tests alone do not approve changing it.
-
-### P04: Parent model identity
-
-Existing: initial formatting uses `modelInfo.parentModel?.id`; selected formatting uses the runner snapshot parent ID.
-Decide the preserved inputs and escalation for changed timing.
-
-### P05: Explicit max-turn tags
-
-Existing: retain explicitly configured max turns in display tags.
-Decide inspection and bounded restoration authority, if any.
-
-### P06: Captured mode label
-
-Existing: capture the prompt-mode label once and avoid re-reading agent files during updates.
-Decide the timing invariant independently of the label's wording.
-
-### P07: Tag order and thinking representation
-
-Existing: review ordering through the shared builder without literal `twin` checks or parsing formatted thinking strings.
-Decide whether this is design guidance only or an exact covered edit.
-
-### P08: Pending activity
-
-Existing: preserve the pending-first branch and the foreground/widget private pending boolean.
-Decide the contract and review affected callers rather than only ordinary activity wording.
-
-### P09: Resume and failure fallback
-
-Existing: retain non-selection `detailBase` identity for resume and no-pair failure/cancellation.
-Decide the invariant independently from new rendering choices.
-
-### P10: Pre-record and public boundary
-
-Existing: retain the pre-record placeholder, private widget projection, and unchanged public status/snapshot.
-Decide each affected boundary separately if an incoming change touches it; no public-field change is proposed here.
-
-### P11: Captured facts and non-mutation
-
-Existing: reconcile new fields/host timing explicitly and avoid mutating execution, details, or invocation tags.
-Decide evidence requirements; synthetic trials do not authorize future adaptations.
-
-## Historical compatibility and one-time permissions
-
-Source: H `Compatibility integration for fork issue 14`.
-
-### H01: Permission-rule migration
-
-Existing batch note: last matching candidate rule wins; exceptions follow broad rules and prefix handling changed.
-Decide historical-only versus a current inspection obligation; no automatic permission-rule edits follow.
-
-### H02: Session-discovery migration
-
-Existing batch note: newest-path default limit, explicit larger limit, and total/shown distinction.
-Decide historical-only versus current reference, not a sync-specific edit recipe.
-
-### H03: Child context loading
-
-Existing: retain child-directory project-context loading alongside the selection wrapper.
-Decide historical account versus required compatibility inspection.
-
-### H04: Fresh abort controller
-
-Existing: retain fresh per-run abort behavior with selection cancellation and resume handles.
-Decide the invariant rather than blanket permission to combine implementations.
-
-### H05: Autoformat directory migration
-
-Existing batch note: global configuration honors `PI_CODING_AGENT_DIR`.
-Decide historical-only versus continuing inspection requirement.
-
-### H06: Tracked tripwires and web loading
-
-Existing batch note: adopt tracked permission tripwires and remove project loading of `pi-web-access`.
-Decide these independently if retained; history does not authorize future permission or loading changes.
-
-### H07: Local override deletion
-
-Existing: operator authorized deleting the rechecked yolo-only override without backup in that batch.
-Decide historical-only classification; this is not a new deletion request.
-
-### H08: Coordinated publication
-
-Existing: the operator authorized publication of the core and selector together for issue 14.
-Decide historical-only classification; the old workspace-dependency reason no longer applies.
-
-### H09: Selector release independence
-
-Existing: the selector now uses an independent peer compatibility range, so core publication alone does not require selector publication.
-Decide current reference destination rather than renewing the old coordinated dispatch authorization.
+**Retain bounded migration, confirmed:** when an upstream roadmap moves to history, move its fork dispositions verbatim only when source, destination, and owning phase are unambiguous, and report the action; uncertain ownership or location requires approval first (source H `Compatibility integration for fork issue 14`, gate I08 answer “处置记录迁移: 明确归属时原样迁移并报告”).
+
+## Selector implementation recipes: removed as a group
+
+**Remove from workflow guidance, confirmed:** B01–B10 and P01–P11, including their independent subitems, are not carried into the unified workflow; review affected package behavior against its current package contracts instead.
+Sources: H `Startup selection after issue 20` and `Spawn presentation after issue 21`, with technical evidence in T and U. The gate briefing named startup ownership, observer order, cancellation, scope/factory handling, formatting, pending presentation, and fallback as the scope being removed from duplicated workflow guidance.
+At gate `selector_workflow_detail`, the operator selected `remove_workflow_recipes`, visible answer “Selector 实现清单: 整体移除，不再逐项审议实现细节”.
+The alternative was continuing individual implementation-detail review; the briefing explicitly identified this as a change to the plan's review granularity.
+This removes workflow recipes and their purported automatic-adaptation authority, not package contracts, runtime behavior, or the technical evidence documents themselves.
+It does not approve a public API change, turn historical trials into general compatibility proofs, or waive the approval gate for uncovered repairs.
+Original per-item inventory bodies remain in Git history rather than being re-archived here.
+
+## Historical compatibility and one-time permissions: removed as a group
+
+**Remove, confirmed:** omit H01–H09, including subitems, from the unified workflow; the issue 14 migration details and one-time override-deletion/publication permissions remain only in Git history, without changing current package contracts or release safeguards (source H `Compatibility integration for fork issue 14`).
+At gate `historical_compatibility_group`, the operator selected `remove_group`, visible answer “旧兼容章节: 整段移除，原文只留 Git”, explicitly choosing group removal rather than continued per-detail review.
+No past permission becomes a new deletion or publication authorization.
 
 ## Lockfile, validation and merge completion
 
@@ -824,28 +675,29 @@ Source: H `Procedure`; P `Notes for Agents`; R dependency-change validation.
 
 ### V01: Lockfile regeneration
 
-Existing: always run `pnpm install` after merge, including auto-merges without markers.
-Decide permitted write scope and escalation for unexpected dependency changes or install side effects.
+**Retain bounded routine installation, confirmed:** after merging, allow `pnpm install` from the repository root to regenerate the lockfile against the incorporated manifests and report the resulting changes; stop and ask about unexpected dependency changes or other effects outside the expected installation scope (source H `Procedure`, gate V01 answer “锁文件重建: 保留例行安装，异常变化再问”).
+The briefing disclosed that installation writes files and may execute install scripts, rather than being a read-only check.
+This authorizes the bounded installation, not an open-ended dependency repair or silent acceptance of unexpected changes.
 
 ### V02: Rumdl cache clearing
 
-Existing: delete cached rumdl files after moves/renames.
-Decide bounded disposable-cache cleanup versus broader deletion authority.
+**Retain bounded cleanup without separate reporting, confirmed:** after file moves or renames, clear only the regenerable local rumdl cache without a separate approval prompt or report; other deletion targets are not covered (source H `Procedure`, gate V02 and operator follow-up).
+The operator qualified the initial choice: if generic lint already triggers cleanup, avoid duplication; otherwise “允许清理且不用报告”.
+Inspection of root `package.json` showed no cache-cleaning command in `lint`; `git-workflow` contains a textual instruction, and the sync script does not itself run lint.
+The assistant explained those facts and the resulting no-separate-report boundary; the operator answered “继续。”
+Issue 27 may reference the generic cleanup instruction instead of repeating its command; it must still ensure cleanup occurs when required.
 
 ### V03: Type checking
 
-Existing: run `pnpm run check`.
-Decide required execution and honest reporting; failure does not approve repairs.
+**Retain, confirmed:** run workspace-wide `pnpm run check` after synchronization; failures do not authorize uncovered repairs (source H `Procedure`, gate V03 answer “类型检查: 保留”).
 
 ### V04: Lint checking
 
-Existing: run `pnpm run lint`.
-Decide checking separately from autofix authority or gate-weakening configuration edits.
+**Retain checking only, confirmed:** run repository-wide `pnpm run lint`; this grants no permission to alter lint rules, add suppressions, or apply uncovered fixes (source H `Procedure`, gate V04 answer “Lint: 保留检查，不附带修复授权”).
 
 ### V05: Package tests
 
-Existing: run `pnpm -r run test`, without assuming a separate periodic upstream-suite run.
-Decide scope and handling of unavailable tests.
+**Retain, confirmed:** run tests for all workspace packages, including non-customized upstream packages, to validate integration and shared dependency effects; this is verification, not per-package adoption approval or repair authority (source H `Procedure`, gate V05 answer “包测试: 保留全包测试”).
 
 ### V06: Script tests
 
@@ -1118,7 +970,8 @@ Decide final wording and handoff mapping; Git's automatic merge commit is not a 
 
 This inventory is ready for individual deliberation, not activation.
 The following subitems split compound source paragraphs into separate decision units; their parent headings are navigation only and cannot receive a blanket disposition.
-Each subitem is pending and inherits the original source and evidence limits from its parent section.
+Each subitem inherits the original source and evidence limits from its parent section; its explicit decision, or an explicitly approved group-removal decision, determines its status.
+Subitem names retained below are historical inventory identities, not pending exceptions to a confirmed group removal.
 Individual deliberation has started: S01 confirms entry semantics; S02a/S02b limit discovery obligations to synchronization; S03 retains the bounded script entry; S04 requests SSH and HTTPS support; S05 requires approval before existing-URL changes.
 S06a requires a protocol choice before creating a missing upstream remote; S06b/S06c authorize their exact protective configuration writes with recording.
 S07a requires approval before changing the GitHub default; S07b retains verified wrapper use with explicit-command fallback; S08 retains explicit fork targeting for mutations.
@@ -1137,6 +990,11 @@ Extra agent-authored loading/README wiring still requires approval, while specif
 N07a/N07b remove sync-specific release-registration and post-publication loading recipes without weakening the owning workflows' safeguards.
 I01 permits only unambiguous restoration of fork-first issue lookup with reporting; I02/I03/I04a remove duplicate issue/phase/upstream-archive instructions.
 I04b protects fork archive identity; I04c permits only unambiguous independent added history rows to coexist verbatim, with reporting.
+I05 requires scoped semantic review after auto-merge; I06 removes blanket sentence restoration; I07 limits header preservation to review unless exact edit coverage exists; I08 permits only unambiguous verbatim disposition migration.
+The operator explicitly changed review granularity to remove all B/P selector implementation recipes from the workflow as a group, without removing package contracts or technical evidence.
+The operator also approved group removal of H01–H09's obsolete migration/one-time-permission chapter.
+V01 permits bounded routine installation and requires escalation of unexpected effects; V02 permits exact rumdl cache cleanup after moves without a separate report.
+V03/V04/V05 retain workspace typechecking, repository lint, and all-package tests without implied repair authority.
 Concise dispositions and original source identification suffice.
 All other items remain pending.
 S04 adds a transport mechanism requirement beyond this documentation-only implementation; hand it to issue 27 for ownership and verified implementation, without changing the current script here.
