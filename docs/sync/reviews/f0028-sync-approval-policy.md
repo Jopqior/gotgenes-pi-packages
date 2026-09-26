@@ -79,7 +79,8 @@ These limits must remain visible in the handoff; they do not authorize script ch
 
 ## Index
 
-All item IDs in this index are pending individual disposition.
+S01, S02a, and S02b have confirmed change dispositions; all other item IDs remain pending individual disposition.
+Confirmation here is a handoff decision, not activation.
 
 | Items   | Review area                                       | Source                                                            |
 | ------- | ------------------------------------------------- | ----------------------------------------------------------------- |
@@ -105,12 +106,54 @@ Source: H introduction, `When to sync`, `Procedure`, `Forbidden commands`; A for
 ### S01: On-demand synchronization
 
 Existing: “On demand.”
-Decide whether a sync remains operator-triggered, without an implied recurring schedule.
+
+Disposition: **change, confirmed by the operator**.
+The initial alternatives were an explicit operator-request boundary, retaining the vague original wording, or removing the scheduling rule.
+The operator questioned the first alternative: “我如果调用了 /upstream-sync 这个 prompt 肯定就是请求同步了呀？”
+The clarification explicitly stated that invoking `/upstream-sync` is itself the synchronization request and needs no redundant confirmation to start; discovering updates in another workflow does not authorize a merge; uncovered resolutions and extra edits still require approval.
+The operator then answered: “明白了，同意你。”
+This confirms the clarified wording, not an additional start-confirmation gate.
+
+Confirmed handoff wording: Invoking `/upstream-sync` requests synchronization and enters that workflow without asking again whether to start.
+Merely discovering upstream updates in another workflow does not authorize starting a merge.
+Uncovered conflict resolutions and extra integration edits still require advance operator approval.
+This clause does not bypass precondition checks or approve a specific recovery action.
+
+Intended destination: issue 27 workflow entry and authorization boundaries.
+Provenance: this build session, gate `S01`, the operator's clarification question, the assistant's explicit clarification, and the subsequent operator response quoted above.
+Activation remains pending issue 27.
 
 ### S02: Check upstream before publishing
 
 Existing: “Before a fork publish, check whether upstream main has new commits or a new pi-subagents release.”
-Decide the inspection obligation separately from permission to merge discovered commits.
+This parent paragraph has separate decisions for commit discovery and release discovery.
+
+#### S02a: Upstream commit discovery
+
+Disposition: **change, confirmed by the operator**.
+The alternatives were checking before every fork publication, checking only within synchronization, or removing the mandatory check.
+At the recovery gate `S02a`, the operator selected `change_sync_only`, visible answer “检查提交: 仅在同步工作流内”.
+
+Confirmed handoff wording: Check for new upstream main commits within the synchronization workflow.
+An independent fork publication does not require an additional upstream commit-discovery query.
+Discovery does not authorize an automatic merge outside the requested synchronization workflow.
+Existing release-evidence validation remains required.
+
+Intended destination: issue 27 inspection stage and the publishing-stage handoff.
+
+#### S02b: Upstream release discovery
+
+Disposition: **change, confirmed by the operator**.
+The alternatives were checking before every fork publication, checking only within synchronization, or removing the mandatory check.
+At the recovery gate `S02b`, the operator selected `change_sync_only`, visible answer “检查版本: 仅在同步工作流内”.
+
+Confirmed handoff wording: Check for newly published upstream pi-subagents releases within the synchronization workflow.
+An independent fork publication does not require an additional upstream release-discovery query.
+Discovering a newer release does not by itself require incorporating it or alter the verified incorporated baseline.
+Existing release-evidence validation remains required.
+
+Intended destination: issue 27 inspection stage and the publishing-stage handoff.
+Both decisions are evidenced by this build session's follow-up gate titled “补收未返回的选择”; no missing answer from the earlier elaboration result was inferred.
 
 ### S03: Script-only synchronization
 
@@ -830,7 +873,9 @@ Decide final wording and handoff mapping; Git's automatic merge commit is not a 
 This inventory is ready for individual deliberation, not activation.
 The following subitems split compound source paragraphs into separate decision units; their parent headings are navigation only and cannot receive a blanket disposition.
 Each subitem is pending and inherits the original source and evidence limits from its parent section.
-No candidate rule has yet been confirmed, and the individual disposition stage has not started.
+Individual deliberation has started: S01 is confirmed with clarified entry semantics, and S02a/S02b are confirmed as synchronization-only discovery obligations.
+All other items remain pending.
+The first gate's elaboration result omitted the S02a/S02b selections; a follow-up gate recovered both explicitly instead of inferring them from the operator's general confirmation.
 Final acceptance requires the actual workflow in [#27], updated entry points, migrated required data, and deletion of the old handbook; a review record alone cannot complete that criterion.
 
 The consumer search inspected `AGENTS.md`, `README.md`, `.pi/skills/releasing/SKILL.md`, `.pi/skills/package-pi-subagents/SKILL.md`, `scripts/upstream-sync.sh`, `scripts/release/correspondence-table.mjs`, `scripts/release/release-artifacts.mjs`, `scripts/release/prepare-release.sh`, and references under `test/release/` and `test/upstream-sync/`.
