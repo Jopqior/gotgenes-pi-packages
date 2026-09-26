@@ -79,7 +79,8 @@ These limits must remain visible in the handoff; they do not authorize script ch
 
 ## Index
 
-S01, S02a, and S02b have confirmed change dispositions; all other item IDs remain pending individual disposition.
+S01, S02a, S02b, S03, S04, S05, and S06a/S06b/S06c have operator-confirmed dispositions; all other item IDs remain pending individual disposition.
+S04 requires a mechanism handoff before activation, not a claim that HTTPS already works.
 Confirmation here is a handoff decision, not activation.
 
 | Items   | Review area                                       | Source                                                            |
@@ -158,22 +159,83 @@ Both decisions are evidenced by this build session's follow-up gate titled “�
 ### S03: Script-only synchronization
 
 Existing: “Sync only through scripts/upstream-sync.sh.”
-Decide its future wording, distinguishing safe inspection/help from fetch, configuration, merge, and evidence writes.
+
+Disposition: **retain with clarified bounds, confirmed by the operator**.
+At gate `S03`, the operator selected `retain_scoped`, visible answer “脚本入口: 保留，并明确检查不受限”.
+The alternatives were retaining the bounded script entry, requesting a changed entry restriction, or deferring.
+
+Confirmed handoff wording: Perform synchronization fetch/merge actions through `scripts/upstream-sync.sh`, not ad-hoc equivalent commands.
+Ordinary non-mutating Git inspection, including status, diff, history, and script help, may run directly.
+The no-argument script mode is not a read-only inspection exemption: it configures the remote and fetches.
+Intended destination: issue 27 execution entry and inspection stage.
 
 ### S04: SSH transport
 
 Existing: upstream fetch and tag queries use `git@github.com:gotgenes/pi-packages.git` and require SSH read access.
-Decide whether this remains the required transport or merely the current mechanism description.
+
+Disposition: **change requested and confirmed by the operator; mechanism integration pending**.
+At gate `S04`, the operator selected `change_https_support`, visible answer “SSH 要求: 希望同时支持 HTTPS”.
+The alternatives were retaining SSH-only transport, supporting HTTPS as well, or deferring.
+The briefing explicitly stated that HTTPS requires a separately coordinated script change and verification, not a prose-only change in this issue.
+
+Confirmed handoff requirement: Support both SSH and HTTPS access to the same upstream repository, rather than requiring SSH exclusively.
+This does not approve arbitrary hosts, repository identities, credential changes, or automatic conversion of an existing URL.
+S06a subsequently settled missing-remote protocol selection as an operator choice, not an automatic default.
+Exact supported URL spellings remain for issue 27 to verify.
+The current script still rejects HTTPS; do not claim this requirement is active or bypass S03 to simulate support.
+Intended destination: issue 27 transport design, with implementation ownership and tests to be settled there before activation.
+No script edit or new issue is authorized by this record.
 
 ### S05: Mismatched remote remediation
 
 Existing: switch an HTTPS upstream remote to SSH before running the script.
-Decide whether changing an existing URL needs item-specific approval instead of automatic repair.
+
+Disposition: **change, confirmed by the operator**.
+At gate `S05`, the operator selected `change_ask_first`, visible answer “地址纠正: 报告并获批后再改”.
+The alternatives were approval before any existing-URL change, automatic conversion only for the exact same-repository HTTPS URL, retaining the old conversion instruction, or stopping for manual remediation.
+
+Confirmed handoff wording: Before changing an existing upstream remote URL, report its current value, the proposed value, and the effects, and obtain explicit operator approval.
+Do not automatically convert HTTPS to SSH or overwrite a mismatched repository address.
+Support for HTTPS under S04 does not waive this gate.
+Intended destination: issue 27 remote inspection and recovery stage.
 
 ### S06: Remote setup safeguards
 
 Existing: S adds a missing upstream remote and sets `tagOpt=--no-tags` and `pushurl=DISABLE`.
-Decide the scope of permission to run this setup; a fetch request must not be described as mutation-free.
+This parent paragraph has separate decisions for creating a remote and writing each safeguard.
+
+#### S06a: Missing upstream remote
+
+Disposition: **change, confirmed by the operator**.
+At gate `S06a`, the operator selected `ask_transport`, visible answer “创建 remote: 先问协议，再创建”.
+The alternatives were asking for the protocol, defaulting to HTTPS, defaulting to SSH, or stopping for manual configuration.
+
+Confirmed handoff wording: If upstream is absent, present the SSH and HTTPS addresses for `gotgenes/pi-packages`, obtain the operator's protocol choice, and then create the remote with that selected address.
+Do not silently choose a protocol or another repository.
+The choice covers that creation only; existing-URL changes remain governed by S05.
+The workflow must ask before invoking the current script, which otherwise creates the SSH remote automatically.
+Intended destination: issue 27 transport setup; HTTPS execution depends on S04's mechanism handoff.
+
+#### S06b: No-tag default
+
+Disposition: **retain automatic action with reporting, confirmed by the operator**.
+At gate `S06b`, the operator selected `retain_automatic`, visible answer “禁跟随标签: 自动设置并记录”.
+The alternatives were automatic setup, confirmation before changing a value, or stopping for manual setup.
+
+Confirmed handoff wording: Within requested synchronization, set the upstream remote's `tagOpt` to `--no-tags` and record that configuration action without a separate prompt.
+This covers correcting an absent or different value on that remote, not deleting tags or changing unrelated configuration.
+Intended destination: issue 27 transport safeguards and execution accounting.
+
+#### S06c: Disabled upstream push URL
+
+Disposition: **retain automatic action with reporting, confirmed by the operator**.
+At gate `S06c`, the operator selected `retain_automatic`, visible answer “禁上游推送: 自动设置并记录”.
+The briefing and selected option explicitly disclosed that this can overwrite an existing custom push URL.
+The alternatives were automatic setup, confirmation before changing a value, or stopping for manual setup.
+
+Confirmed handoff wording: Within requested synchronization, set upstream's `pushurl` to `DISABLE`, including replacing an existing value, and record the configuration action without a separate prompt.
+This authorizes that push-protection setting only, not changing the upstream fetch URL or any other remote's push URL.
+Intended destination: issue 27 transport safeguards and execution accounting.
 
 ### S07: GitHub default targeting
 
@@ -873,8 +935,10 @@ Decide final wording and handoff mapping; Git's automatic merge commit is not a 
 This inventory is ready for individual deliberation, not activation.
 The following subitems split compound source paragraphs into separate decision units; their parent headings are navigation only and cannot receive a blanket disposition.
 Each subitem is pending and inherits the original source and evidence limits from its parent section.
-Individual deliberation has started: S01 is confirmed with clarified entry semantics, and S02a/S02b are confirmed as synchronization-only discovery obligations.
+Individual deliberation has started: S01 confirms entry semantics; S02a/S02b limit discovery obligations to synchronization; S03 retains the bounded script entry; S04 requests SSH and HTTPS support; S05 requires approval before existing-URL changes.
+S06a requires a protocol choice before creating a missing upstream remote; S06b/S06c authorize their exact protective configuration writes with recording.
 All other items remain pending.
+S04 adds a transport mechanism requirement beyond this documentation-only implementation; hand it to issue 27 for ownership and verified implementation, without changing the current script here.
 The first gate's elaboration result omitted the S02a/S02b selections; a follow-up gate recovered both explicitly instead of inferring them from the operator's general confirmation.
 Final acceptance requires the actual workflow in [#27], updated entry points, migrated required data, and deletion of the old handbook; a review record alone cannot complete that criterion.
 
