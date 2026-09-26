@@ -79,7 +79,7 @@ These limits must remain visible in the handoff; they do not authorize script ch
 
 ## Index
 
-S01 through S14 have operator-confirmed dispositions, using the independent subitems for S02, S06, and S07; all other item IDs remain pending individual disposition.
+S01 through S14 and M01 through M09 have operator-confirmed dispositions, using the independent subitems for S02, S06, and S07; all other item IDs remain pending individual disposition.
 S04 requires a mechanism handoff before activation, not a claim that HTTPS already works.
 Confirmation here is a handoff decision, not activation.
 
@@ -355,47 +355,110 @@ Source: H `Procedure` and `Conflict handbook`; A `Worktrees`; S `check_merge_pre
 ### M01: Main-branch precondition
 
 Existing: merge only from `main`.
-Decide the check and stop response; this does not authorize switching branches automatically.
+
+Disposition: **retain with stop behavior, confirmed by the operator**.
+At gate `M01`, the operator selected `retain_stop_other_branch`, visible answer “分支: 保留，其他分支停止”.
+Alternatives: retain and stop, request support for other branches, or defer.
+Confirmed handoff wording: Merge upstream only on main; on any other branch, stop and report rather than automatically switch branches or rewrite history.
+Intended destination: issue 27 preflight.
 
 ### M02: Correct origin precondition
 
 Existing: refuse unless origin is this fork.
-Decide the workflow's identity verification, noting S currently checks a substring only.
+
+Disposition: **change, confirmed by the operator**.
+At gate `M02`, the operator selected `change_exact_identity`, visible answer “origin 身份: 核对完整仓库身份”.
+Alternatives: verify full identity, accept the script's existing substring guard alone, or defer.
+Confirmed handoff wording: Verify that origin's complete repository identity is Jopqior/gotgenes-pi-packages using the verified supported SSH/HTTPS forms, rather than accepting an arbitrary URL containing that substring.
+Stop on a mismatch; do not automatically modify the remote.
+Issue 27 must verify the concrete address-recognition procedure before activating it.
+Intended destination: issue 27 preflight; no script change in this issue.
 
 ### M03: Clean tracked state
 
 Existing: require clean index and tracked worktree.
-Decide whether to retain that exact scope or include untracked-path hazards; no stash or deletion permission is implied.
+
+Disposition: **change, confirmed by the operator**.
+At gate `M03`, the operator selected `change_inspect_untracked`, visible answer “工作区: 报告未跟踪文件，有风险则停”.
+Alternatives: inspect/report untracked paths and stop on risk, block every untracked file, or retain tracked/index checks alone.
+Confirmed handoff wording: Require a clean index and tracked worktree before merging.
+Also report untracked files and stop when there is an overwrite risk or unclear ownership; unrelated temporary files do not automatically block synchronization.
+Do not stash, delete, or commit existing work to satisfy this precondition without its own authorization.
+Intended destination: issue 27 preflight.
 
 ### M04: No in-progress merge
 
 Existing: refuse when `MERGE_HEAD` exists.
-Decide stop/resume handling, without automatically aborting an existing operation.
+
+Disposition: **change, confirmed by the operator**.
+At gate `M04`, the operator selected `change_verified_resume`, visible answer “已有 merge: 有完整本次记录才恢复”.
+Alternatives: resume only with verified current-sync records, always stop for an explicit resume request, or defer.
+Confirmed handoff wording: Do not begin another merge when one is in progress.
+Resume the existing synchronization only after matching its inputs, authorization, and execution state to complete records for that synchronization; otherwise stop and ask.
+Resumption does not authorize new repairs or re-execution of the merge.
+Intended destination: issue 27 preflight and resume stage.
 
 ### M05: No in-progress rebase
 
 Existing: refuse when a rebase state directory exists.
-Decide stop handling separately from merge recovery.
+
+Disposition: **retain, confirmed by the operator**.
+At gate `M05`, the operator selected `retain_stop`, visible answer “已有 rebase: 保留，停止同步”.
+Alternatives: stop, design a specifically authorized recovery, or defer.
+Confirmed handoff wording: Stop synchronization when a rebase is in progress; do not automatically continue or abort it.
+Intended destination: issue 27 preflight.
 
 ### M06: Upstream merge topology
 
 Existing: A says upstream integration preserves a genuine two-parent merge.
-Decide the required topology and escalation for fast-forward/already-integrated cases; S does not force two parents.
+
+Disposition: **retain with verified applicability, confirmed by the operator**.
+At gate `M06`, the operator selected `retain_with_preflight`, visible answer “双亲合并: 保留，并核对拓扑适用条件”.
+Alternatives: retain with topology preflight, request fast-forward support with evidence-contract redesign, or defer.
+Confirmed handoff wording: Preserve genuine two-parent topology for upstream integration, consistent with the current release-evidence requirement.
+Check the actual ancestry and report fast-forward or already-incorporated cases before deciding how to proceed; do not manufacture a merge record.
+Issue 27 must supply and verify executable preflight/handling rather than claim the existing script forces two parents.
+Intended destination: issue 27 preflight, merge, and evidence stages.
 
 ### M07: Linear feature landing
 
 Existing: feature worktrees rebase and fast-forward land, unlike upstream integration.
-Decide whether the sync workflow needs a short distinction or a reference rather than duplicating that workflow.
+
+Disposition: **remove duplicate sync-workflow material, confirmed by the operator**.
+Gate `M07` offered a short cross-reference, a repeated full explanation, or removal of the duplicate explanation.
+The operator challenged the premise: “怎么就涉及到功能分支这些了？
+似乎没有关系啊。”
+The clarification acknowledged that feature landing is unrelated to upstream synchronization and proposed omitting even the cross-reference from the new workflow, without changing the existing feature workflows.
+The operator answered: “对，直接删去是最好的。”
+
+Confirmed handoff wording: Do not carry the feature-branch linear-landing explanation into the unified upstream synchronization workflow.
+This removes unrelated duplicate prose, not the existing rules in `/sync-worktree` or `/ship`.
+Intended destination: issue 27 cleanup inventory; no replacement sync-policy clause.
 
 ### M08: No wholesale ours/theirs
 
 Existing: do not take either side wholesale.
-Decide whether this prohibits blanket conflict resolution while allowing an individually approved exact replacement.
+
+Disposition: **change, confirmed by the operator**.
+At gate `M08`, the operator's elaboration result identified `change_explicit_exception`, visible selection “禁止擅自覆盖，允许明确批准”, with note “确认。”
+Alternatives: prohibit unapproved whole-file selection but allow an exact approval, retain an absolute ban, or remove the special prohibition while retaining the general approval gate.
+
+Confirmed handoff wording: Do not take ours/theirs wholesale as an unreviewed shortcut.
+A whole-file choice is permitted when the operator explicitly approves the specific file, selected side, and disclosed effects; verify the resulting scope.
+That approval does not cover other files or a blanket conflict-resolution pass.
+Intended destination: issue 27 conflict-resolution gate.
 
 ### M09: Keep fork and upstream behavior
 
 Existing: preserve spawn selection and incoming upstream behavior.
-Decide whether this is an invariant to review, rather than permission to invent a combined implementation.
+
+Disposition: **change, confirmed by the operator**.
+At gate `M09`, the operator's elaboration result identified `change_review_goal`, visible selection “改为审查目标，不授予修改权”, with note “同意。”
+Alternatives: make preservation a review goal only, remove the broad requirement in favor of specific contracts, or defer.
+
+Confirmed handoff wording: Review the fork and incoming upstream behaviors, disclose incompatibilities and any trade-offs, and obtain approval for implementation choices not covered by a confirmed rule.
+Preserving both sides is a review goal, not authority to invent or apply arbitrary repairs.
+Intended destination: issue 27 semantic review and conflict-resolution gate.
 
 ## First-merge recipes and fork identity
 
@@ -1011,6 +1074,9 @@ S06a requires a protocol choice before creating a missing upstream remote; S06b/
 S07a requires approval before changing the GitHub default; S07b retains verified wrapper use with explicit-command fallback; S08 retains explicit fork targeting for mutations.
 S09 retains explicit verified push targets; S10 prohibits upstream tag imports; S11 prohibits upstream pushes within synchronization.
 S12 requires tag-name/object comparison; S13 gates exact tag deletions; S14 gates abort on an explicit abandon decision.
+M01 requires main; M02 requires complete origin identity verification; M03 requires clean tracked/index state and review of untracked-file risks.
+M04 permits only verified current-sync resumption; M05 stops on an existing rebase; M06 retains genuine two-parent integration with ancestry preflight and an implementation handoff.
+M07 removes unrelated feature-landing prose from the sync workflow; M08 allows whole-file side selection only with specific approval; M09 makes broad preservation a review goal, not repair authority.
 All other items remain pending.
 S04 adds a transport mechanism requirement beyond this documentation-only implementation; hand it to issue 27 for ownership and verified implementation, without changing the current script here.
 The first gate's elaboration result omitted the S02a/S02b selections; a follow-up gate recovered both explicitly instead of inferring them from the operator's general confirmation.
