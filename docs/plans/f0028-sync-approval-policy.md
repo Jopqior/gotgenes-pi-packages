@@ -5,6 +5,9 @@ issue_title: "Review sync rules and require approval for uncovered resolutions a
 
 # Review synchronization rules and decision authority
 
+The planning-time queue below is not an approval ledger.
+Build-stage dispositions and operator-approved review adjustments are recorded in the [rule-review handoff](../sync/reviews/f0028-sync-approval-policy.md); activation and final acceptance remain pending [#27].
+
 ## Release Recommendation
 
 **Release:** ship independently
@@ -334,11 +337,35 @@ The review and activation distinction below is intentional, not an instruction t
 - **Deleting the handbook breaks release generation:** migration belongs to [#27]; the discovered script/test consumers remain listed in its handoff.
 - **Historical trial recipes outlive their inputs:** retain evidence limits and decide their future authority explicitly, rather than generalizing a fixed trial.
 
-## Open Questions
+## Build-stage decisions and adjustments
 
-- Exact record paths, layout, and handling of syncs without issue numbers: settle with [#27] before creating the review record.
-- Individual retain/change/remove dispositions and exact reusable-rule bounds: deliberately deferred to the operator review in `/build-plan`.
-- Final command names and migrated evidence/document destinations: reconcile with [#29] and [#27] before activation.
+Steps 1–3 delivered the inventory, confirmed dispositions, scenario walkthrough, and issue-27 handoff in the linked review record.
+Step 4 remains blocked: `.pi/prompts/upstream-sync.md` is absent and issues [#27]/[#29] remain open at the build-stage check.
+This is a review-delivery checkpoint, not final issue acceptance or authorization to close the issue.
+
+The operator selected `docs/sync/reviews/f0028-sync-approval-policy.md` for this historical review and `docs/sync/runs/<UTC timestamp>-<upstream short SHA>.md` for future execution records, including runs without an issue number.
+The review uses a compact index and separately identifiable decisions; stage retros remain summaries, not authorization ledgers.
+
+During deliberation, the operator explicitly approved group removal of duplicated selector implementation recipes, the old issue-14 compatibility chapter, specified release-mechanism descriptions, release bootstrap/retry duplication, and historical Release editing from synchronization responsibilities.
+The operator also approved referencing the existing registry/supply-chain constraints as a group.
+These are scoped changes to the original per-detail review sequence, not blanket approval of unreviewed rules; exact item identities, answers, and retained protections are in the handoff record.
+Obsolete recipes are not re-archived: a concise disposition/source suffices, and Git retains the original text.
+
+The operator clarified that non-customized upstream packages, including new packages and their supplied wiring, merge as supplied without separate adoption approval.
+Extra agent-authored loading/README wiring still needs approval; the separately confirmed missing form-option and package-label rules provide only their precise coverage.
+Invoking `/upstream-sync` is already a synchronization request, not a reason to ask again whether to start.
+Routine installation is allowed within its reviewed scope, and exact rumdl cache cleanup after moves needs no separate report.
+
+The transport decision now requests both SSH and HTTPS, with an operator protocol choice before creating a missing upstream remote and approval before modifying an existing URL.
+This requirement exceeds the current SSH-only script; [#27] must settle implementation ownership and verify the mechanism before activation, without changing scripts in this documentation issue.
+That issue must also verify complete repository-identity checks, tag-name/object comparison, and genuine two-parent applicability rather than rely on the existing script's substring and ordinary-merge behavior.
+
+## Remaining integration questions
+
+- The final workflow and CLI names, supported remote URL spellings, and migrated evidence/document destinations must be reconciled by [#27] and [#29].
+- Inspect the actual `.pi/prompts/upstream-sync.md`, updated entry points, delegated-task bounds, and resume records before final acceptance.
+- Verify handbook deletion with required data/generator/test migration, and confirm no removed historical recipe became an active rule.
+- Record final activation evidence only after those checks; do not close this issue merely because the review handoff has landed.
 
 These are decisions within already-filed issues, not new follow-up work.
 No additional issue is required or authorized by this plan.

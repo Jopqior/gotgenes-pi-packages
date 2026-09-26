@@ -3,8 +3,8 @@
 ## Status and authority
 
 This is a historical deliberation record, not an active synchronization policy or an approval to perform a merge.
-Every rule item below is **pending** unless its own decision history records an explicit operator disposition and confirmed bounds.
-An index group is a navigation aid, never a batch approval unit.
+All items have recorded individual or explicitly authorized group dispositions; none is activated here.
+An index group alone is not approval.
 Existing safeguards remain binding during this review; removing duplicate wording would not repeal them.
 The sole future policy source belongs to the unified workflow in [#27].
 No rule is activated by committing this file.
@@ -12,34 +12,23 @@ Issue [#29] owns release-mechanism terminology; existing names below identify ev
 
 ## Record organization decision
 
-At the build-stage gate on 2026-09-26, the operator selected `record_location=sync_tree` (visible answer: “集中到 docs/sync/”) and `record_layout=index_sections` (visible answer: “索引表＋独立规则小节”).
-The preceding briefing proposed this review at `docs/sync/reviews/f0028-sync-approval-policy.md` and future execution records at `docs/sync/runs/<UTC timestamp>-<upstream short SHA>.md`, without requiring an issue number.
-It proposed a short index and an independent section per rule, preserving source, alternatives, response, bounds, destination, and subsequent decision history without a hard line limit.
-This answer confirms organization only, not any rule disposition.
-Issue [#27] implements execution records and resolves practical filename collisions without treating a filename as sufficient input identity.
-Stage summaries remain in `docs/retro/f0028-sync-approval-policy.md`.
+In build session `2026-09-26T12-51-41-930Z_01a0ddc5-7aea-7605-841f-339bc6b98b89`, the operator selected `record_location=sync_tree` (“集中到 docs/sync/”) and `record_layout=index_sections` (“索引表＋独立规则小节”), approving this review path and an index with independent rule sections preserving sources, alternatives, answers, bounds, destinations, and decision history without a hard line limit.
+The proposed execution-record path was `docs/sync/runs/<UTC timestamp>-<upstream short SHA>.md`, requiring no issue number; [#27] owns implementation and filename collisions, filenames are not sufficient input identity, and stage summaries stay in `docs/retro/f0028-sync-approval-policy.md`.
 
-Local provenance: build session `2026-09-26T12-51-41-930Z_01a0ddc5-7aea-7605-841f-339bc6b98b89`, gate IDs `record_location` and `record_layout`.
-The quoted responses and proposal above are retained here so the decision does not depend on access to a local transcript.
+This was organization approval only; subsequent gate evidence in this record belongs to the same build review unless otherwise identified, and quoted answers are retained independently of local transcripts.
 
 ## Review method
 
-Each item carries the current source instruction or observed practice and the particular decision still needed.
-Before deciding an item, present concrete retain/change/remove alternatives and their effects to the operator.
-Append the actual answer, exact confirmed wording and applicability, and intended destination to that item's section.
-A remove disposition must distinguish removing automatic authority, deleting duplicate prose, and preserving historical evidence.
-Unanswered questions remain pending; recommendations and assistant summaries are not operator approval.
-Changed decisions append a superseding entry rather than erase the original scope.
+The review presented retain/change/remove alternatives and recorded actual answers separately from recommendations.
+Dispositions distinguish removed authority, duplicate prose, and preserved evidence; superseding clarifications retain the material decision history.
 
-The operator subsequently requested that historical explanations be brief and questioned whether they needed retaining at all.
-After inspecting `sync-worktree.md`, `ship-no-issue.md`, and `audit-agent-docs.md`, the assistant proposed deleting the first-merge import recipes from the new workflow, retaining only a one-sentence disposition and source per item here, and leaving the original recipes solely in Git history; the operator answered “好，继续。”
-That confirmation applies to F01, F02, and F03 and to concise recordkeeping, not blanket deletion of the remaining review queue.
-Do not recreate an archive of obsolete recipes or copy them into the workflow.
+After the operator requested brief history and the assistant inspected `sync-worktree.md`, `ship-no-issue.md`, and `audit-agent-docs.md`, the proposal was to delete F01–F03 from workflow guidance, keep only concise dispositions/sources here, and leave original recipes solely in Git history; the operator answered “好，继续。”
+This confirmed concise recordkeeping and F01–F03 removal, not blanket removal of the remaining queue or a new archive of obsolete recipes.
 
 ## Later package-scope clarification
 
 The operator clarified: “除了我真正修改/新增的包，对于其他就直接合并就行了，比如上游的新增包。”
-Confirmed direction: incorporate unchanged upstream packages, including newly added upstream packages, as supplied rather than requiring a separate adoption decision for each package.
+Confirmed direction: incorporate upstream packages not customized by this fork, including newly added upstream packages, as supplied rather than requiring a separate adoption decision for each package.
 Identify actual fork customizations instead of treating every upstream package as fork-maintained; the current read-only `git diff --name-only upstream/main HEAD -- packages` showed package differences only under `pi-subagents` and `pi-subagents-model-selector`, not a permanent allowlist.
 Fork-customized or fork-added packages retain the approval boundary for uncovered resolutions and extra changes; repository targeting, tags, push, and publication safeguards remain applicable.
 This does not grant an open-ended repair pass if upstream integration exposes incompatibilities with fork customizations.
@@ -98,15 +87,8 @@ These limits must remain visible in the handoff; they do not authorize script ch
 
 ## Index
 
-S01 through S14, M01 through M09, F01 through F11, N01 through N07, and I01 through I08 have operator-confirmed dispositions, using their independent subitems where defined.
-B01–B10, P01–P11, and H01–H09, including their subitems, are removed from workflow guidance under explicitly approved group-removal decisions below.
-V01–V10, E01–E03, E05/E06, and C01 are confirmed.
-E04, E07–E12, C02, C03, C05, and C06 have a confirmed group disposition: remove duplicate mechanism explanations from synchronization policy while retaining the owning release mechanisms.
-C04a, C08a–C08d, and G01–G07 (including subitems) are removed as duplicate or out-of-sync-scope workflow material, with the owning release safeguards retained.
-C04b/C07 and X01–X04 are confirmed; other X items and the detailed A clauses remain pending.
-The later package-scope clarification below narrows how N01/N02 apply.
-S04 requires a mechanism handoff before activation, not a claim that HTTPS already works.
-Confirmation here is a handoff decision, not activation.
+The sections record completed dispositions and bounds; the package-scope clarification preceding this index supersedes N01/N02's original scope.
+The closing handoff identifies integration blockers, including S04's unimplemented transport requirement.
 
 | Items   | Review area                                       | Source                                                            |
 | ------- | ------------------------------------------------- | ----------------------------------------------------------------- |
@@ -133,12 +115,8 @@ Source: H introduction, `When to sync`, `Procedure`, `Forbidden commands`; A for
 
 Existing: “On demand.”
 
-Disposition: **change, confirmed by the operator**.
-The initial alternatives were an explicit operator-request boundary, retaining the vague original wording, or removing the scheduling rule.
-The operator questioned the first alternative: “我如果调用了 /upstream-sync 这个 prompt 肯定就是请求同步了呀？”
-The clarification explicitly stated that invoking `/upstream-sync` is itself the synchronization request and needs no redundant confirmation to start; discovering updates in another workflow does not authorize a merge; uncovered resolutions and extra edits still require approval.
-The operator then answered: “明白了，同意你。”
-This confirms the clarified wording, not an additional start-confirmation gate.
+**Change, confirmed (gate S01):** the operator challenged a possible extra start gate: “我如果调用了 /upstream-sync 这个 prompt 肯定就是请求同步了呀？”
+After clarification that invocation is the request and only uncovered edits need further approval, the operator answered “明白了，同意你。”
 
 Confirmed handoff wording: Invoking `/upstream-sync` requests synchronization and enters that workflow without asking again whether to start.
 Merely discovering upstream updates in another workflow does not authorize starting a merge.
@@ -146,8 +124,6 @@ Uncovered conflict resolutions and extra integration edits still require advance
 This clause does not bypass precondition checks or approve a specific recovery action.
 
 Intended destination: issue 27 workflow entry and authorization boundaries.
-Provenance: this build session, gate `S01`, the operator's clarification question, the assistant's explicit clarification, and the subsequent operator response quoted above.
-Activation remains pending issue 27.
 
 ### S02: Check upstream before publishing
 
@@ -157,7 +133,6 @@ This parent paragraph has separate decisions for commit discovery and release di
 #### S02a: Upstream commit discovery
 
 Disposition: **change, confirmed by the operator**.
-The alternatives were checking before every fork publication, checking only within synchronization, or removing the mandatory check.
 At the recovery gate `S02a`, the operator selected `change_sync_only`, visible answer “检查提交: 仅在同步工作流内”.
 
 Confirmed handoff wording: Check for new upstream main commits within the synchronization workflow.
@@ -170,7 +145,6 @@ Intended destination: issue 27 inspection stage and the publishing-stage handoff
 #### S02b: Upstream release discovery
 
 Disposition: **change, confirmed by the operator**.
-The alternatives were checking before every fork publication, checking only within synchronization, or removing the mandatory check.
 At the recovery gate `S02b`, the operator selected `change_sync_only`, visible answer “检查版本: 仅在同步工作流内”.
 
 Confirmed handoff wording: Check for newly published upstream pi-subagents releases within the synchronization workflow.
@@ -187,7 +161,6 @@ Existing: “Sync only through scripts/upstream-sync.sh.”
 
 Disposition: **retain with clarified bounds, confirmed by the operator**.
 At gate `S03`, the operator selected `retain_scoped`, visible answer “脚本入口: 保留，并明确检查不受限”.
-The alternatives were retaining the bounded script entry, requesting a changed entry restriction, or deferring.
 
 Confirmed handoff wording: Perform synchronization fetch/merge actions through `scripts/upstream-sync.sh`, not ad-hoc equivalent commands.
 Ordinary non-mutating Git inspection, including status, diff, history, and script help, may run directly.
@@ -200,7 +173,6 @@ Existing: upstream fetch and tag queries use `git@github.com:gotgenes/pi-package
 
 Disposition: **change requested and confirmed by the operator; mechanism integration pending**.
 At gate `S04`, the operator selected `change_https_support`, visible answer “SSH 要求: 希望同时支持 HTTPS”.
-The alternatives were retaining SSH-only transport, supporting HTTPS as well, or deferring.
 The briefing explicitly stated that HTTPS requires a separately coordinated script change and verification, not a prose-only change in this issue.
 
 Confirmed handoff requirement: Support both SSH and HTTPS access to the same upstream repository, rather than requiring SSH exclusively.
@@ -217,7 +189,6 @@ Existing: switch an HTTPS upstream remote to SSH before running the script.
 
 Disposition: **change, confirmed by the operator**.
 At gate `S05`, the operator selected `change_ask_first`, visible answer “地址纠正: 报告并获批后再改”.
-The alternatives were approval before any existing-URL change, automatic conversion only for the exact same-repository HTTPS URL, retaining the old conversion instruction, or stopping for manual remediation.
 
 Confirmed handoff wording: Before changing an existing upstream remote URL, report its current value, the proposed value, and the effects, and obtain explicit operator approval.
 Do not automatically convert HTTPS to SSH or overwrite a mismatched repository address.
@@ -233,7 +204,6 @@ This parent paragraph has separate decisions for creating a remote and writing e
 
 Disposition: **change, confirmed by the operator**.
 At gate `S06a`, the operator selected `ask_transport`, visible answer “创建 remote: 先问协议，再创建”.
-The alternatives were asking for the protocol, defaulting to HTTPS, defaulting to SSH, or stopping for manual configuration.
 
 Confirmed handoff wording: If upstream is absent, present the SSH and HTTPS addresses for `gotgenes/pi-packages`, obtain the operator's protocol choice, and then create the remote with that selected address.
 Do not silently choose a protocol or another repository.
@@ -245,7 +215,6 @@ Intended destination: issue 27 transport setup; HTTPS execution depends on S04's
 
 Disposition: **retain automatic action with reporting, confirmed by the operator**.
 At gate `S06b`, the operator selected `retain_automatic`, visible answer “禁跟随标签: 自动设置并记录”.
-The alternatives were automatic setup, confirmation before changing a value, or stopping for manual setup.
 
 Confirmed handoff wording: Within requested synchronization, set the upstream remote's `tagOpt` to `--no-tags` and record that configuration action without a separate prompt.
 This covers correcting an absent or different value on that remote, not deleting tags or changing unrelated configuration.
@@ -256,7 +225,6 @@ Intended destination: issue 27 transport safeguards and execution accounting.
 Disposition: **retain automatic action with reporting, confirmed by the operator**.
 At gate `S06c`, the operator selected `retain_automatic`, visible answer “禁上游推送: 自动设置并记录”.
 The briefing and selected option explicitly disclosed that this can overwrite an existing custom push URL.
-The alternatives were automatic setup, confirmation before changing a value, or stopping for manual setup.
 
 Confirmed handoff wording: Within requested synchronization, set upstream's `pushurl` to `DISABLE`, including replacing an existing value, and record the configuration action without a separate prompt.
 This authorizes that push-protection setting only, not changing the upstream fetch URL or any other remote's push URL.
@@ -270,7 +238,6 @@ Existing: pin the CLI default to `Jopqior/gotgenes-pi-packages` when adding upst
 
 Disposition: **change, confirmed by the operator**.
 At gate `S07a`, the operator selected `change_ask_before_set`, visible answer “默认仓库配置: 修改默认值前先确认”.
-The alternatives were approval before changing the default, automatically pinning it to the fork, or removing configuration changes from the workflow.
 
 Confirmed handoff wording: Prefer explicitly targeted GitHub commands; adding an upstream remote does not authorize changing the GitHub CLI default repository.
 If changing that default is necessary, present the change and obtain operator approval before writing it.
@@ -280,7 +247,6 @@ Intended destination: issue 27 GitHub targeting and configuration recovery.
 
 Disposition: **retain, confirmed by the operator**.
 At gate `S07b`, the operator selected `retain_check_fallback`, visible answer “无仓库参数工具: 保留，错目标时用显式 gh”.
-The alternatives were verified wrappers with explicit-command fallback, using only explicit gh commands, or deferring.
 
 Confirmed handoff wording: Before using tools without a repository argument, verify that the GitHub CLI default resolves to `Jopqior/gotgenes-pi-packages`.
 If it does not, use an equivalent `gh` command with an explicit fork repository argument instead; do not silently repair the default.
@@ -293,7 +259,6 @@ Existing: verify the target and pass `--repo Jopqior/gotgenes-pi-packages` where
 
 Disposition: **retain, confirmed by the operator**.
 At gate `S08`, the operator selected `retain_explicit_target`, visible answer “GitHub 写操作: 保留”.
-The alternatives were retention, requesting an adjusted requirement, or deferring without weakening the current safeguard.
 
 Confirmed handoff wording: Before a GitHub mutation, verify the target repository and explicitly pass `--repo Jopqior/gotgenes-pi-packages` where supported.
 Target verification does not authorize the mutation itself.
@@ -305,7 +270,6 @@ Existing: verify the remote URL and name the remote and branch before pushing.
 
 Disposition: **retain, confirmed by the operator**.
 At gate `S09`, the operator selected `retain`, visible answer “推送目标: 保留”.
-The alternatives were retention, a specified adjustment, or deferral.
 Confirmed handoff wording: Before an authorized push, verify the intended remote URL and explicitly name the remote and branch in the push command.
 This target check does not authorize pushing.
 Intended destination: issue 27 push checkpoint.
@@ -316,7 +280,6 @@ Existing: never import upstream tags; forbidden examples include tag-forcing fet
 
 Disposition: **retain, confirmed by the operator**.
 At gate `S10`, the operator selected `retain`, visible answer “上游标签: 保留”.
-The alternatives were retention, an explicitly evaluated adjustment, or deferral.
 Confirmed handoff wording: Never import upstream tags into the fork's tag namespace.
 The workflow's concrete forbidden-command examples must be checked against actual Git behavior; do not rely solely on the remote default because explicit tag flags can override it.
 Existing command prohibitions remain binding during review.
@@ -328,7 +291,6 @@ Existing: `git push upstream` is forbidden and the remote push URL is disabled.
 
 Disposition: **retain, confirmed by the operator**.
 At gate `S11`, the operator selected `retain`, visible answer “上游推送: 保留”.
-The alternatives were retention, a specified adjustment, or deferral.
 Confirmed handoff wording: The synchronization workflow must not push to upstream.
 Any future request to contribute upstream is a separately authorized operation, not an implied part of synchronization.
 Intended destination: issue 27 transport and push safeguards.
@@ -339,7 +301,6 @@ Existing: S compares sorted local tag names before and after fetch; the later ch
 
 Disposition: **change, confirmed by the operator**.
 At gate `S12`, the operator selected `change_name_oid`, visible answer “标签检查: 比较标签名和对象 OID”.
-The alternatives were name-and-object comparison, retaining the name-set comparison with its limitations, or deferring.
 The read-only command `git for-each-ref --format='%(refname) %(objectname)' refs/tags` was run successfully during this review and printed local tag refs and their object OIDs.
 
 Confirmed handoff wording: Capture and compare local tag names and their referenced object OIDs before and after synchronization fetch operations.
@@ -354,7 +315,6 @@ Existing: delete accidentally imported tags, then rerun the script.
 
 Disposition: **change, confirmed by the operator**.
 At gate `S13`, the operator selected `change_approve_deletion`, visible answer “误导入标签: 列明依据，批准后删除”.
-The alternatives were exact-list approval, automatic deletion only for proven current-operation imports, or manual operator recovery.
 
 Confirmed handoff wording: Report the suspected imported tags, their provenance evidence, and the exact proposed deletion list; obtain operator approval before deleting them.
 Uncertain provenance requires investigation, not an assumption that a tag is disposable.
@@ -367,7 +327,6 @@ Existing: run `git merge --abort` to abandon conflicts and restore the pre-merge
 
 Disposition: **change, confirmed by the operator**.
 At gate `S14`, the operator selected `change_explicit_abort`, visible answer “放弃合并: 我明确选择放弃时”.
-The alternatives were an explicit abandon decision, retaining abort as explanatory guidance only, or manual-only execution.
 
 Confirmed handoff wording: Explain the merge work that abort would discard and execute `git merge --abort` only when the operator explicitly chooses to abandon that merge.
 Complex conflicts or failed verification do not authorize automatic abort.
@@ -383,7 +342,6 @@ Existing: merge only from `main`.
 
 Disposition: **retain with stop behavior, confirmed by the operator**.
 At gate `M01`, the operator selected `retain_stop_other_branch`, visible answer “分支: 保留，其他分支停止”.
-Alternatives: retain and stop, request support for other branches, or defer.
 Confirmed handoff wording: Merge upstream only on main; on any other branch, stop and report rather than automatically switch branches or rewrite history.
 Intended destination: issue 27 preflight.
 
@@ -393,7 +351,6 @@ Existing: refuse unless origin is this fork.
 
 Disposition: **change, confirmed by the operator**.
 At gate `M02`, the operator selected `change_exact_identity`, visible answer “origin 身份: 核对完整仓库身份”.
-Alternatives: verify full identity, accept the script's existing substring guard alone, or defer.
 Confirmed handoff wording: Verify that origin's complete repository identity is Jopqior/gotgenes-pi-packages using the verified supported SSH/HTTPS forms, rather than accepting an arbitrary URL containing that substring.
 Stop on a mismatch; do not automatically modify the remote.
 Issue 27 must verify the concrete address-recognition procedure before activating it.
@@ -405,7 +362,6 @@ Existing: require clean index and tracked worktree.
 
 Disposition: **change, confirmed by the operator**.
 At gate `M03`, the operator selected `change_inspect_untracked`, visible answer “工作区: 报告未跟踪文件，有风险则停”.
-Alternatives: inspect/report untracked paths and stop on risk, block every untracked file, or retain tracked/index checks alone.
 Confirmed handoff wording: Require a clean index and tracked worktree before merging.
 Also report untracked files and stop when there is an overwrite risk or unclear ownership; unrelated temporary files do not automatically block synchronization.
 Do not stash, delete, or commit existing work to satisfy this precondition without its own authorization.
@@ -417,7 +373,6 @@ Existing: refuse when `MERGE_HEAD` exists.
 
 Disposition: **change, confirmed by the operator**.
 At gate `M04`, the operator selected `change_verified_resume`, visible answer “已有 merge: 有完整本次记录才恢复”.
-Alternatives: resume only with verified current-sync records, always stop for an explicit resume request, or defer.
 Confirmed handoff wording: Do not begin another merge when one is in progress.
 Resume the existing synchronization only after matching its inputs, authorization, and execution state to complete records for that synchronization; otherwise stop and ask.
 Resumption does not authorize new repairs or re-execution of the merge.
@@ -429,7 +384,6 @@ Existing: refuse when a rebase state directory exists.
 
 Disposition: **retain, confirmed by the operator**.
 At gate `M05`, the operator selected `retain_stop`, visible answer “已有 rebase: 保留，停止同步”.
-Alternatives: stop, design a specifically authorized recovery, or defer.
 Confirmed handoff wording: Stop synchronization when a rebase is in progress; do not automatically continue or abort it.
 Intended destination: issue 27 preflight.
 
@@ -439,7 +393,6 @@ Existing: A says upstream integration preserves a genuine two-parent merge.
 
 Disposition: **retain with verified applicability, confirmed by the operator**.
 At gate `M06`, the operator selected `retain_with_preflight`, visible answer “双亲合并: 保留，并核对拓扑适用条件”.
-Alternatives: retain with topology preflight, request fast-forward support with evidence-contract redesign, or defer.
 Confirmed handoff wording: Preserve genuine two-parent topology for upstream integration, consistent with the current release-evidence requirement.
 Check the actual ancestry and report fast-forward or already-incorporated cases before deciding how to proceed; do not manufacture a merge record.
 Issue 27 must supply and verify executable preflight/handling rather than claim the existing script forces two parents.
@@ -449,12 +402,9 @@ Intended destination: issue 27 preflight, merge, and evidence stages.
 
 Existing: feature worktrees rebase and fast-forward land, unlike upstream integration.
 
-Disposition: **remove duplicate sync-workflow material, confirmed by the operator**.
-Gate `M07` offered a short cross-reference, a repeated full explanation, or removal of the duplicate explanation.
-The operator challenged the premise: “怎么就涉及到功能分支这些了？
+**Remove duplicate sync-workflow material, confirmed (gate M07):** the operator rejected the proposed feature-landing cross-reference as unrelated: “怎么就涉及到功能分支这些了？
 似乎没有关系啊。”
-The clarification acknowledged that feature landing is unrelated to upstream synchronization and proposed omitting even the cross-reference from the new workflow, without changing the existing feature workflows.
-The operator answered: “对，直接删去是最好的。”
+After clarification that even the cross-reference could be omitted without changing feature workflows, the answer was “对，直接删去是最好的。”
 
 Confirmed handoff wording: Do not carry the feature-branch linear-landing explanation into the unified upstream synchronization workflow.
 This removes unrelated duplicate prose, not the existing rules in `/sync-worktree` or `/ship`.
@@ -466,7 +416,6 @@ Existing: do not take either side wholesale.
 
 Disposition: **change, confirmed by the operator**.
 At gate `M08`, the operator's elaboration result identified `change_explicit_exception`, visible selection “禁止擅自覆盖，允许明确批准”, with note “确认。”
-Alternatives: prohibit unapproved whole-file selection but allow an exact approval, retain an absolute ban, or remove the special prohibition while retaining the general approval gate.
 
 Confirmed handoff wording: Do not take ours/theirs wholesale as an unreviewed shortcut.
 A whole-file choice is permitted when the operator explicitly approves the specific file, selected side, and disclosed effects; verify the resulting scope.
@@ -479,7 +428,6 @@ Existing: preserve spawn selection and incoming upstream behavior.
 
 Disposition: **change, confirmed by the operator**.
 At gate `M09`, the operator's elaboration result identified `change_review_goal`, visible selection “改为审查目标，不授予修改权”, with note “同意。”
-Alternatives: make preservation a review goal only, remove the broad requirement in favor of specific contracts, or defer.
 
 Confirmed handoff wording: Review the fork and incoming upstream behaviors, disclose incompatibilities and any trade-offs, and obtain approval for implementation choices not covered by a confirmed rule.
 Preserving both sides is a review goal, not authority to invent or apply arbitrary repairs.
@@ -574,11 +522,11 @@ H's reference to an “AGENTS.md four-place list” is stale; the actual list is
 
 ### N01: Local package loading
 
-**Change, confirmed:** discovering a new upstream package does not authorize adding its local Pi load path; explain its purpose and loading effects and obtain approval before editing settings (source H `After issue 3` and R `Adding a new package`, gate N01 answer “加载新扩展: 不自动加载，先批准”).
+**Change, confirmed, then scope clarified:** extra agent-authored local Pi loading configuration requires explaining purpose/effects and obtaining approval before editing settings; upstream-supplied loading wiring merges as-is under the package-scope clarification (source H `After issue 3` and R `Adding a new package`, original gate N01 answer “加载新扩展: 不自动加载，先批准”).
 
 ### N02: README package entry
 
-**Change, confirmed:** report a missing README package entry and include the proposed addition in a documentation proposal for approval before writing it (source R `Adding a new package`, gate N02 answer “README 包表: 纳入文档方案先批准”).
+**Change, confirmed, then scope clarified:** report a missing README package entry and obtain approval for an extra agent-authored addition; upstream-supplied README wiring merges as-is under the package-scope clarification (source R `Adding a new package`, original gate N02 answer “README 包表: 纳入文档方案先批准”).
 
 ### N03: Dedicated-skill note
 
@@ -862,135 +810,126 @@ The owning release workflow sets the practical wait/recheck procedure.
 
 ### X05: Analysis allowance hazard
 
-Observed: `.fallowrc.json` gained type-only allowances; P says a new intended edge extends its allow list in the same commit.
-Decide whether that wording must yield to pre-edit approval; preserving selection does not by itself approve weakening a check.
+**Confirm gate:** authored lint/analysis allowance changes require exact rule coverage or prior operator approval; type-only status, CI success, or a package skill's development instruction is not authorization (gate X05 answer “分析 Allowance: 确认”).
+Use the general approval boundary in the workflow, not a copied incident narrative.
 
 ### X06: Fixture repair hazard
 
-Observed: the widget terminal fixture gained `rows: 40` during integration.
-Decide the post-auto-merge approval example; changing a fixture is not authorized merely because it makes tests pass.
+**Confirm gate:** uncovered fixture repairs require approval before editing; making a test pass does not approve the proposed repair (gate X06 answer “测试 Fixture: 确认”).
+Keep this as an acceptance example, not a standing historical recipe.
 
 ### X07: Delegated lint-fix latitude
 
-Existing D permits lint suppressions or type-safe transformations within bounded lint/refactor work.
-Decide explicitly preventing those bounds from being mistaken for sync-specific operator approval.
+**Confirm gate:** generic delegation limits on lint/refactor transformations define an upper bound, not sync-specific permission; both parent and worker still need exact rule coverage or operator approval before editing (source D `Scope bounds`, gate X07 answer “委派修复: 确认”).
 
 ### X08: Session freshness
 
-Existing A requires on-disk prompt authority and restarting before using edited extension tools; renamed commands also need a fresh session.
-Decide workflow pause/resume guidance and preservation of approval evidence across restart.
+**Reference existing rule, confirmed:** follow the generic on-disk prompt and restart requirements before a step needs updated extension code, then recheck inputs and authorization records on resume; do not duplicate the full explanation or claim an old process has loaded new code (source A environment rules, gate X08 answer “会话新鲜度: 引用现有规则”).
 
 ### X09: Adjacent release safeguards
 
-Existing A/R require npmjs registry flags, independent publication approval, and prohibit weakening supply-chain settings to bypass same-day dependency failures.
-Review each safeguard independently if its wording or authority changes; synchronization does not grant exceptions.
+**Reference existing constraints as a group, confirmed:** X09a–X09c remain with A/R, covering explicit npmjs registry selection, reviewed-lockfile trust configuration, and the prohibition on disabling minimum release age to bypass installation failures; synchronization grants no exception and the workflow need not duplicate their mechanics (gate X09 answer “Registry 与供应链: 引用现有约束，不授予例外”).
 
 ## Approval, delegation and record semantics
 
 Source: fork issue 28 and `docs/plans/f0028-sync-approval-policy.md`.
-These detailed clauses remain to be confirmed through review; the issue's requirement to obtain approval is already the task constraint.
+The following clauses are confirmed handoff decisions, not active policy.
 
 ### A01: Proposal before edits
 
-Candidate: report conflicting inputs or post-merge symptom, affected paths, proposed action, alternatives, and effects before authoring an uncovered change.
-Decide the minimum decision evidence without demanding a speculative implementation first.
+**Confirm concise proposal before edits:** explain the conflict/problem, affected files, proposed handling, relevant alternatives, and effects before implementing an uncovered change, then wait for approval; neither an already-passing implementation nor an unnecessarily long code dump substitutes for that decision (gate A01 answer “提案内容: 确认”).
 
 ### A02: Exact rule coverage
 
-Candidate: cite a confirmed active rule's stable reference and reviewed version, matching inputs, action, and effects.
-Decide coverage evidence; historical records and preservation goals cannot independently authorize edits.
+**Confirm rule evidence:** identify the specific confirmed active rule and explain why the current inputs, action, and effects match its bounds; record the workflow version used for the run without inventing a separate rule-versioning system (gate A02 answer “覆盖依据: 确认”).
+Historical recipes and broad preservation goals are not authorization.
 
 ### A03: Ambiguity stops affected edits
 
-Candidate: missing, ambiguous, or contradictory coverage requires the operator's decision before editing, including after an automatic merge.
-Decide handling of unrelated already-authorized work while the affected item waits.
+**Confirm affected-scope stop:** missing, ambiguous, or contradictory coverage stops the affected edits and dependent actions pending operator decision, including after an automatic merge; independent read-only checks and explicitly authorized work with no dependency on that decision may continue (gate A03 answer “暂停范围: 停止受影响及依赖动作”).
 
 ### A04: Reopen materially changed proposals
 
-Candidate: changed inputs, scope, effects, or an independent-review finding reopen approval before implementing the changed proposal.
-Decide what must be re-presented and preserve the earlier decision history.
+**Confirm reopening:** materially changed scope, effects, or inputs that invalidate the approved basis require renewed approval before implementing the changed proposal; reviewer suggestions cannot extend the old approval, while purely verbal clarification needs no repeated gate (gate A04 answer “实质变化: 确认”).
 
 ### A05: Authorization accounting
 
-Candidate: compare final diff with authorized items, including rule-covered edits, and report execution/verification separately.
-Decide the merge-completion and handoff checkpoints; green checks do not prove authority.
+**Confirm final accounting:** match actual authored extra changes to a confirmed rule or operator approval, and distinguish execution from verification; covered edits remain traceable, but original upstream content is identified by input/merge commits rather than line-by-line approvals, and V02 cache cleanup needs no individual report (gate A05 answer “最终对账: 确认”).
+Green checks prove neither authorization nor absence of integration edits.
 
 ### A06: Bounded delegation
 
-Candidate: default to read-only inspection without scope approval; name allowed files/actions, rule references or item approvals, and pre-edit stop conditions for workers and nested workers.
-Decide how the parent obtains an operator decision and supplies a scoped continuation; parent approval alone is insufficient.
+#### A06a: Default read-only
+
+**Confirm:** without specific edit approval or exact rule coverage, delegate read-only investigation/proposals, not implementation trials (gate A06a answer “默认权限: 确认”).
+
+#### A06b: Scoped continuation
+
+**Confirm:** a worker stops affected edits on uncovered choices and reports to the parent, which obtains the operator's decision and supplies a continuation naming permitted files/actions, scope, and rule or approval evidence; parent/reviewer agreement is not operator approval (gate A06b answer “升级决定: 确认”).
+Already-covered actions may be delegated with the applicable rule and bounds without asking again.
+
+#### A06c: Nested delegation
+
+**Confirm:** nested workers inherit the same authorization bounds and pre-edit stop condition; another delegation layer cannot enlarge permission (gate A06c answer “嵌套委派: 确认”).
 
 ### A07: Resume evidence
 
-Candidate: retain proposal identity, full relevant OIDs, operator response, approved scope, execution diff/commit, and verification as distinct facts.
-Decide the minimum record; absent or ambiguous evidence returns to the gate rather than trusting an assistant's “approved” summary.
+**Confirm resumable evidence:** use concise Markdown to preserve input OIDs, proposal identity/scope, the operator's actual answer or active-rule basis, execution diff/commit, and verification as distinct facts; retain changed/superseded decisions rather than overwrite them (gate A07 answer “恢复证据: 确认”).
+An unanswered proposal or an assistant-only approval summary is insufficient: recover actual evidence or ask again before relying on the purported permission.
+No approval database, executable schema, or parser is required.
 
 ### A08: Separate authorities and activation
 
-Candidate: ordinary merge permission does not authorize resolutions, push permission does not authorize repairs, and publication permission does not approve reusable rules.
-Decide final wording and handoff mapping; Git's automatic merge commit is not a promised pre-write interception point.
+**Confirm separate authority and sole activation source:** synchronization, push, publication, and successful checks do not substitute for approval of uncovered authored changes; issue 27's unified workflow is the only future active rule source, and historical review records cannot independently authorize later edits (gate A08 answer “总边界: 确认”, covering A08a–A08d as explicitly briefed).
+Git's own automatic merge commit is not a promised pre-write interception point; subsequent extra edits still require coverage or approval.
+Final acceptance remains pending inspection of issue 27's actual workflow.
 
-## Inventory completion and handoff status
+## Issue 27 handoff: activation BLOCKED
 
-This inventory is ready for individual deliberation, not activation.
-The following subitems split compound source paragraphs into separate decision units; their parent headings are navigation only and cannot receive a blanket disposition.
-Each subitem inherits the original source and evidence limits from its parent section; its explicit decision, or an explicitly approved group-removal decision, determines its status.
-Subitem names retained below are historical inventory identities, not pending exceptions to a confirmed group removal.
-Individual deliberation has started: S01 confirms entry semantics; S02a/S02b limit discovery obligations to synchronization; S03 retains the bounded script entry; S04 requests SSH and HTTPS support; S05 requires approval before existing-URL changes.
-S06a requires a protocol choice before creating a missing upstream remote; S06b/S06c authorize their exact protective configuration writes with recording.
-S07a requires approval before changing the GitHub default; S07b retains verified wrapper use with explicit-command fallback; S08 retains explicit fork targeting for mutations.
-S09 retains explicit verified push targets; S10 prohibits upstream tag imports; S11 prohibits upstream pushes within synchronization.
-S12 requires tag-name/object comparison; S13 gates exact tag deletions; S14 gates abort on an explicit abandon decision.
-M01 requires main; M02 requires complete origin identity verification; M03 requires clean tracked/index state and review of untracked-file risks.
-M04 permits only verified current-sync resumption; M05 stops on an existing rebase; M06 retains genuine two-parent integration with ancestry preflight and an implementation handoff.
-M07 removes unrelated feature-landing prose from the sync workflow; M08 allows whole-file side selection only with specific approval; M09 makes broad preservation a review goal, not repair authority.
-F01 through F05 remove first-merge import/concatenation recipes without relocating their historical bodies; F06a removes mechanical documentation unions.
-F06b removes a duplicate recount reminder; F07a/F07b remove duplicate method-name reminders without changing API contracts.
-F08a/F08b authorize exact preservation/restoration of fork name and pre-sync version with reporting; F09a/F09b require approval for authored dependency/metadata resolutions or extra adjustments.
-F10 preserves published fork changelog entries; F11 authorizes only verbatim, unambiguous insertion of new upstream sections with reporting.
-N01/N02 require approval for extra package-loading and README-table edits; N03 removes the sync-specific skill-classification recipe; N04/N05/N06 allow bounded missing dropdown/label additions with reporting.
-The later package-scope clarification confirms that non-customized upstream packages, including new ones and their supplied wiring, merge as supplied without individual adoption approval.
-Extra agent-authored loading/README wiring still requires approval, while specifically confirmed form/label rules provide their own bounded coverage.
-N07a/N07b remove sync-specific release-registration and post-publication loading recipes without weakening the owning workflows' safeguards.
-I01 permits only unambiguous restoration of fork-first issue lookup with reporting; I02/I03/I04a remove duplicate issue/phase/upstream-archive instructions.
-I04b protects fork archive identity; I04c permits only unambiguous independent added history rows to coexist verbatim, with reporting.
-I05 requires scoped semantic review after auto-merge; I06 removes blanket sentence restoration; I07 limits header preservation to review unless exact edit coverage exists; I08 permits only unambiguous verbatim disposition migration.
-The operator explicitly changed review granularity to remove all B/P selector implementation recipes from the workflow as a group, without removing package contracts or technical evidence.
-The operator also approved group removal of H01–H09's obsolete migration/one-time-permission chapter.
-V01 permits bounded routine installation and requires escalation of unexpected effects; V02 permits exact rumdl cache cleanup after moves without a separate report.
-V03/V04/V05 retain workspace typechecking, repository lint, and all-package tests without implied repair authority.
-V06 uses the full root test command including script tests; V07 retains conditional dead-code checking; V08 gates handling unexpected project-file writes without treating ordinary cache output as source edits.
-V09 requires authorization accounting before manual merge completion; V10 replaces the duplicate sync log with execution records; E01 preserves machine/human record separation.
-E02 binds review to the actual merge; E03 permits agent classification of approved resolution effects with reporting, not manual final version selection.
-The explicitly approved release-mechanism group removes only duplicate explanations, retaining all existing algorithms, data, and checks.
-E05 permits normal scoped evidence recording; E06 gates existing-evidence corrections; C01 preserves generated-only correspondence and allows regeneration from approved state.
-C04a/C08 remove duplicate release-preflight/bootstrap/retry prose; G01–G07 move out of sync workflow responsibility while retaining their independent tools and approval safeguards.
-C04b confirms proactive prediction and independently approved publication; C07 protects immutable history; X04 requires honest visibility verification without blind republication.
-X01 requires integration-diff authorization accounting; X02 requires independent read-only review before push; X03 permits only same-workspace, same-semantics manifest-name adaptation with reporting.
-Concise dispositions and original source identification suffice.
-All other items remain pending.
-S04 adds a transport mechanism requirement beyond this documentation-only implementation; hand it to issue 27 for ownership and verified implementation, without changing the current script here.
-The first gate's elaboration result omitted the S02a/S02b selections; a follow-up gate recovered both explicitly instead of inferring them from the operator's general confirmation.
-Final acceptance requires the actual workflow in [#27], updated entry points, migrated required data, and deletion of the old handbook; a review record alone cannot complete that criterion.
+Deliberation is complete; activation and final acceptance remain **BLOCKED** pending inspection of [#27]'s actual on-disk workflow, updated entry points, and required handbook migration/deletion.
+This mapping describes intended destinations, not an executable prompt or a second active policy.
+All listed IDs include their subitems and retain the exact bounds and response evidence in their sections.
+
+| Intended stage or responsibility                                              | Confirmed IDs                                                     | Handoff                                                                                                                                                    |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entry and discovery                                                           | S01–S03; package-scope clarification                              | Invocation is the request, without a second start prompt; discovery obligations stay inside synchronization.                                               |
+| Transport, targeting, recovery                                                | S04–S14                                                           | Implement and verify dual transport separately; preserve configuration, target, tag-evidence, deletion, and abort bounds.                                  |
+| Preflight and resume                                                          | M01–M06; A07; X08                                                 | Verify identity, workspace, operation state, ancestry, and recoverable authorization before proceeding.                                                    |
+| Merge and semantic review                                                     | M08/M09; F08–F11; N01/N02/N04–N06; I01/I04b/I04c/I05/I07/I08      | Apply only precise coverage; incoming non-customized packages and supplied wiring merge as-is, while extra loading/README wiring remains gated.            |
+| Cross-stage approval and delegation                                           | A01–A08; X05–X07                                                  | Preserve coverage, post-merge, changed-scope, and nested-worker stop gates before authored edits; do not confuse merge, push, and publication authority.   |
+| Verification and manual completion                                            | V01–V09; X01–X03                                                  | Preserve bounded writes, no-report V02 cleanup, full checks, authorization accounting, and independent read-only review before push.                       |
+| Records and release evidence                                                  | V10; E01–E03/E05/E06; C01                                         | Keep per-sync authorization/execution separate from machine evidence; derive final versions through scripts, not E03 classification.                       |
+| Push and independently approved release                                       | S07–S11; C04b/C07; X04/X09                                        | Target checks do not grant push authority; predict releases, obtain package/scope/destination approval, execute and verify without blind republication.    |
+| Delete obsolete workflow recipes; retain original sources only in Git history | F01–F07; I06; B01–B10; P01–P11; H01–H09                           | Do not re-archive implementation recipes or renew one-time permissions; package behavior/contracts and T/U evidence are not deleted by these dispositions. |
+| Remove duplicate or unrelated sync prose; retain owning constraints           | M07; N03/N07; I02/I03/I04a; E04/E07–E12; C02/C03/C04a/C05/C06/C08 | Use the relevant feature, repository, package, or release owner rather than copying its rules or algorithms.                                               |
+| Independently authorized historical release maintenance                       | G01–G07                                                           | Preserve necessary approval, tooling, and artifact safeguards in a release-owned home; no synchronization backfill authority.                              |
+
+### Migration and integration responsibilities
+
+Issue 27 owns execution records under the agreed `docs/sync/runs/` layout, collision handling, and resume loading without requiring an issue number.
+It migrates necessary old sync history (V10), correspondence data and generator consumers (C01), and release-owned safeguards (including G), while leaving machine evidence ownership intact (E01).
+This review holds decision provenance; retros hold stage summaries and pointers, not approval ledgers.
+The source snapshot and headings in this record remain recoverable through Git after handbook deletion; obsolete recipe bodies need no new archive.
+Issue 29's final responsibility-based terminology must be reconciled with evidence/CLI references and examples before acceptance, without changing algorithms or adding package/publication authority.
+
+S04 is a required but unimplemented capability; M02 and M06 likewise need verified full-identity and topology handling rather than reliance on the substring guard or ordinary merge command without `--no-ff`.
+Issue 27 must account for remote setup/fetch preceding current script checks and for record-mode fetches; it must not describe these paths as offline or read-only.
+These implementation gaps are not permission to change scripts in issue 28.
+Issue 27's activation changes the repository workflow's default decision authority, not package APIs: use a breaking Conventional Commit with `feat!:` and a `BREAKING CHANGE:` footer describing the pre-edit coverage-or-approval requirement.
+The final integration review must rerun the scenarios against the actual prompt, ensure removed material has not regained authority, and verify migrated consumers before deleting the handbook.
 
 The consumer search inspected `AGENTS.md`, `README.md`, `.pi/skills/releasing/SKILL.md`, `.pi/skills/package-pi-subagents/SKILL.md`, `scripts/upstream-sync.sh`, `scripts/release/correspondence-table.mjs`, `scripts/release/release-artifacts.mjs`, `scripts/release/prepare-release.sh`, and references under `test/release/` and `test/upstream-sync/`.
 The table generator, release preparation/staging, artifact writer, fixtures, and conflict-diagnostic assertion depend on the handbook path; deletion must coordinate those consumers rather than only remove prose links.
 The release-evidence scripts also refer to the sync CLI and must be reconciled with [#29]'s names.
 No consumer was modified during inventory preparation.
 
-### Independent subitems
+### Grouped subitem identities
+
+Only subitems without their own decision headings are listed here; each inherits its parent's source, confirmed group disposition, and bounds.
+These identifiers preserve review traceability, not implementation recipes or additional pending decisions.
 
 | Parent | Separate decision units                                                                                                                                                                                                                                                      |
 | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| S02    | S02a: inspect upstream main; S02b: inspect upstream package releases before publishing                                                                                                                                                                                       |
-| S06    | S06a: add missing remote; S06b: set no-tag default; S06c: disable upstream push URL                                                                                                                                                                                          |
-| S07    | S07a: change CLI default; S07b: verify default for repository-less tools                                                                                                                                                                                                     |
-| F06    | F06a: module/token union; F06b: recompute counts                                                                                                                                                                                                                             |
-| F07    | F07a: preserve resume; F07b: preserve provider registration                                                                                                                                                                                                                  |
-| F08    | F08a: retain fork package name; F08b: retain fork version                                                                                                                                                                                                                    |
-| F09    | F09a: incoming dependencies; F09b: incoming non-identity metadata                                                                                                                                                                                                            |
-| N07    | N07a: release registration; N07b: post-publication npm disable entry                                                                                                                                                                                                         |
-| I04    | I04a: preserve upstream numeric records; I04b: preserve fork records; I04c: separate conflicting history rows                                                                                                                                                                |
 | B05    | B05a: queued cancellation review; B05b: active cancellation review; B05c: late registration review                                                                                                                                                                           |
 | B06    | B06a: resume review; B06b: manager construction review                                                                                                                                                                                                                       |
 | B07    | B07a: selected tool wait; B07b: synchronous service spawn; B07c: non-blocking no-provider acknowledgement                                                                                                                                                                    |
@@ -1008,18 +947,51 @@ No consumer was modified during inventory preparation.
 | E10    | E10a: missing baseline correspondence; E10b: missing merge review; E10c: invalid two-parent topology; E10d: regressing upstream version; E10e: missing/mismatched release manifest; E10f: discontinuous ancestry; E10g: unreleased package work; E10h: missing local objects |
 | E11    | E11a: identical-review idempotence; E11b: conflicting-record refusal; E11c: no override                                                                                                                                                                                      |
 | E12    | E12a: read-time provenance validation; E12b: malformed context/commit rejection                                                                                                                                                                                              |
-| C04    | C04a: identity/evidence preflight; C04b: independent publication approval                                                                                                                                                                                                    |
 | C05    | C05a: full tagged-set publication check; C05b: exact tagged Release body; C05c: preserve existing bodies on rerun                                                                                                                                                            |
 | C08    | C08a: operator-chosen first release; C08b: new-fork evidence stop; C08c: retry failed post-prepare job rather than redispatch; C08d: verify checkout against tags before retry                                                                                               |
 | G04    | G04a: preserve restoration disclosure; G04b: no missing-Release creation                                                                                                                                                                                                     |
 | G05    | G05a: batch revalidation; G05b: per-edit readback                                                                                                                                                                                                                            |
 | G06    | G06a: skip verified identical completed edits; G06b: coordinate competing writers; G06c: preserve before/after snapshots                                                                                                                                                     |
 | X09    | X09a: explicit npmjs registry flags; X09b: retain trusted reviewed lockfile setting; X09c: do not disable minimum release age                                                                                                                                                |
-| A06    | A06a: default read-only; A06b: scoped worker continuation; A06c: nested delegation inherits bounds                                                                                                                                                                           |
 | A08    | A08a: merge permission is not resolution permission; A08b: push permission is not repair permission; A08c: publication permission is not standing-rule approval; A08d: sole workflow activation authority                                                                    |
 
-Before handoff, walk every acceptance case from the plan against confirmed clauses and record outcomes here.
-Pending decisions, missing clause coverage, and unavailable activation evidence remain explicit blockers.
+## Manual acceptance walkthrough
+
+This is a non-executed reasoning walkthrough of every case in the plan against the confirmed handoff clauses, not runtime tests or verification of an active workflow.
+The omission column identifies the requirement lost if the relevant coverage, post-merge, or delegation gate were absent; issue 27 must repeat the walkthrough against its actual text.
+
+| Case                                                     | Determining clauses              | Expected authorization result                                                                                                                                                                                          | Gate omission would violate                                                                              |
+| -------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Exact approved rule, same inputs and effects             | A02/A05; applicable bounded rule | Cite the active rule and recorded workflow version, explain the match, record coverage, then proceed only within scope. This historical record alone is insufficient.                                                  | Coverage: traceable input/action/effect matching, even for unprompted work.                              |
+| Old handbook recipe not individually confirmed           | A02/A08; removed F/B/P/H recipes | Treat it as context only; request approval for the proposed edit.                                                                                                                                                      | Coverage: historical advice would regain edit authority.                                                 |
+| Confirmed invariant with several implementations         | M09; A01–A03                     | Explain alternatives and ask before choosing an uncovered implementation.                                                                                                                                              | Coverage: a preservation goal would become an arbitrary repair license.                                  |
+| Conflict-free merge followed by fixture repair           | I05; X06; A03/A08                | Git may already have committed; gate the authored fixture repair before editing.                                                                                                                                       | Post-merge: absence of Git conflicts would authorize extra repairs.                                      |
+| New lint/analysis allowance for green checks             | V04; X05; A01–A03                | Disclose exact allowance and effects and obtain coverage or approval; do not weaken checks automatically.                                                                                                              | Coverage/post-merge: successful CI would substitute for permission.                                      |
+| Workspace-name or documentation adaptation               | X03; N01/N02; I01/I08; A02/A03   | X03 covers only actual manifest identity for the same package/check semantics; exact I01/I08 restoration may qualify. Other authored adaptations need approval; supplied upstream wiring is not extra authored wiring. | Coverage: narrow command/restoration rules would become general documentation or package-edit authority. |
+| Independent reviewer proposes follow-up                  | X02; A04; A06a/A06b              | Record a proposal; establish exact coverage or obtain operator approval before dispatching repair.                                                                                                                     | Post-merge/delegation: reviewer advice would silently enlarge authority.                                 |
+| Worker encounters uncovered decision                     | X07; A03; A06a–A06c              | Stop affected edits and dependencies, report to parent, obtain operator decision and scoped continuation; nested workers inherit bounds.                                                                               | Delegation: parent or worker discretion would replace operator approval.                                 |
+| Operator authorizes push or publication                  | S09; C04b; A08                   | Perform only the independently authorized operation with its checks; do not infer resolution, repair, or standing-rule approval.                                                                                       | Coverage: distinct authorities would be conflated.                                                       |
+| Resume finds only proposal or assistant approval summary | M04; A07/A08                     | Recover actual operator evidence or valid active-rule coverage; otherwise ask again before affected edits.                                                                                                             | Coverage/delegation: an assistant's assertion would become permission across sessions.                   |
+| Approved proposal changes materially                     | A03/A04                          | Reopen approval for changed scope/effects/invalidating inputs before implementing; verbal clarification alone does not reopen it.                                                                                      | Coverage: obsolete approval would cover a different proposal.                                            |
+| Routine validation unexpectedly rewrites files           | V01/V02/V08; A03/A05             | Inspect/classify project-file changes; exact coverage or approval determines handling, not automatic commit or revert. Ordinary cache artifacts are not source edits; V02 has no separate report.                      | Post-merge/coverage: intent to validate would become blanket write or recovery authority.                |
+| Review record survives workflow revision                 | A02/A08                          | Read current active workflow and version; this record supplies history, never an override.                                                                                                                             | Coverage: obsolete historical wording would become a second active policy.                               |
+
+### Synthetic resume illustration: unanswered proposal
+
+This illustration is synthetic and non-executed, not an operator decision or a real synchronization record; no OIDs, approvals, diffs, or successful tests are invented.
+A future real record must supply measured input identities and actual evidence rather than copy these absent fields.
+
+| Fact                                            | Synthetic record                                                                                                                                                                                                                                          |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Inputs and workflow version                     | Not supplied; exact pre-sync fork/upstream/merge OIDs and active workflow version must be recovered before resume.                                                                                                                                        |
+| Proposal identity and scope                     | `example-fixture-repair`: after a hypothetical automatic merge, propose changing one widget-test fixture's terminal height; disclose affected path and rendering effects before approval. Alternative: investigate the rendering failure without editing. |
+| Actual operator answer or active-rule reference | None. An assistant note saying “approved” would not supply either. X06/A07 in this review explain the stop requirement but are not an active authorization for this hypothetical edit.                                                                    |
+| Applied                                         | No edit or commit in this illustration; a resumed real session must inspect its actual diff rather than infer application from a proposal.                                                                                                                |
+| Verified                                        | Not run; no test result or semantic verification claimed.                                                                                                                                                                                                 |
+| Resume outcome                                  | Stop this repair and dependent completion; recover inputs and authorization evidence or ask the operator. Independent read-only investigation may continue.                                                                                               |
+
+If a real answer later arrives, preserve its actual wording, actor, proposal/input scope, and any supersession separately from the eventual applied diff/commit and verification result.
+If relying on rule coverage instead, identify the actual active rule and workflow version and explain matching inputs/actions/effects; missing evidence or materially changed scope returns to the gate.
 
 [#27]: https://github.com/Jopqior/gotgenes-pi-packages/issues/27
 [#29]: https://github.com/Jopqior/gotgenes-pi-packages/issues/29
