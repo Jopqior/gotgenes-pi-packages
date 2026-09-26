@@ -21,7 +21,8 @@ Hold each option's `description` to one line — a second line is substance, and
 ## When the operator answers with a question
 
 A question in place of a selection means the gate was premature — the options assumed context the operator does not hold: a mechanism, a prior decision, a hypothesis in play.
-Answer it without re-offering the menu; ask again only once their reply stops asking.
+Answer it in a visible message and end the turn there — an answer composed only in reasoning never reaches the operator, and a follow-up `ask_user` in the same turn buries the question.
+Ask again only once their reply stops asking.
 
 ## Sizing and pricing the options
 

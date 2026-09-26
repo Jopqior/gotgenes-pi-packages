@@ -32,6 +32,31 @@ The `pi-autoformat` extension reformats every file an `Edit`/`Write` touches, an
 - It also reads a numbered section citation (`§ *7. Verify CI*`) as a sentence end and splits it — cite the heading instead (`` the `## 7. Verify CI` section ``).
 - It also reads a leading `~` as strikethrough and rewrites a `~`-prefixed token (`(~:211)` → `(~~211)`), which `rumdl check` passes — write an approximate line reference as `line ~211`.
 
+### Non-ASCII in authored prose
+
+An em-dash in a `newText`/`content` body is unreliably emitted: it can arrive as a bare newline, splitting a sentence or a heading.
+The result is valid markdown that `rumdl` accepts, so no gate catches it.
+After writing prose, re-read the region and scan it with `rg -n --multiline ' \n [a-z]' <file>`, which reports the split sentence and the line it ran into.
+`pi-autoformat` rejoins that split before you can scan for it, though, so the damage often survives as a missing word mid-sentence — read the region, do not rely on the pattern alone.
+Prefer a colon, semicolon, or parentheses when the sentence allows it (Refs #814, #933).
+
+It can also arrive as an invisible `\x0c` form feed plus literal text: `erence2` for an em-dash, `erence6` for an ellipsis.
+The corruption is upstream of every tool here — measured across 1764 session transcripts, 62 of 122 occurrences sit in plain assistant prose with no tool call involved, so `Edit` writes faithfully what the model already emitted (Refs #863, #960).
+Replacing the visible text leaves the byte behind, so a grep for `erence2` passes on a still-corrupt file.
+A pre-commit hook and `pnpm run lint` now reject it, so you no longer have to remember to look; run `node scripts/lint/invisible-characters.mjs` to check on demand, and `--fix` to delete the zero-width characters it can repair.
+A form feed it will not repair for you: deleting the byte alone strands the `erence2`, so replace the whole token.
+Write the character itself in an `Edit`/`Write` body, never a `\uXXXX` token — the addendum's literal-character rule governs `newText` as much as `oldText`.
+That governs *matching* as much as writing: a rejected `oldText` on a line holding an em-dash is usually a token you emitted wrong, not a file that moved.
+On #966 ten batches failed because U+2014 left the model as a tab plus `a`, as a bare newline, or as the literal escape, while a spike matched and wrote a real em-dash in every trial — so re-emit the character before changing tactics.
+Only when it genuinely will not emit, write a placeholder and substitute it in a scripted pass — `@PH@`, then `s.replace('@PH@', '\u2014')`.
+The escape there belongs to the substituting script; hand-written in an edit body it arrives over-escaped (`\\u2014`) and lands in the file as literal text (Refs #960).
+
+That literal form is gated in markdown.
+Outside code spans and fenced blocks, the pre-commit hook and `pi-autoformat` decode a `\u2014` or `\u{1F600}` escape to its character, and `pnpm run lint` rejects any left behind, along with a bare `u2014` whose backslash was lost; run `node scripts/lint/unicode-escapes.mjs [--fix]` on demand (Refs #967).
+A bare token, or an escape for an invisible character, it reports for a hand repair.
+To quote an escape on purpose, put it in backticks; in bare prose, write `\\u2014`, which CommonMark renders as the literal and the gate leaves alone.
+The split-sentence form stays a manual scan: `rumdl`'s sentence-per-line reflow rejoins the split before any gate runs, so what survives is a missing word no pattern can see.
+
 ### Code fences
 
 - Always specify a language on fenced code blocks (e.g., ` ```typescript `, ` ```bash `, ` ```jsonc `, ` ```text `); use `text` for plain output.

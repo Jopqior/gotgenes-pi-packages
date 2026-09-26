@@ -22,6 +22,9 @@ When an edit's `oldText` would span a decorative comment rule (a long run of `�
 When the rule line is itself the target (deleting a section header with its block), copy it from a fresh `Read` of that region — retyping the dash run is what fails the batch.
 When the rule line must be **rewritten** (a new label, so the padding changes), `Edit` has nothing to copy — write the line programmatically (`'─' * (78 - len(label))`).
 If you delete such a block by line number with `sed`, re-read the region afterward to confirm you did not remove an enclosing brace.
+An `oldText` spanning any non-ASCII character (an em-dash, a box-drawing rule, an ellipsis) must be copied from a fresh `Read`, never retyped: the character can be emitted as a bare newline, and the batch then fails on text you appear to have quoted correctly (Refs #933).
+It can also land as an invisible `\x0c` form feed plus literal text (`erence2`, `erence6`), which a comment or a doc string carries past `tsc`, Biome, and the suite.
+A pre-commit hook and `pnpm run lint` now catch it, so the byte no longer reaches a commit; see the `markdown-conventions` skill for the repair and the placeholder workaround (Refs #863, #960).
 
 ## Scripted substitutions
 
@@ -33,6 +36,7 @@ A touched `toMatchObject`/`objectContaining` site absorbs a wrong insertion and 
 Run the full package suite, not the files the rename's own grep matched — a mock *producer* spells the symbol as an object key (`externalPaths:`), which a call-site grep (`\.externalPaths\(`) never sees.
 A replacement containing backslashes is a trap even as a single-line rename — shell, perl, and the regex engine each consume an escape level.
 Use `Edit`.
+That includes repairing a literal `\uXXXX` an edit body just wrote: re-edit the region with the character typed literally, never a `perl` substitution whose pattern carries the same escape (Refs #864).
 A scripted symbol rename also rewrites the prose *around* the symbol, where the old signature's adjectives survive as contradictions ("the zero-arg `getRootPermissionsService()`").
 Grep the words that described the old shape (`zero-arg`, `takes no`, the old arity) after the script — no gate flags them.
 

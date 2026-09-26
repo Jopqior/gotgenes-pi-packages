@@ -103,7 +103,24 @@ describe("buildParentSnapshot", () => {
         appendSystemPrompt: "Extra instructions.",
       });
       expect(snapshot.portablePrompt).toBe(
-        ["You are a specialist.", "", "Extra instructions."].join("\n"),
+        [
+          "You are a specialist.",
+          "",
+          "<addendum>",
+          "Extra instructions.",
+          "</addendum>",
+        ].join("\n"),
+      );
+    });
+
+    it("wraps an appended prompt alone in the addendum section", () => {
+      // pi 0.86 and later render appendSystemPrompt as an <addendum> section; the
+      // portable identity leaves out the base preamble Pi would put first.
+      const snapshot = buildParentSnapshot(makeCtx(), false, {
+        appendSystemPrompt: "Extra instructions.",
+      });
+      expect(snapshot.portablePrompt).toBe(
+        "<addendum>\nExtra instructions.\n</addendum>",
       );
     });
 

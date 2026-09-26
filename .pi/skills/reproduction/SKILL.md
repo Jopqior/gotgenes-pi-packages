@@ -30,6 +30,18 @@ Take the input from something that already exists:
 When no real artifact is reachable, say so: label the evidence synthetic and unconfirmed, and carry that label into the plan's Design Overview.
 A named limit is a finding; an unnamed one becomes a premise.
 
+## Reproduce the effect, not an intermediate
+
+A report names an effect someone observed: a prompt, a decision, an output.
+Probe that effect through the path that produces it; an intermediate signal (a parse error, a classifier verdict) that matches does not confirm it, and one that differs does not refute it.
+For a permission ask, drive the gate's decision (`resolveBashAdvisoryCheck` shares the gate's `resolveBashCommandCheck`), not the parser.
+
+## A prototype's measurement expires when the implementation diverges
+
+A number measured against a prototype covers only the mechanisms the prototype had.
+Re-measure against the real pre- and post-change code whenever the implementation later gained one it lacked — the stale number still reads true, so nothing surfaces the expiry (Refs #923).
+Diff the full input→output mapping, not a count of changed inputs: a count cannot see one input leaving the set as another enters.
+
 ## Read the report for what contradicts you
 
 The reporter's own repro is evidence, and its most valuable content is whatever does not fit your hypothesis.
@@ -43,6 +55,8 @@ When the repro path runs through one of this repo's own extensions, that extensi
 
 In practice: `pi --no-extensions -e packages/<pkg>` loads only the copy under test, while a bare `pi` launched from this repo also loads everything in the root `.pi/settings.json` and is never a clean control.
 For a library-level probe, call the upstream function directly instead of the wrapper when the question is about upstream's behavior rather than ours.
+In a monorepo a probe also answers only for the package it ran in: `packages/*/biome.json`, per-package `eslint` overrides, and per-package `vitest.config.*` each make one package's result unrepresentative.
+Before generalizing a probe to `packages/*`, re-run it under a package with no local override — #966's plan recorded "Biome ignores this path" from a package whose own config disables the formatter.
 State which side of the extension each row of the results table was measured on.
 
 ## A stochastic or cached source needs trials and a defeated cache

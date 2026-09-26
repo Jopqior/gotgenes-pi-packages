@@ -21,6 +21,7 @@ import {
   type Theme,
 } from "@earendil-works/pi-coding-agent";
 import { Text } from "@earendil-works/pi-tui";
+import { selectEntries } from "./entry-selection.js";
 import {
   formatSummaryText,
   type SessionSummary,
@@ -44,6 +45,11 @@ import {
   formatListingSummary,
   formatListingText,
 } from "./session-listing.js";
+import type { BranchMode } from "./session-tree.js";
+
+/** Shared description for the `branches` parameter on every transcript tool. */
+const BRANCHES_DESCRIPTION =
+  'Which branches to render. "live" (the default) follows the path from the session\'s newest entry back to the root and replaces each rewound stretch with a marker naming how many entries it omitted. "all" additionally renders those entries, bracketed by begin/end markers.';
 
 /** Discriminated union stored in tool `details` for the session-read and discovery tools. */
 type SessionToolDetails =
@@ -59,7 +65,15 @@ type SessionToolDetails =
  */
 function formatCallText(
   label: string,
-  args: { types?: string[]; limit?: number; path?: string; cwd?: string },
+  args: {
+    types?: string[];
+    offset?: number;
+    limit?: number;
+    elide_user_text?: boolean;
+    branches?: string;
+    path?: string;
+    cwd?: string;
+  },
   theme: Theme,
 ): string {
   const hints: string[] = [];
@@ -67,7 +81,10 @@ function formatCallText(
   if (args.cwd) hints.push(`cwd: ${args.cwd}`);
   if (args.types && args.types.length > 0)
     hints.push(`types: [${args.types.join(", ")}]`);
+  if (args.offset != null) hints.push(`offset: ${args.offset}`);
   if (args.limit != null) hints.push(`limit: ${args.limit}`);
+  if (args.elide_user_text) hints.push("elide user text");
+  if (args.branches) hints.push(`branches: ${args.branches}`);
   const suffix = hints.length > 0 ? ` (${hints.join(", ")})` : "";
   return `${theme.fg("toolTitle", theme.bold(label))}${theme.fg("muted", suffix)}`;
 }
@@ -117,29 +134,48 @@ function formatResultText(
   return `${theme.fg("success", "\u2713")} ${theme.fg("muted", formatSummaryText(details.summary))} ${hint}`;
 }
 
+/** The parameter surface every transcript-rendering tool shares. */
+interface TranscriptReadParams {
+  types?: string[];
+  offset?: number;
+  limit?: number;
+  elide_user_text?: boolean;
+  branches?: string;
+}
+
 /**
- * Filter entries by `types`, slice to the most recent `limit`, then summarize
- * and format the result. Shared by every tool that renders a transcript from
- * an entry array (`read_session`, `read_parent_session`, `read_session_file`).
+ * Select the entries the caller asked for, then summarize and format them.
+ * Shared by every tool that renders a transcript from an entry array
+ * (`read_session`, `read_parent_session`, `read_session_file`).
+ *
+ * `leafId` is the session's live leaf when the caller knows it; the file
+ * readers omit it, and the walk falls back to the last entry — the leaf Pi
+ * itself resumes into.
  */
 function buildTranscriptResult(
   allEntries: TranscriptEntry[],
-  params: { types?: string[]; limit?: number },
+  params: TranscriptReadParams,
+  leafId?: string | null,
 ): {
   content: [{ type: "text"; text: string }];
   details: SessionToolDetails;
 } {
-  let entries = allEntries;
-  if (params.types) {
-    const allowed = new Set(params.types);
-    entries = entries.filter((e) => allowed.has(e.type));
-  }
-  if (params.limit != null) {
-    entries = entries.slice(-params.limit);
-  }
+  // Anything but the literal "all" resolves to the safe default, so a mistyped
+  // parameter renders the live path rather than the branch it discarded.
+  const branches: BranchMode = params.branches === "all" ? "all" : "live";
+  const entries = selectEntries(allEntries, {
+    types: params.types,
+    offset: params.offset,
+    limit: params.limit,
+    branches,
+    leafId,
+  });
   const summary = summarizeEntries(entries);
+  const text = formatTranscript(entries, {
+    elideUserText: params.elide_user_text,
+  });
   return {
-    content: [{ type: "text", text: formatTranscript(entries) }],
+    content: [{ type: "text", text }],
     details: { kind: "transcript", summary },
   };
 }
@@ -234,7 +270,8 @@ export default function sessionTools(pi: ExtensionAPI): void {
         "the full session history including messages, model changes, compaction events, and custom entries. " +
         "The transcript format shows numbered user/assistant turns, one-line tool call summaries with " +
         "correlated results, and metadata events (compaction, model changes). " +
-        "Tool result bodies, thinking content, and image data are omitted.",
+        "Tool result bodies, thinking content, and image data are omitted. " +
+        "A session that was rewound renders only the live path, with a marker naming what it omitted.",
       parameters: Type.Object({
         types: Type.Optional(
           Type.Array(
@@ -248,11 +285,28 @@ export default function sessionTools(pi: ExtensionAPI): void {
             },
           ),
         ),
+        offset: Type.Optional(
+          Type.Number({
+            minimum: 0,
+            description:
+              "Skip the most recent N entries (after type filtering) before applying `limit`. Page backward through a long session instead of re-reading its tail.",
+          }),
+        ),
         limit: Type.Optional(
           Type.Number({
+            minimum: 0,
             description:
-              "Return only the most recent N entries (after type filtering). When omitted, all matching entries are returned.",
+              "Return only the most recent N entries (after type filtering, and after `offset` when given). When omitted, all matching entries are returned.",
           }),
+        ),
+        elide_user_text: Type.Optional(
+          Type.Boolean({
+            description:
+              "Replace each user turn's body with a length placeholder, keeping turn numbering, [provider/model] labels, and tool-call lines. Use it when you need the shape of a session rather than its prompts.",
+          }),
+        ),
+        branches: Type.Optional(
+          Type.String({ description: BRANCHES_DESCRIPTION }),
         ),
       }),
       renderCall(args, theme, context) {
@@ -270,12 +324,16 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: { types?: string[]; limit?: number },
+        params: TranscriptReadParams,
         _signal: unknown,
         _onUpdate: unknown,
         ctx: ExtensionContext,
       ) {
-        return buildTranscriptResult(ctx.sessionManager.getEntries(), params);
+        return buildTranscriptResult(
+          ctx.sessionManager.getEntries(),
+          params,
+          ctx.sessionManager.getLeafId(),
+        );
       },
     }),
   );
@@ -289,6 +347,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
         "Derives the parent session file from the subagent directory layout. " +
         "Returns a structured transcript with numbered user/assistant turns, one-line tool call summaries, " +
         "and metadata events. Tool result bodies, thinking content, and image data are omitted. " +
+        "A session that was rewound renders only the live path, with a marker naming what it omitted. " +
         "Returns an error if not running in a subagent context.",
       parameters: Type.Object({
         types: Type.Optional(
@@ -303,11 +362,28 @@ export default function sessionTools(pi: ExtensionAPI): void {
             },
           ),
         ),
+        offset: Type.Optional(
+          Type.Number({
+            minimum: 0,
+            description:
+              "Skip the most recent N entries (after type filtering) before applying `limit`.",
+          }),
+        ),
         limit: Type.Optional(
           Type.Number({
+            minimum: 0,
             description:
-              "Return only the most recent N entries (after type filtering).",
+              "Return only the most recent N entries (after type filtering, and after `offset` when given).",
           }),
+        ),
+        elide_user_text: Type.Optional(
+          Type.Boolean({
+            description:
+              "Replace each user turn's body with a length placeholder, keeping turn numbering, [provider/model] labels, and tool-call lines.",
+          }),
+        ),
+        branches: Type.Optional(
+          Type.String({ description: BRANCHES_DESCRIPTION }),
         ),
       }),
       renderCall(args, theme, context) {
@@ -325,7 +401,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: { types?: string[]; limit?: number },
+        params: TranscriptReadParams,
         _signal: unknown,
         _onUpdate: unknown,
         ctx: ExtensionContext,
@@ -378,6 +454,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
         "read_session nor read_parent_session can reach. " +
         "Returns a structured transcript with numbered user/assistant turns, one-line tool call summaries, " +
         "and metadata events. Tool result bodies, thinking content, and image data are omitted. " +
+        "A session that was rewound renders only the live path, with a marker naming what it omitted. " +
         "Returns an error if the file does not exist.",
       parameters: Type.Object({
         path: Type.String({
@@ -395,11 +472,28 @@ export default function sessionTools(pi: ExtensionAPI): void {
             },
           ),
         ),
+        offset: Type.Optional(
+          Type.Number({
+            minimum: 0,
+            description:
+              "Skip the most recent N entries (after type filtering) before applying `limit`.",
+          }),
+        ),
         limit: Type.Optional(
           Type.Number({
+            minimum: 0,
             description:
-              "Return only the most recent N entries (after type filtering).",
+              "Return only the most recent N entries (after type filtering, and after `offset` when given).",
           }),
+        ),
+        elide_user_text: Type.Optional(
+          Type.Boolean({
+            description:
+              "Replace each user turn's body with a length placeholder, keeping turn numbering, [provider/model] labels, and tool-call lines.",
+          }),
+        ),
+        branches: Type.Optional(
+          Type.String({ description: BRANCHES_DESCRIPTION }),
         ),
       }),
       renderCall(args, theme, context) {
@@ -417,7 +511,7 @@ export default function sessionTools(pi: ExtensionAPI): void {
       // eslint-disable-next-line @typescript-eslint/require-await -- satisfies async tool interface; no actual async work
       async execute(
         _toolCallId: string,
-        params: { path: string; types?: string[]; limit?: number },
+        params: TranscriptReadParams & { path: string },
       ) {
         const allEntries = readSessionFileEntries(params.path);
         if (!allEntries) {

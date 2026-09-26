@@ -1,6 +1,6 @@
 ---
 description: Read a GitHub issue, gather context, and write a numbered plan to the package's docs/plans/
-model: anthropic/claude-opus-5
+model: anthropic/claude-opus-5-5
 ---
 
 # Plan a GitHub issue
@@ -142,6 +142,9 @@ A qualitative cost claim ("only reformats", "nothing is lost") is measurable too
 When the proposal also has design ambiguities, fold those into the same `ask-user` call.
 Let the operator's answers — not the issue body — drive the plan's Goals and Design Overview.
 
+When the design adopts a mechanism from a third party — an issue body, a comment, or a PR, on any issue whoever filed it — record the `Co-authored-by:` trailer in the plan's TDD Order, resolved to a real line, not an instruction to resolve one.
+A patch set aside for one gap still credits the mechanism the plan keeps; the `git-workflow` rule fires whether or not the patch was taken, and the implementing session commits without re-reading the issue (Refs #962, #965).
+
 If the issue is a decision-record or ADR issue (its deliverable is a decision, not code), do **not** skip the `ask-user` gate even when a design is already written down.
 The deliberation is the deliverable: existing architecture-doc prose is an input to put to the operator, not a settled spec to transcribe.
 Surface the open parameters (and any the prose treats as closed but the issue's own motivation reopens) for the operator's confirmation before planning (Refs #581).
@@ -181,6 +184,7 @@ Then an H1 title (e.g., `# <short descriptive title>`) — required by markdownl
 - **Problem Statement** — quote the issue's framing in your own words.
 - **Goals** — bullet list, scoped to this change.
 - **Non-Goals** — explicitly defer anything tangential (sibling issues, follow-ups).
+  A Non-Goal resting on a path being unreachable is a claim about the *current* bound — when the change moves that bound (a budget, a limit, a threshold), re-derive the reachability before writing it (Refs #864).
 - **Background** — relevant existing modules/functions and how they relate.
   Flag any constraint from AGENTS.md that applies.
 - **Design Overview** — decision model, data shapes, separation of concerns, edge cases.
@@ -188,6 +192,7 @@ Then an H1 title (e.g., `# <short descriptive title>`) — required by markdownl
   When the design introduces a new collaborator that multiple consumers will use, sketch the consumer's call site (3–5 lines of pseudocode) to verify the interaction pattern follows Tell-Don't-Ask and Law of Demeter.
   When the design extracts code into a new module, sketch the extracted module's interaction with its upstream dependencies (3–5 lines) to verify it doesn't carry Tell-Don't-Ask violations, output-argument mutations, or reverse-search patterns from the original code.
   Fix upstream API gaps in the plan before planning the extraction.
+  When a step adds an import edge A → B within one directory, confirm B does not already reach A through its own imports — `fallow guard` allows every same-zone edge, so the cycle surfaces only as a `fallow dead-code` failure mid-TDD (Refs #573, #977).
   When a new exported function accepts domain objects, verify the parameter type follows ISP — list which fields the function reads and confirm the type doesn't carry unused fields.
   When the plan consolidates code from multiple methods into a shared helper, verify the methods have the same lifecycle semantics — different guards, cleanup scopes, or shutdown-vs-normal-operation contexts indicate structural duplication that should not be extracted.
   When the design has N sibling call sites each supply the same derived fact, check whether a shared downstream point already stamps per-call fields (a runner, a writer, a factory) — a fact every sibling merely relays belongs there, not in N places (Refs #746).
@@ -331,4 +336,4 @@ Wrap code identifiers, filenames, and text containing underscores in backticks i
 Append with the `Edit` tool (or `Write` for a new file), not a shell heredoc.
 When appending a new stage to an existing retro, anchor the `Edit` on the file's last line or use `Write` with the full content — the repeated `### Observations` / `### Session summary` headers make header-anchored edits ambiguous.
 
-Then print a 5-line summary of the plan's key decisions and stop.
+Then print a 5-line summary of the plan's key decisions, end with the next command (`/tdd-plan` or `/build-plan`) on its own line, and stop.

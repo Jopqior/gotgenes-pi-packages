@@ -84,6 +84,9 @@ The extension is organized into seven domains (73 files):
 
 Entry point (`index.ts`), runtime (`runtime.ts`), shared types (`types.ts`), settings (`settings.ts`), debug (`debug.ts`), and event handlers (`handlers/`) sit at the root.
 
+Each directory is a fallow boundary zone, allow-listed to the zones it already imports.
+Run `pnpm --silent fallow guard <file>` before adding a cross-directory import: it lists what that file's zone may import, and an intended new edge extends the zone's `allow` list in `.fallowrc.json` in the same commit.
+
 ### Module dependency flow
 
 ```text

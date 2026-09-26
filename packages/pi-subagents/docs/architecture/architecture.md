@@ -370,6 +370,14 @@ The boundary protects sequential parent continuation, not already-parallel tools
 
 The extension's source files are organized into domain directories — `config/`, `session/`, `lifecycle/`, `observation/`, `service/`, `tools/`, `ui/`, and `handlers/` — plus a handful of root-level entry-point and shared modules.
 
+Those directories are fallow boundary **zones** (`boundaries` in the repo-root `.fallowrc.json`), one zone per directory plus a `pi-subagents/core` zone for the root modules.
+Each zone's `allow` list records preexisting runtime imports; `lifecycle/` and `session/` additionally import only types from `service/service.ts` for the fork's spawn-selection contract, so those edges use `allowTypeOnly`.
+A **new** cross-zone edge is a finding (`boundary-violation`, severity `warn`, reported by `fallow dead-code` and `fallow audit` without failing either) and a `fallow decision-surface` `coupling-boundary` question in review.
+Run `pnpm --silent fallow guard <file>` before adding a cross-directory import to see what the file's zone may import; when the new edge is intended, extend that zone's `allow` list in the same commit and say why in the commit body.
+
+Two allowed edges are not sanctioned by anything above: `lifecycle/` imports `subscribeSubagentObserver` from `observation/` (`subagent.ts`), and `observation/` imports `display` and `glyphs` from `ui/` (`renderer.ts`).
+The ratchet admits them because they predate it; this document states no ordering between those directories, so whether they should exist is a question for a later discovery round rather than a violation today.
+
 ### Current layout
 
 ```text
@@ -391,7 +399,7 @@ src/
 ├── session/                        session assembly and preparation
 │   ├── session-config.ts           pure assembler (main entry)
 │   ├── prompts.ts                  system prompt building; inherits the parent prompt's identity, cutting the session-resolved tail (ADR 0006) — and the project-context block too for a child running in its own directory (ADR 0010) — or its portable parts alone for a re-homing provider (ADR 0009)
-│   ├── project-context.ts          Pi's `<project_context>` block, rendered byte for byte; the loader a child whose adopted identity describes another directory resolves its own with (ADR 0010)
+│   ├── project-context.ts          Pi's `<project_context>` block, rendered in pi ≥0.86's shape; the loader a child whose adopted identity describes another directory resolves its own with (ADR 0010)
 │   ├── ask-parent-tool.ts          child-facing ask_parent: records the child's question, tells it to end its turn
 │   ├── notify-parent-tool.ts       child-facing notify_parent: one-way mid-run update, capped at 2000 characters
 │   ├── content-items.ts            shared message content parsing (tool-call names, assistant content)
@@ -470,7 +478,9 @@ src/
 Record statistics (tool uses, token usage, compaction counts) and live activity (active tools, response text, turn counts) are updated by `record-observer.ts`, which subscribes directly to session events.
 This is the single per-child session subscription — all run state lives on the `Subagent` record.
 
-The widget reads agent state by polling the records exposed via `SubagentManager.listAgents()` every 80 ms; that poll loop is now started by the manager's lifecycle notifications (the widget subscribes as a `SubagentManagerObserver` fanned out through `CompositeSubagentObserver`), not by inbound calls from the spawn tools.
+The widget reads agent state by polling the records exposed via `SubagentManager.listAgents()` every 250 ms; that poll loop is driven by the manager's lifecycle notifications (the widget subscribes as a `SubagentManagerObserver` fanned out through `CompositeSubagentObserver`), not by inbound calls from the spawn tools.
+It runs if and only if a subagent is running, since a finished agent's line carries a fixed duration and the queued line is a count, so animating either would ask Pi to re-render its whole component tree for a byte-identical result.
+The widget's rendered height is also bounded by the terminal's row count rather than a fixed ceiling: Pi's regular-mode differential renderer clears the screen and the scrollback whenever the first changed line sits above the previous viewport top, and the widget's spinner is that line on every tick, so a widget taller than the rows beneath it turns every tick into a destructive repaint ([#864]).
 The `/subagents:sessions` navigator reads messages via `Subagent.agentMessages` and subscribes to updates via `Subagent.subscribeToUpdates()` — no direct `AgentSession` reference (#277).
 
 ## Cross-extension architecture
@@ -777,7 +787,7 @@ Structural metrics corroborate code review; they do not measure upstream integra
 | Metric                     | Value                                                                   |
 | -------------------------- | ----------------------------------------------------------------------- |
 | Health score               | 78/100 (B)                                                              |
-| Total LOC                  | 12,121 (73 files)                                                       |
+| Total LOC                  | 12,292 (73 files)                                                       |
 | Dead code                  | 0 files, 0 exports                                                      |
 | Maintainability index      | 90.9 (good)                                                             |
 | Avg cyclomatic complexity  | 1.3                                                                     |
@@ -785,12 +795,13 @@ Structural metrics corroborate code review; they do not measure upstream integra
 | Production duplication     | 0 lines                                                                 |
 | Test duplication           | retired (fallow 3.2.0 excludes test files; see Phase 20 Step 9 history) |
 | Fallow refactoring targets | No target section emitted                                               |
-| Core tests                 | 1,988 tests across 86 files                                             |
+| Core tests                 | 2,023 tests across 87 files                                             |
 
 Recompute source file count with `find packages/pi-subagents/src -name '*.ts' | wc -l` and LOC with `find packages/pi-subagents/src -name '*.ts' -exec wc -l {} +` from the repository root.
 Source totals count `src/` only; fallow's package-wide LOC includes other files.
 Recompute health with `pnpm fallow health --score --hotspots --targets --workspace @jopqior/pi-subagents`, dead code with `pnpm fallow dead-code --workspace @jopqior/pi-subagents`, and duplication with `pnpm fallow dupes --workspace @jopqior/pi-subagents`.
 Recompute tests with `pnpm --filter @jopqior/pi-subagents run test`.
+The machine-readable vital signs in `docs/fallow-snapshot.json` were captured at upstream's prior phase close, not at this fork's sync; regenerate them with `pnpm --silent fallow health --save-snapshot packages/pi-subagents/docs/fallow-snapshot.json --workspace @jopqior/pi-subagents --quiet` when closing a fork phase, and use `fallow health --trend` to compare.
 
 ### Dependency bag inventory
 
@@ -911,6 +922,7 @@ Gotgenes synchronization and its verification gates follow this repository's [up
 [#600]: https://github.com/gotgenes/pi-packages/issues/600
 [#608]: https://github.com/gotgenes/pi-packages/issues/608
 [#610]: https://github.com/gotgenes/pi-packages/issues/610
+[#864]: https://github.com/gotgenes/pi-packages/issues/864
 [#877]: https://github.com/gotgenes/pi-packages/issues/877
 [ADR-0002]: ../decisions/0002-extensions-on-a-minimal-core.md
 [ADR-0004]: ../decisions/0004-reconsider-ui-direction.md

@@ -6,7 +6,7 @@ description: Land the work (trunk or worktree branch), verify CI, close the issu
 # Ship the implementation
 
 Argument: `$1` is the issue number that was just implemented, or the number of an adopted third-party PR.
-When it is empty, derive the number from the newest plan commit (`git log --format='%s' --grep='^docs: plan ' -1` → the trailing `(#N)`), name the issue you derived, and confirm it in step 0 — lane detection reads it.
+When it is empty, derive the number from the newest plan commit (`git log --format='%s' --grep='^docs: \(re-\)\?plan ' -1` → the trailing `(#N)`), name the issue you derived, and confirm it in step 0 — lane detection reads it.
 
 `/ship` runs at the **root** checkout on `main` in both of its lanes:
 
@@ -15,6 +15,9 @@ When it is empty, derive the number from the newest plan commit (`git log --form
 
 The lane is detected in step 1 and changes only five things: where the plan is read from (step 2), whether a branch is fast-forward-merged (step 4), the CI-failure recovery rule (step 7), whether a worktree is torn down (step 12), and the session name.
 Every other step is identical.
+
+Every SHA this run handles is command output, not a value you typed.
+Do not measure its shape (`| wc -c`), re-run the command to double-check, or count its characters — in prose or in reasoning (Refs #839, #904, #945).
 
 ## 0. Confirm you are at the root on `main`
 
@@ -38,7 +41,7 @@ Do this before anything else, so a mis-invocation costs nothing.
    - More than one match → stop and report; the ambiguity is a branch-naming collision the operator must resolve.
 2. Fetch the issue title: `gh issue view $1 --json title -q .title`.
 3. Call `set_session_name` — trunk lane: `#$1 Ship — <issue title>`; worktree lane: `#$1 Ship (worktree) — <issue title>`.
-4. Load the `git-workflow` and `releasing` skills now, and the `worktrees` skill in the worktree lane — the merge, the close comment, and the dispatch all sit on rules those carry.
+4. Load the `git-workflow`, `releasing`, and `github-voice` skills now, and the `worktrees` skill in the worktree lane — the merge, the close comment, and the dispatch all sit on rules those carry.
 
 ## 2. Release coordination and close targets (decide before step 3)
 
@@ -146,7 +149,6 @@ Running them after step 4 covers exactly that tree, at a measured cost of about 
 
 1. Run `git rev-parse HEAD` to capture the full SHA.
    Pass that exact value to `ci_find` — never hand-expand the short SHA from the `git push` output, and never type a SHA from memory.
-   Do not measure its shape (`| wc -c`), re-run it to double-check, or count its characters in prose — it is command output, not a value you typed (Refs #839, #904).
 2. Use `ci_find` with that SHA and workflow `ci` to locate the CI run.
    If it times out, re-check the SHA you passed against `git rev-parse HEAD` before assuming a timing miss — a truncated or retyped SHA produces the same timeout (Refs #640).
 3. Use `ci_watch` with the returned `run_id`, workflow `ci`, and `timeout: 600` to wait for it to complete.
@@ -194,10 +196,11 @@ Build the close comment from this issue's own commits, anchored on the plan comm
 Each package releases on its own cadence, so a tag range spans every sibling issue that landed since: measured at 165 commits across 32 issues for a 13-commit change (Refs #817).
 
 ```bash
-PLAN=$(git log --format='%H' --grep="docs: plan .*(#$1)" -1)
+PLAN=$(git log --format='%H' --grep="docs: \(re-\)\?plan .*(#$1)" -1)
 git log --oneline "$PLAN"^..HEAD
 ```
 
+The `\(re-\)\?` alternation matters: a reopened issue is re-planned with a `docs: re-plan …` subject, and a bare `docs: plan` pattern silently resolves the **abandoned** original instead, yielding a range hundreds of commits wide (Refs #863).
 If no plan commit matches, anchor on the parent of the issue's first commit.
 In the worktree lane, use step 4's `PRE_MERGE` as the anchor instead when it is an ancestor of `"$PLAN"^` — the branch then carried pre-plan commits the plan range cannot see.
 That test is reflexive, so it also reports true when `PRE_MERGE` equals `"$PLAN"^`, where the two ranges are identical and either anchor works.
@@ -215,7 +218,9 @@ The comment should include:
 - One sentence on user-visible behavior change.
 - A note flagging any breaking change (matches `feat!:` commits).
 - If the change unblocks or partially addresses other issues, mention them.
-- If the release was deferred (mid-batch), note that the fix is on `main` and releases with the batch — do not cite a released version.
+- Credit by `@login` any third party whose comment supplied the shipped design or measured the defect — read `gh issue view $1 --json comments` first; the commits carry a `Co-authored-by:` only if planning recorded one (Refs #962).
+- Do not cite a released version — step 10 dispatches the release after this comment, so a version here is a prediction.
+  When the release was deferred (mid-batch), say the fix is on `main` and releases with the batch.
 
 Before calling `issue_close`, re-resolve every hex token in the finished draft (`git rev-parse <sha>^{commit}`) and confirm each is an ancestor of `main` (`git merge-base --is-ancestor <sha> main`).
 Verify the draft, not your intent to cite — a pre-draft resolve cannot cover a hash drafting itself introduced, and after the call it can no longer prevent publishing one (Refs #788, #814, #890).
@@ -249,7 +254,7 @@ Skip this step entirely if step 8 recorded a defer/batch or no-dispatch decision
 1. Derive candidate packages from the paths the range touched, not from commit types (re-derive `PLAN` — a fresh shell does not carry step 9's):
 
    ```bash
-   PLAN=$(git log --format='%H' --grep="docs: plan .*(#$1)" -1)
+   PLAN=$(git log --format='%H' --grep="docs: \(re-\)\?plan .*(#$1)" -1)
    git diff --name-only "$PLAN"^..HEAD | sed -n 's#^packages/\([^/]*\)/.*#\1#p' | sort -u
    ```
 

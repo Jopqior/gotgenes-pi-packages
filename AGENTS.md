@@ -72,7 +72,7 @@ Two prose tripwires are now `pi-permission-system` deny rules in `.pi/extensions
 ### Tooling
 
 This project uses **pnpm** exclusively — never `npm` or `npx`.
-A `commit-msg` hook (`committed`, via `prek`) rejects a malformed Conventional Commits header; pre-commit hooks run Biome, ESLint, and `rumdl fmt`.
+A `commit-msg` hook (`committed`, via `prek`) rejects a malformed Conventional Commits header; pre-commit hooks reject stray invisible characters, decode literal Unicode escapes in markdown prose, and run Biome, ESLint, and `rumdl fmt`.
 Use `colgrep` for intent-based codebase exploration and convention discovery; use `grep` for exact symbol matching.
 There is no `pi` checkout beside this repo on this machine; for Pi SDK internals, read the pinned dependency's compiled code under `node_modules/.pnpm/@earendil-works+pi-coding-agent@<version>_*/` and cite it by that resolved version.
 Upstream's guidance assumes a checkout at `../pi` from the root (`../../pi` from a worktree) tracking Pi's `main`, ahead of the pinned dependency; apply that only where such a checkout exists.
@@ -91,7 +91,7 @@ When the pasted prompt body contradicts the on-disk file (e.g. you just changed 
 
 ### Stale in-process extension code
 
-Pi loads each package's extension once at session start, so a session that edits `packages/<pkg>/src/` keeps running the **pre-edit** tool for the rest of its life.
+Pi loads each package's extension once at session start, so a session that edits — or fast-forward-merges — `packages/<pkg>/src/` keeps running the **pre-merge** tool for the rest of its life.
 When the change targets a tool the workflow itself calls (`ci_find`, `ci_watch`, `issue_close`), restart Pi before the step that uses it — otherwise `/ship` exercises the old behavior and the new code looks broken.
 The same applies when a change **removes** a tool `/ship` calls: the running session still has it registered.
 A session that renames or deletes a prompt template is subject to the same staleness: it keeps the commands it registered at startup, so the first run of a renamed command needs a fresh session.

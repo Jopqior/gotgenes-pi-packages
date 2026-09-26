@@ -32,7 +32,7 @@ Load these skills before starting analysis:
 
 ### Step 1: Read the architecture document and form a cause hypothesis
 
-Start from first principles, before running any tool — fallow finds symptoms by construction (it is syntactic), so leading with it frames the whole analysis around symptoms.
+Start from first principles, before running any tool: fallow measures structure rather than intent, so it finds symptoms by construction and leading with it frames the whole analysis around them.
 
 Read `packages/$1/docs/architecture/architecture.md`.
 Note:
@@ -95,10 +95,11 @@ Each is a finding a `tidy-first-assessor` judged real but out of scope for the c
 
 Fallow **corroborates** the cause hypothesis and supplies outcome baselines (LOC, complexity, dead code, duplication) — it does not set the agenda.
 Run the full suite from the repo root (the exact commands and interpretation live in the `fallow` and `improvement-discovery` skills you loaded); record the health score, dead-code findings, production/test duplication, hotspots, and refactoring targets.
+Run the coverage feed too, so CRAP scores come from real coverage rather than the estimate, and read the trend against the package's committed snapshot (`packages/$1/docs/fallow-snapshot.json`) for what has drifted since the last phase close; both recipes are in the `improvement-discovery` skill's Step 3.
 Also run the repeated-discriminator sweep from the `improvement-discovery` skill (the `grep … | uniq -c` one-liner in its Step 3) — fallow is blind to that smell class, so the sweep is the only detector.
 
 **The phase spine must not be fallow-sourced-only.**
-At least the primary cause must trace to the principle-driven reading of Step 1, not to a syntactic fallow finding — cite fallow signals as symptoms of that cause, not as the motivation for a step.
+At least the primary cause must trace to the principle-driven reading of Step 1, not to a structural fallow finding — cite fallow signals as symptoms of that cause, not as the motivation for a step.
 
 ### Step 4: Trace from entry point outward
 

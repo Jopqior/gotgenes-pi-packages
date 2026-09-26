@@ -74,6 +74,7 @@ Load this skill when writing, debugging, or planning tests.
   The broken case is a probe string that also appears elsewhere in the output.
   Decide by mutation: break the code the pin covers and confirm the pin fails — a pin that survives its own mutation is a broken probe.
 - A mutation is scoped to one claim, so it kills one equivalence class and no more — "I mutated and saw reds" is not evidence the whole set is sound.
+- Confirm a mutation applied (`git diff --stat`) before reading its run — a scripted `perl -pi` on a regex literal can match nothing, and the green then reads as a surviving mutation.
 - When the code under test accepts two shapes of the same input (an ordinal or an issue number, a string or an array), check that the fixtures do not all pick one shape.
   The live input can exercise the other arm exclusively.
 - A bulk red caused by a signature change masks per-test probe quality.
@@ -138,6 +139,8 @@ A missing export throws `is not a function` at runtime but surfaces as `TS2305` 
 
 - When a TDD step changes behavior, account for existing tests that will break.
   Either fold the test updates into the same step or place a dedicated test-update step immediately before it.
+- A killing mutation that deletes a **guard** claims the guard is load-bearing.
+  Name what observably changes without it before writing the mutation — a guard redundant with the runtime (a second `resolve` on a settled promise, a re-entrancy flag nothing re-enters) leaves every test green, and the vacuous mutation then reads as a coverage failure (Refs #965).
 - When a fix changes how a failure is **classified** (user abort vs. real error, retry vs. surface), existing tests asserting the old classification can pass only because of the bug.
   Rewrite each to exercise the genuine condition, and add a sibling test for the newly distinguished case.
 - When a plan's own measurement shows the target behavior already works, name the one input that actually fails — or reclassify the step as `test:` (characterization) plus `refactor:`.

@@ -212,6 +212,7 @@ Instead of hard-aborting at the turn limit, agents get a graceful shutdown:
 Background agents are subject to a configurable concurrency limit (default: 4).
 Excess agents are automatically queued and start as running agents complete.
 The widget shows queued agents as a collapsed count.
+It also bounds its own height to the terminal's, collapsing the agents that do not fit into a `+N more` summary, so a short pane keeps its conversation visible.
 
 Foreground agents bypass the queue — they block the parent anyway.
 
