@@ -461,6 +461,13 @@ export function createUpstreamNetwork() {
 
     git(scratch, ["clone", originBare, work]);
     configureRepo(work);
+    git(work, [
+      "remote",
+      "set-url",
+      "origin",
+      "git@github.com:Jopqior/gotgenes-pi-packages.git",
+    ]);
+    git(work, ["remote", "add", "upstream", githubUpstream]);
     return { work, originBare, upstreamBare };
   }
 

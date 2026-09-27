@@ -54,6 +54,26 @@ afterEach(() => {
 
 describe("upstream-sync.sh", () => {
   describe("status", () => {
+    it("uses canonical remote identities with isolated local transport", () => {
+      const { work, upstreamBare } = materializeNetwork("divergent");
+      expect(git(work, ["remote", "get-url", "origin"]).stdout.trim()).toBe(
+        "git@github.com:Jopqior/gotgenes-pi-packages.git",
+      );
+      expect(
+        git(work, ["remote", "get-url", "upstream"], {
+          allowFail: true,
+        }).stdout.trim(),
+      ).toBe(githubUpstream);
+
+      expect(runScript(work, []).status).toBe(0);
+      expect(revParse(work, "upstream/main")).toBe(
+        revParse(upstreamBare, "refs/heads/main"),
+      );
+      expect(recordedFetches()).toEqual([
+        ["fetch", "--no-tags", "upstream", "main"],
+      ]);
+    });
+
     it("fetches without changing HEAD", () => {
       const { work } = materializeNetwork("divergent");
       const before = revParse(work, "HEAD");
@@ -237,7 +257,9 @@ describe("upstream-sync.sh", () => {
   describe("guards", () => {
     it("accepts an existing SSH upstream remote", () => {
       const { work } = materializeNetwork("divergent");
-      git(work, ["remote", "add", "upstream", githubUpstream]);
+      expect(git(work, ["remote", "get-url", "upstream"]).stdout.trim()).toBe(
+        githubUpstream,
+      );
 
       const result = runScript(work, []);
 
@@ -251,7 +273,7 @@ describe("upstream-sync.sh", () => {
       const { work } = materializeNetwork("divergent");
       git(work, [
         "remote",
-        "add",
+        "set-url",
         "upstream",
         "git@github.com:example/other.git",
       ]);
