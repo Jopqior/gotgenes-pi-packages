@@ -262,7 +262,7 @@ describe("release preparation", () => {
       "show",
       "HEAD:scripts/release/pi-subagents/sync-state.json",
     );
-    const coreTagsBefore = repo.gitOut("tag", "--list", "pi-subagents-v*");
+    const forkTagsBefore = repo.gitOut("tag", "--list", "pi-subagents-v*");
 
     const result = prepareRelease("demo");
 
@@ -277,13 +277,13 @@ describe("release preparation", () => {
       repo.gitOut("show", "HEAD:scripts/release/pi-subagents/sync-state.json"),
     ).toBe(committedStateBefore);
     expect(repo.gitOut("tag", "--list", "pi-subagents-v*")).toBe(
-      coreTagsBefore,
+      forkTagsBefore,
     );
     expect(repo.gitOut("status", "--porcelain")).toBe("");
   });
 
   it("fails before any write when a mixed selection has blocked fork evidence", () => {
-    // The sibling is named first, so its version is derived before the core's
+    // The sibling is named first, so its version is derived before the fork's
     // evidence fails; the all-or-nothing contract is that even that derived
     // sibling version produces no write.
     const branch = uniqueUpstreamBranch();

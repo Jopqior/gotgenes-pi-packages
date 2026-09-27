@@ -198,8 +198,8 @@ describe("fork release policy against the real issue-14 history", () => {
     // Under the old repository-wide classification this window printed
     // pi-subagents-v2.0.0 (the integration merge's broad `feat!:` message
     // forced a major over an upstream patch release). The policy compares the
-    // verified correspondence 21.7.0 → 21.7.3, finds no retained fork core
-    // commits, and reviews the merge itself as a none contribution.
+    // verified correspondence 21.7.0 → 21.7.3, finds no retained fork-owned
+    // package commits, and reviews the merge itself as a none contribution.
     expect(nextTag("pi-subagents", HISTORICAL_BASELINE_TAG)).toBe(
       "pi-subagents-v1.0.3\n",
     );

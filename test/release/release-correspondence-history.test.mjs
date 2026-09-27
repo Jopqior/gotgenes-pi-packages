@@ -70,7 +70,7 @@ function expectHistoricalRecordsRetained(state) {
 }
 
 describe("committed release identities", () => {
-  it("registers the actual core fork and independent original selector", () => {
+  it("registers the supported fork and independent original selector", () => {
     const registry = readReleasePackages(registryFile, repo);
     expect(requireReleasePackage(registry, "pi-subagents")).toEqual({
       directory: "pi-subagents",

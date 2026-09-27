@@ -87,7 +87,7 @@ export function prepareArtifacts(repo, out, specFile) {
   validateForkSyncState(projected, forkSyncTarget.directory);
   if (pending) {
     const document = readFileSync(
-      path.join(repo, "docs/release/pi-subagents-correspondence.md"),
+      path.join(repo, forkSyncTarget.correspondencePath),
       "utf8",
     );
     const table = renderCorrespondenceTable({

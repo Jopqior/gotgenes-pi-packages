@@ -31,11 +31,11 @@ function noneContribution() {
 /**
  * Create the baseline history and the decision helpers around it:
  *
- *   - `pi-subagents-v0.9.0` on an initial core commit (pre-baseline history
+ *   - `pi-subagents-v0.9.0` on the initial package commit (pre-baseline history
  *     the bounded walk must never see),
  *   - the baseline upstream release (default `21.7.0`; its commit is both the
  *     recorded upstream release and the recorded upstream tip, and it is a
- *     release-bump commit whose tree carries the core manifest claiming
+ *     release-bump commit whose tree carries the package manifest claiming
  *     exactly the recorded version),
  *   - `pi-subagents-v1.0.0` on an out-of-scope release-marker commit, the
  *     shape of a docs-only publish.

@@ -283,7 +283,7 @@ describe("window derivation", () => {
     });
   });
 
-  it("ignores sibling-only and root-config commits in the core window", () => {
+  it("ignores sibling-only and root-config commits in the fork decision window", () => {
     syncUpstream({ version: "21.7.1" });
     repo.commitInScope(
       "feat(pi-colgrep): sibling feature",
@@ -401,7 +401,7 @@ describe("evidence failures", () => {
     );
   });
 
-  it("blocks an unrecorded core-affecting merge with the recording command", () => {
+  it("blocks an unrecorded package-affecting merge with the recording command", () => {
     const branch = uniqueUpstreamBranch();
     repo.git("checkout", "-b", branch);
     repo.commitInScope(
@@ -450,7 +450,7 @@ describe("evidence failures", () => {
     );
   });
 
-  it("blocks an unrecorded merge whose core path git would quote", () => {
+  it("blocks an unrecorded merge whose package path git would quote", () => {
     // With the default `core.quotePath`, git prints this path C-quoted
     // ("packages/pi-subagents/…") and the old line-based enumeration read
     // the quoted string as one out-of-scope path, waving the unreviewed
@@ -515,7 +515,7 @@ describe("evidence failures", () => {
   });
 });
 
-describe("lossless core path enumeration", () => {
+describe("lossless package path enumeration", () => {
   // The evidence helpers feed the unreleased-tail guards, the unrecorded-merge
   // guard, and the recorder's review-path listing. Git's default listing
   // quotes any path containing non-ASCII, quote, tab, or newline characters,
@@ -604,7 +604,7 @@ describe("unreleased upstream tails", () => {
     });
   });
 
-  it("blocks unreleased in-scope core commits after the recorded sync release", () => {
+  it("blocks unreleased in-scope package commits after the recorded sync release", () => {
     // A hidden type on a test path: git-cliff's classification would hide
     // it, but the unreleased guard must not — in-scope work past the
     // recorded release blocks the release, whatever its commit type.
@@ -624,7 +624,7 @@ describe("unreleased upstream tails", () => {
     expect(error.message).toContain(tail);
   });
 
-  it("blocks unreleased core commits after the current release record's upstream release", () => {
+  it("blocks unreleased package commits after the current release record's upstream release", () => {
     // A shipped-docs path past the baseline release. Forging the baseline
     // tip means moving the fork release tag onto it: the recorded tip must
     // stay an ancestor of the fork release for the other guards to pass, so
@@ -668,7 +668,7 @@ describe("unreleased upstream tails", () => {
     });
   });
 
-  it("blocks a non-ASCII core tail after the recorded sync release", () => {
+  it("blocks a non-ASCII package tail after the recorded sync release", () => {
     // Git C-quotes this path ("packages/pi-subagents/src/\346\234\252…"), so
     // the old line-based enumeration classified it out of scope and derived
     // a patch from a window whose upstream tail was not actually released.
@@ -688,7 +688,7 @@ describe("unreleased upstream tails", () => {
     expect(error.message).toContain(tail);
   });
 
-  it("blocks a core tail whose path survives no line-based listing", () => {
+  it("blocks a package tail whose path survives no line-based listing", () => {
     const { tail } = syncWithTail([
       {
         message: "fix(pi-subagents): unreleased newline-named change",
@@ -705,9 +705,9 @@ describe("unreleased upstream tails", () => {
     expect(error.message).toContain(tail);
   });
 
-  it("blocks a non-ASCII core tail after the current release record's upstream release", () => {
+  it("blocks a non-ASCII package tail after the current release record's upstream release", () => {
     // Baseline-span variant of the shipped-docs case: the forged tip carries
-    // a core path git quotes, so the span must still fail closed.
+    // a package path git quotes, so the span must still fail closed.
     repo.commitInScope(
       "docs(pi-subagents): unreleased 指南 update",
       "packages/pi-subagents/docs/guide-指南.md",
@@ -732,7 +732,7 @@ describe("unreleased upstream tails", () => {
     expect(error.message).toContain(tail);
   });
 
-  it("blocks a tab-named core tail after the current release record's upstream release", () => {
+  it("blocks a tab-named package tail after the current release record's upstream release", () => {
     repo.commitInScope(
       "docs(pi-subagents): unreleased tabbed guide",
       "packages/pi-subagents/docs/guide\tname.md",
@@ -775,12 +775,12 @@ describe("unreleased upstream tails", () => {
     });
   });
 
-  it("blocks a merge-only core change in the current release record's upstream span", () => {
-    // The span's only core content is the merge's own first-parent diff: a
-    // conflict resolution that adds a core source file alongside the excluded
+  it("blocks a merge-only package change in the current release record's upstream span", () => {
+    // The span's only package content is the merge's own first-parent diff: a
+    // conflict resolution that adds a package source file alongside the excluded
     // doc it resolved. git log lists a merge with no file names unless merge
     // diffs are requested, so the span must fail closed on merge changes.
-    // (Inside the decision window an unrecorded core-affecting merge is
+    // (Inside the decision window an unrecorded package-affecting merge is
     // already blocked by the unrecorded-merge guard; the baseline span is
     // the surface only this check protects.)
     repo.commitInScope(
@@ -834,7 +834,7 @@ describe("unreleased upstream tails", () => {
     expect(error.message).toContain(merge);
   });
 
-  it("still allows a merge whose first-parent diff only touches excluded core docs", () => {
+  it("still allows a merge whose first-parent diff only touches excluded package docs", () => {
     // Positive control: merge changes count through the same scope predicate
     // as regular commits, so a resolution confined to internal working docs
     // never blocks a release.
@@ -930,7 +930,7 @@ describe("shared entry point", () => {
     expect(result.stdout.trim()).toBe("demo-v1.0.1");
   });
 
-  it("fails closed at the entry point on unrecorded core merges", () => {
+  it("fails closed at the entry point on unrecorded package-affecting merges", () => {
     const branch = uniqueUpstreamBranch();
     repo.git("checkout", "-b", branch);
     repo.commitInScope(
