@@ -3,7 +3,8 @@
 `@jopqior/pi-subagents` versions advance through merges of `upstream/main`, so the Conventional Commit classification of an integration merge cannot decide the fork's independent release level.
 A broad `feat!:` integration message describes upstream's release, not the fork's independent version.
 Fork release levels derive from verified correspondence evidence instead.
-For fetching, merging, conflict resolution, and the sync log, follow the [upstream sync procedure](../upstream-sync.md).
+For fetching, merging, approval-gated integration and per-sync records, invoke the no-argument [upstream sync workflow](../../.pi/prompts/upstream-sync.md) from the repo root.
+This guide owns release evidence and version derivation, not approval of integration edits.
 The [generated correspondence view](pi-subagents-correspondence.md) records each published fork version's verified direct upstream baseline.
 
 ## Evidence and tooling migration
@@ -11,7 +12,8 @@ The [generated correspondence view](pi-subagents-correspondence.md) records each
 The authoritative record is `scripts/release/pi-subagents/sync-state.json`, committed to Git.
 It stores the upstream release incorporated by each published fork release and the selected upstream release and reviewed fork contribution for each sync merge.
 The sync recorder (`--record-fork-sync`) writes reviewed merge evidence; release preparation writes the released row and regenerated view together.
-Resolve conflicting evidence in the state file only after review, then regenerate and check the view.
+Resolve conflicting evidence in the state file only after review and exact operator approval of the correction, then regenerate and check the view.
+During upstream integration, the workflow records that approval separately from this machine-owned evidence.
 
 The decision and recorder entry points are `scripts/release/fork-sync.mjs` and `scripts/release/record-fork-sync.mjs`; the sync script accepts `--record-fork-sync` instead of the removed `--record-core-sync` flag.
 The committed state moved to `scripts/release/pi-subagents/sync-state.json` with schema version 2 and `forkContribution` in each sync record.

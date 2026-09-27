@@ -292,7 +292,7 @@ describe("upstream-sync.sh", () => {
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(
-        "error: merge conflicts remain; see docs/upstream-sync.md",
+        "error: merge conflicts remain; resume /upstream-sync using .pi/prompts/upstream-sync.md",
       );
       expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(true);
       expect(revParse(work, "HEAD")).toBe(before);

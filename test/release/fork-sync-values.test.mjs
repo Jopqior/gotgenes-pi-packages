@@ -125,9 +125,9 @@ describe("level mapping", () => {
     expect(
       isPackageScopePath("packages/pi-colgrep/src/a.ts", "pi-subagents"),
     ).toBe(false);
-    expect(isPackageScopePath("docs/upstream-sync.md", "pi-subagents")).toBe(
-      false,
-    );
+    expect(
+      isPackageScopePath("docs/release/fork-sync.md", "pi-subagents"),
+    ).toBe(false);
   });
 });
 

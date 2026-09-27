@@ -262,7 +262,7 @@ if [[ "$merge" -eq 1 ]]; then
   if ! GIT_MERGE_AUTOEDIT=no git merge --no-ff -m "chore: merge upstream/main" "$target"; then
     unmerged="$(git ls-files -u)" || die "cannot inspect unmerged entries after merge failure"
     if [[ -n "$unmerged" ]]; then
-      printf 'error: merge conflicts remain; see docs/upstream-sync.md\n' >&2
+      printf 'error: merge conflicts remain; resume /upstream-sync using .pi/prompts/upstream-sync.md\n' >&2
       printf 'after resolving and git merge --continue, record the sync evidence:\n' >&2
       printf '  %s --record-fork-sync <merge> --fork-level <none|patch|minor|major> --rationale <text>\n' "$0" >&2
     else

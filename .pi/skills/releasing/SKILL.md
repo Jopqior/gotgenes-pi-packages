@@ -38,6 +38,16 @@ If `prepare` fails, nothing was tagged and the release can simply be re-dispatch
 If a later job fails, the tags are already pushed — fix the cause and re-run that job; re-dispatching would refuse on the existing tag.
 Before rerunning publication, ensure its checked-out package paths match the tags: `pnpm publish --no-git-checks` packs the working checkout, so the preflight rejects Git-visible tracked or untracked package drift and compares each package's `package.json` and `CHANGELOG.md` against its tag byte-for-byte.
 
+### Publication visibility readback
+
+After the approved release run succeeds, resolve each **actually released** package's registered npm name and tag/version from the release commit and tags; verify the run and release commit against the approved SHA before reporting publication.
+For each exact tag, read `gh release view <tag> --repo Jopqior/gotgenes-pi-packages --json tagName,url`, checking the returned tag against the expected one.
+At the explicitly approved npmjs.org destination, read `pnpm view <approved-npm-name>@<released-version> version dist.integrity --registry=https://registry.npmjs.org/`, checking the returned version and nonempty integrity against the release result; never query an inherited upstream scope as a substitute.
+A missing GitHub Release, wrong version, or absent integrity is **pending verification**, not proof that another publication is authorized.
+If registry propagation lags after a successful run, wait 30 seconds and recheck the **same exact identity** up to four times (at most two minutes of additional waits); record each result and elapsed wait.
+If it remains invisible, report the run success and pending visibility separately with the exact failed readback and a later recheck point; investigate the run/tag/registry before any recovery, never republish blindly.
+If a late job failed, follow the failed-job recovery above instead of treating the visibility wait as permission to redispatch.
+
 Versions and changelogs come from [git-cliff](https://git-cliff.org) reading local git, with no network in the derivation.
 The `pi-subagents` fork release level additionally uses verified correspondence (below).
 Preparation commits a decorated CHANGELOG section; the GitHub Release body comes from that exact tagged section, not a second render.
@@ -71,6 +81,7 @@ Its next tag comes from verified upstream correspondence in `scripts/release/pi-
 
 Evidence failures are strict errors, not "nothing to release": a nonzero exit means record the missing sync or fix the state, never that the package is quiet.
 There is no override flag.
+For upstream integration, invoke the no-argument `/upstream-sync` workflow (`.pi/prompts/upstream-sync.md`) to gate edits, record evidence, and seek independent push and publication approvals.
 After merging upstream, record reviewed evidence before dispatching a fork release:
 
 ```bash
