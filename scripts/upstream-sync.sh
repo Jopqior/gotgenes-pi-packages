@@ -9,8 +9,8 @@
 #   scripts/upstream-sync.sh --record-fork-sync <merge> \
 #       --fork-level <none|patch|minor|major> --rationale <text> # record reviewed sync evidence
 #
-# This script never pushes. The mutating half is a local merge on main.
-# Run ./scripts/upstream-sync.sh (no flag) for the read-only default.
+# This script never pushes. Every mode configures safeguards and fetches.
+# The default discovers upstream without merging; it is not read-only.
 #
 # tagOpt=--no-tags is the default when a fetch names neither --tags nor
 # --no-tags. git fetch --tags and git fetch --all --tags still override it, so
@@ -18,16 +18,15 @@
 
 set -euo pipefail
 
-UPSTREAM_URL='git@github.com:gotgenes/pi-packages.git'
-
 die() {
   printf 'error: %s\n' "$1" >&2
   exit 1
 }
 
 usage() {
-  printf 'Usage: %s [--merge | --record-fork-sync <merge> [--fork-level <level>] [--rationale <text>]]\n' "$(basename "$0")" >&2
+  printf 'Usage: %s [--upstream-protocol <ssh|https>] [--merge | --record-fork-sync <merge> [--fork-level <level>] [--rationale <text>]]\n' "$(basename "$0")" >&2
   printf '  (no flag)              ensure remote, fetch --no-tags, print ahead/behind\n' >&2
+  printf '  --upstream-protocol <ssh|https>  choose transport for a missing upstream remote\n' >&2
   printf '  --merge                the same, then git merge upstream/main (no push)\n' >&2
   printf '  --record-fork-sync <merge>\n' >&2
   printf '                        after a completed merge, append its reviewed fork sync\n' >&2
@@ -40,24 +39,34 @@ merge=0
 record_merge=""
 fork_level=""
 rationale=""
+upstream_protocol=""
 while [ $# -gt 0 ]; do
   case "$1" in
+    --upstream-protocol)
+      [ $# -ge 2 ] && [ -z "$upstream_protocol" ] || usage 1
+      case "$2" in ssh | https) ;; *) usage 1 ;; esac
+      upstream_protocol=$2
+      shift 2
+      ;;
     --merge)
+      [ "$merge" -eq 0 ] || usage 1
       merge=1
       shift
       ;;
     --record-fork-sync)
-      [ $# -ge 2 ] || usage 1
+      [ $# -ge 2 ] && [ -n "$2" ] && [ -z "$record_merge" ] || usage 1
+      [[ "$2" != --* ]] || usage 1
       record_merge=$2
       shift 2
       ;;
     --fork-level)
-      [ $# -ge 2 ] || usage 1
+      [ $# -ge 2 ] && [ -z "$fork_level" ] || usage 1
+      case "$2" in none | patch | minor | major) ;; *) usage 1 ;; esac
       fork_level=$2
       shift 2
       ;;
     --rationale)
-      [ $# -ge 2 ] || usage 1
+      [ $# -ge 2 ] && [ -n "$2" ] && [ -z "$rationale" ] || usage 1
       rationale=$2
       shift 2
       ;;
@@ -69,18 +78,36 @@ done
 if [ "$merge" -eq 1 ] && [ -n "$record_merge" ]; then
   usage 1
 fi
+if [[ -z "$record_merge" && ( -n "$fork_level" || -n "$rationale" ) ]]; then
+  usage 1
+fi
 
 repo_root="$(git rev-parse --show-toplevel)" || die "not inside a git repository"
 cd "$repo_root"
 
+repository_protocol() {
+  case "$1" in
+    "git@github.com:$2" | "git@github.com:$2.git") printf 'ssh\n' ;;
+    "https://github.com/$2" | "https://github.com/$2.git") printf 'https\n' ;;
+    *) return 1 ;;
+  esac
+}
+
 ensure_upstream_remote() {
+  local url protocol
   if git remote get-url upstream >/dev/null 2>&1; then
-    url="$(git remote get-url upstream)"
-    if [[ "$url" != "$UPSTREAM_URL" ]]; then
-      die "upstream remote URL is ${url}; expected ${UPSTREAM_URL}"
-    fi
+    url="$(git remote get-url --all upstream)"
+    protocol="$(repository_protocol "$url" gotgenes/pi-packages)" \
+      || die "unsupported upstream remote URL: ${url}"
+    [[ -z "$upstream_protocol" || "$upstream_protocol" == "$protocol" ]] \
+      || die "selected protocol conflicts with existing upstream URL; no URL changed"
   else
-    git remote add upstream "$UPSTREAM_URL"
+    [[ -n "$upstream_protocol" ]] || die "missing upstream remote; choose --upstream-protocol <ssh|https>"
+    case "$upstream_protocol" in
+      ssh) url='git@github.com:gotgenes/pi-packages.git' ;;
+      https) url='https://github.com/gotgenes/pi-packages.git' ;;
+    esac
+    git remote add upstream "$url"
   fi
   git config remote.upstream.tagOpt --no-tags
   git config remote.upstream.pushurl DISABLE
@@ -97,8 +124,8 @@ check_merge_preconditions() {
   branch="$(git branch --show-current)"
   [[ "$branch" == "main" ]] || refuse_merge "current branch is ${branch}, not main"
 
-  origin_url="$(git remote get-url origin)"
-  [[ "$origin_url" == *Jopqior/gotgenes-pi-packages* ]] \
+  origin_url="$(git remote get-url --all origin)"
+  repository_protocol "$origin_url" Jopqior/gotgenes-pi-packages >/dev/null \
     || refuse_merge "origin is not Jopqior/gotgenes-pi-packages (got ${origin_url})"
 
   # In-progress states are diagnosed before cleanliness: a conflicted merge
@@ -136,6 +163,10 @@ print_newest_upstream_pi_subagents_tag() {
   printf 'newest upstream pi-subagents tag: %s (%s)\n' "$newest" "$peeled"
 }
 
+if [[ "$merge" -eq 1 || -n "$record_merge" ]]; then
+  check_merge_preconditions
+fi
+
 ensure_upstream_remote
 printf 'remote.upstream.tagOpt=%s\n' "$(git config --get remote.upstream.tagOpt)"
 printf 'remote.upstream.pushurl=%s\n' "$(git config --get remote.upstream.pushurl)"
@@ -169,8 +200,6 @@ print_newest_upstream_pi_subagents_tag
 if [[ "$merge" -eq 0 && -z "$record_merge" ]]; then
   exit 0
 fi
-
-check_merge_preconditions
 
 if [[ "$merge" -eq 1 ]]; then
   if ! GIT_MERGE_AUTOEDIT=no git merge -m "chore: merge upstream/main" upstream/main; then

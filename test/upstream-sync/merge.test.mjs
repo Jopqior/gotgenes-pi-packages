@@ -254,7 +254,169 @@ describe("upstream-sync.sh", () => {
     });
   });
 
+  describe("transport and preflight", () => {
+    const repositories = {
+      origin: "Jopqior/gotgenes-pi-packages",
+      upstream: "gotgenes/pi-packages",
+    };
+    for (const [remote, repository] of Object.entries(repositories)) {
+      for (const url of [
+        `git@github.com:${repository}`,
+        `git@github.com:${repository}.git`,
+        `https://github.com/${repository}`,
+        `https://github.com/${repository}.git`,
+      ]) {
+        it(`preserves supported ${remote} URL ${url}`, () => {
+          const { work } = materializeNetwork("divergent");
+          git(work, ["remote", "set-url", remote, url]);
+          expect(runScript(work, ["--merge"]).status).toBe(0);
+          expect(git(work, ["remote", "get-url", remote]).stdout.trim()).toBe(
+            url,
+          );
+        });
+      }
+      for (const url of [
+        `https://evil.example/${repository}.git`,
+        `https://github.com/${repository}.git/extra`,
+        `https://github.com/${repository}.git?query`,
+        `https://github.com/${repository}.git#fragment`,
+        `https://user@github.com/${repository}.git`,
+        `https://github.com/prefix/${repository}.git`,
+        `/tmp/${repository}.git`,
+        `git@alias:${repository}.git`,
+        `git@github.com:${repository}.git/extra`,
+        `git@github.com:${repository}.git?query`,
+        `git@github.com:${repository}.git#fragment`,
+        `https://github.com/${repository}.git/`,
+        `ssh://git@github.com/${repository}.git`,
+        `git@github.com:${repository.toUpperCase()}.git`,
+        remote === "origin"
+          ? githubUpstream
+          : "git@github.com:Jopqior/gotgenes-pi-packages.git",
+      ]) {
+        it(`rejects unsupported ${remote} URL ${url} before writes`, () => {
+          const { work } = materializeNetwork("divergent");
+          git(work, ["remote", "set-url", remote, url]);
+          expect(runScript(work, ["--merge"]).status).toBe(1);
+          expect(recordedFetches()).toEqual([]);
+          expect(
+            recordedInvocations().filter(({ args }) => args[0] === "config"),
+          ).toEqual([]);
+          expect(git(work, ["remote", "get-url", remote]).stdout.trim()).toBe(
+            url,
+          );
+        });
+      }
+    }
+
+    it.each(["ssh", "https"])(
+      "creates a missing upstream only with explicit %s",
+      (protocol) => {
+        const { work } = materializeNetwork("divergent");
+        git(work, ["remote", "remove", "upstream"]);
+        expect(runScript(work, ["--upstream-protocol", protocol]).status).toBe(
+          0,
+        );
+        expect(git(work, ["remote", "get-url", "upstream"]).stdout.trim()).toBe(
+          protocol === "ssh"
+            ? githubUpstream
+            : "https://github.com/gotgenes/pi-packages.git",
+        );
+      },
+    );
+
+    it.each(["ssh", "https"])(
+      "merges after an explicit %s choice for a missing upstream",
+      (protocol) => {
+        const { work } = materializeNetwork("divergent");
+        git(work, ["remote", "remove", "upstream"]);
+        expect(
+          runScript(work, ["--merge", "--upstream-protocol", protocol]).status,
+        ).toBe(0);
+        expect(git(work, ["remote", "get-url", "upstream"]).stdout.trim()).toBe(
+          protocol === "ssh"
+            ? githubUpstream
+            : "https://github.com/gotgenes/pi-packages.git",
+        );
+        expect(parentsOf(work)).toHaveLength(2);
+      },
+    );
+
+    it.each([{ args: [] }, { args: ["--merge"] }])(
+      "does not choose a protocol for a missing upstream: $args",
+      ({ args }) => {
+        const { work } = materializeNetwork("divergent");
+        git(work, ["remote", "remove", "upstream"]);
+        expect(runScript(work, args).status).toBe(1);
+        expect(recordedFetches()).toEqual([]);
+        expect(
+          recordedInvocations().filter(
+            ({ args: call }) => call[0] === "config",
+          ),
+        ).toEqual([]);
+        expect(git(work, ["remote"]).stdout.trim()).toBe("origin");
+      },
+    );
+
+    it("refuses a protocol conflicting with the existing URL without rewriting it", () => {
+      const { work } = materializeNetwork("divergent");
+      expect(runScript(work, ["--upstream-protocol", "https"]).status).toBe(1);
+      expect(git(work, ["remote", "get-url", "upstream"]).stdout.trim()).toBe(
+        githubUpstream,
+      );
+      expect(recordedFetches()).toEqual([]);
+      expect(
+        recordedInvocations().filter(({ args }) => args[0] === "config"),
+      ).toEqual([]);
+    });
+
+    it.each([
+      ["--upstream-protocol"],
+      ["--upstream-protocol", "ftp"],
+      ["--fork-level", "none"],
+      ["--rationale", "orphan"],
+      ["--merge", "--record-fork-sync", "HEAD"],
+      ["--record-fork-sync", ""],
+      ["--merge", "--merge"],
+      ["--record-fork-sync", "HEAD", "--fork-level", "invalid"],
+    ])("rejects invalid options before writes: %j", (...args) => {
+      const { work } = materializeNetwork("divergent");
+      expect(runScript(work, args).status).toBe(1);
+      expect(recordedFetches()).toEqual([]);
+      expect(
+        recordedInvocations().filter(({ args: call }) => call[0] === "config"),
+      ).toEqual([]);
+    });
+
+    for (const args of [["--merge"], ["--record-fork-sync", "HEAD"]]) {
+      it(`checks local preconditions before setup and fetch in ${args[0]}`, () => {
+        const { work } = materializeNetwork("divergent");
+        git(work, ["remote", "remove", "upstream"]);
+        writeFiles(work, { "unrelated.txt": "dirty\n" });
+        const result = runScript(work, [...args, "--upstream-protocol", "ssh"]);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          "index or tracked worktree is not clean",
+        );
+        expect(recordedFetches()).toEqual([]);
+        expect(git(work, ["remote"]).stdout.trim()).toBe("origin");
+        expect(
+          recordedInvocations().filter(
+            ({ args: call }) => call[0] === "config",
+          ),
+        ).toEqual([]);
+      });
+    }
+  });
+
   describe("guards", () => {
+    const expectNoNetworkWrites = () => {
+      expect(recordedFetches()).toEqual([]);
+      expect(
+        recordedInvocations().filter(({ args }) => args[0] === "config"),
+      ).toEqual([]);
+    };
+
     it("accepts an existing SSH upstream remote", () => {
       const { work } = materializeNetwork("divergent");
       expect(git(work, ["remote", "get-url", "upstream"]).stdout.trim()).toBe(
@@ -295,6 +457,7 @@ describe("upstream-sync.sh", () => {
       expect(result.stderr).toContain(
         "error: current branch is feature, not main",
       );
+      expectNoNetworkWrites();
       expect(result.stderr).toContain(refuseHint);
       expect(revParse(work, "HEAD")).toBe(before);
       expect(git(work, ["branch", "--show-current"]).stdout.trim()).toBe(
@@ -320,6 +483,7 @@ describe("upstream-sync.sh", () => {
       expect(result.stderr).toContain(
         "error: origin is not Jopqior/gotgenes-pi-packages (got https://github.com/example/not-the-fork.git)",
       );
+      expectNoNetworkWrites();
       expect(result.stderr).toContain(refuseHint);
       expect(revParse(work, "HEAD")).toBe(before);
       expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
@@ -333,6 +497,7 @@ describe("upstream-sync.sh", () => {
 
       const result = runScript(work, ["--merge"]);
 
+      expectNoNetworkWrites();
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(
         "error: index or tracked worktree is not clean",
@@ -361,6 +526,7 @@ describe("upstream-sync.sh", () => {
 
       const result = runScript(work, ["--merge"]);
 
+      expectNoNetworkWrites();
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(
         "error: index or tracked worktree is not clean",
@@ -394,10 +560,16 @@ describe("upstream-sync.sh", () => {
         mergeMode: readGitStateFile(work, "MERGE_MODE"),
       };
 
+      const beforeInvocations = recordedInvocations().length;
       const result = runScript(work, ["--merge"]);
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("error: a merge is already in progress");
+      expect(
+        recordedInvocations()
+          .slice(beforeInvocations)
+          .filter(({ args }) => ["config", "fetch"].includes(args[0])),
+      ).toEqual([]);
       expect(result.stderr).toContain(refuseHint);
       expect(revParse(work, "HEAD")).toBe(before.head);
       expect(indexTree(work)).toBe(before.indexTree);
@@ -450,6 +622,7 @@ describe("upstream-sync.sh", () => {
       expect(snapshotDir(path.join(gitDir(work), "rebase-apply"))).toEqual(
         before.rebaseApply,
       );
+      expectNoNetworkWrites();
       expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
       expect(parentsOf(work)).toHaveLength(1);
     });
@@ -498,6 +671,7 @@ describe("upstream-sync.sh", () => {
       expect(snapshotDir(path.join(gitDir(work), "rebase-merge"))).toEqual(
         before.rebaseMerge,
       );
+      expectNoNetworkWrites();
       expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
     });
   });

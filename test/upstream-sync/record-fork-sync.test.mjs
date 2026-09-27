@@ -46,6 +46,177 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     return net.revParse(work, "HEAD");
   };
 
+  describe("transport and preflight", () => {
+    const review = [
+      "--fork-level",
+      "none",
+      "--rationale",
+      "upstream-only integration",
+    ];
+
+    it("preserves both HTTPS remote identities during recording", () => {
+      const { work } = net.materializeNetwork("fork-sync");
+      const merge = mergeUpstream(work);
+      const origin = "https://github.com/Jopqior/gotgenes-pi-packages";
+      const upstream = "https://github.com/gotgenes/pi-packages.git";
+      net.git(work, ["remote", "set-url", "origin", origin]);
+      net.git(work, ["remote", "set-url", "upstream", upstream]);
+      const before = net.recordedInvocations().length;
+
+      const result = net.runScript(work, [
+        "--record-fork-sync",
+        merge,
+        ...review,
+      ]);
+
+      expect(result.status).toBe(0);
+      expect(net.git(work, ["remote", "get-url", "origin"]).stdout.trim()).toBe(
+        origin,
+      );
+      expect(
+        net.git(work, ["remote", "get-url", "upstream"]).stdout.trim(),
+      ).toBe(upstream);
+      expect(
+        net
+          .recordedInvocations()
+          .slice(before)
+          .map(({ args }) => args)
+          .filter((args) => args[0] === "fetch"),
+      ).toEqual([["fetch", "--no-tags", "upstream", "main"]]);
+    });
+
+    for (const remote of ["origin", "upstream"]) {
+      it(`rejects an unsupported ${remote} identity before recording writes`, () => {
+        const { work } = net.materializeNetwork("fork-sync");
+        const merge = mergeUpstream(work);
+        const url =
+          remote === "origin"
+            ? "https://github.com/other/Jopqior/gotgenes-pi-packages.git"
+            : "https://github.com/gotgenes/pi-packages.git/extra";
+        net.git(work, ["remote", "set-url", remote, url]);
+        const before = net.recordedInvocations().length;
+        const stateBefore = readFileSync(statePathOf(work), "utf8");
+
+        const result = net.runScript(work, [
+          "--record-fork-sync",
+          merge,
+          ...review,
+        ]);
+
+        expect(result.status).toBe(1);
+        expect(
+          net
+            .recordedInvocations()
+            .slice(before)
+            .map(({ args }) => args)
+            .filter((args) => ["config", "fetch"].includes(args[0])),
+        ).toEqual([]);
+        expect(net.git(work, ["remote", "get-url", remote]).stdout.trim()).toBe(
+          url,
+        );
+        expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
+      });
+    }
+
+    it("requires explicit protocol when the upstream remote is missing during recording", () => {
+      const { work } = net.materializeNetwork("fork-sync");
+      const merge = mergeUpstream(work);
+      net.git(work, ["remote", "remove", "upstream"]);
+      const before = net.recordedInvocations().length;
+
+      const result = net.runScript(work, [
+        "--record-fork-sync",
+        merge,
+        ...review,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(net.git(work, ["remote"]).stdout.trim()).toBe("origin");
+      expect(
+        net
+          .recordedInvocations()
+          .slice(before)
+          .map(({ args }) => args)
+          .filter((args) => ["config", "fetch"].includes(args[0])),
+      ).toEqual([]);
+    });
+
+    it("uses an explicitly chosen HTTPS remote for recording", () => {
+      const { work } = net.materializeNetwork("fork-sync");
+      const merge = mergeUpstream(work);
+      net.git(work, ["remote", "remove", "upstream"]);
+
+      const result = net.runScript(work, [
+        "--record-fork-sync",
+        merge,
+        ...review,
+        "--upstream-protocol",
+        "https",
+      ]);
+
+      expect(result.status).toBe(0);
+      expect(
+        net.git(work, ["remote", "get-url", "upstream"]).stdout.trim(),
+      ).toBe("https://github.com/gotgenes/pi-packages.git");
+    });
+
+    it("rejects a conflicting protocol without rewriting the existing recording remote", () => {
+      const { work } = net.materializeNetwork("fork-sync");
+      const merge = mergeUpstream(work);
+      const before = net.recordedInvocations().length;
+
+      const result = net.runScript(work, [
+        "--record-fork-sync",
+        merge,
+        ...review,
+        "--upstream-protocol",
+        "https",
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(
+        net.git(work, ["remote", "get-url", "upstream"]).stdout.trim(),
+      ).toBe("git@github.com:gotgenes/pi-packages.git");
+      expect(
+        net
+          .recordedInvocations()
+          .slice(before)
+          .map(({ args }) => args)
+          .filter((args) => ["config", "fetch"].includes(args[0])),
+      ).toEqual([]);
+    });
+
+    it("checks a dirty index before adding a missing remote or fetching in recording mode", () => {
+      const { work } = net.materializeNetwork("fork-sync");
+      const merge = mergeUpstream(work);
+      net.git(work, ["remote", "remove", "upstream"]);
+      net.writeFiles(work, { "README.md": "staged change\n" });
+      net.git(work, ["add", "README.md"]);
+      const before = net.recordedInvocations().length;
+      const indexBefore = net.indexTree(work);
+
+      const result = net.runScript(work, [
+        "--record-fork-sync",
+        merge,
+        ...review,
+        "--upstream-protocol",
+        "ssh",
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("index or tracked worktree is not clean");
+      expect(net.git(work, ["remote"]).stdout.trim()).toBe("origin");
+      expect(net.indexTree(work)).toBe(indexBefore);
+      expect(
+        net
+          .recordedInvocations()
+          .slice(before)
+          .map(({ args }) => args)
+          .filter((args) => ["config", "fetch"].includes(args[0])),
+      ).toEqual([]);
+    });
+  });
+
   it("records verified sync evidence after a completed merge", () => {
     const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     const merge = mergeUpstream(work);
