@@ -530,7 +530,7 @@ This extension is a minimal, composable core: it owns agent spawning, execution,
 
 The direct upstream is [`@gotgenes/pi-subagents`](https://github.com/gotgenes/pi-packages/tree/main/packages/pi-subagents), maintained by [Chris Lasher](https://github.com/gotgenes).
 This fork retains its minimal-core architecture and adds the selection support described [above](#per-spawn-model-and-thinking-selection).
-Synchronization follows this repository's [upstream sync procedure](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream-sync.md).
+For integration, invoke this repository's [upstream sync workflow](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/.pi/prompts/upstream-sync.md) from the repository root.
 
 The earlier project, [`tintinweb/pi-subagents`](https://github.com/tintinweb/pi-subagents) by [@tintinweb](https://github.com/tintinweb), supplied the original foundation.
 The retained [historical comparison](./docs/comparison-with-upstream.md) explains the gotgenes-versus-tintinweb scope split; it is not a current three-way comparison.
