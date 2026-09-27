@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.4](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v4.0.3...pi-subagents-v4.0.4) (2026-09-27)
+
+
+### Documentation
+
+* **release:** separate release guidance from synchronization workflow ([#29](https://github.com/Jopqior/gotgenes-pi-packages/issues/29)) ([d5de85e](https://github.com/Jopqior/gotgenes-pi-packages/commit/d5de85edc1cd509af2f9abf68d668c05965618f4))
+
+<!-- upstream-correspondence:start -->
+### Upstream correspondence
+
+Direct upstream package: `@gotgenes/pi-subagents`  
+Incorporated upstream release: `21.7.7`  
+Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents)
+
+This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
+<!-- upstream-correspondence:end -->
+
 ## [4.0.3](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v4.0.2...pi-subagents-v4.0.3) (2026-09-26)
 
 
