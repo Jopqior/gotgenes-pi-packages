@@ -16,7 +16,7 @@ const repoRoot = path.resolve(
 );
 const libShPath = path.join(repoRoot, "scripts", "release", "lib.sh");
 const cliffTomlPath = path.join(repoRoot, "cliff.toml");
-const releaseScriptsDir = path.join(repoRoot, "scripts", "release");
+const defaultReleaseScriptsDir = path.join(repoRoot, "scripts", "release");
 const gitEnv = {
   ...process.env,
   GIT_CONFIG_GLOBAL: "/dev/null",
@@ -35,11 +35,13 @@ const gitEnv = {
  * fixture itself does not require `packages/<pkg>/` to exist until a test
  * commits into it.
  *
- * @param {{ pkg?: string }} [options]
+ * @param {{ pkg?: string, releaseScriptSourceDir?: string }} [options]
  * @returns {ReleaseRepositoryFixture}
  */
 export function createScratchReleaseRepository(options = {}) {
   const pkg = options.pkg ?? "demo";
+  const releaseScriptSourceDir =
+    options.releaseScriptSourceDir ?? defaultReleaseScriptsDir;
   const dir = mkdtempSync(path.join(tmpdir(), "release-repo-"));
   copyFileSync(cliffTomlPath, path.join(dir, "cliff.toml"));
 
@@ -203,20 +205,18 @@ export function createScratchReleaseRepository(options = {}) {
   }
 
   /**
-   * Copy the real release entry-point scripts into the scratch repo, so a
-   * test can run them as processes against fixture history. The scripts
-   * `cd` to their own repository root, so the copies operate on the scratch
-   * repo rather than the real checkout.
+   * Copy release scripts from the real tree (or an optional fixture source)
+   * into the scratch repo. The scripts `cd` to their own repository root, so
+   * the copies operate on fixture history rather than the real checkout.
    *
    * @param {...string} names file names under scripts/release/
    */
   function copyReleaseScripts(...names) {
     mkdirSync(path.join(dir, "scripts", "release"), { recursive: true });
     for (const name of names) {
-      copyFileSync(
-        path.join(releaseScriptsDir, name),
-        path.join(dir, "scripts", "release", name),
-      );
+      const destination = path.join(dir, "scripts", "release", name);
+      mkdirSync(path.dirname(destination), { recursive: true });
+      copyFileSync(path.join(releaseScriptSourceDir, name), destination);
     }
   }
 
