@@ -6,8 +6,9 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { CORE_PACKAGE, readCoreSyncState } from "./core-sync-state.mjs";
-import { CoreSyncError, compareVersions } from "./core-sync-values.mjs";
+import { readForkSyncState } from "./fork-sync/state.mjs";
+import { compareVersions, ForkSyncError } from "./fork-sync/values.mjs";
+import { forkSyncTarget } from "./pi-subagents/config.mjs";
 import {
   readReleasePackages,
   requireReleasePackage,
@@ -19,13 +20,18 @@ const START = "<!-- release-correspondence:start -->";
 const END = "<!-- release-correspondence:end -->";
 
 /**
- * @param {{ repo: string, registry: import('./release-correspondence.mjs').ReleaseRegistry, state: import('./core-sync-state.mjs').CoreSyncState, pending?: { tag: string, decision: { nextTag: string | null, upstream: { version: string, commit: string }, upstreamTip: string } } }} input
+ * @param {{ repo: string, registry: import('./release-correspondence.mjs').ReleaseRegistry, state: import('./fork-sync/state.mjs').ForkSyncState, pending?: { tag: string, decision: { nextTag: string | null, upstream: { version: string, commit: string }, upstreamTip: string } } }} input
  * @returns {string}
  */
 export function renderCorrespondenceTable(input) {
-  const registration = requireReleasePackage(input.registry, CORE_PACKAGE);
+  const registration = requireReleasePackage(
+    input.registry,
+    forkSyncTarget.directory,
+  );
   if (registration.kind !== "fork") {
-    throw new CoreSyncError(`${CORE_PACKAGE} must be registered as a fork`);
+    throw new ForkSyncError(
+      `${forkSyncTarget.directory} must be registered as a fork`,
+    );
   }
   const pendingTag = input.pending?.tag;
   const projectedRow = input.state.releases.find(
@@ -39,7 +45,7 @@ export function renderCorrespondenceTable(input) {
       projectedRow.upstream.commit !== input.pending.decision.upstream.commit ||
       projectedRow.upstreamTip !== input.pending.decision.upstreamTip)
   ) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       `projected correspondence disagrees with pending decision for ${pendingTag}`,
     );
   }
@@ -65,13 +71,13 @@ export function renderCorrespondenceTable(input) {
       }),
     });
   }
-  const prefix = `${CORE_PACKAGE}-v`;
+  const prefix = `${forkSyncTarget.directory}-v`;
   released.sort((a, b) =>
     compareVersions(a.tag.slice(prefix.length), b.tag.slice(prefix.length)),
   );
   const rows = released.map(({ tag, provenance }) => {
     if (provenance.kind !== "fork" || !tag.startsWith(prefix)) {
-      throw new CoreSyncError(`invalid fork correspondence row for ${tag}`);
+      throw new ForkSyncError(`invalid fork correspondence row for ${tag}`);
     }
     const version = tag.slice(prefix.length);
     return [
@@ -112,7 +118,7 @@ export function updateCorrespondenceDocument(document, table) {
   ];
   const ends = [...document.matchAll(/<!-- release-correspondence:end -->/g)];
   if (starts.length !== 1 || ends.length !== 1) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       "correspondence region requires exactly one start and end marker",
     );
   }
@@ -125,7 +131,7 @@ export function updateCorrespondenceDocument(document, table) {
     (finish > 0 && document[finish - 1] !== "\n") ||
     !["\n", undefined].includes(document[finish + END.length])
   ) {
-    throw new CoreSyncError("malformed correspondence region markers");
+    throw new ForkSyncError("malformed correspondence region markers");
   }
   return (
     document.slice(0, begin + START.length + 1) +
@@ -151,18 +157,19 @@ function main(args) {
   const repoIndex = flags.indexOf("--repo");
   if (repoIndex !== -1) {
     if (!flags[repoIndex + 1]) {
-      throw new CoreSyncError("--repo requires a path");
+      throw new ForkSyncError("--repo requires a path");
     }
     repo = path.resolve(flags[repoIndex + 1]);
     flags.splice(repoIndex, 2);
   }
   if (flags.length !== 1 || !["--check", "--write"].includes(flags[0])) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       "expected exactly one of --check or --write (see --help)",
     );
   }
-  const state = readCoreSyncState(
-    path.join(repo, "scripts/release/core-sync-state.json"),
+  const state = readForkSyncState(
+    path.join(repo, forkSyncTarget.statePath),
+    forkSyncTarget.directory,
   );
   const registry = readReleasePackages(
     path.join(repo, "scripts/release/release-packages.json"),
@@ -176,7 +183,7 @@ function main(args) {
   );
   if (flags[0] === "--check") {
     if (current !== expected) {
-      throw new CoreSyncError(
+      throw new ForkSyncError(
         `generated correspondence table is stale: ${documentPath} (run --write)`,
       );
     }

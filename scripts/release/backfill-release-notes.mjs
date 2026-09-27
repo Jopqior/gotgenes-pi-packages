@@ -6,8 +6,9 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { readCoreSyncState } from "./core-sync-state.mjs";
-import { CoreSyncError, parseStrictSemVer } from "./core-sync-values.mjs";
+import { readForkSyncState } from "./fork-sync/state.mjs";
+import { ForkSyncError, parseStrictSemVer } from "./fork-sync/values.mjs";
+import { forkSyncTarget } from "./pi-subagents/config.mjs";
 import {
   readReleasePackages,
   renderUpstreamCorrespondence,
@@ -40,18 +41,19 @@ export function previewReview({ repo, tags, readRelease }) {
     new Set(tags).size !== tags.length ||
     tags.some((tag) => typeof tag !== "string")
   )
-    throw new CoreSyncError("select distinct explicit release tags");
+    throw new ForkSyncError("select distinct explicit release tags");
   requireCommittedEvidence(repo, "scripts/release/release-packages.json");
-  requireCommittedEvidence(repo, "scripts/release/core-sync-state.json");
+  requireCommittedEvidence(repo, forkSyncTarget.statePath);
   const registry = readReleasePackages(
     path.join(repo, "scripts/release/release-packages.json"),
     repo,
   );
-  const state = readCoreSyncState(
-    path.join(repo, "scripts/release/core-sync-state.json"),
+  const state = readForkSyncState(
+    path.join(repo, forkSyncTarget.statePath),
+    forkSyncTarget.directory,
   );
   const review = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     repository: REPOSITORY,
     releases: [],
     missing: [],
@@ -101,7 +103,7 @@ function requireCommittedEvidence(repo, file) {
     encoding: "utf8",
   });
   if (readFileSync(path.join(repo, file), "utf8") !== committed)
-    throw new CoreSyncError(`uncommitted release evidence: ${file}`);
+    throw new ForkSyncError(`uncommitted release evidence: ${file}`);
 }
 
 function proposedBody(body, provenance) {
@@ -109,14 +111,14 @@ function proposedBody(body, provenance) {
   const starts = body.split(START).length - 1;
   const ends = body.split(END).length - 1;
   if (starts !== ends || starts > 1 || ends > 1)
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       "malformed or duplicate managed correspondence block",
     );
   if (starts === 1) {
     const start = body.indexOf(START);
     const end = body.indexOf(END);
     if (end < start || body.slice(start, end + END.length) !== block)
-      throw new CoreSyncError("conflicting managed correspondence block");
+      throw new ForkSyncError("conflicting managed correspondence block");
     return body;
   }
   return `${body}${body.endsWith("\n") ? "\n" : "\n\n"}${block}\n`;
@@ -130,13 +132,16 @@ export function readReview(text) {
     ["schemaVersion", "repository", "releases", "missing"],
     "review",
   );
+  if (review.schemaVersion !== 2)
+    throw new ForkSyncError(
+      "unsupported backfill review version; generate a new preview and obtain fresh approval (schemaVersion 2)",
+    );
   if (
-    review.schemaVersion !== 1 ||
     review.repository !== REPOSITORY ||
     !Array.isArray(review.releases) ||
     !Array.isArray(review.missing)
   )
-    throw new CoreSyncError("invalid review version, repository, or selection");
+    throw new ForkSyncError("invalid review version, repository, or selection");
   const seen = new Set();
   for (const [kind, entries] of [
     ["releases", review.releases],
@@ -160,12 +165,14 @@ export function readReview(text) {
       );
       if (
         typeof entry.tag !== "string" ||
-        !entry.tag.startsWith("pi-subagents-v") ||
-        !parseStrictSemVer(entry.tag.slice("pi-subagents-v".length)) ||
+        !entry.tag.startsWith(`${forkSyncTarget.directory}-v`) ||
+        !parseStrictSemVer(
+          entry.tag.slice(`${forkSyncTarget.directory}-v`.length),
+        ) ||
         seen.has(entry.tag) ||
         !isCommitOid(entry.tagOid)
       )
-        throw new CoreSyncError("invalid or duplicate reviewed tag/OID");
+        throw new ForkSyncError("invalid or duplicate reviewed tag/OID");
       seen.add(entry.tag);
       exactKeys(
         entry.identity,
@@ -193,9 +200,9 @@ export function readReview(text) {
         "provenance",
       );
       if (
-        entry.identity.directory !== "pi-subagents" ||
+        entry.identity.directory !== forkSyncTarget.directory ||
         entry.identity.name !== "@jopqior/pi-subagents" ||
-        entry.identity.evidenceRoute !== "core-sync" ||
+        entry.identity.evidenceRoute !== "fork-sync" ||
         entry.identity.upstream.name !== "@gotgenes/pi-subagents" ||
         entry.identity.upstream.repository !== "gotgenes/pi-packages" ||
         entry.identity.upstream.directory !== "packages/pi-subagents" ||
@@ -209,18 +216,18 @@ export function readReview(text) {
         entry.provenance.sourceUrl !==
           `https://github.com/${entry.identity.upstream.repository}/blob/${entry.evidence.upstream.commit}/${entry.identity.upstream.directory}`
       )
-        throw new CoreSyncError(
+        throw new ForkSyncError(
           `invalid reviewed correspondence for ${entry.tag}`,
         );
       if (kind === "releases") {
         validateRelease(entry.release, entry.tag);
         if (typeof entry.proposedBody !== "string")
-          throw new CoreSyncError("invalid proposed body");
+          throw new ForkSyncError("invalid proposed body");
       }
     }
   }
   if (seen.size === 0)
-    throw new CoreSyncError("review has no selected fork releases");
+    throw new ForkSyncError("review has no selected fork releases");
   return review;
 }
 function isCommitOid(value) {
@@ -234,7 +241,7 @@ function exactKeys(value, keys, what) {
     Object.keys(value).length !== keys.length ||
     keys.some((key) => !Object.hasOwn(value, key))
   )
-    throw new CoreSyncError(`invalid ${what} fields`);
+    throw new ForkSyncError(`invalid ${what} fields`);
 }
 function validateRelease(value, tag) {
   exactKeys(value, RELEASE_FIELDS, `Release ${tag}`);
@@ -254,7 +261,7 @@ function validateRelease(value, tag) {
       (item) => typeof item === "boolean",
     )
   )
-    throw new CoreSyncError(`invalid Release snapshot for ${tag}`);
+    throw new ForkSyncError(`invalid Release snapshot for ${tag}`);
 }
 
 /** Validate all reviewed entries against local evidence and live remote before the first edit. */
@@ -274,7 +281,7 @@ export function applyReview({ repo, review, readRelease, editRelease }) {
   for (const entry of [...reviewed.releases, ...reviewed.missing]) {
     const now = live.get(entry.tag);
     if (!now || Boolean(now.release) !== Boolean(entry.release))
-      throw new CoreSyncError(`Release availability changed for ${entry.tag}`);
+      throw new ForkSyncError(`Release availability changed for ${entry.tag}`);
     const {
       release: expectedRelease,
       proposedBody: expectedProposed,
@@ -286,16 +293,16 @@ export function applyReview({ repo, review, readRelease, editRelease }) {
       ...liveSnapshot
     } = now;
     if (JSON.stringify(originalSnapshot) !== JSON.stringify(liveSnapshot))
-      throw new CoreSyncError(
+      throw new ForkSyncError(
         `tag, identity, or evidence changed for ${entry.tag}`,
       );
     if (!expectedRelease) continue;
     if (expectedRelease.isImmutable)
-      throw new CoreSyncError(`immutable Release ${entry.tag}`);
+      throw new ForkSyncError(`immutable Release ${entry.tag}`);
     if (
       expectedProposed !== proposedBody(expectedRelease.body, entry.provenance)
     )
-      throw new CoreSyncError(`edited proposed body for ${entry.tag}`);
+      throw new ForkSyncError(`edited proposed body for ${entry.tag}`);
     const { body: originalBody, ...metadata } = expectedRelease;
     const { body: currentBody, ...currentMetadata } = liveRelease;
     if (
@@ -303,7 +310,7 @@ export function applyReview({ repo, review, readRelease, editRelease }) {
       (currentBody !== originalBody && currentBody !== expectedProposed) ||
       liveProposed !== expectedProposed
     )
-      throw new CoreSyncError(`stale Release snapshot for ${entry.tag}`);
+      throw new ForkSyncError(`stale Release snapshot for ${entry.tag}`);
   }
   for (const entry of reviewed.releases) {
     if (live.get(entry.tag).release.body === entry.proposedBody) continue;
@@ -315,7 +322,7 @@ export function applyReview({ repo, review, readRelease, editRelease }) {
         JSON.stringify(entry.release) ||
       after.body !== entry.proposedBody
     )
-      throw new CoreSyncError(`Release readback differs for ${entry.tag}`);
+      throw new ForkSyncError(`Release readback differs for ${entry.tag}`);
   }
   return reviewed.releases.length;
 }
@@ -337,7 +344,7 @@ function githubRelease(tag) {
   if (command.error) throw command.error;
   if (command.status === 0) return JSON.parse(command.stdout);
   if (/release not found|HTTP 404/i.test(command.stderr)) return null;
-  throw new CoreSyncError(`cannot read Release ${tag}: ${command.stderr}`);
+  throw new ForkSyncError(`cannot read Release ${tag}: ${command.stderr}`);
 }
 function editGithubRelease(tag, body) {
   const dir = mkdtempSync(path.join(tmpdir(), "release-backfill-"));
@@ -386,7 +393,7 @@ function main(args) {
     process.stdout.write("Reviewed Release notes checked and read back.\n");
     return;
   }
-  throw new CoreSyncError("invalid backfill invocation (see --help)");
+  throw new ForkSyncError("invalid backfill invocation (see --help)");
 }
 if (
   process.argv[1] &&

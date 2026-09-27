@@ -1,28 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import { createCoreSyncScenario } from "./helpers/core-sync-scenario.mjs";
+import { createForkSyncScenario } from "./helpers/fork-sync-scenario.mjs";
 
 // The scenario helper's own contract: every default `syncUpstream` record
-// carries its own none contribution, so forging one record's `forkCore` in
+// carries its own none contribution, so forging one record's `forkContribution` in
 // place can never leak into a sibling record or into another scenario
 // instance. Tests rely on exactly this when they mutate recorded evidence.
 
-describe("core sync scenario", () => {
+describe("fork sync scenario", () => {
   it("gives each recorded sync its own none contribution", () => {
-    const scenario = createCoreSyncScenario();
+    const scenario = createForkSyncScenario();
     try {
       scenario.syncUpstream({ version: "21.8.0" });
       scenario.syncUpstream({ version: "21.9.0" });
       const [first, second] = scenario.recordedSyncs;
-      expect(first.forkCore).not.toBe(second.forkCore);
+      expect(first.forkContribution).not.toBe(second.forkContribution);
 
-      first.forkCore.level = "patch";
-      first.forkCore.rationale = "forged contribution";
-      first.forkCore.paths.push("packages/pi-subagents/src/forged.ts");
+      first.forkContribution.level = "patch";
+      first.forkContribution.rationale = "forged contribution";
+      first.forkContribution.paths.push("packages/pi-subagents/src/forged.ts");
 
-      expect(second.forkCore).toEqual({
+      expect(second.forkContribution).toEqual({
         level: "none",
-        rationale: "upstream-only integration; no fork core resolution",
+        rationale: "upstream-only integration; no fork contribution resolution",
         paths: [],
       });
     } finally {
@@ -31,20 +31,20 @@ describe("core sync scenario", () => {
   });
 
   it("keeps none contributions independent across scenario instances", () => {
-    const first = createCoreSyncScenario();
-    const second = createCoreSyncScenario();
+    const first = createForkSyncScenario();
+    const second = createForkSyncScenario();
     try {
       first.syncUpstream({ version: "21.8.0" });
       second.syncUpstream({ version: "21.8.0" });
 
-      first.recordedSyncs[0].forkCore.level = "major";
-      first.recordedSyncs[0].forkCore.paths.push(
+      first.recordedSyncs[0].forkContribution.level = "major";
+      first.recordedSyncs[0].forkContribution.paths.push(
         "packages/pi-subagents/src/forged.ts",
       );
 
-      expect(second.recordedSyncs[0].forkCore).toEqual({
+      expect(second.recordedSyncs[0].forkContribution).toEqual({
         level: "none",
-        rationale: "upstream-only integration; no fork core resolution",
+        rationale: "upstream-only integration; no fork contribution resolution",
         paths: [],
       });
     } finally {

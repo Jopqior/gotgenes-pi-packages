@@ -6,10 +6,11 @@ import path from "node:path";
 
 import {
   runGit,
-  verifyPublishedCoreCorrespondence,
-  verifyPublishedCoreTail,
-} from "./core-sync-evidence.mjs";
-import { CoreSyncError, parseStrictSemVer } from "./core-sync-values.mjs";
+  verifyPublishedCorrespondence,
+  verifyPublishedTail,
+} from "./fork-sync/evidence.mjs";
+import { ForkSyncError, parseStrictSemVer } from "./fork-sync/values.mjs";
+import { forkSyncTarget } from "./pi-subagents/config.mjs";
 
 /**
  * Render a single bounded claim from verified provenance; originals have no
@@ -47,7 +48,7 @@ export function readTaggedReleaseSection(input) {
     !tag.startsWith(`${packageDirectory}-v`) ||
     !parseStrictSemVer(tag.slice(`${packageDirectory}-v`.length))
   ) {
-    throw new CoreSyncError(`invalid package release tag ${tag}`);
+    throw new ForkSyncError(`invalid package release tag ${tag}`);
   }
   let text;
   try {
@@ -57,7 +58,7 @@ export function readTaggedReleaseSection(input) {
       { cwd: repo, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
     );
   } catch (error) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       `cannot read tagged CHANGELOG for ${tag}: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
@@ -116,13 +117,13 @@ export function findReleaseSection(text, tag, directory) {
     offset += entireLine.length;
   }
   if (fence) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       `unclosed Markdown fence in tagged CHANGELOG ${tag}`,
     );
   }
   const matches = headings.filter((heading) => heading.matches);
   if (matches.length !== 1) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       `${matches.length === 0 ? "missing" : "ambiguous"} exact fork section for ${tag}`,
     );
   }
@@ -131,10 +132,10 @@ export function findReleaseSection(text, tag, directory) {
 }
 
 /** @typedef {{ directory: string, name: string, kind: "original" }} OriginalPackage */
-/** @typedef {{ directory: string, name: string, kind: "fork", upstream: { name: string, repository: string, directory: string }, evidence: "core-sync" }} ForkPackage */
+/** @typedef {{ directory: string, name: string, kind: "fork", upstream: { name: string, repository: string, directory: string }, evidence: "fork-sync" }} ForkPackage */
 /** @typedef {OriginalPackage | ForkPackage} ReleasePackage */
-/** @typedef {{ schemaVersion: 1, packages: ReleasePackage[] }} ReleaseRegistry */
-/** @typedef {import("./core-sync-state.mjs").CoreReleaseRecord} CoreReleaseRecord */
+/** @typedef {{ schemaVersion: 2, packages: ReleasePackage[] }} ReleaseRegistry */
+/** @typedef {import("./fork-sync/state.mjs").ForkReleaseRecord} ForkReleaseRecord */
 
 /**
  * @param {string} file
@@ -146,7 +147,7 @@ export function readReleasePackages(file, repo) {
   try {
     document = JSON.parse(readFileSync(file, "utf8"));
   } catch (error) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       `cannot read release package registry ${file}: ${String(error)}`,
     );
   }
@@ -173,9 +174,9 @@ export function validateReleasePackages(value) {
     ["schemaVersion", "packages"],
     "release package registry",
   );
-  if (document.schemaVersion !== 1 || !Array.isArray(document.packages)) {
-    throw new CoreSyncError(
-      "release package registry requires schemaVersion 1 and a packages array",
+  if (document.schemaVersion !== 2 || !Array.isArray(document.packages)) {
+    throw new ForkSyncError(
+      "release package registry requires schemaVersion 2 and a packages array",
     );
   }
   /** @type {ReleasePackage[]} */
@@ -186,7 +187,7 @@ export function validateReleasePackages(value) {
     const what = `release packages[${index}]`;
     const entry = requireRecord(candidate, what);
     if (entry.kind !== "fork" && entry.kind !== "original") {
-      throw new CoreSyncError(
+      throw new ForkSyncError(
         `${what} has unsupported kind ${JSON.stringify(entry.kind)}`,
       );
     }
@@ -201,7 +202,7 @@ export function validateReleasePackages(value) {
       typeof entry.directory !== "string" ||
       !/^[a-z][a-z0-9-]*$/.test(entry.directory)
     ) {
-      throw new CoreSyncError(
+      throw new ForkSyncError(
         `${what}.directory must be a package directory name without traversal`,
       );
     }
@@ -209,10 +210,10 @@ export function validateReleasePackages(value) {
       typeof entry.name !== "string" ||
       !/^@[a-z0-9-]+\/[a-z][a-z0-9-]*$/.test(entry.name)
     ) {
-      throw new CoreSyncError(`${what}.name must be a scoped npm package name`);
+      throw new ForkSyncError(`${what}.name must be a scoped npm package name`);
     }
     if (directories.has(entry.directory) || names.has(entry.name)) {
-      throw new CoreSyncError(
+      throw new ForkSyncError(
         `${what} duplicates a registered directory or npm identity`,
       );
     }
@@ -226,8 +227,11 @@ export function validateReleasePackages(value) {
       });
       continue;
     }
-    if (entry.evidence !== "core-sync" || entry.directory !== "pi-subagents") {
-      throw new CoreSyncError(`${what} has no supported evidence route`);
+    if (
+      entry.evidence !== "fork-sync" ||
+      entry.directory !== forkSyncTarget.directory
+    ) {
+      throw new ForkSyncError(`${what} has no supported evidence route`);
     }
     const upstream = requireRecord(entry.upstream, `${what}.upstream`);
     requireKeys(
@@ -240,9 +244,9 @@ export function validateReleasePackages(value) {
       !/^@[a-z0-9-]+\/[a-z][a-z0-9-]*$/.test(upstream.name) ||
       typeof upstream.repository !== "string" ||
       !/^[a-zA-Z0-9-]+\/[a-zA-Z0-9-]+$/.test(upstream.repository) ||
-      upstream.directory !== "packages/pi-subagents"
+      upstream.directory !== `packages/${forkSyncTarget.directory}`
     ) {
-      throw new CoreSyncError(
+      throw new ForkSyncError(
         `${what}.upstream has invalid identity, repository, or package path`,
       );
     }
@@ -255,10 +259,10 @@ export function validateReleasePackages(value) {
         repository: upstream.repository,
         directory: upstream.directory,
       },
-      evidence: "core-sync",
+      evidence: "fork-sync",
     });
   }
-  return { schemaVersion: 1, packages };
+  return { schemaVersion: 2, packages };
 }
 
 /**
@@ -271,7 +275,7 @@ export function requireReleasePackage(registry, directory) {
     (candidate) => candidate.directory === directory,
   );
   if (!entry) {
-    throw new CoreSyncError(`no release package registration for ${directory}`);
+    throw new ForkSyncError(`no release package registration for ${directory}`);
   }
   return entry;
 }
@@ -280,7 +284,7 @@ export function requireReleasePackage(registry, directory) {
  * Resolve a published artifact against the exact tagged state record; no
  * current HEAD or sync-window decision is involved.
  *
- * @param {{ repo: string, tag: string, registry: ReleaseRegistry, state: { releases: CoreReleaseRecord[] } }} input
+ * @param {{ repo: string, tag: string, registry: ReleaseRegistry, state: { releases: ForkReleaseRecord[] } }} input
  * @returns {{ kind: "original" } | { kind: "fork", upstreamPackage: string, upstreamVersion: string, sourceUrl: string }}
  */
 export function resolvePublishedCorrespondence(input) {
@@ -309,12 +313,17 @@ export function resolvePublishedCorrespondence(input) {
     (record) => record.forkTag === input.tag,
   );
   if (!release) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       `no recorded upstream correspondence for ${input.tag}`,
     );
   }
-  verifyPublishedCoreCorrespondence(input.repo, release, peeled);
-  verifyPublishedCoreTail(input.repo, release);
+  verifyPublishedCorrespondence(
+    input.repo,
+    release,
+    peeled,
+    registration.directory,
+  );
+  verifyPublishedTail(input.repo, release, registration.directory);
   verifyUpstreamIdentity(input.repo, registration, release.upstream.commit);
   return forkProvenance(registration, release.upstream);
 }
@@ -337,7 +346,7 @@ export function resolvePendingCorrespondence(input) {
     return { kind: "original" };
   }
   if (!input.decision || input.decision.nextTag !== input.tag) {
-    throw new CoreSyncError(`predicted tag does not match ${input.tag}`);
+    throw new ForkSyncError(`predicted tag does not match ${input.tag}`);
   }
   verifyUpstreamIdentity(
     input.repo,
@@ -350,7 +359,7 @@ export function resolvePendingCorrespondence(input) {
 function registrationForTag(registry, tag) {
   const match = /^(.*)-v(\d+\.\d+\.\d+)$/.exec(tag);
   if (!match || !parseStrictSemVer(match[2])) {
-    throw new CoreSyncError(`invalid package release tag ${tag}`);
+    throw new ForkSyncError(`invalid package release tag ${tag}`);
   }
   return requireReleasePackage(registry, match[1]);
 }
@@ -396,7 +405,7 @@ function readWorkingManifest(repo, directory) {
       "utf8",
     );
   } catch (error) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       `cannot read registered package ${directory} manifest: ${String(error)}`,
     );
   }
@@ -407,13 +416,13 @@ function parseManifest(text, what) {
   try {
     return requireRecord(JSON.parse(text), `${what} manifest`);
   } catch (error) {
-    throw new CoreSyncError(`invalid ${what} manifest: ${String(error)}`);
+    throw new ForkSyncError(`invalid ${what} manifest: ${String(error)}`);
   }
 }
 
 function requireIdentity(manifest, name, what) {
   if (manifest.name !== name) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       `${what} npm name does not match registration: ${JSON.stringify(manifest.name)} != ${name}`,
     );
   }
@@ -421,7 +430,7 @@ function requireIdentity(manifest, name, what) {
 
 function requireVersion(manifest, version, what) {
   if (manifest.version !== version) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       `${what} manifest version does not match tag: ${JSON.stringify(manifest.version)} != ${version}`,
     );
   }
@@ -429,7 +438,7 @@ function requireVersion(manifest, version, what) {
 
 function requireRecord(value, what) {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new CoreSyncError(`${what} must be an object`);
+    throw new ForkSyncError(`${what} must be an object`);
   }
   return value;
 }
@@ -437,7 +446,7 @@ function requireRecord(value, what) {
 function requireKeys(record, allowed, what) {
   for (const key of Object.keys(record)) {
     if (!allowed.includes(key)) {
-      throw new CoreSyncError(`unknown ${what} field '${key}'`);
+      throw new ForkSyncError(`unknown ${what} field '${key}'`);
     }
   }
 }

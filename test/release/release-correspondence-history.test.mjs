@@ -3,11 +3,11 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 import {
-  coreCommitsBetween,
   isAncestorOf,
+  packageCommitsBetween,
   runGit,
-} from "../../scripts/release/core-sync-evidence.mjs";
-import { readCoreSyncState } from "../../scripts/release/core-sync-state.mjs";
+} from "../../scripts/release/fork-sync/evidence.mjs";
+import { readForkSyncState } from "../../scripts/release/fork-sync/state.mjs";
 import {
   readReleasePackages,
   requireReleasePackage,
@@ -18,7 +18,10 @@ const repo = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
 );
-const stateFile = path.join(repo, "scripts/release/core-sync-state.json");
+const stateFile = path.join(
+  repo,
+  "scripts/release/pi-subagents/sync-state.json",
+);
 const registryFile = path.join(repo, "scripts/release/release-packages.json");
 const oldRelease = "b3b6159399f541fd0623f65818557dd3e707a34f";
 const oldTip = "045213317de608c04a7b6052b2b843e3a0f2176f";
@@ -56,7 +59,7 @@ function expectHistoricalRecordsRetained(state) {
     {
       merge: "0408aa5ff9d9811d98df17dde436e7fd45a5a3ad",
       upstream: { version: "21.7.3", commit: newerRelease },
-      forkCore: {
+      forkContribution: {
         level: "none",
         rationale:
           "integration carried upstream 21.7.x compatibility work; conflict resolutions kept fork identity without changing the core contract",
@@ -78,7 +81,7 @@ describe("committed release identities", () => {
         repository: "gotgenes/pi-packages",
         directory: "packages/pi-subagents",
       },
-      evidence: "core-sync",
+      evidence: "fork-sync",
     });
     expect(
       requireReleasePackage(registry, "pi-subagents-model-selector"),
@@ -92,7 +95,7 @@ describe("committed release identities", () => {
 
 describe("recorded correspondence against real Git history", () => {
   it("retains historical correspondence and sync reviews while verifying every committed row", () => {
-    const state = readCoreSyncState(stateFile);
+    const state = readForkSyncState(stateFile, "pi-subagents");
     const registry = readReleasePackages(registryFile, repo);
     expectHistoricalRecordsRetained(state);
     expect(state.releases.map((release) => release.forkTag).toSorted()).toEqual(
@@ -116,7 +119,7 @@ describe("recorded correspondence against real Git history", () => {
   });
 
   it("allows additive future correspondence and reviewed sync records", () => {
-    const state = readCoreSyncState(stateFile);
+    const state = readForkSyncState(stateFile, "pi-subagents");
     // Synthetic additions probe the open inventory, not claim a real future tag.
     const projected = {
       ...state,
@@ -136,7 +139,7 @@ describe("recorded correspondence against real Git history", () => {
   it.each(historicalReleases)(
     "%s binds its own upstream release, manifest, ancestry, and empty in-scope tail",
     (tag, version, releaseCommit, upstreamTip) => {
-      const state = readCoreSyncState(stateFile);
+      const state = readForkSyncState(stateFile, "pi-subagents");
       const registry = readReleasePackages(registryFile, repo);
       const row = state.releases.find((record) => record.forkTag === tag);
       const peeled = runGit(repo, "rev-parse", "--verify", `${tag}^{commit}`);
@@ -157,7 +160,9 @@ describe("recorded correspondence against real Git history", () => {
       expect(isAncestorOf(repo, releaseCommit, upstreamTip)).toBe(true);
       expect(isAncestorOf(repo, releaseCommit, peeled)).toBe(true);
       expect(isAncestorOf(repo, upstreamTip, peeled)).toBe(true);
-      expect(coreCommitsBetween(repo, releaseCommit, upstreamTip)).toEqual([]);
+      expect(
+        packageCommitsBetween(repo, releaseCommit, upstreamTip, "pi-subagents"),
+      ).toEqual([]);
       expect(
         resolvePublishedCorrespondence({ repo, tag, registry, state }),
       ).toEqual({
@@ -175,7 +180,7 @@ describe("recorded correspondence against real Git history", () => {
   );
 
   it("does not assign inherited upstream correspondence to selector releases", () => {
-    const state = readCoreSyncState(stateFile);
+    const state = readForkSyncState(stateFile, "pi-subagents");
     const registry = readReleasePackages(registryFile, repo);
     expect(
       resolvePublishedCorrespondence({

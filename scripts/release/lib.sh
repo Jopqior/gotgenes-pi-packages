@@ -109,14 +109,14 @@ bumped_version() { # <tag>
   git-cliff "${CLIFF_ARGS[@]}" --bumped-version "$(git rev-parse "$1")..HEAD" 2>/dev/null
 }
 
-# Print the absolute path of the core release policy CLI, resolved next to
+# Print the absolute path of the fork release policy CLI, resolved next to
 # this file so a scratch repository's own script layout cannot shadow the
 # implementation a caller intended. Both the prediction entry and release
 # preparation resolve it here, so there is one spelling of the path.
-core_sync_cli() {
+fork_sync_cli() {
   local dir
   dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  printf '%s/core-sync.mjs\n' "$dir"
+  printf '%s/fork-sync.mjs\n' "$dir"
 }
 
 # Print the next release tag for package $1 given its current release tag $2,
@@ -126,11 +126,11 @@ core_sync_cli() {
 # here, so package-specific policy has one home instead of a per-script
 # sequence to keep in step.
 #
-# The core package (pi-subagents) derives its tag from verified upstream
+# The fork package (pi-subagents) derives its tag from verified upstream
 # correspondence instead of the repository-wide commit classification: its
 # history advances through upstream merges whose messages describe upstream
 # releases, not the independent fork version. The policy lives in
-# scripts/release/core-sync.mjs; it receives the scoping arguments verbatim
+# scripts/release/fork-sync.mjs; it receives the scoping arguments verbatim
 # (the same CLIFF_ARGS array this entry built) so there is exactly one
 # representation of the package's path scope.
 #
@@ -140,14 +140,14 @@ core_sync_cli() {
 next_tag() { # <package> <current-tag>
   cliff_args "$1"
   if [ "$1" = "pi-subagents" ]; then
-    local core_next
-    if ! core_next=$(node "$(core_sync_cli)" --repo "$PWD" --current "$2" -- "${CLIFF_ARGS[@]}"); then
+    local fork_next
+    if ! fork_next=$(node "$(fork_sync_cli)" --repo "$PWD" --current "$2" -- "${CLIFF_ARGS[@]}"); then
       return 1
     fi
-    # The core CLI prints nothing when no level was decided; normalize to the
+    # The fork CLI prints nothing when no level was decided; normalize to the
     # bumped_version contract so callers see the current tag, never an empty
     # string that reads as a derivation failure.
-    printf '%s\n' "${core_next:-$2}"
+    printf '%s\n' "${fork_next:-$2}"
   else
     bumped_version "$2"
   fi

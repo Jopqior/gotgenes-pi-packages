@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { readForkSyncState } from "../../scripts/release/fork-sync/state.mjs";
 
 import { createUpstreamNetwork, realGit } from "./helpers/upstream-network.mjs";
 
@@ -17,13 +18,13 @@ afterEach(() => {
   net.dispose();
 });
 
-describe("upstream-sync.sh --record-core-sync", () => {
+describe("upstream-sync.sh --record-fork-sync", () => {
   /**
    * @param {string} work
    * @returns {string}
    */
   const statePathOf = (work) =>
-    path.join(work, "scripts", "release", "core-sync-state.json");
+    path.join(work, "scripts", "release", "pi-subagents/sync-state.json");
 
   /**
    * @param {string} work
@@ -41,12 +42,12 @@ describe("upstream-sync.sh --record-core-sync", () => {
   const mergeUpstream = (work) => {
     const result = net.runScript(work, ["--merge"]);
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain("record its reviewed core sync evidence");
+    expect(result.stdout).toContain("record its reviewed fork sync evidence");
     return net.revParse(work, "HEAD");
   };
 
   it("records verified sync evidence after a completed merge", () => {
-    const { work, upstreamBare } = net.materializeNetwork("core-sync");
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     const merge = mergeUpstream(work);
     const releaseOid = net.revParse(
       upstreamBare,
@@ -55,7 +56,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
     const stateBefore = readState(work);
 
     const result = net.runScript(work, [
-      "--record-core-sync",
+      "--record-fork-sync",
       merge,
       "--fork-level",
       "none",
@@ -66,12 +67,14 @@ describe("upstream-sync.sh --record-core-sync", () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("recorded sync");
     const state = readState(work);
+    expect(readForkSyncState(statePathOf(work), "pi-subagents")).toEqual(state);
+    expect(state.schemaVersion).toBe(2);
     expect(state.releases).toEqual(stateBefore.releases);
     expect(state.syncs).toEqual([
       {
         merge,
         upstream: { version: "21.7.0", commit: releaseOid },
-        forkCore: {
+        forkContribution: {
           level: "none",
           rationale:
             "upstream-only integration; resolutions kept fork identity",
@@ -85,7 +88,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
   });
 
   it("leaves the local tag namespace byte-identical across recording", () => {
-    const { work } = net.materializeNetwork("core-sync");
+    const { work } = net.materializeNetwork("fork-sync");
     const merge = mergeUpstream(work);
     const tagsBefore = net
       .git(work, [
@@ -96,7 +99,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
       .stdout.trim();
 
     const result = net.runScript(work, [
-      "--record-core-sync",
+      "--record-fork-sync",
       merge,
       "--fork-level",
       "none",
@@ -120,7 +123,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
   });
 
   it("selects the contained release, not a newer release advertised after the merge", () => {
-    const { work, upstreamBare } = net.materializeNetwork("core-sync");
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     // The merge incorporated 21.7.0; upstream then cut 21.7.1 before the
     // operator recorded the sync. The fetch makes 21.7.1's objects local,
     // but it is not contained in the merge's upstream parent, so recording
@@ -142,7 +145,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
     ]);
 
     const result = net.runScript(work, [
-      "--record-core-sync",
+      "--record-fork-sync",
       merge,
       "--fork-level",
       "none",
@@ -159,7 +162,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
   });
 
   it("records a lightweight-tagged release by its commit", () => {
-    const { work, upstreamBare } = net.materializeNetwork("core-sync");
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     const [releaseOid] = net.advanceUpstreamReleases(upstreamBare, [
       {
         message: "feat(pi-subagents): upstream release 21.7.1",
@@ -177,7 +180,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
     const merge = mergeUpstream(work);
 
     const result = net.runScript(work, [
-      "--record-core-sync",
+      "--record-fork-sync",
       merge,
       "--fork-level",
       "none",
@@ -197,7 +200,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
   });
 
   it("records an explicit reviewed fork resolution level and its paths", () => {
-    const { work, upstreamBare } = net.materializeNetwork("core-sync");
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     net.advanceUpstreamReleases(upstreamBare, [
       {
         message: "feat(pi-subagents): upstream edits shared core",
@@ -243,7 +246,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
     const merge = net.revParse(work, "HEAD");
 
     const result = net.runScript(work, [
-      "--record-core-sync",
+      "--record-fork-sync",
       merge,
       "--fork-level",
       "patch",
@@ -253,17 +256,19 @@ describe("upstream-sync.sh --record-core-sync", () => {
 
     expect(result.status).toBe(0);
     const [sync] = readState(work).syncs;
-    expect(sync.forkCore.level).toBe("patch");
-    expect(sync.forkCore.paths).toEqual(["packages/pi-subagents/src/core.ts"]);
+    expect(sync.forkContribution.level).toBe("patch");
+    expect(sync.forkContribution.paths).toEqual([
+      "packages/pi-subagents/src/core.ts",
+    ]);
     expect(result.stdout).toContain("packages/pi-subagents/src/core.ts");
   });
 
   it("refuses an unreviewed record: the review inputs are required", () => {
-    const { work } = net.materializeNetwork("core-sync");
+    const { work } = net.materializeNetwork("fork-sync");
     const merge = mergeUpstream(work);
     const stateBefore = readFileSync(statePathOf(work), "utf8");
 
-    const result = net.runScript(work, ["--record-core-sync", merge]);
+    const result = net.runScript(work, ["--record-fork-sync", merge]);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("--fork-level is required");
@@ -272,7 +277,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
   });
 
   it("refuses recording while a merge is still in progress", () => {
-    const { work, upstreamBare } = net.materializeNetwork("core-sync");
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     net.advanceUpstreamReleases(upstreamBare, [
       {
         message: "feat(pi-subagents): upstream edits shared core",
@@ -302,7 +307,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
     const stateBefore = readFileSync(statePathOf(work), "utf8");
 
     const result = net.runScript(work, [
-      "--record-core-sync",
+      "--record-fork-sync",
       "HEAD",
       "--fork-level",
       "none",
@@ -316,8 +321,8 @@ describe("upstream-sync.sh --record-core-sync", () => {
     expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
   });
 
-  it("refuses unreleased upstream core changes after the selected release", () => {
-    const { work, upstreamBare } = net.materializeNetwork("core-sync");
+  it("refuses unreleased upstream package changes after the selected release", () => {
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     net.advanceUpstreamReleases(upstreamBare, [
       {
         message: "feat(pi-subagents): upstream release 21.7.1",
@@ -342,7 +347,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
     const stateBefore = readFileSync(statePathOf(work), "utf8");
 
     const result = net.runScript(work, [
-      "--record-core-sync",
+      "--record-fork-sync",
       merge,
       "--fork-level",
       "none",
@@ -351,12 +356,12 @@ describe("upstream-sync.sh --record-core-sync", () => {
     ]);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("unreleased upstream core changes");
+    expect(result.stderr).toContain("unreleased upstream package changes");
     expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
   });
 
   it("allows internal-doc-only upstream tails under the exclusion policy", () => {
-    const { work, upstreamBare } = net.materializeNetwork("core-sync");
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     net.advanceUpstreamReleases(upstreamBare, [
       {
         message: "feat(pi-subagents): upstream release 21.7.1",
@@ -379,7 +384,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
     const merge = mergeUpstream(work);
 
     const result = net.runScript(work, [
-      "--record-core-sync",
+      "--record-fork-sync",
       merge,
       "--fork-level",
       "none",
@@ -392,7 +397,7 @@ describe("upstream-sync.sh --record-core-sync", () => {
   });
 
   it("treats an identical re-record as idempotent and a conflicting one as an error", () => {
-    const { work } = net.materializeNetwork("core-sync");
+    const { work } = net.materializeNetwork("fork-sync");
     const merge = mergeUpstream(work);
     const review = [
       "--fork-level",
@@ -400,26 +405,26 @@ describe("upstream-sync.sh --record-core-sync", () => {
       "--rationale",
       "upstream-only integration",
     ];
-    net.runScript(work, ["--record-core-sync", merge, ...review]);
+    net.runScript(work, ["--record-fork-sync", merge, ...review]);
     const recorded = readFileSync(statePathOf(work), "utf8");
     // The operator commits the state update before any re-run: recording
     // writes a tracked file, and the recording preconditions require a
     // clean tree.
-    net.git(work, ["add", "scripts/release/core-sync-state.json"]);
+    net.git(work, ["add", "scripts/release/pi-subagents/sync-state.json"]);
     net.git(work, [
       "commit",
       "-m",
       "chore: record core sync evidence for upstream 21.7.0",
     ]);
 
-    const again = net.runScript(work, ["--record-core-sync", merge, ...review]);
+    const again = net.runScript(work, ["--record-fork-sync", merge, ...review]);
 
     expect(again.status).toBe(0);
     expect(again.stdout).toContain("already recorded");
     expect(readFileSync(statePathOf(work), "utf8")).toBe(recorded);
 
     const conflicting = net.runScript(work, [
-      "--record-core-sync",
+      "--record-fork-sync",
       merge,
       "--fork-level",
       "none",
@@ -433,11 +438,11 @@ describe("upstream-sync.sh --record-core-sync", () => {
   }, 30_000);
 
   it("refuses a merge that cannot be resolved", () => {
-    const { work } = net.materializeNetwork("core-sync");
+    const { work } = net.materializeNetwork("fork-sync");
     const stateBefore = readFileSync(statePathOf(work), "utf8");
 
     const result = net.runScript(work, [
-      "--record-core-sync",
+      "--record-fork-sync",
       "0".repeat(40),
       "--fork-level",
       "none",

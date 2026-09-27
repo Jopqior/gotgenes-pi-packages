@@ -67,16 +67,16 @@ git remote set-url upstream git@github.com:gotgenes/pi-packages.git
    ```
 
 7. If a merge remains in progress, stage the reviewed resolutions with `git add`, then finish with `GIT_EDITOR=true git merge --continue`.
-8. Record the reviewed core sync evidence for the completed merge (see [Core sync evidence](#core-sync-evidence)):
+8. Record reviewed fork sync evidence for the completed merge (see [Fork sync evidence](#fork-sync-evidence)):
 
    ```bash
-   ./scripts/upstream-sync.sh --record-core-sync "$(git rev-parse HEAD)" \
-       --fork-level <none|patch|minor|major> --rationale "<what the resolution did to the core package>"
-   git add scripts/release/core-sync-state.json
-   git commit -m "chore: record core sync evidence"
+   ./scripts/upstream-sync.sh --record-fork-sync "$(git rev-parse HEAD)" \
+       --fork-level <none|patch|minor|major> --rationale "<what the resolution did to the fork package>"
+   git add scripts/release/pi-subagents/sync-state.json
+   git commit -m "chore: record fork sync evidence"
    ```
 
-   The merge OID binds the review to its committed resolutions, and a core release stays blocked until the record exists.
+   The merge OID binds the review to its committed resolutions, and a fork release stays blocked until the record exists.
 9. Record a sync-log row below.
    Release preparation generates the correspondence table from verified state; a sync alone does not add an unreleased fork version.
 
@@ -244,31 +244,40 @@ Dispatch both packages together, inspect the packed dependency, and publish no o
 The coordinated dispatch above is the historical requirement of the [#14] release, when the selector still declared a `workspace:^` core dependency.
 The selector now declares its core compatibility as a peer dependency that is independent of core releases, so a core release alone no longer requires a selector release; the selector README's release policy ([#15]) is the current guidance.
 
-## Core sync evidence
+## Fork sync evidence
 
-`@jopqior/pi-subagents` is the core package: its fork versions advance through merges of `upstream/main`, so the repository-wide Conventional Commit classification of an integration merge cannot decide its release level.
+`@jopqior/pi-subagents` versions advance through merges of `upstream/main`, so the Conventional Commit classification of an integration merge cannot decide the fork's independent release level.
 A broad `feat!:` integration message describes upstream's release, not the fork's independent version.
-Core release levels therefore derive from verified correspondence evidence instead.
+Fork release levels derive from verified correspondence evidence instead.
 
-The authoritative record is `scripts/release/core-sync-state.json`, committed to Git.
-It stores, for every published fork core release, the upstream release that release incorporated, and for every reviewed sync merge, the selected upstream release plus the reviewed fork-core contribution of the conflict resolution.
+The authoritative record is `scripts/release/pi-subagents/sync-state.json`, committed to Git.
+It stores the upstream release incorporated by each published fork release and the selected upstream release and reviewed fork contribution for each sync merge.
 The [version correspondence table](#version-correspondence) below is generated from verified published rows in that JSON record, not maintained independently.
-The sync recorder (`--record-core-sync`) writes reviewed merge evidence; release preparation writes the released row and regenerated table together.
+The sync recorder (`--record-fork-sync`) writes reviewed merge evidence; release preparation writes the released row and regenerated table together.
 Resolve conflicting evidence in the state file only after review, then regenerate and check the table.
+
+### Tooling migration
+
+The decision and recorder entry points are `scripts/release/fork-sync.mjs` and `scripts/release/record-fork-sync.mjs`; the sync script accepts `--record-fork-sync` instead of the removed `--record-core-sync` flag.
+The committed state moved to `scripts/release/pi-subagents/sync-state.json` with schema version 2 and `forkContribution` in each sync record.
+The release registry uses schema version 2 and the `fork-sync` evidence route.
+Old paths and formats are rejected rather than silently translated.
+Backfill review artifacts also require schema version 2: generate a new preview and obtain fresh approval before applying any historical Release-note edits.
+Published tags, historical CHANGELOGs, npm artifacts, and authentic Release bodies remain unchanged.
 
 ### Mapping rule
 
-The upstream contribution is the SemVer distance between the upstream release incorporated at the last fork core release and the one incorporated now, compared once across the whole unreleased window.
+The upstream contribution is the SemVer distance between the upstream release incorporated at the last fork release and the one incorporated now, compared once across the whole unreleased window.
 
-| Upstream baseline to incorporated target      | Upstream contribution |
-| --------------------------------------------- | --------------------- |
-| Equal stable version, no unreleased core work | none                  |
-| Higher patch within the same major and minor  | patch                 |
-| Higher minor within the same major            | minor                 |
-| Higher major                                  | major                 |
+| Upstream baseline to incorporated target         | Upstream contribution |
+| ------------------------------------------------ | --------------------- |
+| Equal stable version, no unreleased package work | none                  |
+| Higher patch within the same major and minor     | patch                 |
+| Higher minor within the same major               | minor                 |
+| Higher major                                     | major                 |
 
 Deferred syncs collapse: several incorporated patch releases still mean one fork patch, never a sum.
-The fork contribution is what git-cliff derives from the window's commits with verified upstream-owned commits and the sync merges removed, combined with each recorded merge's reviewed fork-core level; the highest level wins.
+The fork contribution is what git-cliff derives from the window's commits with verified upstream-owned commits and the sync merges removed, combined with each recorded merge's reviewed fork level; the highest level wins.
 Sibling-only and root-configuration commits do not contribute.
 
 ### Blocking cases
@@ -276,12 +285,12 @@ Sibling-only and root-configuration commits do not contribute.
 Prediction and release preparation fail closed — nonzero exit with a diagnostic, never the silent no-release path — when the evidence is missing or inconsistent:
 
 - the current fork release tag has no recorded upstream correspondence;
-- a core-affecting merge in the unreleased window has no reviewed sync record;
+- a package-affecting merge in the unreleased window has no reviewed sync record;
 - a recorded sync is not a genuine two-parent merge whose upstream parent contains the recorded upstream release;
 - a recorded sync incorporates an upstream version behind the already-incorporated one;
 - a baseline or window sync's recorded upstream version contradicts its release manifest, or that manifest is missing;
 - a sync's upstream parent does not descend from the previously incorporated upstream tip, starting with the current fork release's recorded tip;
-- upstream history between a recorded release and its incorporated tip contains unreleased core changes — source, tests, shipped docs, or metadata (both recording and offline prediction refuse these even when git-cliff would skip the commit type);
+- upstream history between a recorded release and its incorporated tip contains unreleased package changes — source, tests, shipped docs, or metadata (both recording and offline prediction refuse these even when git-cliff would skip the commit type);
 - a recorded object is missing locally, as in a shallow or partial clone.
 
 There is deliberately no override flag.
@@ -292,33 +301,33 @@ Record the evidence through the sync script, or resolve a conflicting state entr
 Run the recorder only through the sync script, after conflict resolution and `git merge --continue`:
 
 ```bash
-./scripts/upstream-sync.sh --record-core-sync <merge> \
+./scripts/upstream-sync.sh --record-fork-sync <merge> \
     --fork-level <none|patch|minor|major> --rationale "<what the resolution did>"
 ```
 
 It selects the highest stable upstream release whose peeled commit is contained in the merge's upstream parent — not the newest advertised tag — and verifies the release manifest agrees with the tag.
-It refuses an unreviewed or unresolved merge, unreleased core changes, and missing objects, and it never pushes or creates local tag refs.
+It refuses an unreviewed or unresolved merge, unreleased package changes, and missing objects, and it never pushes or creates local tag refs.
 Re-running with the same review is idempotent; a conflicting record is an error.
 Commit the state update before the next release prediction.
 
-The `--fork-level` review classifies what the conflict resolution itself did to the core package.
+The `--fork-level` review classifies what the conflict resolution itself did to the fork package.
 
-- `none` records that resolutions kept fork identity without changing the core contract.
+- `none` records that resolutions kept fork identity without changing the fork contract.
 - `patch`, `minor`, or `major` record the resolution's own effect.
-- Retaining fork identity or resolving a mechanical conflict does not imply `major`; a resolution that genuinely breaks the core contract is `major`.
-- A non-`none` level must be justified by core files whose merge result differs from both parents; those paths are recorded with the level.
+- Retaining fork identity or resolving a mechanical conflict does not imply `major`; a resolution that genuinely breaks the fork contract is `major`.
+- A non-`none` level must be justified by package files whose merge result differs from both parents; those paths are recorded with the level.
 
 ### Release correspondence lifecycle
 
-`scripts/release/prepare-release.sh` resolves and validates every selected package's registration and the core correspondence in its all-packages preflight, before any write; the core decision must agree with the predicted tag.
+`scripts/release/prepare-release.sh` resolves and validates every selected package's registration and the fork correspondence in its all-packages preflight, before any write; the fork decision must agree with the predicted tag.
 The registry at `scripts/release/release-packages.json` classifies actual directory/npm identities as `fork` or `original`; an unregistered package or unsupported fork evidence blocks preparation, publication, and Release creation.
 Workspace discovery and read-only version prediction remain independent of registration, and registration never authorizes publication.
-When a core release is selected, preparation commits its verified correspondence, decorated CHANGELOG section, and regenerated table together with the manifest.
-An original package gets no upstream correspondence block; publishing only a sibling leaves the core state and table untouched.
+When a fork release is selected, preparation commits its verified correspondence, decorated CHANGELOG section, and regenerated table together with the manifest.
+An original package gets no upstream correspondence block; publishing only a sibling leaves the fork state and table untouched.
 Publishing checks the complete tagged set before the first npm call.
 GitHub Release creation checks the same tagged artifacts and takes each body from that tag's exact CHANGELOG section, not from a new git-cliff render; reruns leave existing Release bodies unchanged.
 After publication, the next window anchors at the recorded fork tag and upstream release, so prediction works offline from committed evidence and local Git objects alone.
-Offline prediction revalidates the baseline and every window sync's release manifest, checks their incorporated tips for unreleased core changes, and verifies that successive upstream tips form a continuous ancestry chain.
+Offline prediction revalidates the baseline and every window sync's release manifest, checks their incorporated tips for unreleased package changes, and verifies that successive upstream tips form a continuous ancestry chain.
 It also rejects malformed git-cliff context entries or commit IDs rather than silently discarding fork changes.
 Recording evidence does not exempt it from these read-time checks.
 
@@ -326,7 +335,7 @@ Recording evidence does not exempt it from these read-time checks.
 
 Each published `@jopqior/pi-subagents` version records its own verified direct upstream baseline; several fork releases may share one upstream release.
 The fixed source link identifies the upstream release commit and package path, not today's upstream `main` or a claim of behavioral equivalence.
-This generated region derives from `scripts/release/core-sync-state.json`; the verified pending core row is included only during release preparation, in the resulting release commit.
+This generated region derives from `scripts/release/pi-subagents/sync-state.json`; the verified pending fork row is included only during release preparation, in the resulting release commit.
 Never add or repair rows by hand, including after a sync or historical backfill.
 To verify committed evidence against the table, run:
 

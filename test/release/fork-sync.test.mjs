@@ -5,13 +5,13 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  changedCoreFiles,
-  coreCommitsBetween,
-} from "../../scripts/release/core-sync-evidence.mjs";
+  changedPackageFiles,
+  packageCommitsBetween,
+} from "../../scripts/release/fork-sync/evidence.mjs";
 import {
   BASE_TAG,
-  createCoreSyncScenario,
-} from "./helpers/core-sync-scenario.mjs";
+  createForkSyncScenario,
+} from "./helpers/fork-sync-scenario.mjs";
 
 // Decision integration for the core sync release policy: window derivation
 // over recorded evidence, fail-closed evidence errors, the shared
@@ -19,23 +19,23 @@ import {
 // state schema, the git-cliff adapter, the CLI contract, and release
 // preparation live in their own focused files.
 
-/** @type {ReturnType<typeof createCoreSyncScenario>} */
+/** @type {ReturnType<typeof createForkSyncScenario>} */
 let scenario;
-/** @type {ReturnType<typeof createCoreSyncScenario>["repo"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["repo"]} */
 let repo;
-/** @type {ReturnType<typeof createCoreSyncScenario>["recordedSyncs"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["recordedSyncs"]} */
 let recordedSyncs;
-/** @type {ReturnType<typeof createCoreSyncScenario>["baseUpstream"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["baseUpstream"]} */
 let baseUpstream;
 /** @type {string} */
 let baseUpstreamTip;
-/** @type {ReturnType<typeof createCoreSyncScenario>["writeCoreSyncState"]} */
-let writeCoreSyncState;
-/** @type {ReturnType<typeof createCoreSyncScenario>["decide"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["writeForkSyncState"]} */
+let writeForkSyncState;
+/** @type {ReturnType<typeof createForkSyncScenario>["decide"]} */
 let decide;
-/** @type {ReturnType<typeof createCoreSyncScenario>["syncUpstream"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["syncUpstream"]} */
 let syncUpstream;
-/** @type {ReturnType<typeof createCoreSyncScenario>["uniqueUpstreamBranch"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["uniqueUpstreamBranch"]} */
 let uniqueUpstreamBranch;
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
@@ -54,12 +54,12 @@ function errorOf(fn) {
 }
 
 beforeEach(() => {
-  scenario = createCoreSyncScenario();
+  scenario = createForkSyncScenario();
   repo = scenario.repo;
   recordedSyncs = scenario.recordedSyncs;
   baseUpstream = scenario.baseUpstream;
   baseUpstreamTip = scenario.baseUpstreamTip;
-  writeCoreSyncState = scenario.writeCoreSyncState;
+  writeForkSyncState = scenario.writeForkSyncState;
   decide = scenario.decide;
   syncUpstream = scenario.syncUpstream;
   uniqueUpstreamBranch = scenario.uniqueUpstreamBranch;
@@ -70,7 +70,7 @@ afterEach(() => {
 });
 
 describe("window derivation", () => {
-  it("derives nothing from an equal upstream version and no fork core history", () => {
+  it("derives nothing from an equal upstream version and no fork contribution history", () => {
     syncUpstream({
       version: "21.7.0",
       files: [
@@ -80,7 +80,7 @@ describe("window derivation", () => {
         },
       ],
     });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const decision = decide();
 
@@ -91,7 +91,7 @@ describe("window derivation", () => {
 
   it("maps a higher upstream patch to one fork patch", () => {
     syncUpstream({ version: "21.7.1" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v1.0.1",
@@ -102,7 +102,7 @@ describe("window derivation", () => {
 
   it("maps a higher upstream minor to one fork minor", () => {
     syncUpstream({ version: "21.8.0" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v1.1.0",
@@ -112,7 +112,7 @@ describe("window derivation", () => {
 
   it("maps a higher upstream major to one fork major", () => {
     syncUpstream({ version: "22.0.0" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v2.0.0",
@@ -122,7 +122,7 @@ describe("window derivation", () => {
 
   it("collapses skipped upstream releases into one step", () => {
     syncUpstream({ version: "21.7.2" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide().nextTag).toBe("pi-subagents-v1.0.1");
   });
@@ -130,7 +130,7 @@ describe("window derivation", () => {
   it("compares the baseline with the final target across deferred syncs", () => {
     syncUpstream({ version: "21.7.1" });
     syncUpstream({ version: "21.7.2" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const decision = decide();
 
@@ -141,14 +141,14 @@ describe("window derivation", () => {
   it("keeps a later minor when earlier deferred syncs were patches", () => {
     syncUpstream({ version: "21.7.1" });
     syncUpstream({ version: "21.8.0" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide().nextTag).toBe("pi-subagents-v1.1.0");
   });
 
   it("reports the final verified upstream correspondence and tip", () => {
     const { upstreamParent } = syncUpstream({ version: "21.7.1" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const decision = decide();
 
@@ -165,7 +165,7 @@ describe("window derivation", () => {
       "fix(pi-subagents): fork fix",
       "packages/pi-subagents/fix.txt",
     );
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v1.0.1",
@@ -180,7 +180,7 @@ describe("window derivation", () => {
       "feat(pi-subagents): fork feature",
       "packages/pi-subagents/feat.txt",
     );
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v1.1.0",
@@ -194,7 +194,7 @@ describe("window derivation", () => {
       "feat(pi-subagents)!: fork break",
       "packages/pi-subagents/break.txt",
     );
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v2.0.0",
@@ -208,7 +208,7 @@ describe("window derivation", () => {
       "refactor(pi-subagents)!: hidden breaking change",
       "packages/pi-subagents/break.txt",
     );
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v2.0.0",
@@ -220,12 +220,12 @@ describe("window derivation", () => {
     // This is the shape that produced the accidental fork 2.0.0: a
     // repository-wide `feat!:` integration message over an upstream patch
     // release. The reviewed record, not the merge's own classification,
-    // decides the fork core level.
+    // decides the fork contribution level.
     syncUpstream({
       version: "21.7.1",
       mergeMessage: "feat!: integrate upstream compatibility batch",
     });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v1.0.1",
@@ -268,13 +268,13 @@ describe("window derivation", () => {
     recordedSyncs.push({
       merge,
       upstream: { version: "21.7.1", commit: releaseCommit },
-      forkCore: {
+      forkContribution: {
         level: "major",
         rationale: "resolution combined both sides into a new core contract",
         paths: ["packages/pi-subagents/shared.txt"],
       },
     });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v2.0.0",
@@ -290,7 +290,7 @@ describe("window derivation", () => {
       "packages/pi-colgrep/src/x.ts",
     );
     repo.commitOutOfScope("docs(retro): session note");
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v1.0.1",
@@ -302,7 +302,7 @@ describe("window derivation", () => {
 describe("evidence failures", () => {
   it("blocks when the current tag has no recorded correspondence", () => {
     syncUpstream({ version: "21.7.1" });
-    writeCoreSyncState({
+    writeForkSyncState({
       releases: [
         {
           forkTag: "pi-subagents-v0.9.0",
@@ -326,7 +326,7 @@ describe("evidence failures", () => {
     );
     repo.git("tag", "-a", "pi-subagents-v9.9.9", "-m", "divergent");
     repo.git("checkout", "main");
-    writeCoreSyncState({
+    writeForkSyncState({
       releases: [
         {
           forkTag: "pi-subagents-v9.9.9",
@@ -342,7 +342,7 @@ describe("evidence failures", () => {
   });
 
   it("blocks when recorded objects are unavailable", () => {
-    writeCoreSyncState({
+    writeForkSyncState({
       releases: [
         {
           forkTag: BASE_TAG,
@@ -362,7 +362,7 @@ describe("evidence failures", () => {
       "packages/pi-subagents/unrelated.txt",
     );
     recordedSyncs[0].upstream.commit = repo.gitOut("rev-parse", "HEAD");
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(errorOf(() => decide()).message).toMatch(
       new RegExp(
@@ -386,13 +386,13 @@ describe("evidence failures", () => {
     recordedSyncs.push({
       merge: repo.gitOut("rev-parse", "HEAD"),
       upstream: { version: "21.7.2", commit: manifestless },
-      forkCore: {
+      forkContribution: {
         level: "none",
-        rationale: "upstream-only integration; no fork core resolution",
+        rationale: "upstream-only integration; no fork contribution resolution",
         paths: [],
       },
     });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(errorOf(() => decide()).message).toMatch(
       new RegExp(
@@ -410,10 +410,10 @@ describe("evidence failures", () => {
     );
     repo.git("checkout", "main");
     repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", branch);
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(errorOf(() => decide()).message).toMatch(
-      /changes core paths but has no reviewed sync record[\s\S]*--record-core-sync/,
+      /changes package paths but has no reviewed sync record[\s\S]*--record-fork-sync/,
     );
   });
 
@@ -434,7 +434,7 @@ describe("evidence failures", () => {
     repo.git("checkout", "main");
     repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", branch);
     const merge = repo.gitOut("rev-parse", "HEAD");
-    writeCoreSyncState({
+    writeForkSyncState({
       releases: [
         {
           forkTag: BASE_TAG,
@@ -445,8 +445,8 @@ describe("evidence failures", () => {
     });
 
     expect(errorOf(() => decide()).message).toBe(
-      `merge ${merge} changes core paths but has no reviewed sync record. ` +
-        "Record it with: scripts/upstream-sync.sh --record-core-sync <merge>",
+      `merge ${merge} changes package paths but has no reviewed sync record. ` +
+        "Record it with: scripts/upstream-sync.sh --record-fork-sync <merge>",
     );
   });
 
@@ -463,20 +463,20 @@ describe("evidence failures", () => {
     );
     repo.git("checkout", "main");
     repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", branch);
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(errorOf(() => decide()).message).toMatch(
-      /changes core paths but has no reviewed sync record[\s\S]*--record-core-sync/,
+      /changes package paths but has no reviewed sync record[\s\S]*--record-fork-sync/,
     );
   });
 
-  it("allows an unrecorded merge that never touches core paths", () => {
+  it("allows an unrecorded merge that never touches package paths", () => {
     const branch = "docs-branch";
     repo.git("checkout", "-b", branch);
     repo.commitInScope("docs(retro): branch note", "docs/retro/branch.md");
     repo.git("checkout", "main");
     repo.git("merge", "--no-ff", "-m", "chore: merge docs branch", branch);
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide().nextTag).toBeNull();
   });
@@ -486,12 +486,12 @@ describe("evidence failures", () => {
     // its baseline manifest and record both claiming 21.7.1, so the version
     // regression — syncing 21.7.0 behind an already-incorporated 21.7.1 —
     // is the only failing property, whichever check runs first.
-    const forged = createCoreSyncScenario({
+    const forged = createForkSyncScenario({
       baselineUpstreamVersion: "21.7.1",
     });
     try {
       forged.syncUpstream({ version: "21.7.0" });
-      forged.writeCoreSyncState();
+      forged.writeForkSyncState();
 
       expect(errorOf(() => forged.decide()).message).toMatch(
         /behind the already-incorporated/,
@@ -507,7 +507,7 @@ describe("evidence failures", () => {
       "packages/pi-subagents/rel.txt",
     );
     repo.git("tag", "pi-subagents-v1.1.0");
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(errorOf(() => decide()).message).toMatch(
       /unexpected release boundary.*inside the pi-subagents-v1\.0\.0\.\.HEAD window/,
@@ -521,28 +521,38 @@ describe("lossless core path enumeration", () => {
   // quotes any path containing non-ASCII, quote, tab, or newline characters,
   // so a quoted path used to be read as one out-of-scope path.
 
-  it("lists commits touching core paths git would quote", () => {
+  it("lists commits touching package paths git would quote", () => {
     repo.commitInScope(
       "feat(pi-subagents): rename for a Chinese audience",
       "packages/pi-subagents/src/中文-变更.ts",
     );
     const commit = repo.gitOut("rev-parse", "HEAD");
 
-    expect(coreCommitsBetween(repo.dir, baseUpstream.commit, "HEAD")).toEqual([
-      commit,
-    ]);
+    expect(
+      packageCommitsBetween(
+        repo.dir,
+        baseUpstream.commit,
+        "HEAD",
+        "pi-subagents",
+      ),
+    ).toEqual([commit]);
   });
 
-  it("returns raw core paths from two-tree diffs", () => {
+  it("returns raw package paths from two-tree diffs", () => {
     // A newline inside the file name survives no line-based listing: the
     // line-based default printed two lines, each read as an out-of-scope
     // path. NUL-delimited output is the only lossless shape.
     const weird = "packages/pi-subagents/src/new\nline-名称.ts";
     repo.commitInScope("feat(pi-subagents): newline-named change", weird);
 
-    expect(changedCoreFiles(repo.dir, baseUpstream.commit, "HEAD")).toEqual([
-      weird,
-    ]);
+    expect(
+      changedPackageFiles(
+        repo.dir,
+        baseUpstream.commit,
+        "HEAD",
+        "pi-subagents",
+      ),
+    ).toEqual([weird]);
   });
 });
 
@@ -575,9 +585,9 @@ describe("unreleased upstream tails", () => {
     recordedSyncs.push({
       merge: repo.gitOut("rev-parse", "HEAD"),
       upstream: { version: "21.7.1", commit: releaseCommit },
-      forkCore: {
+      forkContribution: {
         level: "none",
-        rationale: "upstream-only integration; no fork core resolution",
+        rationale: "upstream-only integration; no fork contribution resolution",
         paths: [],
       },
     });
@@ -586,7 +596,7 @@ describe("unreleased upstream tails", () => {
 
   it("still derives a patch when the recorded tails are empty", () => {
     syncUpstream({ version: "21.7.1" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v1.0.1",
@@ -604,12 +614,12 @@ describe("unreleased upstream tails", () => {
         file: "packages/pi-subagents/src/up.test.ts",
       },
     ]);
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const error = errorOf(() => decide());
 
     expect(error.message).toMatch(
-      /unreleased upstream core changes follow 21\.7\.1/,
+      /unreleased upstream package changes follow 21\.7\.1/,
     );
     expect(error.message).toContain(tail);
   });
@@ -625,7 +635,7 @@ describe("unreleased upstream tails", () => {
     );
     const tail = repo.gitOut("rev-parse", "HEAD");
     repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", tail);
-    writeCoreSyncState({
+    writeForkSyncState({
       releases: [
         {
           forkTag: BASE_TAG,
@@ -638,7 +648,7 @@ describe("unreleased upstream tails", () => {
     const error = errorOf(() => decide());
 
     expect(error.message).toMatch(
-      /unreleased upstream core changes follow 21\.7\.0/,
+      /unreleased upstream package changes follow 21\.7\.0/,
     );
     expect(error.message).toContain(tail);
   });
@@ -650,7 +660,7 @@ describe("unreleased upstream tails", () => {
         file: "packages/pi-subagents/docs/plans/note.md",
       },
     ]);
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v1.0.1",
@@ -668,12 +678,12 @@ describe("unreleased upstream tails", () => {
         file: "packages/pi-subagents/src/未发布-变更.ts",
       },
     ]);
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const error = errorOf(() => decide());
 
     expect(error.message).toMatch(
-      /unreleased upstream core changes follow 21\.7\.1/,
+      /unreleased upstream package changes follow 21\.7\.1/,
     );
     expect(error.message).toContain(tail);
   });
@@ -685,12 +695,12 @@ describe("unreleased upstream tails", () => {
         file: "packages/pi-subagents/src/new\nline.ts",
       },
     ]);
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const error = errorOf(() => decide());
 
     expect(error.message).toMatch(
-      /unreleased upstream core changes follow 21\.7\.1/,
+      /unreleased upstream package changes follow 21\.7\.1/,
     );
     expect(error.message).toContain(tail);
   });
@@ -704,7 +714,7 @@ describe("unreleased upstream tails", () => {
     );
     const tail = repo.gitOut("rev-parse", "HEAD");
     repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", tail);
-    writeCoreSyncState({
+    writeForkSyncState({
       releases: [
         {
           forkTag: BASE_TAG,
@@ -717,7 +727,7 @@ describe("unreleased upstream tails", () => {
     const error = errorOf(() => decide());
 
     expect(error.message).toMatch(
-      /unreleased upstream core changes follow 21\.7\.0/,
+      /unreleased upstream package changes follow 21\.7\.0/,
     );
     expect(error.message).toContain(tail);
   });
@@ -729,7 +739,7 @@ describe("unreleased upstream tails", () => {
     );
     const tail = repo.gitOut("rev-parse", "HEAD");
     repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", tail);
-    writeCoreSyncState({
+    writeForkSyncState({
       releases: [
         {
           forkTag: BASE_TAG,
@@ -742,7 +752,7 @@ describe("unreleased upstream tails", () => {
     const error = errorOf(() => decide());
 
     expect(error.message).toMatch(
-      /unreleased upstream core changes follow 21\.7\.0/,
+      /unreleased upstream package changes follow 21\.7\.0/,
     );
     expect(error.message).toContain(tail);
   });
@@ -757,7 +767,7 @@ describe("unreleased upstream tails", () => {
         file: "packages/pi-subagents/docs/plans/计划.md",
       },
     ]);
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v1.0.1",
@@ -806,7 +816,7 @@ describe("unreleased upstream tails", () => {
     repo.git("commit", "-m", "chore: merge upstream/main");
     const merge = repo.gitOut("rev-parse", "HEAD");
     repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", merge);
-    writeCoreSyncState({
+    writeForkSyncState({
       releases: [
         {
           forkTag: BASE_TAG,
@@ -819,7 +829,7 @@ describe("unreleased upstream tails", () => {
     const error = errorOf(() => decide());
 
     expect(error.message).toMatch(
-      /unreleased upstream core changes follow 21\.7\.0/,
+      /unreleased upstream package changes follow 21\.7\.0/,
     );
     expect(error.message).toContain(merge);
   });
@@ -838,7 +848,7 @@ describe("unreleased upstream tails", () => {
     repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", side);
     const merge = repo.gitOut("rev-parse", "HEAD");
     repo.git("tag", "-f", "-a", BASE_TAG, "-m", "forge baseline tip", merge);
-    writeCoreSyncState({
+    writeForkSyncState({
       releases: [
         {
           forkTag: BASE_TAG,
@@ -877,9 +887,9 @@ describe("shared entry point", () => {
     };
   }
 
-  it("routes the core package through the verified policy", () => {
+  it("routes the fork package through the verified policy", () => {
     syncUpstream({ version: "21.7.1" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const result = nextTag("pi-subagents", BASE_TAG);
 
@@ -893,15 +903,15 @@ describe("shared entry point", () => {
       "feat(pi-subagents)!: fork break",
       "packages/pi-subagents/break.txt",
     );
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(nextTag("pi-subagents", BASE_TAG).stdout.trim()).toBe(
       "pi-subagents-v2.0.0",
     );
   });
 
-  it("prints the current tag for the core package when nothing is releasable", () => {
-    writeCoreSyncState();
+  it("prints the current tag for the fork package when nothing is releasable", () => {
+    writeForkSyncState();
 
     const result = nextTag("pi-subagents", BASE_TAG);
 
@@ -909,7 +919,7 @@ describe("shared entry point", () => {
     expect(result.stdout.trim()).toBe(BASE_TAG);
   });
 
-  it("keeps non-core packages on the bounded git-cliff walk", () => {
+  it("keeps non-fork packages on the bounded git-cliff walk", () => {
     repo.commitInScope("feat(demo)!: initial scope", "packages/demo/a.txt");
     repo.git("tag", "demo-v1.0.0");
     repo.commitInScope("fix(demo): repair widget", "packages/demo/a.txt");
@@ -929,12 +939,12 @@ describe("shared entry point", () => {
     );
     repo.git("checkout", "main");
     repo.git("merge", "--no-ff", "-m", "chore: merge upstream/main", branch);
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const result = nextTag("pi-subagents", BASE_TAG);
 
     expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain("--record-core-sync");
+    expect(result.stderr).toContain("--record-fork-sync");
   });
 });
 
@@ -975,9 +985,9 @@ describe("sync chain continuity", () => {
     recordedSyncs.push({
       merge,
       upstream: { version, commit: upstreamParent },
-      forkCore: {
+      forkContribution: {
         level: "none",
-        rationale: "upstream-only integration; no fork core resolution",
+        rationale: "upstream-only integration; no fork contribution resolution",
         paths: [],
       },
     });
@@ -989,7 +999,7 @@ describe("sync chain continuity", () => {
     // descends from the previous one — the recorder's own previousTip rule.
     syncUpstream({ version: "21.7.1" });
     syncUpstream({ version: "21.7.2" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     expect(decide()).toMatchObject({
       nextTag: "pi-subagents-v1.0.1",
@@ -1004,7 +1014,7 @@ describe("sync chain continuity", () => {
     // ancestry chain is broken.
     const initial = repo.gitOut("rev-parse", "pi-subagents-v0.9.0");
     recordDivergentSync(initial, "21.7.1");
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const error = errorOf(() => decide());
 
@@ -1021,7 +1031,7 @@ describe("sync chain continuity", () => {
     const { merge } = syncUpstream({ version: "21.7.1" });
     const forkParent = repo.gitOut("rev-parse", `${merge}^1`);
     recordDivergentSync(forkParent, "21.7.2");
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const error = errorOf(() => decide());
 
@@ -1038,7 +1048,7 @@ describe("offline prediction", () => {
    */
   it("derives a patch without any network-capable git call succeeding", () => {
     syncUpstream({ version: "21.7.1" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const stubBin = mkdtempSync(path.join(tmpdir(), "offline-git-"));
     const stub = path.join(stubBin, "git");

@@ -3,7 +3,7 @@ import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readTaggedReleaseSection } from "../../scripts/release/release-correspondence.mjs";
-import { createCoreSyncScenario } from "./helpers/core-sync-scenario.mjs";
+import { createForkSyncScenario } from "./helpers/fork-sync-scenario.mjs";
 
 let scenario;
 let repo;
@@ -13,11 +13,13 @@ const scripts = [
   "prepare-release.sh",
   "publish-released.sh",
   "create-github-releases.sh",
-  "core-sync.mjs",
-  "core-sync-values.mjs",
-  "core-sync-state.mjs",
-  "core-sync-evidence.mjs",
-  "core-sync-cliff.mjs",
+  "fork-sync.mjs",
+  "fork-sync/values.mjs",
+  "fork-sync/state.mjs",
+  "fork-sync/evidence.mjs",
+  "fork-sync/cliff.mjs",
+  "fork-sync/decision.mjs",
+  "pi-subagents/config.mjs",
   "release-correspondence.mjs",
   "correspondence-table.mjs",
   "release-artifacts.mjs",
@@ -26,13 +28,13 @@ const handbook =
   "Before\n<!-- release-correspondence:start -->\n\nold\n\n<!-- release-correspondence:end -->\nAfter\n";
 
 beforeEach(() => {
-  scenario = createCoreSyncScenario({ releaseArtifacts: true });
+  scenario = createForkSyncScenario({ releaseArtifacts: true });
   repo = scenario.repo;
 });
 afterEach(() => scenario.dispose());
 
 function scaffold({ original = false, changelog = true } = {}) {
-  scenario.writeCoreSyncState();
+  scenario.writeForkSyncState();
   repo.copyReleaseScripts(...scripts);
   repo.copyReleaseScripts("release-packages.json");
   const entries = [
@@ -45,7 +47,7 @@ function scaffold({ original = false, changelog = true } = {}) {
         repository: "gotgenes/pi-packages",
         directory: "packages/pi-subagents",
       },
-      evidence: "core-sync",
+      evidence: "fork-sync",
     },
   ];
   if (original)
@@ -56,7 +58,7 @@ function scaffold({ original = false, changelog = true } = {}) {
     });
   writeFileSync(
     path.join(repo.dir, "scripts/release/release-packages.json"),
-    `${JSON.stringify({ schemaVersion: 1, packages: entries })}\n`,
+    `${JSON.stringify({ schemaVersion: 2, packages: entries })}\n`,
   );
   const docs = path.join(repo.dir, "docs");
   mkdirSync(docs, { recursive: true });
@@ -114,7 +116,7 @@ function snapshot() {
     tags: repo.gitOut("tag"),
     status: repo.gitOut("status", "--porcelain"),
     state: readFileSync(
-      path.join(repo.dir, "scripts/release/core-sync-state.json"),
+      path.join(repo.dir, "scripts/release/pi-subagents/sync-state.json"),
       "utf8",
     ),
     table: readFileSync(path.join(repo.dir, "docs/upstream-sync.md"), "utf8"),
@@ -141,7 +143,7 @@ describe("all-selected preparation", () => {
     );
     expect(text).toContain("<!-- upstream-correspondence:start -->");
     const row = JSON.parse(
-      repo.gitOut("show", "HEAD:scripts/release/core-sync-state.json"),
+      repo.gitOut("show", "HEAD:scripts/release/pi-subagents/sync-state.json"),
     ).releases.at(-1);
     expect(row.forkTag).toBe("pi-subagents-v1.0.1");
     expect(text).toContain(row.upstream.commit);
@@ -159,7 +161,7 @@ describe("all-selected preparation", () => {
       repo.gitOut("show", "HEAD:packages/pi-subagents/CHANGELOG.md"),
     ).toContain("<!-- upstream-correspondence:start -->");
   });
-  it("releases an original without a fabricated upstream block or a core state/table write", () => {
+  it("releases an original without a fabricated upstream block or a fork state/table write", () => {
     repo.commitInScope("feat(demo)!: baseline", "packages/demo/a.txt");
     repo.git("tag", "demo-v1.0.0");
     repo.commitInScope("fix(demo): next", "packages/demo/a.txt");
@@ -168,7 +170,7 @@ describe("all-selected preparation", () => {
     const before = snapshot();
     expect(prepare("demo").status).toBe(0);
     expect(
-      repo.gitOut("show", "HEAD:scripts/release/core-sync-state.json"),
+      repo.gitOut("show", "HEAD:scripts/release/pi-subagents/sync-state.json"),
     ).toBe(before.state.trim());
     expect(repo.gitOut("show", "HEAD:docs/upstream-sync.md")).toBe(
       before.table.trim(),

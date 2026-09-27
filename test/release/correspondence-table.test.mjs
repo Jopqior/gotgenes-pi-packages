@@ -4,11 +4,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { readCoreSyncState } from "../../scripts/release/core-sync-state.mjs";
 import {
   renderCorrespondenceTable,
   updateCorrespondenceDocument,
 } from "../../scripts/release/correspondence-table.mjs";
+import { readForkSyncState } from "../../scripts/release/fork-sync/state.mjs";
 import { readReleasePackages } from "../../scripts/release/release-correspondence.mjs";
 import { createReleaseArtifacts } from "./helpers/release-artifacts.mjs";
 
@@ -142,13 +142,18 @@ describe("table CLI", () => {
       realRepo,
       "scripts/release/correspondence-table.mjs",
     );
-    const statePath = path.join(repo, "scripts/release/core-sync-state.json");
+    const statePath = path.join(
+      repo,
+      "scripts/release/pi-subagents/sync-state.json",
+    );
     const registryPath = path.join(
       repo,
       "scripts/release/release-packages.json",
     );
     const documentPath = path.join(repo, "docs/upstream-sync.md");
-    mkdirSync(path.join(repo, "scripts/release"), { recursive: true });
+    mkdirSync(path.join(repo, "scripts/release/pi-subagents"), {
+      recursive: true,
+    });
     mkdirSync(path.join(repo, "docs"), { recursive: true });
     writeFileSync(statePath, `${JSON.stringify(fixture.state)}\n`);
     writeFileSync(registryPath, `${JSON.stringify(fixture.registry)}\n`);
@@ -176,8 +181,9 @@ describe("table CLI", () => {
 
 describe("committed generated correspondence", () => {
   it("matches the complete real evidence and leaves every byte outside its markers untouched", () => {
-    const state = readCoreSyncState(
-      path.join(realRepo, "scripts/release/core-sync-state.json"),
+    const state = readForkSyncState(
+      path.join(realRepo, "scripts/release/pi-subagents/sync-state.json"),
+      "pi-subagents",
     );
     const registry = readReleasePackages(
       path.join(realRepo, "scripts/release/release-packages.json"),

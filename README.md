@@ -108,9 +108,9 @@ An equivalent command for [Diffview.nvim](https://github.com/sindrets/diffview.n
 
 `scripts/upstream-sync.sh` fetches `gotgenes/pi-packages` `main` without importing tags.
 Pass `--merge` on this fork's `main` to merge `upstream/main` locally; the script never pushes.
-After a completed merge, `--record-core-sync <merge> --fork-level <level> --rationale "<text>"` appends the reviewed core sync evidence to `scripts/release/core-sync-state.json`.
-`@jopqior/pi-subagents` release levels derive from that verified upstream correspondence rather than the integration merge's own commit type.
-See [docs/upstream-sync.md](docs/upstream-sync.md) for the procedure, forbidden commands, conflict handbook, core release policy, and version correspondence.
+After a completed merge, `--record-fork-sync <merge> --fork-level <level> --rationale "<text>"` appends reviewed fork sync evidence to `scripts/release/pi-subagents/sync-state.json`.
+`@jopqior/pi-subagents` release levels derive from verified upstream correspondence rather than the integration merge's own commit type.
+See [docs/upstream-sync.md](docs/upstream-sync.md) for the procedure, conflict handbook, fork release policy, and generated version correspondence.
 
 ### Agentic development workflow
 

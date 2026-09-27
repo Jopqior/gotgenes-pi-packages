@@ -20,7 +20,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 // release implementation and configuration run against that repository.
 //
 // These objects are pinned by the verified correspondence in
-// scripts/release/core-sync-state.json and docs/upstream-sync.md; a shallow
+// scripts/release/pi-subagents/sync-state.json and docs/upstream-sync.md; a shallow
 // or partial clone that lacks them must fail loudly, not skip.
 
 const repoRoot = path.resolve(
@@ -106,7 +106,7 @@ function failingNextTag(pkg, tag) {
 }
 
 /**
- * Write the fixture's core sync state, defaulting to the verified
+ * Write the fixture's fork sync state, defaulting to the verified
  * correspondence. Tests forge exactly one invalid property at a time
  * through the overrides; the real manifests at the pinned upstream commits
  * claim exactly the recorded versions, so a version forgery is the only
@@ -115,11 +115,19 @@ function failingNextTag(pkg, tag) {
  * @param {{ releases?: unknown[], syncs?: unknown[] }} [overrides]
  */
 function writeFixtureState(overrides = {}) {
+  mkdirSync(path.join(fixtureRepo, "scripts", "release", "pi-subagents"), {
+    recursive: true,
+  });
   writeFileSync(
-    path.join(fixtureRepo, "scripts", "release", "core-sync-state.json"),
+    path.join(
+      fixtureRepo,
+      "scripts",
+      "release",
+      "pi-subagents/sync-state.json",
+    ),
     `${JSON.stringify(
       {
-        schemaVersion: 1,
+        schemaVersion: 2,
         releases: overrides.releases ?? [
           {
             forkTag: HISTORICAL_BASELINE_TAG,
@@ -131,7 +139,7 @@ function writeFixtureState(overrides = {}) {
           {
             merge: INTEGRATION_MERGE,
             upstream: INTEGRATED_UPSTREAM_RELEASE,
-            forkCore: {
+            forkContribution: {
               level: "none",
               rationale:
                 "integration carried upstream 21.7.x compatibility work; resolutions kept fork identity",
@@ -147,7 +155,7 @@ function writeFixtureState(overrides = {}) {
 }
 
 beforeEach(() => {
-  const scratch = mkdtempSync(path.join(tmpdir(), "core-sync-history-"));
+  const scratch = mkdtempSync(path.join(tmpdir(), "fork-sync-history-"));
   fixtureRepo = path.join(scratch, "repo");
   execFileSync(
     "git",
@@ -184,7 +192,7 @@ afterEach(() => {
   fixtureRepo = undefined;
 });
 
-describe("core release policy against the real issue-14 history", () => {
+describe("fork release policy against the real issue-14 history", () => {
   it("derives the historical counterfactual patch instead of the accidental major", () => {
     // Under the old repository-wide classification this window printed
     // pi-subagents-v2.0.0 (the integration merge's broad `feat!:` message
@@ -214,7 +222,7 @@ describe("core release policy against the real issue-14 history", () => {
             version: "22.0.0",
             commit: INTEGRATED_UPSTREAM_RELEASE.commit,
           },
-          forkCore: {
+          forkContribution: {
             level: "none",
             rationale: "forged version over the real 21.7.3 release commit",
             paths: [],

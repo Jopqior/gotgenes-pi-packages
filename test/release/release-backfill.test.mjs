@@ -40,13 +40,16 @@ function setup() {
     path.join(repo.dir, "scripts/release/release-packages.json"),
     JSON.stringify(registry),
   );
+  mkdirSync(path.join(repo.dir, "scripts/release/pi-subagents"), {
+    recursive: true,
+  });
   writeFileSync(
-    path.join(repo.dir, "scripts/release/core-sync-state.json"),
+    path.join(repo.dir, "scripts/release/pi-subagents/sync-state.json"),
     JSON.stringify(state),
   );
   repo.git(
     "add",
-    "scripts/release/core-sync-state.json",
+    "scripts/release/pi-subagents/sync-state.json",
     "scripts/release/release-packages.json",
   );
   repo.git("commit", "-m", "build: record release evidence");
@@ -104,7 +107,10 @@ describe("historical backfill preview", () => {
   });
   it("rejects uncommitted local evidence rather than reviewing an unrecorded baseline", () => {
     const { repo } = setup();
-    const file = path.join(repo.dir, "scripts/release/core-sync-state.json");
+    const file = path.join(
+      repo.dir,
+      "scripts/release/pi-subagents/sync-state.json",
+    );
     writeFileSync(file, `${readFileSync(file, "utf8")}\n`);
     expect(() =>
       previewReview({
@@ -183,6 +189,25 @@ describe("historical backfill preview", () => {
 });
 
 describe("reviewed apply", () => {
+  it("refuses a previously approved schema 1 review before any Release edit", () => {
+    const { artifact, repo } = preview(["pi-subagents-v1.0.1"]);
+    expect(artifact.schemaVersion).toBe(2);
+    const obsolete = { ...artifact, schemaVersion: 1 };
+    const edits = [];
+    expect(() => readReview(JSON.stringify(obsolete))).toThrow(
+      /new preview and obtain fresh approval/,
+    );
+    expect(() =>
+      applyReview({
+        repo: repo.dir,
+        review: obsolete,
+        readRelease: (tag) => release(tag),
+        editRelease: (...args) => edits.push(args),
+      }),
+    ).toThrow(/version/);
+    expect(edits).toEqual([]);
+  });
+
   it("rejects mistyped IDs and versions in both existing and missing Release records", () => {
     const { artifact } = preview(
       ["pi-subagents-v1.0.0", "pi-subagents-v1.0.1"],
@@ -288,7 +313,7 @@ describe("reviewed apply", () => {
     const unchanged = (tag) => release(tag);
     const stateFile = path.join(
       repo.dir,
-      "scripts/release/core-sync-state.json",
+      "scripts/release/pi-subagents/sync-state.json",
     );
     const registryFile = path.join(
       repo.dir,

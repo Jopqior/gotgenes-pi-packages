@@ -7,7 +7,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { decideCoreRelease } from "../../../scripts/release/core-sync.mjs";
+import { decideForkRelease } from "../../../scripts/release/fork-sync/decision.mjs";
 import { createScratchReleaseRepository } from "./git-repository.mjs";
 
 /** The fork release tag the scenario's decision window starts from. */
@@ -15,7 +15,7 @@ export const BASE_TAG = "pi-subagents-v1.0.0";
 
 /**
  * A fresh none contribution per call: default `syncUpstream` records must not
- * share one object (or one `paths` array), or forging one record's `forkCore`
+ * share one object (or one `paths` array), or forging one record's `forkContribution`
  * in place would silently reforge every other default record.
  *
  * @returns {{ level: "none", rationale: string, paths: string[] }}
@@ -23,7 +23,7 @@ export const BASE_TAG = "pi-subagents-v1.0.0";
 function noneContribution() {
   return {
     level: "none",
-    rationale: "upstream-only integration; no fork core resolution",
+    rationale: "upstream-only integration; no fork contribution resolution",
     paths: [],
   };
 }
@@ -41,7 +41,7 @@ function noneContribution() {
  *     shape of a docs-only publish.
  *
  * Tests mutate `baseUpstream` and `recordedSyncs` in place — forge evidence —
- * and `writeCoreSyncState` serializes exactly what those references hold.
+ * and `writeForkSyncState` serializes exactly what those references hold.
  *
  * Every recorded upstream release commit — the baseline's and every
  * `syncUpstream`'s — carries `packages/pi-subagents/package.json` claiming
@@ -50,15 +50,15 @@ function noneContribution() {
  * forge of exactly one property, never an inherited accident.
  *
  * @param {{ baselineUpstreamVersion?: string, releaseArtifacts?: boolean }} [options]
- * @returns {CoreSyncScenario}
+ * @returns {ForkSyncScenario}
  */
-export function createCoreSyncScenario(options = {}) {
+export function createForkSyncScenario(options = {}) {
   const baselineUpstreamVersion = options.baselineUpstreamVersion ?? "21.7.0";
   const releaseArtifacts = options.releaseArtifacts ?? false;
   const repo = createScratchReleaseRepository({ pkg: "pi-subagents" });
-  const coreArgs = () => repo.cliffArgs("pi-subagents");
+  const forkArgs = () => repo.cliffArgs("pi-subagents");
   let syncCounter = 0;
-  /** @type {{ merge: string, upstream: { version: string, commit: string }, forkCore: { level: string, rationale: string, paths: string[] } }[]} */
+  /** @type {{ merge: string, upstream: { version: string, commit: string }, forkContribution: { level: string, rationale: string, paths: string[] } }[]} */
   const recordedSyncs = [];
 
   repo.commitInScope(
@@ -111,13 +111,15 @@ export function createCoreSyncScenario(options = {}) {
    *
    * @param {{ releases?: unknown[], syncs?: unknown[] }} [overrides]
    */
-  function writeCoreSyncState(overrides = {}) {
-    mkdirSync(path.join(repo.dir, "scripts", "release"), { recursive: true });
+  function writeForkSyncState(overrides = {}) {
+    mkdirSync(path.join(repo.dir, "scripts", "release", "pi-subagents"), {
+      recursive: true,
+    });
     writeFileSync(
-      path.join(repo.dir, "scripts", "release", "core-sync-state.json"),
+      path.join(repo.dir, "scripts", "release", "pi-subagents/sync-state.json"),
       `${JSON.stringify(
         {
-          schemaVersion: 1,
+          schemaVersion: 2,
           releases: overrides.releases ?? [
             {
               forkTag: BASE_TAG,
@@ -140,10 +142,15 @@ export function createCoreSyncScenario(options = {}) {
    * @param {string} [currentTag]
    */
   function decide(currentTag = BASE_TAG) {
-    return decideCoreRelease({
+    return decideForkRelease({
       repo: repo.dir,
       currentTag,
-      cliffArgs: coreArgs(),
+      cliffArgs: forkArgs(),
+      statePath: path.join(
+        repo.dir,
+        "scripts/release/pi-subagents/sync-state.json",
+      ),
+      packageDirectory: "pi-subagents",
     });
   }
 
@@ -157,7 +164,7 @@ export function createCoreSyncScenario(options = {}) {
    *   version: string,
    *   files?: { message: string, file: string }[],
    *   mergeMessage?: string,
-   *   forkCore?: { level: string, rationale: string, paths: string[] },
+   *   forkContribution?: { level: string, rationale: string, paths: string[] },
    * }} options
    * @returns {{ merge: string, releaseCommit: string, upstreamParent: string }}
    */
@@ -211,7 +218,7 @@ export function createCoreSyncScenario(options = {}) {
     recordedSyncs.push({
       merge,
       upstream: { version: options.version, commit: releaseCommit },
-      forkCore: options.forkCore ?? noneContribution(),
+      forkContribution: options.forkContribution ?? noneContribution(),
     });
     return { merge, releaseCommit, upstreamParent };
   }
@@ -222,7 +229,7 @@ export function createCoreSyncScenario(options = {}) {
     baseUpstreamTip,
     recordedSyncs,
     uniqueUpstreamBranch,
-    writeCoreSyncState,
+    writeForkSyncState,
     decide,
     syncUpstream,
     dispose() {
@@ -232,5 +239,5 @@ export function createCoreSyncScenario(options = {}) {
 }
 
 /**
- * @typedef {ReturnType<typeof createCoreSyncScenario>} CoreSyncScenario
+ * @typedef {ReturnType<typeof createForkSyncScenario>} ForkSyncScenario
  */

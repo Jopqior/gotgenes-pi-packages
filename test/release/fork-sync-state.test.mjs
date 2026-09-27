@@ -5,9 +5,9 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
-  readCoreSyncState,
-  validateCoreSyncState,
-} from "../../scripts/release/core-sync-state.mjs";
+  readForkSyncState,
+  validateForkSyncState,
+} from "../../scripts/release/fork-sync/state.mjs";
 
 // The committed evidence document's schema: what the strict reader accepts
 // and everything it rejects. Hand-built literals only — no Git repository is
@@ -30,7 +30,7 @@ function errorOf(fn) {
 let dir;
 
 beforeEach(() => {
-  dir = mkdtempSync(path.join(tmpdir(), "core-sync-state-test-"));
+  dir = mkdtempSync(path.join(tmpdir(), "fork-sync-state-test-"));
 });
 
 afterEach(() => {
@@ -39,7 +39,7 @@ afterEach(() => {
 
 describe("state schema", () => {
   const validState = () => ({
-    schemaVersion: 1,
+    schemaVersion: 2,
     releases: [
       {
         forkTag: "pi-subagents-v2.0.0",
@@ -51,7 +51,7 @@ describe("state schema", () => {
       {
         merge: "a".repeat(40),
         upstream: { version: "21.7.3", commit: "f".repeat(40) },
-        forkCore: {
+        forkContribution: {
           level: "patch",
           rationale: "resolution adjusted a core default",
           paths: ["packages/pi-subagents/src/a.ts"],
@@ -61,113 +61,123 @@ describe("state schema", () => {
   });
 
   it("accepts a valid document", () => {
-    expect(validateCoreSyncState(validState())).toEqual(validState());
+    expect(validateForkSyncState(validState(), "pi-subagents")).toEqual(
+      validState(),
+    );
   });
 
   it("rejects an unknown schema version", () => {
     const state = validState();
-    state.schemaVersion = 2;
-    expect(errorOf(() => validateCoreSyncState(state)).message).toMatch(
-      /unsupported core sync state schema version/,
-    );
+    state.schemaVersion = 1;
+    expect(
+      errorOf(() => validateForkSyncState(state, "pi-subagents")).message,
+    ).toMatch(/unsupported fork sync state schema version/);
   });
 
   it("rejects duplicate release records for one fork tag", () => {
     const state = validState();
     state.releases.push({ ...state.releases[0] });
-    expect(errorOf(() => validateCoreSyncState(state)).message).toMatch(
-      /duplicate release record/,
-    );
+    expect(
+      errorOf(() => validateForkSyncState(state, "pi-subagents")).message,
+    ).toMatch(/duplicate release record/);
   });
 
   it("rejects invalid versions and malformed object IDs", () => {
     const badVersion = validState();
     badVersion.releases[0].upstream.version = "21.7.3-rc1";
-    expect(errorOf(() => validateCoreSyncState(badVersion)).message).toMatch(
-      /not a strict stable SemVer/,
-    );
+    expect(
+      errorOf(() => validateForkSyncState(badVersion, "pi-subagents")).message,
+    ).toMatch(/not a strict stable SemVer/);
 
     const shortOid = validState();
     shortOid.releases[0].upstream.commit = "abc123";
-    expect(errorOf(() => validateCoreSyncState(shortOid)).message).toMatch(
-      /not a full 40-hex object ID/,
-    );
+    expect(
+      errorOf(() => validateForkSyncState(shortOid, "pi-subagents")).message,
+    ).toMatch(/not a full 40-hex object ID/);
 
     const badSyncVersion = validState();
     badSyncVersion.syncs[0].upstream.version = "not-semver";
     expect(
-      errorOf(() => validateCoreSyncState(badSyncVersion)).message,
+      errorOf(() => validateForkSyncState(badSyncVersion, "pi-subagents"))
+        .message,
     ).toMatch(/not a strict stable SemVer/);
   });
 
   it("rejects unknown fields at every level", () => {
     const topLevel = validState();
     topLevel.cache = true;
-    expect(errorOf(() => validateCoreSyncState(topLevel)).message).toMatch(
-      /unknown state field 'cache'/,
-    );
+    expect(
+      errorOf(() => validateForkSyncState(topLevel, "pi-subagents")).message,
+    ).toMatch(/unknown state field 'cache'/);
 
     const releaseField = validState();
     releaseField.releases[0].verified = true;
-    expect(errorOf(() => validateCoreSyncState(releaseField)).message).toMatch(
-      /unknown releases\[0\] field 'verified'/,
-    );
+    expect(
+      errorOf(() => validateForkSyncState(releaseField, "pi-subagents"))
+        .message,
+    ).toMatch(/unknown releases\[0\] field 'verified'/);
 
     const syncField = validState();
     syncField.syncs[0].reviewedAt = "2026-09-19";
-    expect(errorOf(() => validateCoreSyncState(syncField)).message).toMatch(
-      /unknown syncs\[0\] field 'reviewedAt'/,
-    );
+    expect(
+      errorOf(() => validateForkSyncState(syncField, "pi-subagents")).message,
+    ).toMatch(/unknown syncs\[0\] field 'reviewedAt'/);
   });
 
-  it("rejects contradictory fork-core contributions", () => {
+  it("rejects contradictory fork contributions", () => {
     const emptyPaths = validState();
-    emptyPaths.syncs[0].forkCore.paths = [];
-    expect(errorOf(() => validateCoreSyncState(emptyPaths)).message).toMatch(
-      /level patch with no changed core paths/,
-    );
+    emptyPaths.syncs[0].forkContribution.paths = [];
+    expect(
+      errorOf(() => validateForkSyncState(emptyPaths, "pi-subagents")).message,
+    ).toMatch(/level patch with no changed package paths/);
 
     const noneWithPaths = validState();
-    noneWithPaths.syncs[0].forkCore.level = "none";
-    expect(errorOf(() => validateCoreSyncState(noneWithPaths)).message).toMatch(
-      /level none with changed core paths/,
-    );
+    noneWithPaths.syncs[0].forkContribution.level = "none";
+    expect(
+      errorOf(() => validateForkSyncState(noneWithPaths, "pi-subagents"))
+        .message,
+    ).toMatch(/level none with changed package paths/);
 
     const badLevel = validState();
-    badLevel.syncs[0].forkCore.level = "huge";
-    expect(errorOf(() => validateCoreSyncState(badLevel)).message).toMatch(
-      /not a release level/,
-    );
+    badLevel.syncs[0].forkContribution.level = "huge";
+    expect(
+      errorOf(() => validateForkSyncState(badLevel, "pi-subagents")).message,
+    ).toMatch(/not a release level/);
 
     const emptyRationale = validState();
-    emptyRationale.syncs[0].forkCore.rationale = "  ";
+    emptyRationale.syncs[0].forkContribution.rationale = "  ";
     expect(
-      errorOf(() => validateCoreSyncState(emptyRationale)).message,
+      errorOf(() => validateForkSyncState(emptyRationale, "pi-subagents"))
+        .message,
     ).toMatch(/rationale must be a non-empty string/);
 
     const foreignPath = validState();
-    foreignPath.syncs[0].forkCore.paths = ["packages/pi-colgrep/src/a.ts"];
-    expect(errorOf(() => validateCoreSyncState(foreignPath)).message).toMatch(
-      /not a core package path/,
-    );
+    foreignPath.syncs[0].forkContribution.paths = [
+      "packages/pi-colgrep/src/a.ts",
+    ];
+    expect(
+      errorOf(() => validateForkSyncState(foreignPath, "pi-subagents")).message,
+    ).toMatch(/not a package path/);
   });
 
   it("rejects duplicate sync records for one merge", () => {
     const state = validState();
     state.syncs.push({ ...state.syncs[0] });
-    expect(errorOf(() => validateCoreSyncState(state)).message).toMatch(
-      /duplicate sync record/,
-    );
+    expect(
+      errorOf(() => validateForkSyncState(state, "pi-subagents")).message,
+    ).toMatch(/duplicate sync record/);
   });
 
   it("reads strictly from disk", () => {
     const statePath = path.join(dir, "state.json");
     writeFileSync(statePath, "{ not json");
-    expect(errorOf(() => readCoreSyncState(statePath)).message).toMatch(
-      /not valid JSON/,
-    );
     expect(
-      errorOf(() => readCoreSyncState(path.join(dir, "missing.json"))).message,
-    ).toMatch(/cannot read core sync state/);
+      errorOf(() => readForkSyncState(statePath, "pi-subagents")).message,
+    ).toMatch(/not valid JSON/);
+    expect(
+      errorOf(() =>
+        readForkSyncState(path.join(dir, "missing.json"), "pi-subagents"),
+      ).message,
+    ).toMatch(/cannot read fork sync state/);
   });
 });

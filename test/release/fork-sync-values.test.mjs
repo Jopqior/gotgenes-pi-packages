@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { isCoreScopePath } from "../../scripts/release/core-sync-evidence.mjs";
+import { isPackageScopePath } from "../../scripts/release/fork-sync/evidence.mjs";
 import {
   combineLevels,
   compareVersions,
   incrementVersion,
   levelFromVersions,
   parseStrictSemVer,
-} from "../../scripts/release/core-sync-values.mjs";
+} from "../../scripts/release/fork-sync/values.mjs";
 
 // The pure algebra of the core sync release policy: strict SemVer parsing,
 // version comparison, level mapping and combination, version increment, and
@@ -67,32 +67,67 @@ describe("level mapping", () => {
     expect(() => incrementVersion("1.2", "patch")).toThrow(/invalid SemVer/);
   });
 
-  it("scopes core paths like the release scripts' exclusions", () => {
-    expect(isCoreScopePath("packages/pi-subagents/src/a.ts")).toBe(true);
-    expect(isCoreScopePath("packages/pi-subagents/test/a.test.ts")).toBe(true);
-    expect(isCoreScopePath("packages/pi-subagents/docs/guides/x.md")).toBe(
-      true,
-    );
-    expect(isCoreScopePath("packages/pi-subagents/package.json")).toBe(true);
-    expect(isCoreScopePath("packages/pi-subagents/CHANGELOG.md")).toBe(false);
-    expect(isCoreScopePath("packages/pi-subagents/docs/plans/x.md")).toBe(
-      false,
-    );
-    expect(isCoreScopePath("packages/pi-subagents/docs/retro/x.md")).toBe(
-      false,
-    );
+  it("scopes package paths like the release scripts' exclusions", () => {
     expect(
-      isCoreScopePath("packages/pi-subagents/docs/architecture/x.md"),
+      isPackageScopePath("packages/pi-subagents/src/a.ts", "pi-subagents"),
+    ).toBe(true);
+    expect(
+      isPackageScopePath(
+        "packages/pi-subagents/test/a.test.ts",
+        "pi-subagents",
+      ),
+    ).toBe(true);
+    expect(
+      isPackageScopePath(
+        "packages/pi-subagents/docs/guides/x.md",
+        "pi-subagents",
+      ),
+    ).toBe(true);
+    expect(
+      isPackageScopePath("packages/pi-subagents/package.json", "pi-subagents"),
+    ).toBe(true);
+    expect(
+      isPackageScopePath("packages/pi-subagents/CHANGELOG.md", "pi-subagents"),
     ).toBe(false);
-    expect(isCoreScopePath("packages/pi-subagents/docs/decisions/x.md")).toBe(
+    expect(
+      isPackageScopePath(
+        "packages/pi-subagents/docs/plans/x.md",
+        "pi-subagents",
+      ),
+    ).toBe(false);
+    expect(
+      isPackageScopePath(
+        "packages/pi-subagents/docs/retro/x.md",
+        "pi-subagents",
+      ),
+    ).toBe(false);
+    expect(
+      isPackageScopePath(
+        "packages/pi-subagents/docs/architecture/x.md",
+        "pi-subagents",
+      ),
+    ).toBe(false);
+    expect(
+      isPackageScopePath(
+        "packages/pi-subagents/docs/decisions/x.md",
+        "pi-subagents",
+      ),
+    ).toBe(false);
+    expect(
+      isPackageScopePath(
+        "packages/pi-subagents/docs/assets/x.svg",
+        "pi-subagents",
+      ),
+    ).toBe(false);
+    expect(
+      isPackageScopePath("packages/pi-subagents/docs/plans", "pi-subagents"),
+    ).toBe(false);
+    expect(
+      isPackageScopePath("packages/pi-colgrep/src/a.ts", "pi-subagents"),
+    ).toBe(false);
+    expect(isPackageScopePath("docs/upstream-sync.md", "pi-subagents")).toBe(
       false,
     );
-    expect(isCoreScopePath("packages/pi-subagents/docs/assets/x.svg")).toBe(
-      false,
-    );
-    expect(isCoreScopePath("packages/pi-subagents/docs/plans")).toBe(false);
-    expect(isCoreScopePath("packages/pi-colgrep/src/a.ts")).toBe(false);
-    expect(isCoreScopePath("docs/upstream-sync.md")).toBe(false);
   });
 });
 

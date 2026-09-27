@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 2,
+  "releases": [
+    {
+      "forkTag": "pi-subagents-v1.0.0",
+      "upstream": {
+        "version": "21.7.0",
+        "commit": "b3b6159399f541fd0623f65818557dd3e707a34f"
+      },
+      "upstreamTip": "045213317de608c04a7b6052b2b843e3a0f2176f"
+    },
+    {
+      "forkTag": "pi-subagents-v1.0.1",
+      "upstream": {
+        "version": "21.7.0",
+        "commit": "b3b6159399f541fd0623f65818557dd3e707a34f"
+      },
+      "upstreamTip": "045213317de608c04a7b6052b2b843e3a0f2176f"
+    },
+    {
+      "forkTag": "pi-subagents-v1.0.2",
+      "upstream": {
+        "version": "21.7.0",
+        "commit": "b3b6159399f541fd0623f65818557dd3e707a34f"
+      },
+      "upstreamTip": "045213317de608c04a7b6052b2b843e3a0f2176f"
+    },
+    {
+      "forkTag": "pi-subagents-v2.0.0",
+      "upstream": {
+        "version": "21.7.3",
+        "commit": "f918568bbb643a6145898c76c5cc225c63b5b793"
+      },
+      "upstreamTip": "edb35ee28535aac4e12431e47e440f6933911834"
+    },
+    {
+      "forkTag": "pi-subagents-v3.0.0",
+      "upstream": {
+        "version": "21.7.3",
+        "commit": "f918568bbb643a6145898c76c5cc225c63b5b793"
+      },
+      "upstreamTip": "edb35ee28535aac4e12431e47e440f6933911834"
+    },
+    {
+      "forkTag": "pi-subagents-v4.0.0",
+      "upstream": {
+        "version": "21.7.3",
+        "commit": "f918568bbb643a6145898c76c5cc225c63b5b793"
+      },
+      "upstreamTip": "edb35ee28535aac4e12431e47e440f6933911834"
+    },
+    {
+      "forkTag": "pi-subagents-v4.0.1",
+      "upstream": {
+        "version": "21.7.3",
+        "commit": "f918568bbb643a6145898c76c5cc225c63b5b793"
+      },
+      "upstreamTip": "edb35ee28535aac4e12431e47e440f6933911834"
+    },
+    {
+      "forkTag": "pi-subagents-v4.0.2",
+      "upstream": {
+        "version": "21.7.3",
+        "commit": "f918568bbb643a6145898c76c5cc225c63b5b793"
+      },
+      "upstreamTip": "edb35ee28535aac4e12431e47e440f6933911834"
+    },
+    {
+      "forkTag": "pi-subagents-v4.0.3",
+      "upstream": {
+        "version": "21.7.7",
+        "commit": "1c8c78e888e3b6b404bafeb9221420c204b6e1fe"
+      },
+      "upstreamTip": "4dd378ca97a35e380ed946cd5ce0bcb9050ced5a"
+    }
+  ],
+  "syncs": [
+    {
+      "merge": "0408aa5ff9d9811d98df17dde436e7fd45a5a3ad",
+      "upstream": {
+        "version": "21.7.3",
+        "commit": "f918568bbb643a6145898c76c5cc225c63b5b793"
+      },
+      "forkContribution": {
+        "level": "none",
+        "rationale": "integration carried upstream 21.7.x compatibility work; conflict resolutions kept fork identity without changing the core contract",
+        "paths": []
+      }
+    },
+    {
+      "merge": "d4d90b3de6c19be1516ce0a92c1ad611e8543ba5",
+      "upstream": {
+        "version": "21.7.7",
+        "commit": "1c8c78e888e3b6b404bafeb9221420c204b6e1fe"
+      },
+      "forkContribution": {
+        "level": "none",
+        "rationale": "Preserved fork package identity and spawn-selection behavior while incorporating upstream prompt-context and widget changes; conflict fixes only updated a UI test stub and type-only architecture boundaries.",
+        "paths": []
+      }
+    }
+  ]
+}

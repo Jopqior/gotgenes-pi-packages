@@ -39,9 +39,9 @@ If a later job fails, the tags are already pushed — fix the cause and re-run t
 Before rerunning publication, ensure its checked-out package paths match the tags: `pnpm publish --no-git-checks` packs the working checkout, so the preflight rejects Git-visible tracked or untracked package drift and compares each package's `package.json` and `CHANGELOG.md` against its tag byte-for-byte.
 
 Versions and changelogs come from [git-cliff](https://git-cliff.org) reading local git, with no network in the derivation.
-The fork core's release level additionally uses verified correspondence (below).
+The `pi-subagents` fork release level additionally uses verified correspondence (below).
 Preparation commits a decorated CHANGELOG section; the GitHub Release body comes from that exact tagged section, not a second render.
-The generated table in `docs/upstream-sync.md` is committed with a selected core release and checked against state by `node scripts/release/correspondence-table.mjs --check`.
+The generated table in `docs/upstream-sync.md` is committed with a selected fork release and checked against state by `node scripts/release/correspondence-table.mjs --check`.
 See `docs/decisions/0002-git-cliff-release-automation.md` for why, and for the accepted residual (there is no release-PR review gate).
 
 ## What cuts a release
@@ -63,24 +63,24 @@ Tarball scope and release scope are different lists — check the one you mean.
 Commits that only touch excluded paths do not trigger releases, and neither do files outside the package tree.
 A package's own `CHANGELOG.md` is excluded too, so a release commit never re-enters the next changelog.
 
-## Core package release levels
+## Fork release levels
 
 `pi-subagents` is the exception to direct git-cliff derivation: its history advances through upstream merges, so the integration merge's own commit type says nothing about the fork's independent version.
-Its next tag comes from verified upstream correspondence in `scripts/release/core-sync-state.json` — the SemVer distance between the incorporated upstream releases, combined with git-cliff's view of fork-owned commits and each recorded merge's reviewed fork-core contribution.
+Its next tag comes from verified upstream correspondence in `scripts/release/pi-subagents/sync-state.json`: the SemVer distance between incorporated upstream releases, combined with git-cliff's view of fork-owned commits and each recorded merge's reviewed fork contribution.
 `next-version.sh pi-subagents` applies that policy offline and prints the same `<pkg>-v<version>` contract as every other package.
 
 Evidence failures are strict errors, not "nothing to release": a nonzero exit means record the missing sync or fix the state, never that the package is quiet.
 There is no override flag.
-After merging upstream, record the reviewed evidence before dispatching a core release:
+After merging upstream, record reviewed evidence before dispatching a fork release:
 
 ```bash
-./scripts/upstream-sync.sh --record-core-sync <merge> --fork-level <none|patch|minor|major> --rationale "<text>"
+./scripts/upstream-sync.sh --record-fork-sync <merge> --fork-level <none|patch|minor|major> --rationale "<text>"
 ```
 
-A blocked core in a multi-package dispatch fails the whole run before any write.
-`prepare-release.sh` appends the core release's correspondence to the state file, decorates its CHANGELOG section with a fixed upstream source link and a provenance-not-equivalence statement, and regenerates the marked table region in `docs/upstream-sync.md` with the release artifacts.
-Publishing only siblings leaves core state and table untouched.
-The changelog still lists upstream entries in full — the policy filters commits only to compute the level.
+A blocked fork in a multi-package dispatch fails the whole run before any write.
+`prepare-release.sh` appends the fork release's correspondence to the state file, decorates its CHANGELOG section with a fixed upstream source link and a provenance-not-equivalence statement, and regenerates the marked table region in `docs/upstream-sync.md` with the release artifacts.
+Publishing only siblings leaves fork state and table untouched.
+The changelog still lists upstream entries in full; the policy filters commits only to compute the level.
 Existing npm tarballs and historical CHANGELOG entries are immutable; notes-only historical GitHub Release backfill follows the separate preview/approval procedure in `docs/upstream-sync.md`.
 See that guide for the mapping rule, blocking cases, and recording procedure; explicit dispatch itself is unchanged.
 
@@ -115,7 +115,7 @@ When adding a new package, wire it into all of:
 
 Generic release prediction and the issue auto-labeler derive their package list from the workspace: `scripts/release/lib.sh` and `scripts/issue-package-labels.sh` enumerate `packages/*/package.json`.
 A new package needs no edit to those discovery scripts, but the automated preparation and publication entry points reject it until its actual directory and npm identity are explicitly registered in `scripts/release/release-packages.json` as `fork` or `original`.
-Only the reviewed `core-sync` evidence route is supported for a fork today; a future fork needs its own verified route before registration can make it releasable.
+Only the reviewed `fork-sync` evidence route for `pi-subagents` is supported today; a future fork needs its own verified route before registration can make it releasable.
 Registration never approves a new npm scope or publication destination.
 
 ## Docs-in-distribution convention

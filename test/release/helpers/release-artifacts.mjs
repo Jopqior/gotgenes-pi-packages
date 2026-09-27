@@ -12,7 +12,7 @@ export const FORK = {
     repository: "gotgenes/pi-packages",
     directory: "packages/pi-subagents",
   },
-  evidence: "core-sync",
+  evidence: "fork-sync",
 };
 export const ORIGINAL = {
   directory: "pi-subagents-model-selector",
@@ -26,11 +26,11 @@ export const ORIGINAL = {
  */
 export function createReleaseArtifacts() {
   const repo = createScratchReleaseRepository({ pkg: "pi-subagents" });
-  const registry = { schemaVersion: 1, packages: [FORK, ORIGINAL] };
+  const registry = { schemaVersion: 2, packages: [FORK, ORIGINAL] };
   repo.commitOutOfScope("docs: establish history");
   const first = publishFixtureRelease("1.0.0", "21.7.0");
   const second = publishFixtureRelease("1.0.1", "21.7.1");
-  const state = { schemaVersion: 1, releases: [first, second], syncs: [] };
+  const state = { schemaVersion: 2, releases: [first, second], syncs: [] };
   writeManifest(ORIGINAL.directory, ORIGINAL.name, "0.1.0");
   repo.git("add", ".");
   repo.git("commit", "-m", "chore: add original package");

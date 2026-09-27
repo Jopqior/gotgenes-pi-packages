@@ -92,7 +92,7 @@ describe("strict release package registration", () => {
     [
       "schema version",
       (r) => {
-        r.schemaVersion = 2;
+        r.schemaVersion = 1;
       },
     ],
     [
@@ -158,7 +158,7 @@ describe("strict release package registration", () => {
     [
       "adapter on original",
       (r) => {
-        r.packages[1].evidence = "core-sync";
+        r.packages[1].evidence = "fork-sync";
       },
     ],
     [
@@ -333,7 +333,7 @@ describe("exact tagged correspondence", () => {
       upstreamTip: tail,
     };
     expect(() => published(forged.forkTag, { releases: [forged] })).toThrow(
-      /unreleased upstream core changes/,
+      /unreleased upstream package changes/,
     );
   });
 });

@@ -5,31 +5,31 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   BASE_TAG,
-  createCoreSyncScenario,
-} from "./helpers/core-sync-scenario.mjs";
+  createForkSyncScenario,
+} from "./helpers/fork-sync-scenario.mjs";
 
 // The decision CLI's contract: stdout/stderr/exit status for a decided tag,
 // nothing pending, a full --json document, and evidence failures — plus
 // agreement with the library decision on the same repository.
 
-/** @type {ReturnType<typeof createCoreSyncScenario>} */
+/** @type {ReturnType<typeof createForkSyncScenario>} */
 let scenario;
-/** @type {ReturnType<typeof createCoreSyncScenario>["repo"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["repo"]} */
 let repo;
-/** @type {ReturnType<typeof createCoreSyncScenario>["writeCoreSyncState"]} */
-let writeCoreSyncState;
-/** @type {ReturnType<typeof createCoreSyncScenario>["decide"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["writeForkSyncState"]} */
+let writeForkSyncState;
+/** @type {ReturnType<typeof createForkSyncScenario>["decide"]} */
 let decide;
-/** @type {ReturnType<typeof createCoreSyncScenario>["syncUpstream"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["syncUpstream"]} */
 let syncUpstream;
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
-const CORE_ARGS = () => repo.cliffArgs("pi-subagents");
+const FORK_ARGS = () => repo.cliffArgs("pi-subagents");
 
 beforeEach(() => {
-  scenario = createCoreSyncScenario();
+  scenario = createForkSyncScenario();
   repo = scenario.repo;
-  writeCoreSyncState = scenario.writeCoreSyncState;
+  writeForkSyncState = scenario.writeForkSyncState;
   decide = scenario.decide;
   syncUpstream = scenario.syncUpstream;
 });
@@ -46,14 +46,14 @@ describe("decision CLI", () => {
     const result = spawnSync(
       process.execPath,
       [
-        path.join(repoRoot, "scripts", "release", "core-sync.mjs"),
+        path.join(repoRoot, "scripts", "release", "fork-sync.mjs"),
         "--repo",
         repo.dir,
         "--current",
         BASE_TAG,
         ...extra,
         "--",
-        ...CORE_ARGS(),
+        ...FORK_ARGS(),
       ],
       { encoding: "utf8" },
     );
@@ -66,7 +66,7 @@ describe("decision CLI", () => {
 
   it("prints the decided tag on stdout with exit status 0", () => {
     syncUpstream({ version: "21.7.1" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const result = runCli();
 
@@ -75,7 +75,7 @@ describe("decision CLI", () => {
   });
 
   it("prints nothing with exit status 0 when nothing is releasable", () => {
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const result = runCli();
 
@@ -85,7 +85,7 @@ describe("decision CLI", () => {
 
   it("prints a full decision document with --json", () => {
     syncUpstream({ version: "21.7.1" });
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const result = runCli("--json");
 
@@ -99,7 +99,7 @@ describe("decision CLI", () => {
   });
 
   it("reports evidence failures on stderr with a nonzero status", () => {
-    writeCoreSyncState({ releases: [] });
+    writeForkSyncState({ releases: [] });
 
     const result = runCli();
 
@@ -115,7 +115,7 @@ describe("decision CLI", () => {
       "feat(pi-subagents)!: fork break",
       "packages/pi-subagents/break.txt",
     );
-    writeCoreSyncState();
+    writeForkSyncState();
 
     const cli = runCli();
     const library = decide();

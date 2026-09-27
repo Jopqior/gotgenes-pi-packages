@@ -5,14 +5,15 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
-  readCoreSyncState,
-  validateCoreSyncState,
-} from "./core-sync-state.mjs";
-import { CoreSyncError } from "./core-sync-values.mjs";
-import {
   renderCorrespondenceTable,
   updateCorrespondenceDocument,
 } from "./correspondence-table.mjs";
+import {
+  readForkSyncState,
+  validateForkSyncState,
+} from "./fork-sync/state.mjs";
+import { ForkSyncError } from "./fork-sync/values.mjs";
+import { forkSyncTarget } from "./pi-subagents/config.mjs";
 import {
   findReleaseSection,
   readReleasePackages,
@@ -26,7 +27,7 @@ import {
 export function prepareArtifacts(repo, out, specFile) {
   const spec = JSON.parse(readFileSync(specFile, "utf8"));
   if (!Array.isArray(spec) || spec.length === 0)
-    throw new CoreSyncError("release selection must not be empty");
+    throw new ForkSyncError("release selection must not be empty");
   const registry = registryAt(repo);
   const state = stateAt(repo);
   const projected = structuredClone(state);
@@ -39,7 +40,7 @@ export function prepareArtifacts(repo, out, specFile) {
       decision: item.decision,
     });
     if (item.directory !== item.tag.slice(0, item.tag.lastIndexOf("-v")))
-      throw new CoreSyncError(`package/tag mismatch: ${item.tag}`);
+      throw new ForkSyncError(`package/tag mismatch: ${item.tag}`);
     const section = readFileSync(item.section, "utf8");
     // This format is intentionally limited to sections emitted by this repo's
     // git-cliff configuration; a drifted renderer must not publish a guess.
@@ -63,7 +64,7 @@ export function prepareArtifacts(repo, out, specFile) {
           section.slice(0, section.indexOf("\n")),
         )
       ) {
-        throw new CoreSyncError(
+        throw new ForkSyncError(
           `generated first CHANGELOG has a different release heading ${item.tag}`,
         );
       }
@@ -74,7 +75,7 @@ export function prepareArtifacts(repo, out, specFile) {
     }
     if (provenance.kind === "fork") {
       if (pending)
-        throw new CoreSyncError("more than one pending fork release");
+        throw new ForkSyncError("more than one pending fork release");
       pending = { tag: item.tag, decision: item.decision };
       projected.releases.push({
         forkTag: item.tag,
@@ -83,7 +84,7 @@ export function prepareArtifacts(repo, out, specFile) {
       });
     }
   }
-  validateCoreSyncState(projected);
+  validateForkSyncState(projected, forkSyncTarget.directory);
   if (pending) {
     const document = readFileSync(
       path.join(repo, "docs/upstream-sync.md"),
@@ -121,7 +122,7 @@ export function validatePublishedArtifacts(repo, out, tags) {
       encoding: "utf8",
     }).trim();
     if (peeled !== head)
-      throw new CoreSyncError(
+      throw new ForkSyncError(
         `release tag ${tag} is not at the checked-out release commit`,
       );
     const provenance = resolvePublishedCorrespondence({
@@ -152,7 +153,7 @@ function assertTaggedPublishCheckout(repo, tag, directory) {
     { cwd: repo, encoding: "utf8" },
   );
   if (changes) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       `working package ${packagePath} differs from validated tag ${tag}: ${changes.trimEnd()}`,
     );
   }
@@ -165,7 +166,7 @@ function assertTaggedPublishCheckout(repo, tag, directory) {
     });
     const working = readFileSync(path.join(repo, relative));
     if (!working.equals(tagged)) {
-      throw new CoreSyncError(
+      throw new ForkSyncError(
         `working ${relative} differs from validated tag ${tag}`,
       );
     }
@@ -180,14 +181,14 @@ export function assertReleaseProvenance(section, provenance) {
   const ends = section.split(end).length - 1;
   if (provenance.kind === "original") {
     if (starts !== 0 || ends !== 0)
-      throw new CoreSyncError(
+      throw new ForkSyncError(
         "original package has upstream correspondence markers",
       );
     return;
   }
   const block = renderUpstreamCorrespondence(provenance);
   if (starts !== 1 || ends !== 1 || !section.includes(block))
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       "tagged CHANGELOG has missing or conflicting managed upstream correspondence",
     );
 }
@@ -210,7 +211,7 @@ export function assertExistingRelease(existing, expected) {
       ),
     )
   ) {
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       "existing Release has conflicting managed upstream correspondence",
     );
   }
@@ -223,8 +224,9 @@ function registryAt(repo) {
   );
 }
 function stateAt(repo) {
-  return readCoreSyncState(
-    path.join(repo, "scripts/release/core-sync-state.json"),
+  return readForkSyncState(
+    path.join(repo, forkSyncTarget.statePath),
+    forkSyncTarget.directory,
   );
 }
 
@@ -245,7 +247,7 @@ function main(args) {
       readFileSync(rest[1], "utf8"),
     );
   else
-    throw new CoreSyncError(
+    throw new ForkSyncError(
       "invalid release-artifacts invocation (see --help)",
     );
 }

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
 # Fetch gotgenes/pi-packages without importing tags, and optionally merge or
-# record core sync evidence.
+# record fork sync evidence.
 #
 # Usage:
 #   scripts/upstream-sync.sh                                     # ensure remote, fetch --no-tags, print ahead/behind
 #   scripts/upstream-sync.sh --merge                             # the same, then git merge upstream/main (no push)
-#   scripts/upstream-sync.sh --record-core-sync <merge> \
+#   scripts/upstream-sync.sh --record-fork-sync <merge> \
 #       --fork-level <none|patch|minor|major> --rationale <text> # record reviewed sync evidence
 #
 # This script never pushes. The mutating half is a local merge on main.
@@ -26,12 +26,12 @@ die() {
 }
 
 usage() {
-  printf 'Usage: %s [--merge | --record-core-sync <merge> [--fork-level <level>] [--rationale <text>]]\n' "$(basename "$0")" >&2
+  printf 'Usage: %s [--merge | --record-fork-sync <merge> [--fork-level <level>] [--rationale <text>]]\n' "$(basename "$0")" >&2
   printf '  (no flag)              ensure remote, fetch --no-tags, print ahead/behind\n' >&2
   printf '  --merge                the same, then git merge upstream/main (no push)\n' >&2
-  printf '  --record-core-sync <merge>\n' >&2
-  printf '                        after a completed merge, append its reviewed core sync\n' >&2
-  printf '                        evidence to scripts/release/core-sync-state.json\n' >&2
+  printf '  --record-fork-sync <merge>\n' >&2
+  printf '                        after a completed merge, append its reviewed fork sync\n' >&2
+  printf '                        evidence to scripts/release/pi-subagents/sync-state.json\n' >&2
   printf '                        (--fork-level and --rationale supply the review)\n' >&2
   exit "${1:-1}"
 }
@@ -46,7 +46,7 @@ while [ $# -gt 0 ]; do
       merge=1
       shift
       ;;
-    --record-core-sync)
+    --record-fork-sync)
       [ $# -ge 2 ] || usage 1
       record_merge=$2
       shift 2
@@ -103,7 +103,7 @@ check_merge_preconditions() {
 
   # In-progress states are diagnosed before cleanliness: a conflicted merge
   # always dirties the tree, and "a merge is already in progress" is the
-  # actionable diagnosis for both --merge and --record-core-sync.
+  # actionable diagnosis for both --merge and --record-fork-sync.
   git_dir="$(git rev-parse --git-dir)"
   [[ ! -e "${git_dir}/MERGE_HEAD" ]] || refuse_merge "a merge is already in progress"
   [[ ! -d "${git_dir}/rebase-merge" && ! -d "${git_dir}/rebase-apply" ]] \
@@ -176,11 +176,11 @@ if [[ "$merge" -eq 1 ]]; then
   if ! GIT_MERGE_AUTOEDIT=no git merge -m "chore: merge upstream/main" upstream/main; then
     printf 'error: merge conflicts remain; see docs/upstream-sync.md\n' >&2
     printf 'after resolving and git merge --continue, record the sync evidence:\n' >&2
-    printf '  %s --record-core-sync <merge> --fork-level <none|patch|minor|major> --rationale <text>\n' "$0" >&2
+    printf '  %s --record-fork-sync <merge> --fork-level <none|patch|minor|major> --rationale <text>\n' "$0" >&2
     exit 1
   fi
-  printf 'merge complete; record its reviewed core sync evidence before the next release:\n'
-  printf '  %s --record-core-sync %s --fork-level <none|patch|minor|major> --rationale <text>\n' "$0" "$(git rev-parse HEAD)"
+  printf 'merge complete; record its reviewed fork sync evidence before the next release:\n'
+  printf '  %s --record-fork-sync %s --fork-level <none|patch|minor|major> --rationale <text>\n' "$0" "$(git rev-parse HEAD)"
   exit 0
 fi
 
@@ -196,4 +196,4 @@ if [ -n "$rationale" ]; then
   record_args+=(--rationale "$rationale")
 fi
 script_dir="$(cd "$(dirname "$0")" && pwd)"
-exec node "$script_dir/release/record-core-sync.mjs" "${record_args[@]}"
+exec node "$script_dir/release/record-fork-sync.mjs" "${record_args[@]}"

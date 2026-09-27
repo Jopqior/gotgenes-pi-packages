@@ -5,11 +5,11 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { parseCliffContext } from "../../scripts/release/core-sync-cliff.mjs";
+import { parseCliffContext } from "../../scripts/release/fork-sync/cliff.mjs";
 import {
   BASE_TAG,
-  createCoreSyncScenario,
-} from "./helpers/core-sync-scenario.mjs";
+  createForkSyncScenario,
+} from "./helpers/fork-sync-scenario.mjs";
 
 // The git-cliff adapter contract: the JSON context shape the decision
 // accepts, and fail-closed behavior when that shape is malformed.
@@ -21,22 +21,22 @@ import {
 // must fail loudly here rather than silently discarding retained fork
 // commits.
 
-/** @type {ReturnType<typeof createCoreSyncScenario>} */
+/** @type {ReturnType<typeof createForkSyncScenario>} */
 let scenario;
-/** @type {ReturnType<typeof createCoreSyncScenario>["repo"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["repo"]} */
 let repo;
-/** @type {ReturnType<typeof createCoreSyncScenario>["writeCoreSyncState"]} */
-let writeCoreSyncState;
-/** @type {ReturnType<typeof createCoreSyncScenario>["syncUpstream"]} */
+/** @type {ReturnType<typeof createForkSyncScenario>["writeForkSyncState"]} */
+let writeForkSyncState;
+/** @type {ReturnType<typeof createForkSyncScenario>["syncUpstream"]} */
 let syncUpstream;
 
 const repoRoot = path.resolve(import.meta.dirname, "../..");
-const CORE_ARGS = () => repo.cliffArgs("pi-subagents");
+const FORK_ARGS = () => repo.cliffArgs("pi-subagents");
 
 beforeEach(() => {
-  scenario = createCoreSyncScenario();
+  scenario = createForkSyncScenario();
   repo = scenario.repo;
-  writeCoreSyncState = scenario.writeCoreSyncState;
+  writeForkSyncState = scenario.writeForkSyncState;
   syncUpstream = scenario.syncUpstream;
 });
 
@@ -164,7 +164,7 @@ describe("git-cliff context adapter (synthetic PATH tampering)", () => {
       "feat(pi-subagents)!: fork break",
       "packages/pi-subagents/break.txt",
     );
-    writeCoreSyncState();
+    writeForkSyncState();
   }
 
   const transformSource = [
@@ -230,13 +230,13 @@ describe("git-cliff context adapter (synthetic PATH tampering)", () => {
       const result = spawnSync(
         process.execPath,
         [
-          path.join(repoRoot, "scripts", "release", "core-sync.mjs"),
+          path.join(repoRoot, "scripts", "release", "fork-sync.mjs"),
           "--repo",
           repo.dir,
           "--current",
           BASE_TAG,
           "--",
-          ...CORE_ARGS(),
+          ...FORK_ARGS(),
         ],
         {
           encoding: "utf8",
@@ -266,13 +266,13 @@ describe("git-cliff context adapter (synthetic PATH tampering)", () => {
     const result = spawnSync(
       process.execPath,
       [
-        path.join(repoRoot, "scripts", "release", "core-sync.mjs"),
+        path.join(repoRoot, "scripts", "release", "fork-sync.mjs"),
         "--repo",
         repo.dir,
         "--current",
         BASE_TAG,
         "--",
-        ...CORE_ARGS(),
+        ...FORK_ARGS(),
       ],
       { encoding: "utf8" },
     );

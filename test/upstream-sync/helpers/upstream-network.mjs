@@ -341,7 +341,7 @@ export function createUpstreamNetwork() {
   }
 
   /**
-   * @param {"divergent" | "conflict" | "already-integrated" | "empty-upstream" | "core-sync"} topology
+   * @param {"divergent" | "conflict" | "already-integrated" | "empty-upstream" | "fork-sync"} topology
    */
   function materializeNetwork(topology) {
     const upstreamBare = path.join(
@@ -390,7 +390,7 @@ export function createUpstreamNetwork() {
         "fork-only.txt": "from fork\n",
       });
       git(seed, ["push", "origin-bare", "main"]);
-    } else if (topology === "core-sync") {
+    } else if (topology === "fork-sync") {
       git(seed, ["checkout", "-B", "upstream-line"]);
       commit(seed, "feat(pi-subagents): upstream release 21.7.0", {
         "packages/pi-subagents/package.json": `${JSON.stringify(
@@ -407,9 +407,9 @@ export function createUpstreamNetwork() {
       git(seed, ["checkout", "main"]);
       commit(seed, "feat: fork-only change", {
         "fork-only.txt": "from fork\n",
-        "scripts/release/core-sync-state.json": `${JSON.stringify(
+        "scripts/release/pi-subagents/sync-state.json": `${JSON.stringify(
           {
-            schemaVersion: 1,
+            schemaVersion: 2,
             releases: [
               {
                 forkTag: "pi-subagents-v1.0.0",

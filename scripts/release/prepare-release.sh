@@ -121,20 +121,20 @@ for pkg in ${PACKAGES//,/ }; do
     exit 1
   fi
 
-  core_decision=null
+  fork_decision=null
   if [ "$pkg" = "pi-subagents" ]; then
-    # Resolve and validate the core correspondence here, in the preflight, so
-    # a blocked core fails before any sibling manifest, changelog, tag, or
+    # Resolve and validate the fork correspondence here, in the preflight, so
+    # a blocked fork fails before any sibling manifest, changelog, tag, or
     # state write. The decision must agree with the tag the shared entry
     # predicted: prediction and preparation consume one policy, and two
     # answers from it cannot both be right.
     cliff_args "$pkg"
-    if ! core_decision=$(node "$(core_sync_cli)" --repo "$PWD" --current "$(latest_tag "$pkg")" --json -- "${CLIFF_ARGS[@]}"); then
+    if ! fork_decision=$(node "$(fork_sync_cli)" --repo "$PWD" --current "$(latest_tag "$pkg")" --json -- "${CLIFF_ARGS[@]}"); then
       exit 1
     fi
-    core_next=$(printf '%s\n' "$core_decision" | jq -r '.nextTag // ""')
-    if [ "$core_next" != "$tag" ]; then
-      echo "Error: core release decision '${core_next}' disagrees with the predicted tag '${tag}'." >&2
+    fork_next=$(printf '%s\n' "$fork_decision" | jq -r '.nextTag // ""')
+    if [ "$fork_next" != "$tag" ]; then
+      echo "Error: fork release decision '${fork_next}' disagrees with the predicted tag '${tag}'." >&2
       exit 1
     fi
   fi
@@ -151,7 +151,7 @@ for pkg in ${PACKAGES//,/ }; do
   fi
   spec_tmp="$artifacts/spec-next.json"
   jq --arg directory "$pkg" --arg tag "$tag" --arg section "$section" \
-    --arg generated "$generated" --argjson decision "$core_decision" \
+    --arg generated "$generated" --argjson decision "$fork_decision" \
     '. += [{directory:$directory, tag:$tag, section:$section, generated:$generated, decision:$decision}]' \
     "$artifacts/spec.json" > "$spec_tmp"
   mv "$spec_tmp" "$artifacts/spec.json"
@@ -201,9 +201,9 @@ while [ "$i" -lt ${#pkgs[@]} ]; do
   git add "packages/$pkg/package.json" "packages/$pkg/CHANGELOG.md"
 
   if [ "$pkg" = "pi-subagents" ]; then
-    cp "$artifacts/state.json" scripts/release/core-sync-state.json
+    cp "$artifacts/state.json" scripts/release/pi-subagents/sync-state.json
     cp "$artifacts/upstream-sync.md" docs/upstream-sync.md
-    git add scripts/release/core-sync-state.json docs/upstream-sync.md
+    git add scripts/release/pi-subagents/sync-state.json docs/upstream-sync.md
   fi
 
   subjects+=("$pkg $version")
