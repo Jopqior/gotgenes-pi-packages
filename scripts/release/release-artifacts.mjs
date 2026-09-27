@@ -87,7 +87,7 @@ export function prepareArtifacts(repo, out, specFile) {
   validateForkSyncState(projected, forkSyncTarget.directory);
   if (pending) {
     const document = readFileSync(
-      path.join(repo, "docs/upstream-sync.md"),
+      path.join(repo, "docs/release/pi-subagents-correspondence.md"),
       "utf8",
     );
     const table = renderCorrespondenceTable({
@@ -101,7 +101,7 @@ export function prepareArtifacts(repo, out, specFile) {
       `${JSON.stringify(projected, null, 2)}\n`,
     );
     writeFileSync(
-      path.join(out, "upstream-sync.md"),
+      path.join(out, "correspondence.md"),
       updateCorrespondenceDocument(document, table),
     );
   }

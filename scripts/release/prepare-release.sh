@@ -202,8 +202,8 @@ while [ "$i" -lt ${#pkgs[@]} ]; do
 
   if [ "$pkg" = "pi-subagents" ]; then
     cp "$artifacts/state.json" scripts/release/pi-subagents/sync-state.json
-    cp "$artifacts/upstream-sync.md" docs/upstream-sync.md
-    git add scripts/release/pi-subagents/sync-state.json docs/upstream-sync.md
+    cp "$artifacts/correspondence.md" docs/release/pi-subagents-correspondence.md
+    git add scripts/release/pi-subagents/sync-state.json docs/release/pi-subagents-correspondence.md
   fi
 
   subjects+=("$pkg $version")

@@ -41,7 +41,7 @@ Before rerunning publication, ensure its checked-out package paths match the tag
 Versions and changelogs come from [git-cliff](https://git-cliff.org) reading local git, with no network in the derivation.
 The `pi-subagents` fork release level additionally uses verified correspondence (below).
 Preparation commits a decorated CHANGELOG section; the GitHub Release body comes from that exact tagged section, not a second render.
-The generated table in `docs/upstream-sync.md` is committed with a selected fork release and checked against state by `node scripts/release/correspondence-table.mjs --check`.
+The generated table in `docs/release/pi-subagents-correspondence.md` is committed with a selected fork release and checked against state by `node scripts/release/correspondence-table.mjs --check`.
 See `docs/decisions/0002-git-cliff-release-automation.md` for why, and for the accepted residual (there is no release-PR review gate).
 
 ## What cuts a release
@@ -78,10 +78,10 @@ After merging upstream, record reviewed evidence before dispatching a fork relea
 ```
 
 A blocked fork in a multi-package dispatch fails the whole run before any write.
-`prepare-release.sh` appends the fork release's correspondence to the state file, decorates its CHANGELOG section with a fixed upstream source link and a provenance-not-equivalence statement, and regenerates the marked table region in `docs/upstream-sync.md` with the release artifacts.
+`prepare-release.sh` appends the fork release's correspondence to the state file, decorates its CHANGELOG section with a fixed upstream source link and a provenance-not-equivalence statement, and regenerates the marked table region in `docs/release/pi-subagents-correspondence.md` with the release artifacts.
 Publishing only siblings leaves fork state and table untouched.
 The changelog still lists upstream entries in full; the policy filters commits only to compute the level.
-Existing npm tarballs and historical CHANGELOG entries are immutable; notes-only historical GitHub Release backfill follows the separate preview/approval procedure in `docs/upstream-sync.md`.
+Existing npm tarballs and historical CHANGELOG entries are immutable; notes-only historical GitHub Release backfill follows the separate preview/approval procedure in `docs/release/fork-sync.md`.
 See that guide for the mapping rule, blocking cases, and recording procedure; explicit dispatch itself is unchanged.
 
 ## A package's first release

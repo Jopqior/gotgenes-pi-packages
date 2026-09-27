@@ -1,5 +1,11 @@
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readTaggedReleaseSection } from "../../scripts/release/release-correspondence.mjs";
@@ -24,7 +30,7 @@ const scripts = [
   "correspondence-table.mjs",
   "release-artifacts.mjs",
 ];
-const handbook =
+const correspondence =
   "Before\n<!-- release-correspondence:start -->\n\nold\n\n<!-- release-correspondence:end -->\nAfter\n";
 
 beforeEach(() => {
@@ -60,9 +66,12 @@ function scaffold({ original = false, changelog = true } = {}) {
     path.join(repo.dir, "scripts/release/release-packages.json"),
     `${JSON.stringify({ schemaVersion: 2, packages: entries })}\n`,
   );
-  const docs = path.join(repo.dir, "docs");
+  const docs = path.join(repo.dir, "docs/release");
   mkdirSync(docs, { recursive: true });
-  writeFileSync(path.join(docs, "upstream-sync.md"), handbook);
+  writeFileSync(
+    path.join(docs, "pi-subagents-correspondence.md"),
+    correspondence,
+  );
   if (changelog)
     repo.writeChangelog(
       "pi-subagents",
@@ -119,7 +128,10 @@ function snapshot() {
       path.join(repo.dir, "scripts/release/pi-subagents/sync-state.json"),
       "utf8",
     ),
-    table: readFileSync(path.join(repo.dir, "docs/upstream-sync.md"), "utf8"),
+    table: readFileSync(
+      path.join(repo.dir, "docs/release/pi-subagents-correspondence.md"),
+      "utf8",
+    ),
   };
 }
 
@@ -147,8 +159,11 @@ describe("all-selected preparation", () => {
     ).releases.at(-1);
     expect(row.forkTag).toBe("pi-subagents-v1.0.1");
     expect(text).toContain(row.upstream.commit);
-    expect(repo.gitOut("show", "HEAD:docs/upstream-sync.md")).toContain(
-      row.upstream.commit,
+    expect(
+      repo.gitOut("show", "HEAD:docs/release/pi-subagents-correspondence.md"),
+    ).toContain(row.upstream.commit);
+    expect(existsSync(path.join(repo.dir, "docs/upstream-sync.md"))).toBe(
+      false,
     );
     expect(repo.gitOut("status", "--porcelain")).toBe("");
   });
@@ -172,8 +187,11 @@ describe("all-selected preparation", () => {
     expect(
       repo.gitOut("show", "HEAD:scripts/release/pi-subagents/sync-state.json"),
     ).toBe(before.state.trim());
-    expect(repo.gitOut("show", "HEAD:docs/upstream-sync.md")).toBe(
-      before.table.trim(),
+    expect(
+      repo.gitOut("show", "HEAD:docs/release/pi-subagents-correspondence.md"),
+    ).toBe(before.table.trim());
+    expect(existsSync(path.join(repo.dir, "docs/upstream-sync.md"))).toBe(
+      false,
     );
     expect(
       repo.gitOut("show", "HEAD:packages/demo/CHANGELOG.md"),
@@ -383,7 +401,7 @@ describe("all-selected preparation", () => {
     repo.writeManifest("demo", "1.0.0");
     scaffold({ original: true });
     writeFileSync(
-      path.join(repo.dir, "docs/upstream-sync.md"),
+      path.join(repo.dir, "docs/release/pi-subagents-correspondence.md"),
       "Missing markers\n",
     );
     repo.git("add", "-A");

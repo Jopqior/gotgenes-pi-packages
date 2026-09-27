@@ -20,7 +20,7 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 ## Release provenance
 
 For each new fork release, the shipped [CHANGELOG](./CHANGELOG.md) records that release's verified direct upstream package, incorporated version, and fixed source commit.
-The same tagged CHANGELOG section supplies the [fork's GitHub Release notes](https://github.com/Jopqior/gotgenes-pi-packages/releases); see the [version correspondence guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream-sync.md#version-correspondence) for the generated historical table and evidence procedure.
+The same tagged CHANGELOG section supplies the [fork's GitHub Release notes](https://github.com/Jopqior/gotgenes-pi-packages/releases); see the [version correspondence guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/release/pi-subagents-correspondence.md) for the generated historical table and evidence procedure.
 An incorporated upstream baseline documents source provenance, not behavioral equivalence with upstream.
 Earlier published npm artifacts remain unchanged: adding historical correspondence to repository evidence or GitHub Release notes does not insert it into those tarballs or re-attest their original build history.
 

@@ -67,7 +67,7 @@ git remote set-url upstream git@github.com:gotgenes/pi-packages.git
    ```
 
 7. If a merge remains in progress, stage the reviewed resolutions with `git add`, then finish with `GIT_EDITOR=true git merge --continue`.
-8. Record reviewed fork sync evidence for the completed merge (see [Fork sync evidence](#fork-sync-evidence)):
+8. Record reviewed fork sync evidence for the completed merge (see the [fork release guide](release/fork-sync.md#recording-a-completed-sync)):
 
    ```bash
    ./scripts/upstream-sync.sh --record-fork-sync "$(git rev-parse HEAD)" \
@@ -78,7 +78,7 @@ git remote set-url upstream git@github.com:gotgenes/pi-packages.git
 
    The merge OID binds the review to its committed resolutions, and a fork release stays blocked until the record exists.
 9. Record a sync-log row below.
-   Release preparation generates the correspondence table from verified state; a sync alone does not add an unreleased fork version.
+   Release preparation generates the [correspondence view](release/pi-subagents-correspondence.md) from verified state; a sync alone does not add an unreleased fork version.
 
 ## Forbidden commands
 
@@ -244,140 +244,10 @@ Dispatch both packages together, inspect the packed dependency, and publish no o
 The coordinated dispatch above is the historical requirement of the [#14] release, when the selector still declared a `workspace:^` core dependency.
 The selector now declares its core compatibility as a peer dependency that is independent of core releases, so a core release alone no longer requires a selector release; the selector README's release policy ([#15]) is the current guidance.
 
-## Fork sync evidence
+## Fork release evidence and correspondence
 
-`@jopqior/pi-subagents` versions advance through merges of `upstream/main`, so the Conventional Commit classification of an integration merge cannot decide the fork's independent release level.
-A broad `feat!:` integration message describes upstream's release, not the fork's independent version.
-Fork release levels derive from verified correspondence evidence instead.
-
-The authoritative record is `scripts/release/pi-subagents/sync-state.json`, committed to Git.
-It stores the upstream release incorporated by each published fork release and the selected upstream release and reviewed fork contribution for each sync merge.
-The [version correspondence table](#version-correspondence) below is generated from verified published rows in that JSON record, not maintained independently.
-The sync recorder (`--record-fork-sync`) writes reviewed merge evidence; release preparation writes the released row and regenerated table together.
-Resolve conflicting evidence in the state file only after review, then regenerate and check the table.
-
-### Tooling migration
-
-The decision and recorder entry points are `scripts/release/fork-sync.mjs` and `scripts/release/record-fork-sync.mjs`; the sync script accepts `--record-fork-sync` instead of the removed `--record-core-sync` flag.
-The committed state moved to `scripts/release/pi-subagents/sync-state.json` with schema version 2 and `forkContribution` in each sync record.
-The release registry uses schema version 2 and the `fork-sync` evidence route.
-Old paths and formats are rejected rather than silently translated.
-Backfill review artifacts also require schema version 2: generate a new preview and obtain fresh approval before applying any historical Release-note edits.
-Published tags, historical CHANGELOGs, npm artifacts, and authentic Release bodies remain unchanged.
-
-### Mapping rule
-
-The upstream contribution is the SemVer distance between the upstream release incorporated at the last fork release and the one incorporated now, compared once across the whole unreleased window.
-
-| Upstream baseline to incorporated target         | Upstream contribution |
-| ------------------------------------------------ | --------------------- |
-| Equal stable version, no unreleased package work | none                  |
-| Higher patch within the same major and minor     | patch                 |
-| Higher minor within the same major               | minor                 |
-| Higher major                                     | major                 |
-
-Deferred syncs collapse: several incorporated patch releases still mean one fork patch, never a sum.
-The fork contribution is what git-cliff derives from the window's commits with verified upstream-owned commits and the sync merges removed, combined with each recorded merge's reviewed fork level; the highest level wins.
-Sibling-only and root-configuration commits do not contribute.
-
-### Blocking cases
-
-Prediction and release preparation fail closed — nonzero exit with a diagnostic, never the silent no-release path — when the evidence is missing or inconsistent:
-
-- the current fork release tag has no recorded upstream correspondence;
-- a package-affecting merge in the unreleased window has no reviewed sync record;
-- a recorded sync is not a genuine two-parent merge whose upstream parent contains the recorded upstream release;
-- a recorded sync incorporates an upstream version behind the already-incorporated one;
-- a baseline or window sync's recorded upstream version contradicts its release manifest, or that manifest is missing;
-- a sync's upstream parent does not descend from the previously incorporated upstream tip, starting with the current fork release's recorded tip;
-- upstream history between a recorded release and its incorporated tip contains unreleased package changes — source, tests, shipped docs, or metadata (both recording and offline prediction refuse these even when git-cliff would skip the commit type);
-- a recorded object is missing locally, as in a shallow or partial clone.
-
-There is deliberately no override flag.
-Record the evidence through the sync script, or resolve a conflicting state entry by hand after review; prediction stays blocked until the record is sound.
-
-### Recording a completed sync
-
-Run the recorder only through the sync script, after conflict resolution and `git merge --continue`:
-
-```bash
-./scripts/upstream-sync.sh --record-fork-sync <merge> \
-    --fork-level <none|patch|minor|major> --rationale "<what the resolution did>"
-```
-
-It selects the highest stable upstream release whose peeled commit is contained in the merge's upstream parent — not the newest advertised tag — and verifies the release manifest agrees with the tag.
-It refuses an unreviewed or unresolved merge, unreleased package changes, and missing objects, and it never pushes or creates local tag refs.
-Re-running with the same review is idempotent; a conflicting record is an error.
-Commit the state update before the next release prediction.
-
-The `--fork-level` review classifies what the conflict resolution itself did to the fork package.
-
-- `none` records that resolutions kept fork identity without changing the fork contract.
-- `patch`, `minor`, or `major` record the resolution's own effect.
-- Retaining fork identity or resolving a mechanical conflict does not imply `major`; a resolution that genuinely breaks the fork contract is `major`.
-- A non-`none` level must be justified by package files whose merge result differs from both parents; those paths are recorded with the level.
-
-### Release correspondence lifecycle
-
-`scripts/release/prepare-release.sh` resolves and validates every selected package's registration and the fork correspondence in its all-packages preflight, before any write; the fork decision must agree with the predicted tag.
-The registry at `scripts/release/release-packages.json` classifies actual directory/npm identities as `fork` or `original`; an unregistered package or unsupported fork evidence blocks preparation, publication, and Release creation.
-Workspace discovery and read-only version prediction remain independent of registration, and registration never authorizes publication.
-When a fork release is selected, preparation commits its verified correspondence, decorated CHANGELOG section, and regenerated table together with the manifest.
-An original package gets no upstream correspondence block; publishing only a sibling leaves the fork state and table untouched.
-Publishing checks the complete tagged set before the first npm call.
-GitHub Release creation checks the same tagged artifacts and takes each body from that tag's exact CHANGELOG section, not from a new git-cliff render; reruns leave existing Release bodies unchanged.
-After publication, the next window anchors at the recorded fork tag and upstream release, so prediction works offline from committed evidence and local Git objects alone.
-Offline prediction revalidates the baseline and every window sync's release manifest, checks their incorporated tips for unreleased package changes, and verifies that successive upstream tips form a continuous ancestry chain.
-It also rejects malformed git-cliff context entries or commit IDs rather than silently discarding fork changes.
-Recording evidence does not exempt it from these read-time checks.
-
-## Version correspondence
-
-Each published `@jopqior/pi-subagents` version records its own verified direct upstream baseline; several fork releases may share one upstream release.
-The fixed source link identifies the upstream release commit and package path, not today's upstream `main` or a claim of behavioral equivalence.
-This generated region derives from `scripts/release/pi-subagents/sync-state.json`; the verified pending fork row is included only during release preparation, in the resulting release commit.
-Never add or repair rows by hand, including after a sync or historical backfill.
-To verify committed evidence against the table, run:
-
-```bash
-node scripts/release/correspondence-table.mjs --check
-```
-
-After reviewing a corrected state file, use `node scripts/release/correspondence-table.mjs --write` to regenerate only the marked region, then run `--check` again.
-The first data row was released under [#3] with fork `1.0.0` incorporating upstream `21.7.0`.
-Old npm artifacts remain immutable: historical state rows and any later GitHub Release notes cannot change what an already-published tarball contained.
-
-### Historical GitHub Release notes
-
-Backfill is a separate, approval-gated notes-only operation, not part of sync or release preparation.
-The default preview requires explicit fork release tags and creates a review JSON file without editing GitHub:
-
-```bash
-node scripts/release/backfill-release-notes.mjs --output /tmp/release-notes-review.json pi-subagents-v1.0.1
-```
-
-Review each captured Release body and proposed appended block alongside tag OID, registered identity, and historical evidence; preserve any `Source-history restoration` disclosure verbatim.
-A missing GitHub Release is reported but not created.
-Only after the operator approves those exact remote edits, use `node scripts/release/backfill-release-notes.mjs --apply /tmp/release-notes-review.json`.
-Apply rechecks the entire batch against live Releases and committed evidence before editing notes, reads back each edit, and skips completed identical entries on a resumed run.
-Another editor may race the final read; coordinate the edit window and retain before/after snapshots.
-Backfill never rewrites historical CHANGELOG sections, old npm tarballs, tags, or Release metadata.
-
-<!-- release-correspondence:start -->
-
-| Fork `@jopqior/pi-subagents` | Direct upstream release | Fixed source                                                                                                          |
-| ---------------------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| 1.0.0                        | `21.7.0`                | [source](https://github.com/gotgenes/pi-packages/blob/b3b6159399f541fd0623f65818557dd3e707a34f/packages/pi-subagents) |
-| 1.0.1                        | `21.7.0`                | [source](https://github.com/gotgenes/pi-packages/blob/b3b6159399f541fd0623f65818557dd3e707a34f/packages/pi-subagents) |
-| 1.0.2                        | `21.7.0`                | [source](https://github.com/gotgenes/pi-packages/blob/b3b6159399f541fd0623f65818557dd3e707a34f/packages/pi-subagents) |
-| 2.0.0                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
-| 3.0.0                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
-| 4.0.0                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
-| 4.0.1                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
-| 4.0.2                        | `21.7.3`                | [source](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents) |
-| 4.0.3                        | `21.7.7`                | [source](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents) |
-
-<!-- release-correspondence:end -->
+The [fork release guide](release/fork-sync.md) owns release-level decisions, evidence validation, the CLI migration, publication correspondence, and approval-gated historical backfill.
+The [generated pi-subagents correspondence view](release/pi-subagents-correspondence.md) is committed with selected fork releases; synchronize and record reviewed merge evidence using the procedure above.
 
 ## Sync log
 
@@ -387,7 +257,6 @@ Backfill never rewrites historical CHANGELOG sections, old npm tarballs, tags, o
 | 2026-09-19T14:03:45Z | edb35ee28535aac4e12431e47e440f6933911834 | pi-subagents-v21.7.3        | 0408aa5ff9d9811d98df17dde436e7fd45a5a3ad |
 | 2026-09-26T06:54:31Z | 4dd378ca97a35e380ed946cd5ce0bcb9050ced5a | pi-subagents-v21.7.7        | d4d90b3de6c19be1516ce0a92c1ad611e8543ba5 |
 
-[#3]: https://github.com/Jopqior/gotgenes-pi-packages/issues/3
 [#14]: https://github.com/Jopqior/gotgenes-pi-packages/issues/14
 [#15]: https://github.com/Jopqior/gotgenes-pi-packages/issues/15
 [#20]: https://github.com/Jopqior/gotgenes-pi-packages/issues/20

@@ -150,14 +150,17 @@ describe("table CLI", () => {
       repo,
       "scripts/release/release-packages.json",
     );
-    const documentPath = path.join(repo, "docs/upstream-sync.md");
+    const documentPath = path.join(
+      repo,
+      "docs/release/pi-subagents-correspondence.md",
+    );
     mkdirSync(path.join(repo, "scripts/release/pi-subagents"), {
       recursive: true,
     });
-    mkdirSync(path.join(repo, "docs"), { recursive: true });
+    mkdirSync(path.join(repo, "docs/release"), { recursive: true });
     writeFileSync(statePath, `${JSON.stringify(fixture.state)}\n`);
     writeFileSync(registryPath, `${JSON.stringify(fixture.registry)}\n`);
-    const old = `# Handbook\n\n${start}\n\nStale rows.\n\n${end}\n\n## Preserve\n`;
+    const old = `# Correspondence\n\n${start}\n\nStale rows.\n\n${end}\n\n## Preserve\n`;
     writeFileSync(documentPath, old);
     const run = (mode) =>
       execFileSync(process.execPath, [script, mode, "--repo", repo], {
@@ -190,7 +193,7 @@ describe("committed generated correspondence", () => {
       realRepo,
     );
     const document = readFileSync(
-      path.join(realRepo, "docs/upstream-sync.md"),
+      path.join(realRepo, "docs/release/pi-subagents-correspondence.md"),
       "utf8",
     );
     const generated = renderCorrespondenceTable({

@@ -94,9 +94,9 @@ describe("release preparation", () => {
       path.join(repo.dir, "scripts/release/release-packages.json"),
       `${JSON.stringify({ schemaVersion: 2, packages: registrations })}\n`,
     );
-    mkdirSync(path.join(repo.dir, "docs"), { recursive: true });
+    mkdirSync(path.join(repo.dir, "docs/release"), { recursive: true });
     writeFileSync(
-      path.join(repo.dir, "docs/upstream-sync.md"),
+      path.join(repo.dir, "docs/release/pi-subagents-correspondence.md"),
       "<!-- release-correspondence:start -->\n\nold\n\n<!-- release-correspondence:end -->\n",
     );
     repo.writeChangelog(
@@ -214,6 +214,12 @@ describe("release preparation", () => {
       repo.gitOut("show", "HEAD:scripts/release/pi-subagents/sync-state.json"),
     );
     expect(committed.releases.at(-1).forkTag).toBe("pi-subagents-v1.0.1");
+    expect(
+      repo.gitOut("show", "HEAD:docs/release/pi-subagents-correspondence.md"),
+    ).toContain(recordedSyncs[0].upstream.commit);
+    expect(existsSync(path.join(repo.dir, "docs/upstream-sync.md"))).toBe(
+      false,
+    );
     expect(repo.gitOut("rev-list", "--count", `${headBefore}..HEAD`)).toBe("1");
     // The tag and the branch really landed on the local-only origin.
     expect(

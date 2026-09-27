@@ -175,7 +175,10 @@ function main(args) {
     path.join(repo, "scripts/release/release-packages.json"),
     repo,
   );
-  const documentPath = path.join(repo, "docs/upstream-sync.md");
+  const documentPath = path.join(
+    repo,
+    "docs/release/pi-subagents-correspondence.md",
+  );
   const current = readFileSync(documentPath, "utf8");
   const expected = updateCorrespondenceDocument(
     current,

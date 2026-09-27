@@ -20,8 +20,9 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 // release implementation and configuration run against that repository.
 //
 // These objects are pinned by the verified correspondence in
-// scripts/release/pi-subagents/sync-state.json and docs/upstream-sync.md; a shallow
-// or partial clone that lacks them must fail loudly, not skip.
+// scripts/release/pi-subagents/sync-state.json and
+// docs/release/pi-subagents-correspondence.md; a shallow or partial clone
+// that lacks them must fail loudly, not skip.
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
