@@ -36,3 +36,29 @@ No implementation, synchronization, push, publication, tag modification, or GitH
 
 - `test/release/helpers/core-sync-scenario.mjs` and `test/upstream-sync/helpers/upstream-network.mjs`: fixture consolidation would mix single-repository and remote-network lifecycles and is unnecessary for this move.
 - `scripts/release/release-correspondence.mjs`: generalizing the supported-fork registry would expand product scope rather than prepare the naming migration.
+
+## Stage: Implementation — TDD (2026-09-27T09:22:41Z)
+
+### Session summary
+
+Completed all five plan steps using a fresh subagent for each step, as requested by the operator: four Red/Green/mutation cycles followed by final verification and handoff.
+Shared fork synchronization algorithms, strict version-2 interfaces and evidence, release-owned documentation, and the issue-27 handoff are committed; root tests increased from 459 to 475, with release/upstream-sync tests increasing from 229 to 245.
+The final incremental pre-completion reviewer returned PASS after approved corrections to active test terminology and configuration consumption; check, lint, full tests, and dead-code gates passed serially.
+
+### Observations
+
+- Every behavior step ran its planned killing mutations and restored the green files before committing.
+  An initial scope mutation had a syntax error rather than a discriminating failure; the step agent corrected it and reran the mutation against the intended behavior.
+- The evidence migration preserves the complete pre-cutover document after field translation, including raw rationale content; the historical version-1 fixture and authentic Release fixture were independently verified against Git.
+  No tag changes, historical CHANGELOG edits, package version changes, push, synchronization, backfill, or publication were performed.
+- A necessary deviation from the predicted unchanged package documentation was the release-table link in `packages/pi-subagents/README.md`, which otherwise pointed at the removed handbook anchor.
+  Its separate sync-procedure link remains for issue 27; the README change is inside package release scope, and read-only prediction reports a pending fork patch while the selector has no pending release.
+  Publication requires separate approval and was not authorized here.
+- Final handoff is recorded in `docs/sync/f0029-to-f0027-handoff.md`, including final paths and remaining handbook-deletion consumers.
+  The synchronization procedure, conflict guidance, and log remain owned by issue 27.
+- The first pre-completion review returned FAIL for active test variables, titles, and comments still using the old terminology, plus WARN for two Node consumers hardcoding the correspondence path instead of reading configuration.
+  The operator approved both corrections; a separate repair agent prepared them, and a fresh reviewer inspected the uncommitted delta before it was committed as `refactor(release): finish fork terminology and path configuration (#29)`.
+  Final verdict: PASS, with no remaining findings in the incremental review.
+- Parallel full-suite verification during the cutover hit a timeout; serial reruns passed, and subsequent final gates were run serially.
+  Broad terminology scans must include prose and camel-case identifiers, not only old module filenames and exported symbols.
+- No implementation steps remain; the next workflow is `/ship 29`, with any package publication still subject to explicit approval.
