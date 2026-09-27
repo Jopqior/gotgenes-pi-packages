@@ -77,3 +77,25 @@ The measured root script suite grew from 475 tests (one initial failure) to 564 
   No package runtime, dependency, release state/schema or algorithm changed; lockfile/workspace configuration remained unchanged.
   No actual upstream fetch/merge, remote configuration, push, publication or GitHub mutation occurred, and issues 27 and 28 remain open.
   The next lifecycle action is `/ship 27`; publication still requires its own exact package/scope/destination approval, and the new `/upstream-sync` command needs a fresh Pi session.
+
+## Stage: Ship (2026-09-27T14:14:48Z)
+
+### Session summary
+
+Shipped the trunk implementation after fast-forward-only synchronization, root lint and dead-code checks, and successful CI run 36324565200 for `97fad1fad9d1345e58d324a01a6fe71056940aad`.
+The operator approved both exact English close comments and publication of `@jopqior/pi-subagents@4.0.5` to `https://registry.npmjs.org/` with the fork GitHub Release; issues 27 and 28 are closed.
+Release run 36324980132 succeeded for that approved SHA and produced `pi-subagents-v4.0.5` at `2a1949aa3852e197052d929cdb23284cc0a0295e`, whose parent matches the approved implementation tip.
+GitHub Release readback succeeded, but npm visibility remains pending verification.
+
+### Observations
+
+- The plan recommended independent release; the only package candidate was `pi-subagents`, and the predictor printed `pi-subagents-v4.0.5` both before approval and before dispatch.
+  Repository-workflow breaking commits did not cause a package API major release.
+- The initial `pnpm view @jopqior/pi-subagents@4.0.5 version dist.integrity --registry=https://registry.npmjs.org/` returned `ERR_PNPM_PACKAGE_NOT_FOUND`.
+  Each of four retries after an additional 30-second wait returned the same error, for 120 seconds of explicit waits; the last readback completed at the stage timestamp above.
+  The exact release job log reports publication to npmjs.org succeeded; no version or integrity was returned by the local readback, so this is not recorded as verified registry visibility.
+  Recheck the same exact identity at the start of `/retro 27`; inspect registry/readback configuration and the existing run before any recovery, and never blindly republish or redispatch.
+- No upstream synchronization, third-party PR closure, sibling package release, worktree merge or teardown occurred.
+  This repository-scoped issue is not a package roadmap phase tail.
+- The implementation review's generic failed-prepare/retry warning remains outside this ship's scope; this successful release required no retry.
+  The new `/upstream-sync` command still requires a fresh Pi session for registration.
