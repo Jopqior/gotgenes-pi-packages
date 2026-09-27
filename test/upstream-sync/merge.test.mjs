@@ -131,6 +131,94 @@ describe("upstream-sync.sh", () => {
       expect(revParse(work, "HEAD")).toBe(before);
       expect(parentsOf(work)).toHaveLength(1);
       expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
+      expect(result.stdout).toContain(
+        "upstream already contained in HEAD; no merge performed",
+      );
+      expect(result.stdout).not.toContain(
+        "record its reviewed fork sync evidence",
+      );
+      expect(
+        recordedInvocations().filter(({ args }) => args[0] === "merge"),
+      ).toEqual([]);
+    });
+
+    it("refuses a fast-forward-only integration without changing HEAD", () => {
+      const { work, upstreamBare } = materializeNetwork("fast-forward");
+      const before = revParse(work, "HEAD");
+      const target = revParse(upstreamBare, "refs/heads/main");
+      expect(runScript(work, []).status).toBe(0);
+      expect(
+        git(work, ["merge-base", "--is-ancestor", before, target]).status,
+      ).toBe(0);
+
+      const result = runScript(work, ["--merge"]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "fast-forward-only upstream integration requires separate review",
+      );
+      expect(revParse(work, "HEAD")).toBe(before);
+      expect(
+        recordedInvocations().filter(({ args }) => args[0] === "merge"),
+      ).toEqual([]);
+      expect(result.stdout).not.toContain(
+        "record its reviewed fork sync evidence",
+      );
+    });
+
+    it("refuses unrelated histories before invoking merge", () => {
+      const { work, upstreamBare } = materializeNetwork("unrelated");
+      const before = revParse(work, "HEAD");
+      expect(runScript(work, []).status).toBe(0);
+      expect(
+        git(
+          work,
+          ["merge-base", before, revParse(upstreamBare, "refs/heads/main")],
+          { allowFail: true },
+        ).status,
+      ).toBe(1);
+
+      const result = runScript(work, ["--merge"]);
+
+      expect(result.status).toBe(1);
+      expect(
+        recordedInvocations().filter(({ args }) => args[0] === "merge"),
+      ).toEqual([]);
+      expect(result.stderr).toContain(
+        "no common ancestor; upstream merge refused",
+      );
+      expect(revParse(work, "HEAD")).toBe(before);
+      expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
+    });
+
+    it("refuses ancestry inspection errors without attempting a merge", () => {
+      const { work } = materializeNetwork("divergent");
+      const before = revParse(work, "HEAD");
+
+      const result = runScript(work, ["--merge"], {
+        UPSTREAM_SYNC_TEST_FAIL_INSPECTION: "1",
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("cannot inspect upstream ancestry");
+      expect(
+        recordedInvocations().filter(({ args }) => args[0] === "merge"),
+      ).toEqual([]);
+      expect(revParse(work, "HEAD")).toBe(before);
+    });
+
+    it("reports a non-conflict merge failure without suggesting conflict resolution", () => {
+      const { work } = materializeNetwork("divergent");
+      const before = revParse(work, "HEAD");
+      const result = runScript(work, ["--merge"], {
+        UPSTREAM_SYNC_TEST_FAIL_MERGE: "1",
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("merge failed without unmerged entries");
+      expect(result.stderr).not.toContain("merge conflicts remain");
+      expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
+      expect(revParse(work, "HEAD")).toBe(before);
     });
 
     it("merges a second upstream advance then no-ops a repeat", () => {
@@ -379,6 +467,20 @@ describe("upstream-sync.sh", () => {
       ["--record-fork-sync", ""],
       ["--merge", "--merge"],
       ["--record-fork-sync", "HEAD", "--fork-level", "invalid"],
+      ["--expected-upstream"],
+      ["--expected-upstream", "f".repeat(40)],
+      ["--record-fork-sync", "HEAD", "--expected-upstream", "f".repeat(40)],
+      ["--merge", "--expected-upstream", "f".repeat(39)],
+      ["--merge", "--expected-upstream", "f".repeat(41)],
+      ["--merge", "--expected-upstream", "f".repeat(64)],
+      ["--merge", "--expected-upstream", "z".repeat(40)],
+      [
+        "--merge",
+        "--expected-upstream",
+        "f".repeat(40),
+        "--expected-upstream",
+        "f".repeat(40),
+      ],
     ])("rejects invalid options before writes: %j", (...args) => {
       const { work } = materializeNetwork("divergent");
       expect(runScript(work, args).status).toBe(1);
@@ -676,6 +778,57 @@ describe("upstream-sync.sh", () => {
     });
   });
 
+  describe("inspected upstream input", () => {
+    it("merges the unchanged, explicitly inspected target by its resolved OID", () => {
+      const { work, upstreamBare } = materializeNetwork("divergent");
+      const discovered = runScript(work, []);
+      expect(discovered.status).toBe(0);
+      const target = revParse(work, "upstream/main");
+      expect(target).toBe(revParse(upstreamBare, "refs/heads/main"));
+
+      const result = runScript(work, [
+        "--merge",
+        "--expected-upstream",
+        target,
+      ]);
+
+      expect(result.status).toBe(0);
+      expect(parentsOf(work)[1]).toBe(target);
+      expect(
+        recordedInvocations()
+          .map(({ args }) => args)
+          .filter((args) => args[0] === "merge"),
+      ).toEqual([["merge", "--no-ff", "-m", mergeMessage, target]]);
+    });
+
+    it("refuses a moved upstream target after discovery without invoking merge", () => {
+      const { work, upstreamBare } = materializeNetwork("divergent");
+      expect(runScript(work, []).status).toBe(0);
+      const inspected = revParse(work, "upstream/main");
+      const before = revParse(work, "HEAD");
+      const moved = advanceUpstream(upstreamBare, "feat: upstream moved", {
+        "upstream-moved.txt": "new input\n",
+      });
+      expect(moved).not.toBe(inspected);
+
+      const result = runScript(work, [
+        "--merge",
+        "--expected-upstream",
+        inspected,
+      ]);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        `expected upstream ${inspected} but fetched ${moved}`,
+      );
+      expect(
+        recordedInvocations().filter(({ args }) => args[0] === "merge"),
+      ).toEqual([]);
+      expect(revParse(work, "HEAD")).toBe(before);
+      expect(revParse(work, "upstream/main")).toBe(moved);
+    });
+  });
+
   describe("fetch protections", () => {
     it("records an explicit fetch --no-tags of upstream main", () => {
       const { work } = materializeNetwork("divergent");
@@ -706,17 +859,88 @@ describe("upstream-sync.sh", () => {
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(
-        "error: tag set changed during fetch; delete imported tags before merging:",
+        "error: local tag ref/object mapping changed during fetch",
       );
-      expect(result.stderr).toContain("imported-collision-v1.0.0");
       expect(result.stderr).toContain(
-        "git tag -d <name> for each, then re-run",
+        "added: refs/tags/imported-collision-v1.0.0",
       );
+      expect(result.stderr).toContain(
+        "stop for operator approval before any tag recovery",
+      );
+      expect(result.stderr).not.toContain("git tag -d");
       expect(revParse(work, "HEAD")).toBe(before);
       expect(parentsOf(work)).toHaveLength(1);
       expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
       expect(git(work, ["tag"]).stdout).toContain("imported-collision-v1.0.0");
       expect(tagsBefore).not.toContain("imported-collision-v1.0.0");
+    });
+
+    it.each([{ args: [] }, { args: ["--merge"] }])(
+      "refuses same-name tag retargeting in mode $args",
+      ({ args }) => {
+        const { work } = materializeNetwork("divergent");
+        git(work, ["tag", "protected", "HEAD"]);
+        const before = revParse(work, "HEAD");
+        const tagBefore = revParse(work, "refs/tags/protected");
+
+        const result = runScript(work, args, {
+          UPSTREAM_SYNC_TEST_INJECT_TAG: "protected",
+          UPSTREAM_SYNC_TEST_TAG_ACTION: "retarget",
+        });
+
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain("retargeted: refs/tags/protected");
+        expect(result.stderr).toContain(
+          "stop for operator approval before any tag recovery",
+        );
+        expect(revParse(work, "refs/tags/protected")).not.toBe(tagBefore);
+        expect(revParse(work, "HEAD")).toBe(before);
+      },
+    );
+
+    it.each([{ args: [] }, { args: ["--merge"] }])(
+      "refuses tag deletion in mode $args",
+      ({ args }) => {
+        const { work } = materializeNetwork("divergent");
+        git(work, ["tag", "protected", "HEAD"]);
+        const before = revParse(work, "HEAD");
+        const result = runScript(work, args, {
+          UPSTREAM_SYNC_TEST_INJECT_TAG: "protected",
+          UPSTREAM_SYNC_TEST_TAG_ACTION: "delete",
+        });
+
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain("removed: refs/tags/protected");
+        expect(result.stderr).toContain(
+          "stop for operator approval before any tag recovery",
+        );
+        expect(git(work, ["tag", "--list", "protected"]).stdout.trim()).toBe(
+          "",
+        );
+        expect(revParse(work, "HEAD")).toBe(before);
+      },
+    );
+
+    it("reports tag drift even if fetch fails after changing refs", () => {
+      const { work } = materializeNetwork("divergent");
+      const before = revParse(work, "HEAD");
+
+      const result = runScript(work, ["--merge"], {
+        UPSTREAM_SYNC_TEST_INJECT_TAG: "imported-on-failed-fetch",
+        UPSTREAM_SYNC_TEST_FAIL_FETCH_AFTER_TAG: "1",
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "added: refs/tags/imported-on-failed-fetch",
+      );
+      expect(result.stderr).toContain(
+        "stop for operator approval before any tag recovery",
+      );
+      expect(revParse(work, "HEAD")).toBe(before);
+      expect(
+        recordedInvocations().filter(({ args }) => args[0] === "merge"),
+      ).toEqual([]);
     });
 
     it("does not import colliding upstream tag names", () => {

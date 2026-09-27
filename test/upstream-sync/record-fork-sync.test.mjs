@@ -293,6 +293,65 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     );
   });
 
+  describe("tag ref/object drift during recording", () => {
+    for (const scenario of [
+      {
+        action: "add",
+        tag: "new-local-tag",
+        report: "added: refs/tags/new-local-tag",
+      },
+      {
+        action: "delete",
+        tag: "pi-subagents-v1.0.0",
+        report: "removed: refs/tags/pi-subagents-v1.0.0",
+      },
+      {
+        action: "retarget",
+        tag: "pi-subagents-v1.0.0",
+        report: "retargeted: refs/tags/pi-subagents-v1.0.0",
+      },
+    ]) {
+      it(`refuses ${scenario.action} without writing evidence`, () => {
+        const { work } = net.materializeNetwork("fork-sync");
+        const merge = mergeUpstream(work);
+        const stateBefore = readFileSync(statePathOf(work), "utf8");
+        const headBefore = net.revParse(work, "HEAD");
+        const before = net.recordedInvocations().length;
+
+        const result = net.runScript(
+          work,
+          [
+            "--record-fork-sync",
+            merge,
+            "--fork-level",
+            "none",
+            "--rationale",
+            "upstream-only integration",
+          ],
+          {
+            UPSTREAM_SYNC_TEST_INJECT_TAG: scenario.tag,
+            UPSTREAM_SYNC_TEST_TAG_ACTION: scenario.action,
+          },
+        );
+
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(scenario.report);
+        expect(result.stderr).toContain(
+          "stop for operator approval before any tag recovery",
+        );
+        expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
+        expect(net.revParse(work, "HEAD")).toBe(headBefore);
+        expect(
+          net
+            .recordedInvocations()
+            .slice(before)
+            .map(({ args }) => args)
+            .filter((args) => args[0] === "fetch"),
+        ).toEqual([["fetch", "--no-tags", "upstream", "main"]]);
+      });
+    }
+  });
+
   it("selects the contained release, not a newer release advertised after the merge", () => {
     const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     // The merge incorporated 21.7.0; upstream then cut 21.7.1 before the

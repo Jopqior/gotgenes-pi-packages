@@ -63,6 +63,14 @@ const gitWrapperSource = [
   "  });",
   "}",
   "",
+  'if (args[0] === "merge" && process.env.UPSTREAM_SYNC_TEST_FAIL_MERGE) {',
+  '  process.stderr.write("simulated non-conflict merge failure\\n");',
+  "  process.exit(1);",
+  "}",
+  'if (args[0] === "merge-base" && process.env.UPSTREAM_SYNC_TEST_FAIL_INSPECTION) {',
+  '  process.stderr.write("simulated ancestry inspection failure\\n");',
+  "  process.exit(128);",
+  "}",
   'const result = spawnSync(realGit, rewrite(args), { stdio: "inherit" });',
   "const code = result.status === null ? 1 : result.status;",
   "if (",
@@ -70,9 +78,18 @@ const gitWrapperSource = [
   '  args[0] === "fetch" &&',
   "  process.env.UPSTREAM_SYNC_TEST_INJECT_TAG",
   ") {",
-  '  spawnSync(realGit, ["tag", process.env.UPSTREAM_SYNC_TEST_INJECT_TAG], {',
-  '    stdio: "inherit",',
-  "  });",
+  "  const tag = process.env.UPSTREAM_SYNC_TEST_INJECT_TAG;",
+  "  const action = process.env.UPSTREAM_SYNC_TEST_TAG_ACTION;",
+  "  const tagArgs =",
+  '    action === "delete" ? ["tag", "-d", tag] :',
+  '    action === "retarget" ? ["tag", "-f", tag, "upstream/main"] :',
+  '    ["tag", tag];',
+  '  const injected = spawnSync(realGit, tagArgs, { stdio: "inherit" });',
+  "  if (injected.status !== 0) process.exit(1);",
+  "}",
+  'if (args[0] === "fetch" && process.env.UPSTREAM_SYNC_TEST_FAIL_FETCH_AFTER_TAG) {',
+  '  process.stderr.write("simulated fetch failure after tag write\\n");',
+  "  process.exit(1);",
   "}",
   "process.exit(code);",
   "",
@@ -341,7 +358,7 @@ export function createUpstreamNetwork() {
   }
 
   /**
-   * @param {"divergent" | "conflict" | "already-integrated" | "empty-upstream" | "fork-sync"} topology
+   * @param {"divergent" | "conflict" | "already-integrated" | "empty-upstream" | "fork-sync" | "fast-forward" | "unrelated"} topology
    */
   function materializeNetwork(topology) {
     const upstreamBare = path.join(
@@ -377,7 +394,22 @@ export function createUpstreamNetwork() {
     git(seed, ["push", "upstream-bare", "main"]);
     git(seed, ["push", "origin-bare", "main"]);
 
-    if (topology === "already-integrated") {
+    if (topology === "unrelated") {
+      const independent = path.join(scratch, "build", "independent");
+      mkdirSync(independent, { recursive: true });
+      git(independent, ["init", "-b", "main"]);
+      configureRepo(independent);
+      commit(independent, "feat: independent upstream root", {
+        "independent.txt": "unrelated history\n",
+      });
+      git(independent, ["remote", "add", "upstream-bare", upstreamBare]);
+      git(independent, ["push", "--force", "upstream-bare", "main"]);
+    } else if (topology === "fast-forward") {
+      commit(seed, "feat: upstream-only change", {
+        "upstream-only.txt": "from upstream\n",
+      });
+      git(seed, ["push", "upstream-bare", "main"]);
+    } else if (topology === "already-integrated") {
       git(seed, ["checkout", "-B", "main"]);
       commit(seed, "feat: upstream advance", {
         "upstream-only.txt": "from upstream\n",

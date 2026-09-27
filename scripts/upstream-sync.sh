@@ -5,7 +5,7 @@
 #
 # Usage:
 #   scripts/upstream-sync.sh                                     # ensure remote, fetch --no-tags, print ahead/behind
-#   scripts/upstream-sync.sh --merge                             # the same, then git merge upstream/main (no push)
+#   scripts/upstream-sync.sh --merge [--expected-upstream <full OID>] # merge a freshly fetched, inspected target (no push)
 #   scripts/upstream-sync.sh --record-fork-sync <merge> \
 #       --fork-level <none|patch|minor|major> --rationale <text> # record reviewed sync evidence
 #
@@ -24,10 +24,11 @@ die() {
 }
 
 usage() {
-  printf 'Usage: %s [--upstream-protocol <ssh|https>] [--merge | --record-fork-sync <merge> [--fork-level <level>] [--rationale <text>]]\n' "$(basename "$0")" >&2
+  printf 'Usage: %s [--upstream-protocol <ssh|https>] [--merge [--expected-upstream <full OID>] | --record-fork-sync <merge> [--fork-level <level>] [--rationale <text>]]\n' "$(basename "$0")" >&2
   printf '  (no flag)              ensure remote, fetch --no-tags, print ahead/behind\n' >&2
   printf '  --upstream-protocol <ssh|https>  choose transport for a missing upstream remote\n' >&2
-  printf '  --merge                the same, then git merge upstream/main (no push)\n' >&2
+  printf '  --merge                classify ancestry, then merge a fetched divergent commit (no push)\n' >&2
+  printf '  --expected-upstream <full OID>  require this freshly fetched target with --merge\n' >&2
   printf '  --record-fork-sync <merge>\n' >&2
   printf '                        after a completed merge, append its reviewed fork sync\n' >&2
   printf '                        evidence to scripts/release/pi-subagents/sync-state.json\n' >&2
@@ -40,6 +41,7 @@ record_merge=""
 fork_level=""
 rationale=""
 upstream_protocol=""
+expected_upstream=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --upstream-protocol)
@@ -52,6 +54,12 @@ while [ $# -gt 0 ]; do
       [ "$merge" -eq 0 ] || usage 1
       merge=1
       shift
+      ;;
+    --expected-upstream)
+      [ $# -ge 2 ] && [ -z "$expected_upstream" ] || usage 1
+      [[ "$2" =~ ^([0-9a-f]{40}|[0-9a-f]{64})$ ]] || usage 1
+      expected_upstream=$2
+      shift 2
       ;;
     --record-fork-sync)
       [ $# -ge 2 ] && [ -n "$2" ] && [ -z "$record_merge" ] || usage 1
@@ -81,9 +89,17 @@ fi
 if [[ -z "$record_merge" && ( -n "$fork_level" || -n "$rationale" ) ]]; then
   usage 1
 fi
+if [[ -n "$expected_upstream" && "$merge" -eq 0 ]]; then
+  usage 1
+fi
 
 repo_root="$(git rev-parse --show-toplevel)" || die "not inside a git repository"
 cd "$repo_root"
+if [[ -n "$expected_upstream" ]]; then
+  local_head="$(git rev-parse --verify --quiet 'HEAD^{commit}')" \
+    || die "cannot validate expected upstream OID without a HEAD commit"
+  [[ "${#expected_upstream}" -eq "${#local_head}" ]] || usage 1
+fi
 
 repository_protocol() {
   case "$1" in
@@ -178,17 +194,29 @@ cleanup() {
 }
 trap cleanup EXIT
 
-git tag | LC_ALL=C sort >"$tags_before"
-git fetch --no-tags upstream main
-git tag | LC_ALL=C sort >"$tags_after"
+git for-each-ref --sort=refname --format='%(refname) %(objectname)' refs/tags >"$tags_before"
+fetch_status=0
+git fetch --no-tags upstream main || fetch_status=$?
+git for-each-ref --sort=refname --format='%(refname) %(objectname)' refs/tags >"$tags_after"
 
 if ! cmp -s "$tags_before" "$tags_after"; then
-  printf 'error: tag set changed during fetch; delete imported tags before merging:\n' >&2
-  comm -13 "$tags_before" "$tags_after" >&2
-  printf 'git tag -d <name> for each, then re-run\n' >&2
+  printf 'error: local tag ref/object mapping changed during fetch:\n' >&2
+  awk '
+    FILENAME == ARGV[1] { before[$1] = $2; names[$1] = 1; next }
+    { after[$1] = $2; names[$1] = 1 }
+    END {
+      for (name in names) {
+        if (!(name in before)) print "added: " name " (" after[name] ")"
+        else if (!(name in after)) print "removed: " name " (was " before[name] ")"
+        else if (before[name] != after[name]) print "retargeted: " name " (" before[name] " -> " after[name] ")"
+      }
+    }
+  ' "$tags_before" "$tags_after" | LC_ALL=C sort >&2
+  printf 'stop for operator approval before any tag recovery; no tags were restored or deleted by this script\n' >&2
   exit 1
 fi
-printf 'tag count unchanged (%s)\n' "$(git tag | wc -l | tr -d ' ')"
+[[ "$fetch_status" -eq 0 ]] || die "upstream fetch failed; inspect Git output and tag refs before retrying"
+printf 'tag count unchanged (%s)\n' "$(wc -l <"$tags_after" | tr -d ' ')"
 
 git rev-parse --verify --quiet upstream/main >/dev/null \
   || die "upstream/main missing after fetch"
@@ -202,12 +230,49 @@ if [[ "$merge" -eq 0 && -z "$record_merge" ]]; then
 fi
 
 if [[ "$merge" -eq 1 ]]; then
-  if ! GIT_MERGE_AUTOEDIT=no git merge -m "chore: merge upstream/main" upstream/main; then
-    printf 'error: merge conflicts remain; see docs/upstream-sync.md\n' >&2
-    printf 'after resolving and git merge --continue, record the sync evidence:\n' >&2
-    printf '  %s --record-fork-sync <merge> --fork-level <none|patch|minor|major> --rationale <text>\n' "$0" >&2
+  target="$(git rev-parse --verify --quiet 'upstream/main^{commit}')" \
+    || die "cannot resolve fetched upstream/main to a commit"
+  if [[ -n "$expected_upstream" && "$target" != "$expected_upstream" ]]; then
+    refuse_merge "expected upstream ${expected_upstream} but fetched ${target}; inspect the new input and reopen affected approvals"
+  fi
+  fork_head="$(git rev-parse --verify 'HEAD^{commit}')" \
+    || die "cannot resolve HEAD to a commit"
+
+  if git merge-base --is-ancestor "$target" "$fork_head"; then
+    printf 'upstream already contained in HEAD; no merge performed\n'
+    exit 0
+  else
+    status=$?
+    [[ "$status" -eq 1 ]] || refuse_merge "cannot inspect upstream ancestry"
+  fi
+  if git merge-base --is-ancestor "$fork_head" "$target"; then
+    refuse_merge "fast-forward-only upstream integration requires separate review"
+  else
+    status=$?
+    [[ "$status" -eq 1 ]] || refuse_merge "cannot inspect upstream ancestry"
+  fi
+  if git merge-base "$fork_head" "$target" >/dev/null; then
+    :
+  else
+    status=$?
+    [[ "$status" -eq 1 ]] && refuse_merge "no common ancestor; upstream merge refused"
+    refuse_merge "cannot inspect upstream ancestry"
+  fi
+
+  if ! GIT_MERGE_AUTOEDIT=no git merge --no-ff -m "chore: merge upstream/main" "$target"; then
+    unmerged="$(git ls-files -u)" || die "cannot inspect unmerged entries after merge failure"
+    if [[ -n "$unmerged" ]]; then
+      printf 'error: merge conflicts remain; see docs/upstream-sync.md\n' >&2
+      printf 'after resolving and git merge --continue, record the sync evidence:\n' >&2
+      printf '  %s --record-fork-sync <merge> --fork-level <none|patch|minor|major> --rationale <text>\n' "$0" >&2
+    else
+      printf 'error: merge failed without unmerged entries; inspect Git output and state before recovery\n' >&2
+    fi
     exit 1
   fi
+  read -r first_parent second_parent extra_parents <<<"$(git show -s --format=%P HEAD)"
+  [[ "$first_parent" == "$fork_head" && "$second_parent" == "$target" && -z "$extra_parents" ]] \
+    || die "merge result does not have the expected two-parent topology; inspect HEAD before recording"
   printf 'merge complete; record its reviewed fork sync evidence before the next release:\n'
   printf '  %s --record-fork-sync %s --fork-level <none|patch|minor|major> --rationale <text>\n' "$0" "$(git rev-parse HEAD)"
   exit 0
