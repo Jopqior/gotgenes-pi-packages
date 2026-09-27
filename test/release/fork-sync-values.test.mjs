@@ -9,9 +9,9 @@ import {
   parseStrictSemVer,
 } from "../../scripts/release/fork-sync/values.mjs";
 
-// The pure algebra of the core sync release policy: strict SemVer parsing,
+// The pure algebra of the fork sync release policy: strict SemVer parsing,
 // version comparison, level mapping and combination, version increment, and
-// the core path-scope predicate that mirrors the release scripts' exclusions.
+// the package path-scope predicate that mirrors the release scripts' exclusions.
 // No Git, no git-cliff — these tests never build a repository.
 
 describe("level mapping", () => {

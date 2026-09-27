@@ -12,7 +12,7 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-// The real-history regression for the core sync release policy: the actual
+// The real-history regression for the fork sync release policy: the actual
 // issue-14 integration objects, not synthetic approximations. The fixture
 // clones this repository with shared objects and no tags, checks out the
 // historical integration merge, and restores only the historical fork

@@ -13,7 +13,7 @@ import {
   createForkSyncScenario,
 } from "./helpers/fork-sync-scenario.mjs";
 
-// Decision integration for the core sync release policy: window derivation
+// Decision integration for the fork sync release policy: window derivation
 // over recorded evidence, fail-closed evidence errors, the shared
 // `next_tag` entry point, and offline prediction. The pure algebra, the
 // state schema, the git-cliff adapter, the CLI contract, and release

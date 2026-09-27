@@ -1,4 +1,4 @@
-// Instance-owned scenario for the core sync release policy tests: the
+// Instance-owned scenario for the fork sync release policy tests: the
 // baseline history a decision window hangs from, plus the helpers that build
 // recorded evidence and run the decision against it. Each test creates its
 // own scenario, so one test's repository and recorded-sync bookkeeping can
