@@ -62,3 +62,21 @@ The final incremental pre-completion reviewer returned PASS after approved corre
 - Parallel full-suite verification during the cutover hit a timeout; serial reruns passed, and subsequent final gates were run serially.
   Broad terminology scans must include prose and camel-case identifiers, not only old module filenames and exported symbols.
 - No implementation steps remain; the next workflow is `/ship 29`, with any package publication still subject to explicit approval.
+
+## Stage: Ship (2026-09-27T09:27:29Z)
+
+### Session summary
+
+Started the trunk-lane ship from the root checkout on `main`.
+The operator explicitly approved publication of `@jopqior/pi-subagents` to npmjs.org after successful CI; read-only prediction returned `pi-subagents-v4.0.4`.
+Remote CI, issue closure, and release verification remain subsequent ship gates at this checkpoint.
+
+### Observations
+
+- Fast-forward-only synchronization succeeded; the checkout had 24 unpushed commits, including the earlier issue-28 documentation work.
+  Issue 28 remains open for the issue-27 integration acceptance described in the handoff, rather than closing with issue 29.
+- Root `pnpm run lint` and `pnpm fallow dead-code` passed.
+- The package README link correction makes `pi-subagents` a release candidate despite the plan's original repository-only expectation.
+  No other package path appears in the issue-29 change range.
+- There is no peer branch to merge or worktree to remove, no adopted PR close target, and no package roadmap phase to finish.
+  The repository-tooling CLI/schema cutover is breaking; the package change is documentation-only.
