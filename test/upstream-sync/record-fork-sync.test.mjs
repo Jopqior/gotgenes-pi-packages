@@ -82,7 +82,14 @@ describe("upstream-sync.sh --record-fork-sync", () => {
           .slice(before)
           .map(({ args }) => args)
           .filter((args) => args[0] === "fetch"),
-      ).toEqual([["fetch", "--no-tags", "upstream", "main"]]);
+      ).toEqual([
+        [
+          "fetch",
+          "--no-tags",
+          "upstream",
+          "+refs/heads/main:refs/remotes/upstream/main",
+        ],
+      ]);
     });
 
     for (const remote of ["origin", "upstream"]) {
@@ -217,6 +224,44 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     });
   });
 
+  it("refreshes upstream/main for the recorder with a nonstandard remote.fetch", () => {
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+    net.git(work, [
+      "fetch",
+      "--no-tags",
+      upstreamBare,
+      "+refs/heads/main:refs/remotes/upstream/main",
+    ]);
+    const merge = mergeUpstream(work);
+    const actual = net.revParse(upstreamBare, "refs/heads/main");
+    const stale = net.revParse(work, `${merge}^1~1`);
+    net.git(work, [
+      "config",
+      "remote.upstream.fetch",
+      "+refs/heads/main:refs/remotes/other/main",
+    ]);
+    net.git(work, ["update-ref", "refs/remotes/upstream/main", stale]);
+    const before = readFileSync(statePathOf(work), "utf8");
+    expect(stale).not.toBe(actual);
+
+    const result = net.runScript(work, [
+      "--record-fork-sync",
+      merge,
+      "--fork-level",
+      "none",
+      "--rationale",
+      "upstream-only integration",
+    ]);
+
+    expect(result.status).toBe(0);
+    expect(readFileSync(statePathOf(work), "utf8")).not.toBe(before);
+    expect(net.revParse(work, "upstream/main")).toBe(actual);
+    expect(readState(work).syncs[0].merge).toBe(merge);
+    expect(
+      net.git(work, ["config", "--get", "remote.upstream.fetch"]).stdout.trim(),
+    ).toBe("+refs/heads/main:refs/remotes/other/main");
+  });
+
   it("records verified sync evidence after a completed merge", () => {
     const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     const merge = mergeUpstream(work);
@@ -347,7 +392,14 @@ describe("upstream-sync.sh --record-fork-sync", () => {
             .slice(before)
             .map(({ args }) => args)
             .filter((args) => args[0] === "fetch"),
-        ).toEqual([["fetch", "--no-tags", "upstream", "main"]]);
+        ).toEqual([
+          [
+            "fetch",
+            "--no-tags",
+            "upstream",
+            "+refs/heads/main:refs/remotes/upstream/main",
+          ],
+        ]);
       });
     }
   });

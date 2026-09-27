@@ -14,7 +14,7 @@
 #
 # tagOpt=--no-tags is the default when a fetch names neither --tags nor
 # --no-tags. git fetch --tags and git fetch --all --tags still override it, so
-# the fetch line is always `git fetch --no-tags upstream main`.
+# fetch explicitly maps main to upstream/main independently of remote.fetch.
 
 set -euo pipefail
 
@@ -196,7 +196,7 @@ trap cleanup EXIT
 
 git for-each-ref --sort=refname --format='%(refname) %(objectname)' refs/tags >"$tags_before"
 fetch_status=0
-git fetch --no-tags upstream main || fetch_status=$?
+git fetch --no-tags upstream +refs/heads/main:refs/remotes/upstream/main || fetch_status=$?
 git for-each-ref --sort=refname --format='%(refname) %(objectname)' refs/tags >"$tags_after"
 
 if ! cmp -s "$tags_before" "$tags_after"; then
