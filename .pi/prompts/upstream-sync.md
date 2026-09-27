@@ -56,7 +56,7 @@ If only a fast-forward could incorporate upstream, stop for a separately reviewe
 Allocate `docs/sync/runs/<UTC timestamp>-<upstream short SHA>.md` after the upstream OID is known, deriving filesystem-safe components with `date -u +'%Y-%m-%dT%H-%M-%SZ'` and `git rev-parse --short 'upstream/main^{commit}'`.
 Inspect any existing path and resume only on full matching inputs/state; for a genuinely distinct run get a new timestamp, never overwrite or guess a suffix.
 Keep the new record untracked during merging, stage only explicit reviewed paths, and preserve scratch evidence when discovery fails before record allocation.
-The concise record contains: status and committed workflow revision; repository identities, verified single origin push URL, immutable pre-sync live baseline B and later stage-specific expected/live OIDs P and R with their readbacks, and inspected customization scope; fork/upstream OIDs, merge parents/final merge; remote/tag snapshots and actions; decision IDs with problem, files, proposed action/effects/alternatives, actual operator answer and actor or exact active rule with matching conditions, superseded decisions, executed diff/commit and verification separately; checks done/not done; independent findings; release prediction output **and exit status**; independent push/publication approvals, exact CI and release run IDs/inputs and results, release commit/tags, registry/GitHub readback, precise pending resume point.
+The concise record contains: status and committed workflow revision; repository identities, verified single origin push URL, immutable pre-sync live baseline B and later stage-specific expected/live OIDs P and R with their readbacks, and inspected customization scope; fork/upstream OIDs, merge parents/final merge; remote/tag snapshots and actions; decision IDs with problem, files, proposed action/effects/alternatives, actual operator answer and actor or exact active rule with matching conditions, superseded decisions, executed diff/commit and verification separately; checks done/not done; independent findings; release prediction output **and exit status**; independent push/publication approvals, exact CI and release run IDs/inputs and results, release commit/tags, GitHub Release readback, precise pending resume point.
 A proposal alone or assistant assertion of approval is not an answer (A07).
 An execution record is not the machine release state, and machine evidence cannot authorize edits (E01).
 
@@ -123,7 +123,7 @@ An unregistered/new package is not publication-eligible and requires the separat
 Propose separately an exact push target/commit set and an exact publication package list, npm names/scopes, registry destination and predicted versions (C04b/A08).
 An operator declining either authority leaves a recorded pending/deferred state and resume point; never convert one approval into the other or into repair authority.
 
-## 6. Push, dispatch, and verify visibility
+## 6. Push, dispatch, and verify release completion
 
 Use B only as the historical pre-sync baseline; establish the current stage's expected remote OID from actual authorization, execution and validated live readback, never from `origin/main` or a newly observed live tip.
 For each live-main check below repeat the stage-1 read-only `git ls-remote --refs --exit-code "<verified single origin push URL>" refs/heads/main` query, requiring successful exit, exactly one full commit OID and the exact refname; query failure, missing/malformed/ambiguous result or changed destination stops dependent work without a cached-ref fallback.
@@ -155,7 +155,6 @@ If only a retry that repeats prepare is available, or the job/run or artifacts c
 Any unexpected OID, tag movement, missing authorization or readback, or changed input stops dependent work for investigation and explicit decision, without silently treating current live state as approved history.
 Do not invoke `/ship` or close an issue as part of this workflow.
 
-After that exact run succeeds and R still passes live readback, verify GitHub Releases by exact tag (`gh release view <tag> --repo Jopqior/gotgenes-pi-packages --json tagName,url`) and exact npm identities/versions using the bounded registry readback in the releasing skill with `--registry=https://registry.npmjs.org/` when that was approved.
+After that exact run succeeds and R still passes live readback, apply the releasing skill's release-completion checks for the approved package set, release commit/tags and exact GitHub Releases (X04).
 For a no-release prediction, skip dispatch and R entirely; complete against the verified P and its CI result, including the initially already-pushed no-op case.
-Keep workflow success distinct from verified publication when the registry is delayed; resume exact-run visibility checks at R without another push/dispatch, record actual readbacks, elapsed bounds and pending status, never blindly republish (X04).
 Persist final or deferred status, verification facts and precise next action in the run record, committing its checkpoint when allowed; report incomplete work, checks not performed and every separately authorized outcome.

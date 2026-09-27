@@ -99,3 +99,89 @@ GitHub Release readback succeeded, but npm visibility remains pending verificati
   This repository-scoped issue is not a package roadmap phase tail.
 - The implementation review's generic failed-prepare/retry warning remains outside this ship's scope; this successful release required no retry.
   The new `/upstream-sync` command still requires a fresh Pi session for registration.
+
+## Stage: Final Retrospective (2026-09-27T14:24:08Z)
+
+### Session summary
+
+Reviewed the planning, implementation and ship transcripts alongside their stage records, implementation subagent reports and the actual release recovery surfaces.
+The unified workflow shipped and issues 27 and 28 are closed; the previously pending npm readback now returns `@jopqior/pi-subagents@4.0.5` with nonempty integrity, and the exact GitHub Release remains visible.
+The operator approved correcting the release owner's recovery advice and removing mandatory npm visibility polling after successful publication.
+No release code or publication was changed.
+
+### Observations
+
+#### What went well
+
+- Independent review found meaningful defects after all deterministic checks passed: the fixture-supplied fetch mapping and the resumed-workflow baseline invariant.
+  Keeping the rejected F2 rewrite uncommitted allowed its correction and another fresh review before `fix(repo): verify live fork state across sync resumes (#27)` landed.
+- The new bounded publication-readback procedure encountered its own pending-visibility case during ship.
+  The agent retained the exact run and package identity instead of repeating publication; this session's readback completed that handoff without a remote mutation.
+  The returned integrity was `sha512-7ChIPXN0W64fJ2ue/t4+U8ZnO1UfA/zuXrp8xForq9WKhKJ2jRFweMTVqN0I5HaCUxcQwkG6LVH6h9hAA3OVqQ==`.
+  Successful later visibility does not establish why the earlier queries failed.
+
+#### What caused friction (agent side)
+
+- `missing-context`: the existing wrapper in `test/upstream-sync/helpers/upstream-network.mjs` supplied a refspec that production did not supply.
+  Canonical URL preparation and green Git-network tests did not expose that semantic difference; the first reviewer identified it, and `fix(repo): bind sync to freshly fetched upstream main (#27)` moved the explicit mapping into production and added regression cases.
+  Impact: an extra corrective implementation commit and review cycle after the planned steps.
+- `wrong-abstraction`: the first F2 correction treated the original remote baseline as the required live state for every later stage.
+  It stopped unrecorded remote movement but also stopped recovery after the workflow's own authorized push or release.
+  Impact: a second FAIL, another operator approval and a rewrite separating immutable historical B from evidence-backed current P or R.
+- `missing-context`: at review time, `.pi/skills/releasing/SKILL.md` said a failed `prepare` means nothing was tagged and suggested rerunning a later failed job without checking dependencies.
+  This session independently read `scripts/release/prepare-release.sh`: it pushes main and tags before writing workflow outputs, and its push is not atomic.
+  The installed `gh run rerun --help` explicitly includes dependencies for both `--job` and `--failed`.
+  Impact: the new sync prompt needed a local safety override, while generic callers retained misleading recovery advice; no actual failed-release recovery occurred here.
+- `other` (execution preference discovered mid-step): the operator asked for a fresh subagent per step after the parent had started step 3.
+  The parent handed over the uncommitted implementation and Red evidence, then used fresh sequential workers for subsequent steps and corrections.
+  Impact: a mid-step handoff, without discarded work.
+  This was not an instruction violation: the earlier workflow did not require that delegation mode.
+- `other` (bounded external readback failure): ship made the initial npm query and four prescribed retries, with 120 seconds of explicit waits, without obtaining a version.
+  Impact: publication visibility remained pending across the session boundary; the current exact-identity query succeeded.
+
+#### What caused friction (user side)
+
+- Stating the per-step delegation preference before implementation would avoid a mid-step handoff; the agent can also surface its intended execution mode at the start rather than require mechanical supervision.
+  The preference was honored once stated and is not generalized into a permanent default by this retro.
+- The operator had to approve two correction rounds because the first repair introduced a recovery regression.
+  The opportunity is for the agent to walk authorized success transitions as well as rejection cases before presenting a repair, not to shift technical validation onto the operator.
+
+### Diagnostic details
+
+- Model attribution comes from type-unfiltered transcript turn labels, not agent definitions.
+  Planning, implementation orchestration and ship used `openai-codex/gpt-6-astra`.
+  The Tidy-First assessor used `openai-codex/gpt-6-sol`; the fresh workers for steps 3, 4, 5 and 6, F1, initial F2 and the corrective F2 rewrite also used `openai-codex/gpt-6-sol`.
+  All three independent reviewer reports used `openai-codex/gpt-6-astra`.
+  The corrective worker was later resumed on `openai-codex/gpt-6-sol` to commit its reviewed diff unchanged; this mechanical continuation could have stayed with the parent, but no measured cost comparison supports a model-quality claim.
+  Both reasoning and implementation workers made useful contributions; the observed failures concern fixture fidelity and state modeling, not an established model mismatch.
+- Feedback-loop analysis: baseline checks preceded edits, the parent ran focused Red/Green and killing mutations for the preparatory steps, and workers ran focused suites and root checks before handoff.
+  All three reviewers reran deterministic checks; the gap was the scenario set, not verification delayed until the end.
+  The initial F2 walkthrough needed the successful B-to-P-to-R resume path alongside third-party movement and missing-evidence cases.
+- No observed failure sequence warrants a rabbit-hole escalation finding: review findings went promptly to an operator gate and fresh corrective workers.
+  The four ship waits followed the explicit bounded policy; they were not unbounded retries.
+  An unused exploration tool is not the missing remedy here: independent review was used and found the defects that green tests missed.
+
+### Proposed adjustment
+
+Replace the release skill's unconditional failed-prepare and failed-job retry advice with live-state verification and a dependency-scope check, preserving its tagged-checkout preflight.
+This belongs in `.pi/skills/releasing/SKILL.md`, the shared owner already loaded by release callers, rather than in `AGENTS.md` or another prompt-specific exception.
+Do not add another generic real-surface rule, mandate fresh agents for every future plan, increase the visibility retry budget, or redesign release recovery in this documentation-only retro.
+After asking where the npm readback requirement originated, the operator approved removing it alongside the recovery correction.
+The requirement was introduced by `feat!: require approval for uncovered upstream integration changes (#27)` in the shared release skill and referenced by the sync prompt; it was workflow policy, not a technical prerequisite.
+The new completion criterion is a successful approved workflow plus verified release commit, tags and GitHub Releases; npm queries remain for publication-failure investigation or explicit operator requests.
+Earlier planning, acceptance and ship records retain their historical requirements and observations.
+
+### Next-work context
+
+The plan places this issue outside a package roadmap, with no successor step.
+The latest triage, `docs/triage/2026-09-18-backlog.md`, ranks inherited `gotgenes/pi-packages` work and supplies no fork successor.
+A live fork issue query returned only issues 25 and 26 open; neither is ranked by that triage, so no inherited priority or phase-close obligation is transferred to this fork.
+
+### Changes made
+
+1. Appended this cross-session retrospective to `docs/retro/f0027-unified-upstream-sync.md`, including the successful exact-version readback and the operator's revised completion policy.
+2. Replaced unsafe failed-run retry advice in `.pi/skills/releasing/SKILL.md` with live-state inspection, explicit retry approval and job/dependency-scope verification.
+3. Replaced mandatory npm polling and pending-visibility handoffs in `.pi/skills/releasing/SKILL.md` with workflow, release commit/tag and GitHub Release completion checks.
+4. Updated `.pi/prompts/upstream-sync.md` to use those completion checks and removed its mandatory registry-readback record field and delayed-visibility instructions.
+   Verification: `pnpm run lint` and `git diff --check` passed; the final diff was inspected for retained push, publication-approval and recovery safeguards.
+   No runtime files changed, so runtime tests were not rerun for this retrospective.

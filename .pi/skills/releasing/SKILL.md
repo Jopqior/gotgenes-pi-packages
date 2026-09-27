@@ -34,19 +34,18 @@ Both are read-only and offline.
 Never name a package that `next-version.sh` prints nothing for — `prepare-release.sh` validates every named package **before** writing anything, so one such package refuses the whole run and nothing is tagged.
 
 The run's three jobs are `prepare` → `publish` → `github-release`.
-If `prepare` fails, nothing was tagged and the release can simply be re-dispatched.
-If a later job fails, the tags are already pushed — fix the cause and re-run that job; re-dispatching would refuse on the existing tag.
+After any failed release run, inspect the exact run and live main/tag refs before retrying; a failed `prepare` does not prove that no remote writes occurred.
+Re-dispatch only after verifying that no completed or partial release exists and obtaining explicit retry approval.
+For a later-job retry, verify its actual job/dependency scope excludes `prepare`; `gh run rerun --job` and `--failed` include dependencies.
+If partial writes exist or retry scope is uncertain, stop for an explicit recovery decision.
 Before rerunning publication, ensure its checked-out package paths match the tags: `pnpm publish --no-git-checks` packs the working checkout, so the preflight rejects Git-visible tracked or untracked package drift and compares each package's `package.json` and `CHANGELOG.md` against its tag byte-for-byte.
 
-### Publication visibility readback
+### Release completion
 
-After the approved release run succeeds, resolve each **actually released** package's registered npm name and tag/version from the release commit and tags; verify the run and release commit against the approved SHA before reporting publication.
+After the approved release run succeeds, resolve each actually released package's registered identity and version from the release commit and tags; verify them against the approved SHA and package set.
 For each exact tag, read `gh release view <tag> --repo Jopqior/gotgenes-pi-packages --json tagName,url`, checking the returned tag against the expected one.
-At the explicitly approved npmjs.org destination, read `pnpm view <approved-npm-name>@<released-version> version dist.integrity --registry=https://registry.npmjs.org/`, checking the returned version and nonempty integrity against the release result; never query an inherited upstream scope as a substitute.
-A missing GitHub Release, wrong version, or absent integrity is **pending verification**, not proof that another publication is authorized.
-If registry propagation lags after a successful run, wait 30 seconds and recheck the **same exact identity** up to four times (at most two minutes of additional waits); record each result and elapsed wait.
-If it remains invisible, report the run success and pending visibility separately with the exact failed readback and a later recheck point; investigate the run/tag/registry before any recovery, never republish blindly.
-If a late job failed, follow the failed-job recovery above instead of treating the visibility wait as permission to redispatch.
+Successful workflow execution plus verified release commit, tags and GitHub Releases completes the release; missing or mismatched evidence requires investigation, not automatic republication.
+Query npm only to investigate a publication failure or when the operator requests it; successful releases require no registry polling or pending-visibility handoff.
 
 Versions and changelogs come from [git-cliff](https://git-cliff.org) reading local git, with no network in the derivation.
 The `pi-subagents` fork release level additionally uses verified correspondence (below).
