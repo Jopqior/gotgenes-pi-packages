@@ -1108,5 +1108,53 @@ These are tests of current implementation, not runtime enforcement of the manual
 An additional read-only `./scripts/release/verify-cliff-parity.sh` diagnostic exited 1 because eight inherited packages have no local fork tags; the two registered packages reported parity OK, and individual registered-package prediction remained the workflow's gate.
 Acceptance inspected the activation criterion, with #28 still open; publication, push, independent final review and issue lifecycle remain separately gated.
 
+### Follow-up: pre-completion FAIL and corrections pending re-review
+
+The acceptance recorded at `c6af88e08` did not pass the subsequent independent pre-completion review.
+That review identified two failures in the actual workflow: F1, a custom `remote.upstream.fetch` could leave `upstream/main` stale despite a successful script fetch; F2, cached `origin/main` cannot prove the live fork main is already at an approved SHA or has not moved before push.
+The earlier acceptance walkthrough and its stated results above remain historical observations, not a PASS verdict for these two cases or permission to synchronize.
+
+F1 was corrected in `b7d0928a5998d82f8ab9c5aba813fda19f0081a4`: `scripts/upstream-sync.sh` fetches `+refs/heads/main:refs/remotes/upstream/main` explicitly with `--no-tags`; the fixture wrapper no longer supplies that rewrite in place of production code.
+Inspection of the committed diff found focused cases for discovery, merge, expected-target rejection and recorder with a nonstandard `remote.fetch`; `pnpm exec vitest run test/upstream-sync/merge.test.mjs test/upstream-sync/record-fork-sync.test.mjs` passed 2 files and 121 tests in this follow-up.
+That fixture is isolated Git transport, not a claim that a real upstream synchronization took place.
+
+The first uncommitted F2 correction verified the live fork destination, captured its pre-sync OID as a baseline and compared live main against that baseline before push or no-push CI.
+Its second independent pre-completion review also returned FAIL: a run's own authorized push B-to-P passes post-push readback, but on resume the live P differs from baseline B, so the prompt stops before CI; release preparation's authorized P-to-R similarly stops later-job recovery and visibility.
+The earlier manual F2 walkthrough and checks below are historical evidence for that first attempt, not acceptance of its resume behavior.
+
+The revised uncommitted prompt retains immutable historical B, but distinguishes the current-stage expected OID P (approved/verified pushed tip or initially already-pushed tip) from R (the exact approved release run's prepared commit).
+A successful validated live query does not alone authorize a transition: push requires the actual answer, command and B-to-P readback; release requires the actual approved dispatch and identifiable run/guard, P-to-R commit parent, selected tags and readbacks.
+An interrupted command or missing readback requires recovery of actual evidence or an explicit operator decision; neither a matching current tip nor an assistant summary manufactures historical approval.
+The release script's `prepare` job commits and pushes R with selected annotated tags, while the later jobs check out R; a failed prepare status alone does not prove that no remote write occurred.
+
+| Manual F2 resume case                                                                                   | Reasoned result from the revised on-disk prompt                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Authorized push B-to-P read back as P, then resume before CI                                            | Retain B, re-query live P, reconcile approved push/result/readback and identify CI for P; do not demand live B or repeat the push.                                                                                |
+| Authorized release run guarded at P prepares and pushes R, then resume during a later job or visibility | Bind exact run ID, dispatch inputs, successful prepare evidence, parent P and selected tag refs to R, and live R; retain CI for P, follow that run's failed job or exact publication readback without redispatch. |
+| Third party moves main to an unrelated OID after B, P or R                                              | Live result matches no authorized stage transition; stop dependent push, CI, dispatch or visibility, never replace B or infer another run's approval.                                                             |
+| Operator answer, push readback or release execution evidence missing                                    | Recover actual answer and action/readback from independent evidence or seek an explicit decision; do not turn current live P/R into a reconstructed answer or automatically repeat the action.                    |
+| Live query fails, main is absent, result is malformed or run identification is ambiguous                | Stop the dependent stage; do not substitute `origin/main`, a similarly named run, or a different destination.                                                                                                     |
+| No-op upstream, already-pushed unchanged P equals B, nothing to push                                    | Require live P, identify successful CI for P; predict registered pending releases independently, dispatch only if approved and needed, otherwise finish without push or release.                                  |
+| Failed prepare or failed later release job                                                              | Inspect exact run and live main/tags for partial or completed prepare before any retry; after verified R, confirm a later-job retry cannot replay prepare, otherwise stop for a safe recovery decision.           |
+
+These rows are manual policy reasoning, not executable enforcement.
+`git ls-remote -h`, `git remote get-url -h`, `git push -h`, and `git ls-remote --get-url` against the configured canonical fork URL confirmed the query/get-url syntax without contacting the fork main; an isolated temporary local Git repository confirmed `--refs --exit-code <URL> refs/heads/main` returns one full OID and exact ref when present, status 2 when missing, and a different OID after movement.
+A query of a nonexistent local repository returned status 128, illustrating the separate connection/identity-failure stop.
+No live fork ref query, production sync fetch, real push, repository remote configuration, GitHub mutation or publication was performed during F2 correction.
+Root `pnpm run check` and `pnpm run lint` passed; root `pnpm run test` passed all workspace packages and 30 root files/564 root tests; `pnpm fallow dead-code` found no issues.
+Release/lockfile files were inspected read-only and remained unmodified; `next-version.sh pi-subagents` printed `pi-subagents-v4.0.5`, and the other registered package (`pi-subagents-model-selector`) reported nothing to release at its existing tag.
+The unregistered `pi-permission-model-judge` predictor exited 1 for a missing first tag; none of these outputs is publication authorization.
+A fresh `pnpm exec rumdl check --no-cache .` passed across 1304 Markdown files, including link checks; the invisible-character/Unicode gates and `git diff --check` passed.
+Those outputs belong to the first F2 attempt; they do not repair its failed resume gate.
+
+For the revised prompt, read-only inspection of `.github/workflows/release.yml` and `scripts/release/prepare-release.sh` confirmed the SHA guard at P, the single release commit R, selected annotated tags pushed with R, and later jobs checking out the prepare output SHA.
+`gh workflow run --help` confirms the dispatch fields/explicit fork target; `gh run view/list --help` confirms run ID, event and head SHA inspection, but does not expose dispatch inputs as run JSON fields, so the revised prompt also requires the actual recorded request and run/job evidence.
+`gh run rerun --help` says `--job` includes dependencies; a later-job retry must not accidentally rerun `prepare` against existing tags, and an unverified retry stops for a decision.
+The scenario table above manually walks the second FAIL's own-push and release-resume cases plus unknown movement, missing evidence/query, no-op and job failure; it is policy reasoning, not executable enforcement or a completed release.
+After this revision, root `pnpm run check`, `pnpm run lint`, `pnpm run test` and `pnpm fallow dead-code` each exited zero; root tests reported 30 files/564 tests passing and dead-code found no issues.
+A fresh `pnpm exec rumdl check --no-cache .` passed on 1304 Markdown files; the invisible-character, Unicode and `git diff --check` gates passed.
+No real fork-main query, synchronization fetch/merge, push, release dispatch, publication or GitHub mutation was performed; only the prompt and this review remain uncommitted.
+Independent pre-completion re-review remains necessary before this correction is committed or activation is described as accepted.
+
 [#27]: https://github.com/Jopqior/gotgenes-pi-packages/issues/27
 [#29]: https://github.com/Jopqior/gotgenes-pi-packages/issues/29
