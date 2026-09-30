@@ -11,7 +11,7 @@ Invocation itself requests synchronization (S01), not a second start confirmatio
 Run from the repository root in a fresh Pi session after changing this prompt.
 Read the on-disk prompt, AGENTS.md, the delegation, git-workflow, releasing, markdown-conventions, and relevant package skills; load other topic skills when their triggers fire.
 Name the session `Upstream Sync — <current stage>` using `set_session_name` if available.
-This prompt is the sole active sync policy; `docs/sync/reviews/f0028-sync-approval-policy.md` is historical decision provenance, not permission to edit.
+This prompt is the sole active sync policy.
 Release algorithms, registry identity, correspondence, first releases, and failed-job recovery belong to `.pi/skills/releasing/SKILL.md` and `docs/release/fork-sync.md`.
 
 ## 1. Recover, inspect, and checkpoint inputs
