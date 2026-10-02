@@ -187,3 +187,25 @@ A live fork query returned open issues #25 and #26, but neither has a successor 
 4. Refined issue #31 after the operator rejected a potentially lengthy rule-by-rule necessity audit; its title is now `refactor(repo): simplify upstream integration guidance in generic workflows`.
    The revised scope removes obvious lifecycle duplication, retains fork-specific constraints and startup ordering, and prefers existing documentation owners over a mandatory new stage-organized handbook.
    Planning may add a short supplement if needed, but does not need a per-rule proof or justification matrix.
+
+## Stage: Follow-up restart (2026-10-02T15:37:35Z)
+
+### Session summary
+
+The operator rejected the completed local issue-31 approach because generic workflows still carried synchronization-specific classification and loading branches.
+The operator chose to reuse issue #31 with a replacement specification and restart planning, rather than file another issue or continue patching the old implementation.
+With explicit approval, local `main` was reset to the verified remote tip `82b4aa0e1ff1b359adaffd79723d980907a35047`, removing seven unpushed planning, implementation, and retrospective commits from the branch.
+The working tree was clean before reset; no backup branch was created, as requested, and no remote history was rewritten.
+
+### Revised direction
+
+- Remove synchronization-specific procedures from generic prompts and skills, retaining genuinely general workflow improvements and existing safety and publication constraints.
+- Keep a short conditional entry in AGENTS.md so synchronization tasks load their dedicated guidance before relevant Git operations; ordinary work should not load a synchronization classifier.
+- Organize the synchronization guide, fork release policy, and generated correspondence table under `docs/upstream/`, with distinct responsibilities and descriptive filenames to settle during planning.
+- Clean up duplicated, mixed-purpose, and verified obsolete guidance rather than merely moving it; preserve current synchronization mechanisms and release policy.
+- Update references, generated-document paths, and relevant tests with the documentation changes.
+- Preserve the startup-order concern as a design requirement, without carrying forward the discarded implementation's classifier or per-prompt loading branches as mandatory solutions.
+
+The earlier issue-31 directions above remain historical context and are superseded by these operator decisions.
+At this checkpoint, the replacement GitHub issue text still awaits operator confirmation; no new plan, implementation, actual upstream synchronization, push, or release has been performed.
+The next lifecycle stage is fresh planning for the rewritten issue #31, not shipping the discarded implementation.
