@@ -113,7 +113,8 @@ This checkpoint precedes release dispatch; release completion is not claimed her
 
 Reviewed the planning, implementation, and ship transcripts, their stage notes, and the subagent transcripts for the workflow refactor.
 The ship transcript continues beyond its committed checkpoint: CI and release verification completed, `@jopqior/pi-subagents@4.0.6` shipped, and issue #30 closed; this retrospective rechecked the closed issue and the fork GitHub Release.
-The operator approved notes only, with no workflow edits, new issue, or actual upstream integration.
+The operator initially approved notes only, with no workflow edits or actual upstream integration.
+A subsequent discussion approved filing follow-up #31 to extract synchronization guidance from generic prompts.
 
 ### Observations
 
@@ -178,4 +179,8 @@ A live fork query returned open issues #25 and #26, but neither has a successor 
 ### Changes made
 
 1. Appended this cross-session synthesis, model attribution, unresolved warnings, and release-completion context to `docs/retro/f0030-standard-upstream-workflow.md`, preserving all prior stage entries.
-2. Recorded the operator's notes-only decision; no changes were made to `AGENTS.md`, prompts, skills, runtime code, tests, release evidence, or changelogs.
+2. Recorded the operator's initial notes-only decision; no changes were made to `AGENTS.md`, prompts, skills, runtime code, tests, release evidence, or changelogs.
+3. After reviewing the prompt/skill diff with the operator, filed [fork issue #31](https://github.com/Jopqior/gotgenes-pi-packages/issues/31), `refactor(repo): extract upstream integration guidance from generic workflow prompts`, with `scope:repo`.
+   The approved direction is one stage-organized specialized document, conditional loaders in generic prompts, preserved general improvements, and synchronization startup checks before fetch/pull.
+   Document placement and loading mechanics remain planning decisions; no implementation or real synchronization was performed.
+   This is the explicit follow-up selected after the earlier next-action assessment, not an inherited roadmap recommendation.
