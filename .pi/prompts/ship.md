@@ -13,6 +13,7 @@ When it is empty, derive the number from the newest plan commit (`git log --form
 - **Trunk lane** — this session committed the work directly on `main`.
 - **Worktree lane** — a peer session implemented the work on an `issue-$1-*` branch and finished `/sync-worktree $1` (checks passed, sync stage note committed, branch rebased onto local `main`).
 
+Pinned upstream-target synchronization is trunk-only; the feature-worktree lane is unsupported for that issue, while ordinary package issues retain both lanes.
 The lane is detected in step 1 and changes only five things: where the plan is read from (step 2), whether a branch is fast-forward-merged (step 4), the CI-failure recovery rule (step 7), whether a worktree is torn down (step 12), and the session name.
 Every other step is identical.
 
@@ -94,11 +95,19 @@ A decision presented early from the plan is far less likely to be reversed than 
    Do this in **both** lanes: a plan's risk table and the planning and TDD stage notes routinely record a ship-time close target — an adopted third-party PR — that no commit in the range mentions.
    A step that only greps the plan for `**Release:**` cannot see it, which is how PR #850 stayed open after its work shipped (Refs #849).
    Carry what you find into step 9 and step 10.
+4. Read the issue body with `gh issue view $1 --repo Jopqior/gotgenes-pi-packages --json body -q .body`.
+   If it carries the exact `Upstream target: gotgenes/pi-packages@<full SHA>` line, identify it as a synchronization: compare the plan's fixed target, read the actual merge OID and evidence/reviewer checkpoints from the retro, and stop on missing or ambiguous handoff facts.
+   If a feature-worktree lane was detected, stop: synchronization is trunk-only, never rebased or squashed through that lane.
+   For synchronization also require absolute Git directory/common-directory identity and clean tracked state before step 3; stop on dirty or unmerged work rather than stashing, pulling through it, or validating it as a completed checkpoint.
+   This workflow-refactor issue is not itself an upstream-target issue.
 
 This section only reads and (conditionally) asks — it performs no git, push, or CI action.
 Step 8 applies the recorded release decision.
 
 ## 3. Sync `main`
+
+Before fetching or pulling, require no unresolved merge/rebase (`git rev-parse --absolute-git-dir` locates `MERGE_HEAD`, `rebase-merge`, and `rebase-apply`); on a pending operation stop and recover against the issue plan and actual Git state with the operator.
+A clean completed synchronization checkpoint uses the existing pull below; divergence remains a stop, not a rebase.
 
 1. `git fetch origin`.
 2. `git pull --ff-only`.
@@ -110,8 +119,9 @@ Step 8 applies the recorded release decision.
 
 ## 4. Land the work
 
-Trunk lane: nothing to merge — the work is already committed on `main`.
+Trunk lane: nothing to merge; the work, including any reviewed genuine upstream merge, is already committed on `main`.
 Skip to step 5.
+The generic nonlinear-landing prohibition applies to feature branch landing, not the already-committed two-parent upstream integration.
 
 Worktree lane: the peer worktree shares this repo's `.git`, so the branch ref is visible locally — no fetch of the branch is needed.
 
@@ -125,6 +135,10 @@ Worktree lane: the peer worktree shares this repo's `.git`, so the branch ref is
    The peer must re-run `/sync-worktree $1`, rebasing onto the ref this merge will actually use, then retry this step.
 
 ## 5. Pre-push checks
+
+For a synchronization, first verify the recorded merge is reachable from HEAD (`git merge-base --is-ancestor <merge> HEAD`), has exactly two parents and the planned second parent (`git show -s --format='%P' <merge>`), and matches committed reviewed release evidence.
+Require completed independent review of automatically merged fork customizations, the remerge diff and post-merge commits, the evidence commit reachable from HEAD, clean tracked state (`git diff --quiet` and `git diff --cached --quiet`) and no unmerged entries (`git ls-files -u`).
+Missing review/evidence is a stop; ship does not create or rewrite a merge or manufacture evidence.
 
 Run from the **repo root** (not a package subdirectory), on the tree that is about to be pushed:
 
@@ -142,14 +156,16 @@ Running them after step 4 covers exactly that tree, at a measured cost of about 
 
 ## 6. Push
 
-- `git push`.
-- If the push is rejected as non-fast-forward, stop and report — do not force-push.
+- Verify `git remote get-url --all origin` and `git remote get-url --push --all origin` both name only the intended `Jopqior/gotgenes-pi-packages` destination; inspect effective URL rewrites and stop on ambiguity or a different destination.
+- `git push origin main`.
+- If the push is rejected as non-fast-forward, stop and report; do not force-push.
 
 ## 7. Verify CI on the pushed commit
 
 1. Run `git rev-parse HEAD` to capture the full SHA.
    Pass that exact value to `ci_find` — never hand-expand the short SHA from the `git push` output, and never type a SHA from memory.
-2. Use `ci_find` with that SHA and workflow `ci` to locate the CI run.
+2. Verify `gh repo view --json nameWithOwner` resolves to `Jopqior/gotgenes-pi-packages` before `ci_find`, `ci_watch`, or `issue_close`; otherwise use explicitly fork-targeted `gh` equivalents.
+   Use `ci_find` with that SHA and workflow `ci` to locate the CI run.
    If it times out, re-check the SHA you passed against `git rev-parse HEAD` before assuming a timing miss — a truncated or retyped SHA produces the same timeout (Refs #640).
 3. Use `ci_watch` with the returned `run_id`, workflow `ci`, and `timeout: 600` to wait for it to complete.
 4. If the run conclusion is `failure`, stop and report.
@@ -160,16 +176,35 @@ Running them after step 4 covers exactly that tree, at a measured cost of about 
 
 ## 8. Check for a stacked release
 
-Ask what would actually release, rather than reasoning about commit types:
+Resolve the actual implementation range once: ordinarily use the plan commit's parent, or step 4's `PRE_MERGE` when it is an ancestor of that parent; for synchronization use the verified merge's first parent, including follow-up changes through HEAD.
+Set `RANGE_BASE` to that resolved OID, not the root plan directory name.
+Resolve changed directories against the existing validated release registry with this read-only command:
+
+<!-- release-candidates -->
 
 ```bash
-./scripts/release/next-version.sh <pkg>
+set -euo pipefail
+: "${RANGE_BASE:?Resolve the implementation range first}"
+export RANGE_BASE
+node --input-type=module -e '
+  import {execFileSync} from "node:child_process";
+  import {readReleasePackages} from "./scripts/release/release-correspondence.mjs";
+  const registry = readReleasePackages("scripts/release/release-packages.json", process.cwd());
+  const paths = execFileSync("git", ["diff", "--name-only", `${process.env.RANGE_BASE}..HEAD`], {encoding: "utf8"}).trim().split("\n");
+  const changed = [...new Set(paths.flatMap(p => /^packages\/([^/]+)\//.exec(p)?.slice(1) ?? []))].sort();
+  console.log(JSON.stringify({
+    registered: registry.packages.filter(p => changed.includes(p.directory)),
+    unregistered: changed.filter(d => !registry.packages.some(p => p.directory === d))
+  }));
+'
 ```
 
-Where `<pkg>` is the shipped package from the issue's plan path.
-The script is read-only and offline, and it applies the same path scoping and commit-type rules the release itself will.
-It prints the tag that would be cut, or nothing at all when the package has no releasable commits.
-If the printed tag is a major bump and `"$PLAN"^..HEAD` has no `!:` commit, stop and ask (Refs #10).
+Report every incoming unregistered directory as not publication-eligible; inherited npm identities/tags authorize neither registration nor publication.
+Do not run unregistered candidates through a failing first-release predictor; their first-release procedure belongs to the releasing skill and a separate operator decision.
+Reuse this candidate list in stacked-release checks and dispatch; do not rediscover from incoming issue numbers or infer a package from a root plan.
+For each registered candidate run `./scripts/release/next-version.sh <directory>` and retain stdout, stderr, and status separately: nonzero is an error, empty stdout with exit zero is no release.
+Only nonempty successful predictions are release candidates.
+The script is read-only and offline; if a predicted tag is a major bump and the actual range contains no breaking commit, stop and ask (Refs #10).
 
 Trust its answer over any reasoning about which commit types are hidden.
 Empty output means the work auto-batches until a releasing commit lands: `refactor:`/`style:`/`test:`/`build:`/`ci:` are skipped types, while `feat:`/`fix:`/`perf:`/`revert:`/`docs:`/`chore:` all release.
@@ -179,7 +214,7 @@ If the script exits nonzero, stop and report its stderr — that is "could not a
 Do not search `~` for `git-cliff` or install it.
 CI uses `taiki-e/install-action@git-cliff`.
 
-For a repo-root tooling change — no `packages/` file in the range (`git diff --name-only "$PLAN"^..HEAD | grep '^packages/'` is empty), whatever the plan's location — skip the command; every commit is outside the package tree, so nothing releases now.
+For a repo-root tooling change with no registered changed candidate, skip prediction and dispatch; if unregistered packages changed, report them separately rather than saying every commit is outside the package tree.
 Say so in the final report and skip the batch-vs-release question.
 
 Then apply the decision recorded in step 2.
@@ -192,8 +227,11 @@ Note the deferral in the final report.
 
 Load the `github-voice` skill before drafting — this comment and any PR close comment are contributor-facing.
 
-Build the close comment from this issue's own commits, anchored on the plan commit — not on the package's last tag.
+For synchronization, build the close comment from the verified merge's first-parent integration range through HEAD and close this synchronization issue only.
+Additional close targets must be explicitly identified in the fork plan/retro and verified against the fork tracker with `gh issue view <N> --repo Jopqior/gotgenes-pi-packages`; skip the incoming-history co-shipped scan below and never close upstream issues whose numbers collide with fork numbers.
+For ordinary issues, build the close comment from this issue's own commits, anchored on the plan commit, not on the package's last tag.
 Each package releases on its own cadence, so a tag range spans every sibling issue that landed since: measured at 165 commits across 32 issues for a 13-commit change (Refs #817).
+Use the following plan-anchor commands only for ordinary issues; synchronization keeps the verified `RANGE_BASE` from step 8 and uses `git log --oneline "${RANGE_BASE}..HEAD"`.
 
 ```bash
 PLAN=$(git log --format='%H' --grep="docs: \(re-\)\?plan .*(#$1)" -1)
@@ -238,7 +276,7 @@ A shipped issue can also supersede open third-party PRs without either being the
 Close each PR that step 2's plan-and-retro read named, with `gh pr comment` then `gh pr close`, never merge, crediting the author by `@login` (Refs #670, #690).
 Read each PR's body first (`gh pr view <M> --json body -q .body`) — what a PR flagged, covered, or omitted is a claim about the PR, and the plan's summary of it is not that source (Refs #907).
 
-Then check whether this push shipped work for **other** issues in the `"$PLAN"^..HEAD` range.
+For ordinary issues only, check whether this push shipped work for **other** issues in the `"$PLAN"^..HEAD` range; synchronization skips this scan and uses only the explicit verified fork targets above.
 A co-shipped issue shows as a stacked refactor/enabler, a subject-trailing `(#M)` commit ref, or a sibling `docs/plans/`/`docs/retro/` file added in range — a body-line `Refs #M` is a citation, not a ship (Refs #793).
 A roadmap step heading that names a second issue (`#### Step 16: … ([#885], with [#896])`) is a fold-in: its work shipped here and it closes with this issue, even where no commit subject carries its number (Refs #885).
 A mid-batch sibling that shipped on its own ship is already closed by it — this scan is for stacked work that never had a ship of its own.
@@ -251,28 +289,14 @@ The release workflow carries a `release` concurrency group, so two runs cannot o
 
 Skip this step entirely if step 8 recorded a defer/batch or no-dispatch decision.
 
-1. Derive candidate packages from the paths the range touched, not from commit types (re-derive `PLAN` — a fresh shell does not carry step 9's):
+1. Reuse step 8's registered changed candidate list and recorded predictions; an empty releasable list skips to step 12.
+   Registration is not publication approval: obtain explicit operator approval for the exact package set, registered npm names/scopes, and destination before dispatching, independently of pushing or issue closure.
+2. Recheck `./scripts/release/next-version.sh <pkg>` for those candidates at the approved SHA before dispatch; nonzero blocks release, empty output omits that package, and changed predictions or scope return to the operator.
+   Do not silently bundle unrelated registered pending work.
+3. Dispatch once, naming only approved registered packages with nonempty successful predictions and pinning the commit:
 
    ```bash
-   PLAN=$(git log --format='%H' --grep="docs: \(re-\)\?plan .*(#$1)" -1)
-   git diff --name-only "$PLAN"^..HEAD | sed -n 's#^packages/\([^/]*\)/.*#\1#p' | sort -u
-   ```
-
-   Use step 4's `PRE_MERGE` as the anchor instead when it is an ancestor of `"$PLAN"^`.
-   That test is reflexive, so it also reports true when `PRE_MERGE` equals `"$PLAN"^`, where the two ranges are identical and either anchor works.
-   A pre-plan commit touching a sibling package is invisible to the plan range, and the dispatch would silently omit that package (Refs #899).
-
-   Do not filter by commit type: `docs:` and `chore:` are visible changelog groups that cut a patch on their own, so a `feat|fix` scope grep silently drops a sibling bumped by a docs-only commit (Refs #857).
-   Step 2 below is the authority on which candidates actually release.
-   A plan under `docs/plans/` is cross-package as often as it is repo tooling — release every package the range bumps (Refs #792).
-   On an empty list (repo tooling only), nothing releases: skip to step 12.
-2. Confirm each candidate against `./scripts/release/next-version.sh <pkg>`.
-   A package that prints nothing has no releasable commits and must not be named — the release refuses a package with nothing to release, and would fail the whole run.
-   A package the shipped range did **not** bump is a sibling and is not yours to release.
-3. Dispatch once, naming every package to release and pinning the commit:
-
-   ```bash
-   gh workflow run release.yml -f packages="<pkg> <pkg2>" -f sha="$(git rev-parse HEAD)"
+   gh workflow run release.yml --repo Jopqior/gotgenes-pi-packages -f packages="<pkg> <pkg2>" -f sha="$(git rev-parse HEAD)"
    ```
 
    The package list is explicit by design: several packages can be releasable at once, and only the named ones go.
@@ -284,14 +308,13 @@ Skip this step if step 10 was skipped (deferred/batch, no dispatch, or nothing t
 
 1. Use `ci_find` with workflow `release` and the SHA you passed as `-f sha`, then `ci_watch` the returned `run_id` with `timeout: 600`.
    A dispatched run's `head_sha` is `main`'s tip at dispatch time, so it matches the SHA you pinned.
-   If `ci_find` times out, the dispatch's SHA guard most likely failed because `main` moved — check the run list before re-dispatching.
+   If `ci_find` times out, inspect the exact dispatch and run list; do not infer a failed guard or re-dispatch without the releasing skill's recovery checks and operator approval.
 2. If the `prepare`, `publish`, or `github-release` job failed, stop — do not proceed.
-   `prepare` failing means nothing was tagged and the release can simply be re-dispatched — **once**.
-   A second identical failure is a defect, not flake; diagnose before a third.
+   Follow the releasing skill's failed-run recovery rules: inspect the exact run and live main/tag refs before any separately approved retry; a failed `prepare` does not prove no writes occurred.
    For an opaque exit code with no diagnostic, diff the failing run's log timestamps against the last successful run's (`ci_list`, then `gh run view <id> --log`) before building a local reproduction.
    A step that dies in 10 ms where the green run took 13.5 s to reach the next line localizes the failure without tracing (Refs #919).
-   `publish` or `github-release` failing means the tags are already pushed: fix the cause and re-run those jobs rather than re-dispatching, which would refuse on the existing tag.
-3. After the run succeeds, `git pull --ff-only` to bring the release commit and tags down.
+   For later-job recovery use that same owner to verify actual retry job/dependency scope and tagged checkout; uncertain or partial release state stops for an explicit recovery decision.
+3. After the run succeeds, apply the releasing skill's completion checks for the approved package set, exact release commit/tags and GitHub Releases, then `git pull --ff-only` to bring the release commit down.
 
 ## 12. Tear down the worktree
 
@@ -320,7 +343,8 @@ Do **not** recommend the next issue to plan here — `/retro` surfaces the next 
 ## Constraints
 
 - Never force-push.
-- If the ff-merge is not a fast-forward, stop — the peer re-rebases; the root never merges non-linearly into `main`.
+- Feature-worktree landing must fast-forward; a failure returns to the peer for rebase.
+  This does not prohibit the already-reviewed genuine two-parent upstream integration in the trunk lane.
 - If CI fails, the issue stays open and nothing is released or torn down.
 - Never name a package in the release dispatch that `next-version.sh` reports nothing for — the run refuses it and no package releases (step 10.2).
 - Never re-dispatch a release after `prepare` succeeded; the tags exist, and the run would refuse on them (step 11.2).

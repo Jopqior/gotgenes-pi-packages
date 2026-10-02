@@ -16,8 +16,9 @@ This section takes precedence over inherited repository-target, roadmap, and rel
 - Before pushing, verify the remote URL and name the intended remote and branch explicitly.
 - Never import upstream tags into this fork's tag namespace.
   `git fetch --tags`, `git fetch --all --tags`, and a flagless `git fetch upstream` are forbidden; they override `remote.upstream.tagOpt`.
-- Invoke `/upstream-sync` from the repo root to integrate `gotgenes/pi-packages`; `.pi/prompts/upstream-sync.md` owns the active approval and execution workflow, using `scripts/upstream-sync.sh` for fetch/merge/record.
-  Release evidence and version derivation belong to `docs/release/fork-sync.md` and the releasing skill.
+- Invoke no-argument `/upstream-sync` from the repo root to find or create a pinned-target issue for `gotgenes/pi-packages`, then stop.
+  Plan, implement, review, ship, and retro through the standard issue lifecycle; actual integration stays in the root checkout on `main` with a genuine two-parent merge.
+  Use `scripts/upstream-sync.sh` for explicit fetch/pinned merge/record operations; release evidence and version derivation belong to `docs/release/fork-sync.md` and the releasing skill.
 - Treat inherited upstream issue numbers, roadmap priorities, and release procedures as upstream context, not automatic obligations for this fork.
   Qualify upstream issue references with `gotgenes/pi-packages` or a full URL when adding new documentation so they cannot be mistaken for fork issues.
 - Fork plan/retro files are named `fNNNN-<slug>.md` — `f` plus the four-digit zero-padded fork issue number (e.g. `f0001-spawn-model-selection.md`), never the next free `NNNN` among inherited files.

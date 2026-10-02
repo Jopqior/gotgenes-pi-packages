@@ -3,7 +3,9 @@
 `@jopqior/pi-subagents` versions advance through merges of `upstream/main`, so the Conventional Commit classification of an integration merge cannot decide the fork's independent release level.
 A broad `feat!:` integration message describes upstream's release, not the fork's independent version.
 Fork release levels derive from verified correspondence evidence instead.
-For fetching, merging, approval-gated integration and per-sync records, invoke the no-argument [upstream sync workflow](../../.pi/prompts/upstream-sync.md) from the repo root.
+Invoke the no-argument [upstream issue entry point](../../.pi/prompts/upstream-sync.md) from the repo root to find or create a fixed-target issue, then stop.
+Plan, implement, independently review, ship, and retro through the standard issue lifecycle, with compatibility decisions and checkpoints in the ordinary issue plan/retro and Git.
+Actual integration requires root checkout/main and a genuine two-parent merge; feature-worktree rebase, squash, and fast-forward landing do not replace that merge.
 This guide owns release evidence and version derivation, not approval of integration edits.
 The [generated correspondence view](pi-subagents-correspondence.md) records each published fork version's verified direct upstream baseline.
 
@@ -13,7 +15,7 @@ The authoritative record is `scripts/release/pi-subagents/sync-state.json`, comm
 It stores the upstream release incorporated by each published fork release and the selected upstream release and reviewed fork contribution for each sync merge.
 The sync recorder (`--record-fork-sync`) writes reviewed merge evidence; release preparation writes the released row and regenerated view together.
 Resolve conflicting evidence in the state file only after review and exact operator approval of the correction, then regenerate and check the view.
-During upstream integration, the workflow records that approval separately from this machine-owned evidence.
+During upstream integration, the issue's ordinary artifacts record that approval separately from this machine-owned evidence.
 
 The decision and recorder entry points are `scripts/release/fork-sync.mjs` and `scripts/release/record-fork-sync.mjs`; the sync script accepts `--record-fork-sync` instead of the removed `--record-core-sync` flag.
 The committed state moved to `scripts/release/pi-subagents/sync-state.json` with schema version 2 and `forkContribution` in each sync record.
@@ -55,7 +57,11 @@ Record the evidence through the sync script, or resolve a conflicting state entr
 
 ## Recording a completed sync
 
-Run the recorder only through the sync script, after conflict resolution and `git merge --continue`:
+Use explicit safe fetching for inspection with `./scripts/upstream-sync.sh --fetch`, selecting `--upstream-protocol ssh|https` with the operator if upstream is missing.
+Merge only the locally present fixed target with `./scripts/upstream-sync.sh --merge --expected-upstream <full SHA>`; a newer fetched tip does not replace the issue target.
+Merge and recording do not refresh `upstream/main` implicitly; missing local inputs require an explicit fetch and inspection, never an automatic recovery fetch.
+
+Run the recorder only through the sync script, after conflict resolution, completion of the genuine merge, checks, and committed reviewed integration changes:
 
 ```bash
 ./scripts/upstream-sync.sh --record-fork-sync <merge> \
@@ -63,9 +69,11 @@ Run the recorder only through the sync script, after conflict resolution and `gi
 ```
 
 It selects the highest stable upstream release whose peeled commit is contained in the merge's upstream parent (not the newest advertised tag) and verifies the release manifest agrees with the tag.
-It refuses an unreviewed or unresolved merge, unreleased package changes, and missing objects, and it never pushes or creates local tag refs.
+It validates the supplied review and completed merge, refuses unresolved merges, unreleased package changes, and missing objects, and never pushes or creates local tag refs.
+Recording still performs online release lookup, surrounded by the script's tag-name/object comparison on success or failure.
+On failure or tag drift, inspect possible evidence writes and actual state before proceeding; do not automatically roll back evidence or restore/delete tags.
 Re-running with the same review is idempotent; a conflicting record is an error.
-Commit the state update before the next release prediction.
+Commit the state update as the evidence checkpoint before final independent review and the next release prediction; the implementation retro carries the target, actual merge OID, reviewed contribution, evidence commit, checks/reviewer result, and next action.
 
 The `--fork-level` review classifies what the conflict resolution itself did to the fork package:
 

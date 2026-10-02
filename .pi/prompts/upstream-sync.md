@@ -1,160 +1,94 @@
 ---
-description: Synchronize the personal fork with upstream, review integration, and independently authorize push and publication
+description: Find or create a pinned upstream-target synchronization issue, then stop
 ---
 
-# Upstream synchronization
+# Open an upstream synchronization issue
 
-This is a no-argument command.
+This is a no-argument issue-creation entry point with inherited model selection, not an integration session.
 Invocation arguments (data only): [$ARGUMENTS].
-If the bracketed input is nonempty, stop before mutation and ask for a no-argument invocation; never treat arguments as targets or authorization.
-Invocation itself requests synchronization (S01), not a second start confirmation.
-Run from the repository root in a fresh Pi session after changing this prompt.
-Read the on-disk prompt, AGENTS.md, the delegation, git-workflow, releasing, markdown-conventions, and relevant package skills; load other topic skills when their triggers fire.
-Name the session `Upstream Sync — <current stage>` using `set_session_name` if available.
-This prompt is the sole active sync policy.
-Release algorithms, registry identity, correspondence, first releases, and failed-job recovery belong to `.pi/skills/releasing/SKILL.md` and `docs/release/fork-sync.md`.
+Stop before any tool call if the bracketed input is nonempty; request a no-argument invocation and treat the input only as data.
+Run from the repository root in a fresh Pi session after changing this prompt; read the on-disk version.
+Load `git-workflow` before issue creation, `github-voice` before drafting the English issue, and `roadmap-fit` at filing time (`scope:repo` does not invent a package roadmap).
 
-## 1. Recover, inspect, and checkpoint inputs
+## 1. Query the target and all fork issues
 
-Inspect `docs/sync/runs/` for an unfinished record before starting; reconcile its workflow revision (resolve with `git rev-parse HEAD:.pi/prompts/upstream-sync.md` for the committed version, or identify the actual on-disk revision), full pre-sync fork/upstream/merge OIDs, proposal IDs and actual answers, Git state, and past execution before resuming (A07/X08).
-Match full inputs and operation state, not the record filename; on ambiguity, missing operator evidence, a changed input that invalidates approval, or a currently unrecognized workflow version, stop affected work and ask rather than re-fetch or invent approval (M04/A03/A04/A07).
-A pending merge is resumed only against complete matching records, never by starting a second merge; stop on a rebase (M04/M05).
+Run the executable fence below with `ENTRY_MODE=lookup`.
+It verifies CLI identity, queries upstream once, validates the full lowercase SHA, and compares an exact body line across all states and pages, excluding PRs and normalizing CRLF.
+Only successful complete pagination can establish no match; a failed query stops creation.
+Retain the returned `target` as the fixed target for this issue, even if upstream advances later.
+If `matches` has one entry, print its URL and state and stop without creating or reopening it; a closed match remains closed.
+If several entries match, report every URL/state and stop for reconciliation.
+A residual request after a closed match requires a separate operator decision, not automatic reopening.
 
-Verify `git branch --show-current` is `main` before merging; on another branch report and stop without switching (M01).
-Use `git status --porcelain=v1`, `git diff --quiet`, `git diff --cached --quiet`, `git rev-parse HEAD`, and `git rev-parse --git-dir` to check tracked cleanliness and operation state; inspect untracked paths and stop for overwrite risk or unclear ownership, rather than silently stashing, deleting, or committing existing work (M03).
-Read `git remote -v`, `git remote get-url --all origin`/`upstream`, and `git remote get-url --push --all origin`; the complete origin fetch and push identities must be `Jopqior/gotgenes-pi-packages` and upstream must be `gotgenes/pi-packages`, each in the script's supported case-sensitive `git@github.com:owner/repo[.git]` or `https://github.com/owner/repo[.git]` spelling (M02/S04/S09).
-Require exactly one effective origin push URL; multiple destinations, unsupported URL spellings, or unexpected effective Git `insteadOf`/`pushInsteadOf`/SSH transport configuration are inspection stops, not invitations to rewrite credentials or URLs.
-Resolve `git ls-remote --get-url "<verified single origin push URL>"` locally and stop if it differs from that verified URL; do not assume the origin fetch URL, a cached `origin/main`, or an inherited URL rewrite names the push destination.
-Before integration, query the live fork's `refs/heads/main` with `git ls-remote --refs --exit-code "<verified single origin push URL>" refs/heads/main`, passing the inspected URL as one quoted argument, not shell-evaluated text; this is a read-only query, not a fetch or credential-configuration step.
-Require a successful exit and exactly one line containing a full commit OID and the exact `refs/heads/main` refname; on query failure, missing ref, unexpected output or ambiguous identity stop, without falling back to `origin/main`.
-Save that OID as the immutable pre-sync live fork-main baseline (B) in scratch evidence before record allocation, then in the run record; never replace B with a later live value.
-On resume, repeat the validated live query at the same verified push destination and reconcile the current OID with the recorded stage: B before a push, the exact approved and verified pushed/initially already-pushed SHA (P) before release preparation, or the release commit (R) after a verified prepare run.
-Treat P and R as separate evidence-derived expected OIDs, not new baselines; stage 6 must establish each authorized transition and its actual execution/readback before dependent work resumes.
-A different live OID, missing actual operator answer or execution/readback evidence, unidentified run, or failed/ambiguous live query stops affected work; recover actual evidence or seek an explicit operator decision without inferring historical approval from the current ref.
-For an existing mismatched upstream fetch URL, present current and proposed exact URLs and effects; change it only after operator approval (S05).
-When upstream is missing, show `git@github.com:gotgenes/pi-packages.git` and `https://github.com/gotgenes/pi-packages.git`, ask which protocol to create, then pass `--upstream-protocol ssh|https` to the script (S04/S06a).
-Within requested sync, the script sets `remote.upstream.tagOpt=--no-tags` (S06b) and `remote.upstream.pushurl=DISABLE` even if replacing an existing push URL (S06c); record those actions, never treat them as permission to change its fetch URL.
-Do not change the GitHub CLI default just because upstream exists; obtain approval before a necessary `gh repo set-default` change (S07a).
-Use `gh repo view --json nameWithOwner` before repository-less GitHub tools, fall back to explicit `gh ... --repo Jopqior/gotgenes-pi-packages` if not this fork, and stop if no targeted equivalent exists (S07b/S08).
+## 2. Draft and recheck before creating
 
-Before the first script fetch, capture configuration observations and `git for-each-ref --sort=refname --format='%(refname) %(objectname)' refs/tags` in scratch evidence; do not stage it accidentally (S10/S12).
-Use only `./scripts/upstream-sync.sh` for synchronization fetch/merge/record; its default mode **configures and fetches** and is not read-only (S03).
-Non-mutating Git inspection may run directly; never import upstream tags with `git fetch --tags`, `git fetch --all --tags`, flagless `git fetch upstream`, or `git fetch --all`, and never push to upstream (S10/S11).
-After **each** script fetch (discovery, merge and recording), capture `git for-each-ref --sort=refname --format='%(refname) %(objectname)' refs/tags` again, compare complete name/OID mappings with the immediately preceding snapshot, and retain both even when the script fails.
-If a mapping changes, stop; report provenance and exact deletion candidates, investigate uncertainty, and delete only after operator approval (S12/S13).
-If abandoning an in-progress merge is proposed, explain exactly which work `git merge --abort` discards and run it only when the operator explicitly chooses abandonment (S14).
+Only with no match, use the file tool to write an English issue body to a temporary file.
+Include the exact line `Upstream target: gotgenes/pi-packages@<full SHA>` and `https://github.com/gotgenes/pi-packages/commit/<full SHA>`.
+Require root checkout/main landing with a genuine two-parent merge, never a feature-worktree rebase or squash.
+Acceptance criteria: agree compatibility choices in `/plan-issue`, inspect fork identity/changelog and incoming package changes, implement the pinned target with `/tdd-plan` or `/build-plan`, complete conflicts and checks, record reviewed release evidence, obtain independent review, then `/ship` and `/retro` in separate standard stages.
+Materially new compatibility choices return to the operator before affected edits; publication remains separately approved for registered fork identities.
 
-## 2. Discover, classify, and create the run record
+Run the same fence with `ENTRY_MODE=create`, `TARGET` set to the previously returned full SHA, and `ISSUE_BODY_FILE` set to that file path, as quoted environment values rather than interpolated shell source.
+The final all-state paginated recheck immediately precedes the create command; if a match appeared, return it and stop.
+Creation is explicitly targeted to the fork with `scope:repo`; resolve the issue number only from the returned fork URL.
+An ambiguous create result triggers a read-only lookup and stop; never automatically repeat the mutation, even if no match is returned.
+Concurrent independent creators can still race this non-atomic recheck; report that limitation rather than adding a locking mechanism.
 
-Run the script's default discovery (with the approved missing-remote protocol, if needed), inspect the fetched full `upstream/main^{commit}` OID, `HEAD`, ahead/behind and the script's newly advertised upstream `pi-subagents` release; commit/release discovery belongs here, not in every independent fork publication (S02a/S02b).
-Inspect `git log`, `git diff --name-status` and manifests across fork/upstream common ancestry to identify actual fork-customized paths, upstream package additions, upstream-supplied wiring, and the incorporated release context rather than assuming a permanent customized-package allowlist.
-Upstream packages not customized by this fork, including new upstream packages and their supplied loading/README wiring, merge as supplied; additional agent-authored wiring is a separate decision.
-If the upstream target is contained in HEAD, report no merge/evidence creation: skip merge-specific stages 3–4 and the recorder in stage 5, checkpoint the factual no-op run record if allowed, then inventory **all registered pending work**, predict, and apply separate push/publication gates only to actions actually needed.
-For an already-pushed unchanged tip with no new push, verify the live fork-main ref at the verified origin push destination equals the approved SHA and CI for that SHA instead of trusting cached `origin/main`, inventing a push approval or pushing again.
-If only a fast-forward could incorporate upstream, stop for a separately reviewed approach; do not invent a two-parent merge or evidence entry (M06).
+<!-- issue-entry -->
 
-Allocate `docs/sync/runs/<UTC timestamp>-<upstream short SHA>.md` after the upstream OID is known, deriving filesystem-safe components with `date -u +'%Y-%m-%dT%H-%M-%SZ'` and `git rev-parse --short 'upstream/main^{commit}'`.
-Inspect any existing path and resume only on full matching inputs/state; for a genuinely distinct run get a new timestamp, never overwrite or guess a suffix.
-Keep the new record untracked during merging, stage only explicit reviewed paths, and preserve scratch evidence when discovery fails before record allocation.
-The concise record contains: status and committed workflow revision; repository identities, verified single origin push URL, immutable pre-sync live baseline B and later stage-specific expected/live OIDs P and R with their readbacks, and inspected customization scope; fork/upstream OIDs, merge parents/final merge; remote/tag snapshots and actions; decision IDs with problem, files, proposed action/effects/alternatives, actual operator answer and actor or exact active rule with matching conditions, superseded decisions, executed diff/commit and verification separately; checks done/not done; independent findings; release prediction output **and exit status**; independent push/publication approvals, exact CI and release run IDs/inputs and results, release commit/tags, GitHub Release readback, precise pending resume point.
-A proposal alone or assistant assertion of approval is not an answer (A07).
-An execution record is not the machine release state, and machine evidence cannot authorize edits (E01).
+```bash
+set -euo pipefail
+REPOSITORY=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
+[[ "$REPOSITORY" == Jopqior/gotgenes-pi-packages ]] || { printf 'Unexpected GitHub repository\n' >&2; exit 1; }
+if [[ "${ENTRY_MODE:-lookup}" == lookup ]]; then
+  TARGET=$(gh api repos/gotgenes/pi-packages/commits/main --jq .sha)
+elif [[ "${ENTRY_MODE:-}" != create ]]; then
+  printf 'Unknown entry mode\n' >&2
+  exit 1
+fi
+[[ "${TARGET:-}" =~ ^[0-9a-f]{40}$ ]] || { printf 'Invalid upstream target\n' >&2; exit 1; }
+export TARGET
+lookup_target() {
+  local pages
+  pages=$(gh api --paginate --slurp 'repos/Jopqior/gotgenes-pi-packages/issues?state=all&per_page=100') || return 1
+  printf '%s' "$pages" | node --input-type=module -e '
+    let input = "";
+    for await (const chunk of process.stdin) input += chunk;
+    const pages = JSON.parse(input);
+    if (!Array.isArray(pages) || !pages.every(Array.isArray)) throw new Error("Incomplete issue pages");
+    const line = `Upstream target: gotgenes/pi-packages@${process.env.TARGET}`;
+    const matches = pages.flat().filter(issue => issue.pull_request == null &&
+      (issue.body ?? "").split("\n").map(value => value.replace(/\r$/, "")).includes(line))
+      .map(({number, state, html_url}) => ({number, state, html_url}));
+    console.log(JSON.stringify({target: process.env.TARGET, matches}));
+  '
+}
+RESULT=$(lookup_target) || { printf 'Issue lookup failed; stop\n' >&2; exit 1; }
+COUNT=$(printf '%s' "$RESULT" | node --input-type=module -e 'let s=""; for await (const c of process.stdin) s+=c; console.log(JSON.parse(s).matches.length)')
+if [[ "$ENTRY_MODE" == lookup || "$COUNT" != 0 ]]; then
+  printf '%s\n' "$RESULT"
+  exit 0
+fi
+export ISSUE_BODY_FILE
+node --input-type=module -e '
+  import {readFileSync} from "node:fs";
+  const lines = readFileSync(process.env.ISSUE_BODY_FILE, "utf8").split("\n").map(s => s.replace(/\r$/, ""));
+  if (!lines.includes(`Upstream target: gotgenes/pi-packages@${process.env.TARGET}`)) throw new Error("Issue body target mismatch");
+'
+if CREATED=$(gh issue create --repo Jopqior/gotgenes-pi-packages --label scope:repo --title "Sync gotgenes/pi-packages@$TARGET" --body-file "$ISSUE_BODY_FILE"); then
+  if [[ "$CREATED" =~ ^https://github\.com/Jopqior/gotgenes-pi-packages/issues/([1-9][0-9]*)$ ]]; then
+    printf '%s\n/plan-issue %s\n' "$CREATED" "${BASH_REMATCH[1]}"
+    exit 0
+  fi
+fi
+printf 'Ambiguous create result; inspect lookup before any separately approved retry\n' >&2
+lookup_target || { printf 'Recovery lookup failed; stop\n' >&2; exit 1; }
+exit 1
+```
 
-## 3. Merge, gate authored changes, and delegate narrowly
+## 3. Return the issue and stop
 
-Run `./scripts/upstream-sync.sh --merge --expected-upstream "<inspected full OID>"` only with a clean tracked tree and no pending operation; it fetches again and must refuse changed upstream input (M06/A04).
-On drift, inspect new upstream changes and reopen approvals invalidated by changed inputs; retain the script's fetch and tag evidence before deciding whether the current run can continue.
-On conflicts leave the merge intact for review; on another failure inspect the actual index/operation state before recovery.
-Git can create a conflict-free merge commit before human review; this does **not** authorize follow-up edits.
-Review fork customizations and incoming behavior even when Git reports zero conflicts (M09/I05); preservation is a goal, not a blanket repair rule.
-Do not take either side wholesale without approval naming the exact file, chosen side, and effects (M08).
-
-Before **each** uncovered authored resolution or extra edit, including post-merge repairs, fixture changes, lint/analysis allowances, new loading config/README wiring, reviewer suggestions, and unexpected validation writes, give a concise proposal with problem, affected files, approach, alternatives, effects and decision ID; wait for the actual operator answer (A01/X05/X06/N01/N02).
-For a confirmed automatic rule below, record its ID and show how current inputs, proposed action **and effects** fit its exact bounds and workflow revision before editing; history, a green check, push or publication approval, parent/reviewer agreement, or a broad goal is not coverage (A02/A08).
-If coverage is ambiguous, missing or contradictory, stop affected edits and dependent actions, while independent read-only investigation or separately authorized work may continue (A03).
-Reopen operator approval when scope, effects, or inputs materially change, retaining superseded decisions; verbal clarification alone does not require another gate (A04).
-Default delegated work to read-only inspection/proposals (A06a/X07); an editing worker receives only named permitted files/actions, scope, and exact active-rule or operator-answer evidence.
-A worker finding an uncovered choice stops affected edits and reports to the parent, which seeks operator approval and supplies a scoped continuation (A06b).
-Nested workers inherit identical limits and pre-edit stop conditions, never broader permission (A06c).
-
-Only these bounded authored actions have advance rule coverage when their matching conditions are demonstrated:
-
-- F08a/F08b: precisely preserve or restore `packages/pi-subagents/package.json`'s `name` as `@jopqior/pi-subagents` and its **pre-sync fork version**, reporting each action; this does not select a new version or authorize other metadata/dependency edits (F09a/F09b require approval when authored).
-- F10/F11: preserve published fork changelog content, versions and order; only when baseline and genuinely new upstream sections are unambiguous, insert those sections **verbatim** after fork entries and before shared history, reporting the edit; overlap, reordered or revised history requires approval.
-- N04/N05: for a real newly added upstream package, add only its missing Package option to each respective bug-report and feature-request form, reporting the change.
-  N06: create only its missing `pkg:<name>` label in the verified fork, report it, verify the target and explicitly pass `--repo` where supported; this is not general label-edit or publication authority.
-- I01: restore an unambiguously dropped `fNNNN-`-first issue lookup with `NNNN-` fallback **only if no fork match exists**, reporting exact restoration; multiple implementation choices or a changed structure require approval.
-  I04b: never overwrite or rename a fork phase archive due to an upstream numeric suffix collision.
-  I04c: preserve **verbatim** and report both independent, distinct, unambiguous new history-table rows; duplicate identities, competing versions or unclear links require approval.
-  I08: move fork roadmap dispositions **verbatim** only if the source, destination and owning phase are unambiguous when upstream moves that roadmap to history; otherwise ask.
-  I07: inspect the fork scope header/safeguards, but any uncovered header rewrite still requires approval.
-- X03: adapt an assumed workspace name in a check command to the actual manifest name only for the **same package** with unchanged check purpose, scope and strength; report it, and ask for any other semantic change.
-
-Upstream-supplied content itself is identified by its input and merge commits, not per-line operator permission.
-Additional loading/README wiring needs approval (N01/N02); package registration, npm disable entries, selector implementation recipes, and historical one-time permissions are **not** automatic sync actions.
-Do not rewrite immutable published tarballs, tags or historical changelog entries (C07).
-
-## 4. Verify, complete and independently review
-
-After merging manifests, run `pnpm install` from the root to regenerate the lockfile and report its effects (V01); stop on unexpected dependencies or effects outside bounded installation.
-After moved/renamed paths, clear only the regenerable rumdl cache (`find .rumdl_cache -type f -delete`) unless lint already did so, without separate approval/report (V02).
-Run root `pnpm run check`, `pnpm run lint`, and `pnpm run test` (which includes workspace packages and root tests) once for a candidate (V03–V06); for a new package/dependency change also run `pnpm fallow dead-code` (V07).
-Inspect unexpected project writes from any validation tool; caches/test artifacts are not source edits; do not automatically commit, revert, suppress, or repair uncovered project changes (V08).
-Checks verify behavior, not authority.
-Before staging manual conflict resolutions or `GIT_EDITOR=true git merge --continue`, reconcile `git ls-files -u` and the actual staged/unstaged resolution diff against each rule/answer; stop if any authored scope is uncovered, otherwise explicitly stage only reviewed paths (V09/A05).
-After a merge exists, verify its actual two parents and inspect `git show --remerge-diff <merge>` **plus every post-merge commit/diff** (X01); reconcile every authored extra change, including automatic-merge follow-up repairs, to rule or actual operator approval and record execution separately from checks (A05).
-Commit reviewed integration changes and the run-record checkpoint **before** recording; the recorder demands a clean tracked tree, so record updates are never an exemption.
-Get an independent read-only review of affected fork customizations including automatically merged paths before push, disclosing skipped checks; reviewer findings are proposals, never edit permission, and uncovered findings return to the pre-edit gate (X02/A06).
-
-## 5. Record, predict and seek separate approvals
-
-Bind the existing recorder through `./scripts/upstream-sync.sh --record-fork-sync <actual reviewed merge OID> --fork-level <none|patch|minor|major> --rationale <actual review>` (E02/E05).
-Classify only the actual fork-resolution contribution with a supported diff/rationale; ask the operator if insufficient or ambiguous rather than guessing a version (E03).
-Skip recording when no merge was performed or when a matching merge record is already valid; otherwise the recorder also fetches and checks tags, so recheck input drift, retain diagnostics and stop on errors, not classify a nonzero exit as no release.
-Present contradictions and exact supporting facts/state edits for operator approval before correcting existing evidence (E06).
-The release mechanism owns validation and derivation; run `node scripts/release/correspondence-table.mjs --check` and only generate the table as a consequence of approved state edits or normal release preparation (C01).
-For a newly recorded merge, commit machine evidence and the next record checkpoint together before prediction; for a no-op or already-recorded merge, checkpoint only the factual record if changed.
-Restore a clean tracked tree through reviewed checkpoints rather than bypassing the guard.
-
-Inventory affected workspace directories from the actual integration range and validate `scripts/release/release-packages.json` using the release owner's registered identities; distinguish new/unregistered packages and unrelated registered pending work.
-For each **registered** candidate run `./scripts/release/next-version.sh <pkg>` and retain stdout, stderr and exit status separately; a nonzero exit is a blocked prediction, empty stdout with exit zero is no release.
-Report all concrete eligible candidates with predicted versions, or no release needed only when every eligible prediction succeeded, or blocked prediction with reasons; do not silently bundle unrelated pending work.
-An unregistered/new package is not publication-eligible and requires the separate releasing skill's first-release/registration procedure; inherited `@gotgenes/*` names/tags do not approve a fork destination.
-Propose separately an exact push target/commit set and an exact publication package list, npm names/scopes, registry destination and predicted versions (C04b/A08).
-An operator declining either authority leaves a recorded pending/deferred state and resume point; never convert one approval into the other or into repair authority.
-
-## 6. Push, dispatch, and verify release completion
-
-Use B only as the historical pre-sync baseline; establish the current stage's expected remote OID from actual authorization, execution and validated live readback, never from `origin/main` or a newly observed live tip.
-For each live-main check below repeat the stage-1 read-only `git ls-remote --refs --exit-code "<verified single origin push URL>" refs/heads/main` query, requiring successful exit, exactly one full commit OID and the exact refname; query failure, missing/malformed/ambiguous result or changed destination stops dependent work without a cached-ref fallback.
-Before push or no-push CI, reverify `git remote get-url --all origin` **and** `git remote get-url --push --all origin` (the same single verified fork push destination), the stage-1 `git ls-remote --get-url` rewrite check and effective SSH configuration, `git status --porcelain=v1`, and `git rev-parse HEAD` as the exact approved tip (S09).
-
-If a push is needed and has not happened, inspect pending commits and require explicit approval for the exact ahead tip P plus independent review; immediately before `git push origin main` require live main B and unchanged approved inputs, never local HEAD equal to B. Push only that approved tip, never force or upstream, then query the live destination again and require P; record the operator answer, command/result, and post-push readback separately before advancing to CI (S08/S11).
-If the push failed, its readback differs, or its execution/readback was interrupted, stop: recover actual push evidence and live state against the approved B-to-P change or obtain an explicit new decision; do not repeat the push or call a coincidentally matching live tip proof of this run's execution.
-A remote write can race the pre-push query; an unexpected OID requires newly reviewed scope and affected checks/approvals, never a blind pull.
-
-When no push is needed, require a fresh live readback of P immediately before CI: P may equal B for an initially already-pushed unchanged tip, or be this run's previously authorized, executed and verified push result.
-In the first case record no push and do not invent push approval; in the second, retain B and the B-to-P evidence, and do not push again on resume.
-Watch or recover CI for the exact P and identifiable fork workflow/run ID using `ci_find`/`ci_watch` only after `gh repo view --json nameWithOwner` verifies the fork, otherwise explicit `gh run list/view/watch --repo Jopqior/gotgenes-pi-packages`.
-Require the run's reported SHA to be P and its successful result before publication; missing, failed or ambiguous run identification blocks dependent work.
-After release preparation has validly advanced main to R, retain the already verified CI result for P (the release commit has no new CI run); do not require live main to revert to P or substitute R for the approved CI target.
-
-If this run already has an identifiable authorized release dispatch, skip pre-dispatch prediction and dispatch on resume; reconcile its exact run and prepare state below, whether live main is still P or verified R. Otherwise, after successful CI and exact package/scope/destination publication approval, re-run prediction at P before dispatch; changed versions, package set or destination require renewed approval.
-Immediately before a new dispatch, validate live main is P at the same verified fork destination and inspect/snapshot its remote tag refs: approved predicted tag names must be absent, and no inspected tag may already have changed.
-Dispatch `gh workflow run release.yml --repo Jopqior/gotgenes-pi-packages -f packages="<approved registered directories>" -f sha="<P>"` only once under that approval; record the exact request and identify the resulting fork `release.yml` workflow_dispatch run ID, head SHA P, requested package list and SHA guard from actual dispatch/run evidence before treating any run as this release.
-An interrupted dispatch or unidentified/ambiguous run is not permission to dispatch again; recover the actual run and inputs or stop for an explicit operator decision.
-Use `gh run list/view/watch --repo Jopqior/gotgenes-pi-packages` or verified-fork wrappers to follow that exact run and its prepare/publish/github-release jobs, not another run at the same SHA.
-
-Preparation at guarded P creates one release commit R with first parent P, tags the selected packages at R, and pushes that commit and tags; it does not change the approved CI target or make R a new baseline.
-After prepare, establish R from that exact run's actual output and GitHub commit/tag evidence: require its SHA/parent to match P, the authorized package set and predicted tags to match its artifacts, the expected new remote tag refs to peel to R, the pre-dispatch remote tag mapping to remain unchanged, and a fresh live-main readback of R at the verified destination.
-Record the exact run/job result, R, tags and readbacks before treating P-to-R as verified; an ahead tip alone, an unrelated writer's tag, or a similarly named run cannot certify this transition.
-On resume with live R, repeat those checks against the saved run evidence and current live refs, rather than demanding B or P or re-dispatching.
-If prepare failed, verify the exact run and live main/tags for absence of a completed or partial release before any separately authorized retry; a failed status alone does not prove no remote write.
-If a later job failed after verified prepare, follow the releasing skill's tagged-checkout preflight and verify the proposed same-run retry's actual job/dependency scope before any mutation; `gh run rerun --job` advertises rerunning dependencies, so do not use it if that could replay prepare against existing tags.
-If only a retry that repeats prepare is available, or the job/run or artifacts cannot be identified, stop and seek an explicit safe recovery decision rather than re-dispatch or blindly rerun.
-Any unexpected OID, tag movement, missing authorization or readback, or changed input stops dependent work for investigation and explicit decision, without silently treating current live state as approved history.
-Do not invoke `/ship` or close an issue as part of this workflow.
-
-After that exact run succeeds and R still passes live readback, apply the releasing skill's release-completion checks for the approved package set, release commit/tags and exact GitHub Releases (X04).
-For a no-release prediction, skip dispatch and R entirely; complete against the verified P and its CI result, including the initially already-pushed no-op case.
-Persist final or deferred status, verification facts and precise next action in the run record, committing its checkpoint when allowed; report incomplete work, checks not performed and every separately authorized outcome.
+Print the URL, state if reused, and `/plan-issue <number>` for the next session (for multiple matches, report them without choosing one).
+End this session; do not automatically invoke planning.
+No conflict analysis, upstream fetch, sync script execution, implementation, push, or release belongs to this entry point.
+The issue, ordinary plan/retro, and Git carry future handoffs; release evidence and version derivation remain owned by the releasing skill and `docs/release/fork-sync.md`.

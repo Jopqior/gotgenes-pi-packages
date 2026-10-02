@@ -8,7 +8,7 @@ model: anthropic/claude-opus-5-5
 Issue number: `$1`
 
 Your job is to produce a numbered implementation plan for issue #$1, then commit it.
-Single-package plans go in `packages/<PKG>/docs/plans/fNNNN-<slug>.md`; cross-package plans go in `docs/plans/fNNNN-<slug>.md` — `f` plus the four-digit zero-padded fork issue number, never the next free `NNNN` among inherited files.
+Single-package plans go in `packages/<PKG>/docs/plans/fNNNN-<slug>.md`; repository-scoped (`scope:repo`) and cross-package plans go in `docs/plans/fNNNN-<slug>.md` — `f` plus the four-digit zero-padded fork issue number, never the next free `NNNN` among inherited files.
 Stop after the commit.
 Do **not** start implementation — the next step is `/tdd-plan` (for plans with test cycles) or `/build-plan` (for docs-only or non-code changes).
 
@@ -49,7 +49,8 @@ Before investigating the issue, load skills relevant to the change:
    A third-party issue is a request to evaluate, not a spec to implement — note this and surface the direction itself for the operator's confirmation in the `Decide` step before committing to a plan.
 2. **Determine the target package(s).**
    Extract the `pkg:*` label(s) from the issue (e.g., `pkg:pi-permission-system` → package is `pi-permission-system`).
-   If no `pkg:*` label exists or it seems incongruent with the issue content, ask the user which package this issue belongs to.
+   An explicit `scope:repo` label selects repository scope, root `docs/plans/` and `docs/retro/`, without requiring a package label; load only skills for packages actually affected.
+   Otherwise, if no `pkg:*` label exists or it seems incongruent with the issue content, ask the user which package this issue belongs to.
    If the issue has **multiple** `pkg:*` labels, the plan is cross-package — use `docs/plans/` at the repo root instead of a single package's directory.
    Labels are a hint, not the determinant: the plan is cross-package only if code in more than one package actually changes.
    If the confirmed scope is a single package despite multiple `pkg:*` labels, file in that package's directory.
@@ -87,6 +88,17 @@ Before investigating the issue, load skills relevant to the change:
    - `Release: independent` (or no tag, or the issue is not in any roadmap) → **ship independently**.
    - `Release: batch "<name>"` → look up `<name>` in the roadmap's `Release batches` subsection; if this step is the batch tail (last listed member) → **ship now — batch tail**; otherwise → **mid-batch — defer**.
    You will write this into the plan's `Release Recommendation` section (see Write the plan).
+
+## Pinned upstream-target issues
+
+For an issue carrying the exact `Upstream target: gotgenes/pi-packages@<full SHA>` body line, synchronization planning requires the root checkout on `main` (compare absolute Git directory/common-directory identity); stop in a linked worktree or on another branch.
+Keep this fixed upstream target in Design Overview; a newer discovered upstream tip is not a substitute.
+Use `./scripts/upstream-sync.sh --fetch` for safe inspection inputs, choosing `--upstream-protocol ssh|https` with the operator only if the upstream remote is missing; inspect mismatched URLs rather than rewriting them silently.
+Inspect the actual common-base diff through that target, incoming package changes, fork identity and immutable changelog handling, affected fork contracts, compatibility alternatives, validation commands, and genuine two-parent merge/evidence feasibility.
+Agree the compatibility work before finalizing the plan; materially new choices return to the operator before affected implementation edits and are recorded in the ordinary issue artifacts.
+If this target includes unreleased package changes that the recorder rejects, report the release-policy blocker and stop; do not choose a newer target or weaken evidence policy.
+The implementation plan must name explicit pinned merge and recording checkpoints and the trunk-only handoff to `/ship`; use `/build-plan` for integration without new red/green cycles or `/tdd-plan` when tests are planned.
+This conditional applies to real upstream-target issues, not a repository refactor merely mentioning synchronization.
 
 ## Check for prior session context
 
@@ -161,7 +173,7 @@ A **count** it reports is a lead, not a finding: re-run the grep before the plan
 
 ## Write the plan
 
-File: `packages/<PKG>/docs/plans/fNNNN-<short-slug>.md` (single-package) or `docs/plans/fNNNN-<short-slug>.md` (cross-package).
+File: `packages/<PKG>/docs/plans/fNNNN-<short-slug>.md` (single-package) or `docs/plans/fNNNN-<short-slug>.md` (repository-scoped or cross-package).
 
 Start with YAML frontmatter:
 
@@ -300,7 +312,7 @@ git commit -m "docs: plan <short summary> (#$1)"
 
 Before stopping, persist planning observations for cross-session continuity:
 
-1. Determine the retro file path: same location logic as the plan file (single-package → `packages/<PKG>/docs/retro/fNNNN-<slug>.md`; cross-package → `docs/retro/fNNNN-<slug>.md`).
+1. Determine the retro file path: same location logic as the plan file (single-package → `packages/<PKG>/docs/retro/fNNNN-<slug>.md`; repository-scoped or cross-package → `docs/retro/fNNNN-<slug>.md`).
    Use the same stem as the plan file.
    Create the directory if needed.
 2. If the retro file does not exist, create it with YAML frontmatter:

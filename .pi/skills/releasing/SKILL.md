@@ -80,7 +80,10 @@ Its next tag comes from verified upstream correspondence in `scripts/release/pi-
 
 Evidence failures are strict errors, not "nothing to release": a nonzero exit means record the missing sync or fix the state, never that the package is quiet.
 There is no override flag.
-For upstream integration, invoke the no-argument `/upstream-sync` workflow (`.pi/prompts/upstream-sync.md`) to gate edits, record evidence, and seek independent push and publication approvals.
+For upstream integration, no-argument `/upstream-sync` (`.pi/prompts/upstream-sync.md`) only finds or creates the fixed-target issue and stops.
+Use the standard plan/implementation/review/ship/retro lifecycle on root/main; the implementation commits reviewed integration changes, then release evidence before final independent review.
+The script's `--fetch` is explicit; pinned merge and recording never refresh `upstream/main` implicitly, although recording still performs online release lookup.
+Publication approval remains separate and names the registered package identities and destination.
 After merging upstream, record reviewed evidence before dispatching a fork release:
 
 ```bash

@@ -6,7 +6,7 @@ issue_title: "Review sync rules and require approval for uncovered resolutions a
 # Review synchronization rules and decision authority
 
 The planning-time queue below is not an approval ledger.
-Build-stage dispositions and operator-approved review adjustments are recorded in the [rule-review handoff](../sync/reviews/f0028-sync-approval-policy.md); activation and final acceptance remain pending [#27].
+Build-stage dispositions and operator-approved review adjustments are recorded in the [historical rule-review handoff](https://github.com/Jopqior/gotgenes-pi-packages/blob/77bef183825ea52dc3fb1af3abd129e5b8e83bc5/docs/sync/reviews/f0028-sync-approval-policy.md); activation and final acceptance remain pending [#27].
 
 ## Release Recommendation
 

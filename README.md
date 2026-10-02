@@ -107,7 +107,10 @@ An equivalent command for [Diffview.nvim](https://github.com/sindrets/diffview.n
 ### Upstream sync
 
 From a fresh Pi session at the repo root, invoke `/upstream-sync` without arguments.
-The [active workflow](.pi/prompts/upstream-sync.md) owns discovery, guarded integration, operator decisions, records under `docs/sync/runs/`, and independent push/publication approval.
+The [issue entry point](.pi/prompts/upstream-sync.md) queries a fixed upstream target, finds or creates its fork issue, and stops.
+Continue in separate standard `/plan-issue`, `/tdd-plan` or `/build-plan`, independent review, `/ship`, and `/retro` stages, carrying decisions and checkpoints in the ordinary plan/retro and Git.
+Actual upstream integration requires the root checkout on `main` and a genuine two-parent merge, not the feature-worktree rebase/fast-forward route.
+The low-level script uses explicit `--fetch`, `--merge --expected-upstream <full SHA>`, and `--record-fork-sync` operations; publication still requires approval of registered fork identities and destination.
 The [fork release guide](docs/release/fork-sync.md) owns evidence and version policy; the [generated correspondence](docs/release/pi-subagents-correspondence.md) lists published releases.
 
 ### Agentic development workflow
@@ -129,7 +132,7 @@ This gives the agent access to:
 Development is driven by slash commands.
 A discovery command, `/plan-improvements`, updates a package's architecture document and opens GitHub Issues for the work it identifies.
 Each issue is then taken through a manual loop until it ships.
-In the standard workflow a single session works one issue at a time, committing directly to a linear `main`.
+In the standard workflow a session works one issue at a time, committing directly to `main`; feature-worktree landing is linear, while upstream synchronization preserves its genuine two-parent integration merge.
 
 ```mermaid
 flowchart LR

@@ -127,7 +127,8 @@ service-adapter ─wraps─→ SubagentManager
   Pending selection is private activity (public status stays `running`) and is withheld from `SubagentRecord`.
   Capture the service instance at extension initialization; a child registration is `inherited` and must not replace the root.
 - Remove scheduling subsystem (done); ad-hoc RPC and group-join (done); output-file porting to Pi session format tracked in #61.
-- When integrating gotgenes changes, invoke the root `/upstream-sync` workflow (`.pi/prompts/upstream-sync.md`); assess affected fork selection support against current package contracts.
+- To integrate gotgenes changes, invoke root `/upstream-sync` (`.pi/prompts/upstream-sync.md`) to find or create the fixed-target issue and stop, then use the standard plan/implementation/review/ship/retro lifecycle on root/main.
+  Assess affected fork selection support against current package contracts during that issue's planning and implementation.
 
 ### Architectural direction
 
@@ -185,7 +186,8 @@ When working in this package:
 
 1. New features and removals follow the phase plan in `docs/architecture/architecture.md`.
    Document architectural decisions in `docs/decisions/`.
-2. For upstream integration, follow the root `/upstream-sync` workflow's verification and approval gates; routine package work does not require a separate upstream-suite run.
+2. For upstream integration, the fixed-target issue's ordinary plan owns compatibility choices, validation, reviewed merge evidence, and independent review before trunk `/ship`.
+   Materially new choices return to the operator before affected edits; routine package work does not require a separate upstream-suite run.
 3. Modules marked `← removing` or `← replacing` in the architecture doc's current-state listing are slated for deletion - do not add features to them.
 
 [ADR-0003]: https://github.com/gotgenes/pi-packages/blob/main/packages/pi-subagents/docs/decisions/0003-publish-bundled-type-declarations.md
