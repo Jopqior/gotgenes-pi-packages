@@ -908,7 +908,10 @@ The gotgenes minimal-core decomposition derives from the earlier [tintinweb/pi-s
 This fork adds per-spawn model/thinking selection support, with interactive UI supplied by `@jopqior/pi-subagents-model-selector` rather than the core.
 
 The [historical comparison](../comparison-with-upstream.md) preserves the gotgenes-versus-tintinweb scope split and contribution links without asserting current PR status.
-Gotgenes synchronization and its verification gates follow this repository's [upstream sync workflow](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/.pi/prompts/upstream-sync.md), not the earlier cherry-pick-only policy.
+Start gotgenes synchronization with the repository's no-argument [`/upstream-sync` entry point](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/.pi/prompts/upstream-sync.md) from the repository root; it only finds or creates a fixed-target issue and stops.
+Compatibility choices and verification belong to that issue's ordinary `/plan-issue` plan, followed by `/tdd-plan` or `/build-plan`, independent review, trunk `/ship`, and `/retro`.
+Integration runs on the root checkout's `main` and preserves a genuine two-parent upstream merge, not the earlier cherry-pick-only policy or a feature-worktree rebase.
+Reviewed release evidence precedes final independent review, and publication remains separately approved.
 
 [earendil-works/pi#4207]: https://github.com/earendil-works/pi/issues/4207
 [gotgenes/pi-packages]: https://github.com/gotgenes/pi-packages
