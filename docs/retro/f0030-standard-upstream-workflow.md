@@ -106,3 +106,76 @@ This checkpoint precedes release dispatch; release completion is not claimed her
 - The implementation's nonblocking startup-order warning and unperformed fresh-session command smoke test remain recorded above; this ship performed no actual upstream synchronization.
 - No worktree teardown or roadmap phase closure applies.
   After release verification, the next interactive stage is `/retro 30` at root/main.
+
+## Stage: Final Retrospective (2026-10-02T12:56:01Z)
+
+### Session summary
+
+Reviewed the planning, implementation, and ship transcripts, their stage notes, and the subagent transcripts for the workflow refactor.
+The ship transcript continues beyond its committed checkpoint: CI and release verification completed, `@jopqior/pi-subagents@4.0.6` shipped, and issue #30 closed; this retrospective rechecked the closed issue and the fork GitHub Release.
+The operator approved notes only, with no workflow edits, new issue, or actual upstream integration.
+
+### Observations
+
+#### What went well
+
+- The preparatory commit `test(repo): prepare fetched upstream inputs explicitly (#30)` separated valid fixture setup from the breaking CLI change.
+  The assessor identified how missing mandatory targets could mask existing precondition failures, and the implementation retained visible production calls and targeted mutation checks instead of introducing a compatibility wrapper.
+- After the delegation correction, each implementation step used a fresh agent, while the parent inspected commit boundaries and a separate reviewer checked the completed result.
+  This provided useful handoffs without rebuilding the retired approval ledger.
+- Executing the real prompt snippets gave the issue-entry tests a concrete surface to exercise, including invocation-log checks for forbidden integration commands.
+  The implementation and reviewer explicitly distinguished that evidence from live agent compliance rather than claiming that text tests enforced the whole workflow.
+
+#### What caused friction (agent side)
+
+- `premature-convergence`: implementation initially attempted to delegate the whole plan to one agent; the operator requested a fresh agent for each step.
+  Impact: an abandoned dispatch and an extra operator intervention, but the parent reported that the original delegation performed no work and no code needed reverting.
+  This was a newly clarified execution preference, not evidence of violating an earlier per-step instruction.
+- `missing-context`: planning guessed `.pi/skills/colgrep/SKILL.md` and a nonexistent `scripts/release/release-packages.mjs` instead of resolving the advertised skill location and actual export first.
+  Impact: failed reads/import and recovery calls; the registry error was resolved by `grep`, reading `release-correspondence.mjs`, and retrying the actual signature.
+  Existing path-discovery guidance already covers this; no additional rule is warranted.
+- `other` (validation contention): step 3 launched type checking, lint, the focused suite, and release prediction concurrently; an unchanged HTTPS recorder test timed out.
+  Impact: an isolated test-file rerun and a reduced-worker focused rerun were needed, without changing timeout thresholds or implementation.
+  Contention is consistent with the observations, not a separately proven root cause.
+- `other` (incomplete ordering follow-through): the planning assessor highlighted startup pulls occurring before plan-specific checks; the completed execution prompts still check synchronization root/main and tracked cleanliness after startup synchronization.
+  Impact: the final reviewer retained a nonblocking warning, and shipping did not resolve it or establish explicit acceptance of dirty-startup HEAD movement.
+  The merge/rebase startup guard addressed only part of the broader ordering concern.
+
+#### What caused friction (user side)
+
+- The operator had to redirect delegation granularity after the initial dispatch.
+  Stating a per-step fresh-context preference at implementation kickoff would avoid that interruption; the agent can also expose its intended delegation boundary before launching a whole-plan task.
+  The correction was early enough to prevent implementation rework.
+- Scope, landing topology, and publication decisions were strategic approvals rather than mechanical supervision.
+  No additional user-side friction is supported by the inspected transcripts.
+
+### Diagnostic details
+
+- Model attribution comes from type-unfiltered transcript turns, not agent definitions.
+  Planning, implementation coordination, ship, and the independent reviewer used `openai-codex/gpt-6-astra` in the inspected turns.
+  The planning Explore agent, Tidy-First assessor, and each of the five implementation-step agents used `openai-codex/gpt-6.1-sol` in their inspected transcript turns.
+  No child transcript was found for the abandoned whole-plan dispatch, so its execution model is not inferred.
+- The substantive implementation and review tasks justified reasoning-capable models; the documentation-only fourth step also used `openai-codex/gpt-6.1-sol` and is a candidate for a cheaper model on comparable future work.
+  No cost or comparative-quality measurement was collected, so this is not a recommendation to change configured defaults.
+- No inspected failure sequence showed more than five consecutive tool calls stuck on the same error.
+  After the parallel timeout, the agent inspected the failure, notified the parent, and changed to an isolated rerun; it did not repeatedly rerun the same overloaded arrangement.
+- Available discovery tools could have avoided the guessed module path and skill location.
+  Explore and `colgrep` were actually used elsewhere in planning, so the gap was local tool selection, not an unavailable capability or a need for another agent type.
+- Verification was incremental: focused suites and mutation checks accompanied implementation steps, documentation changes received lint and focused tests, and the final verifier and reviewer ran the full gates independently.
+  The remaining feedback gap is semantic: a fresh-session `/upstream-sync` smoke test remains unperformed, and successful CI or publication does not close that gap.
+
+### Remaining work and next-action boundary
+
+The startup-cleanliness ordering warning remains unresolved.
+A fresh-session `/upstream-sync` smoke test remains unperformed.
+Neither release success nor snippet tests establish live workflow compliance.
+Any startup-order behavior change should be scoped and tested separately rather than hidden in a retrospective documentation commit.
+
+The plan declares this repository change independent of package roadmap phases and names no successor.
+The newest triage, `docs/triage/2026-09-18-backlog.md`, ranks work in `gotgenes/pi-packages`, not this fork, so its issue numbers and severities do not select a fork successor.
+A live fork query returned open issues #25 and #26, but neither has a successor rank established by this plan or triage; no ranked next issue or phase-close command is inferred.
+
+### Changes made
+
+1. Appended this cross-session synthesis, model attribution, unresolved warnings, and release-completion context to `docs/retro/f0030-standard-upstream-workflow.md`, preserving all prior stage entries.
+2. Recorded the operator's notes-only decision; no changes were made to `AGENTS.md`, prompts, skills, runtime code, tests, release evidence, or changelogs.
