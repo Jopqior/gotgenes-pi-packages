@@ -84,3 +84,25 @@ Measured full-suite totals increased from 8296 tests in 359 files to 8345 tests 
   No actual upstream synchronization, real GitHub mutation, remote reconfiguration, push, release dispatch, publication or release-state write occurred.
   No substantive deviation, implementation fixup or new follow-up issue was introduced; stage-note commit naming follows the current `/tdd-plan` template rather than the plan's older suggested wording.
   The next handoff is `/ship 30`, with the unresolved reviewer warnings and fresh-session smoke-test limitation retained for the operator.
+
+## Stage: Ship (2026-10-02T12:35:57Z)
+
+### Session summary
+
+Shipped the implementation through the root/main trunk lane and closed issue #30 after exact-commit CI succeeded.
+The operator approved the exact closing comment and publication of only `@jopqior/pi-subagents` to npmjs.org with its corresponding fork GitHub Release.
+This checkpoint precedes release dispatch; release completion is not claimed here.
+
+### Observations
+
+- The on-disk ship template was read as authoritative; this issue is the workflow refactor, not an upstream-target integration.
+- Fast-forward-only synchronization succeeded with seven unpushed implementation/planning commits; root lint and dead-code checks passed before pushing.
+  Origin fetch/push URLs both identified the fork and no URL rewrite configuration was found.
+- CI run `37006948349` succeeded for the pushed implementation checkpoint.
+  The implementation range contained only issue-30 work; no adopted PR or co-shipped issue required closure.
+- Registered candidate discovery returned only `pi-subagents`, with no unregistered directories.
+  Its read-only predictor succeeded with `pi-subagents-v4.0.6`; this remains a prediction until the approved release completes.
+  Dispatch must recheck the prediction and pin the reviewed main tip.
+- The implementation's nonblocking startup-order warning and unperformed fresh-session command smoke test remain recorded above; this ship performed no actual upstream synchronization.
+- No worktree teardown or roadmap phase closure applies.
+  After release verification, the next interactive stage is `/retro 30` at root/main.
