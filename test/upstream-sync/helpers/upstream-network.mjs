@@ -32,7 +32,7 @@ export const realGit = execFileSync("which", ["git"], {
 export const githubUpstream = "git@github.com:gotgenes/pi-packages.git";
 export const mergeMessage = "chore: merge upstream/main";
 export const refuseHint =
-  "run ./scripts/upstream-sync.sh to fetch and print ahead/behind without merging";
+  "run ./scripts/upstream-sync.sh --fetch to fetch and print ahead/behind without merging";
 
 const gitWrapperSource = [
   "#!/usr/bin/env node",
@@ -72,7 +72,9 @@ const gitWrapperSource = [
   "const code = result.status === null ? 1 : result.status;",
   "if (",
   "  code === 0 &&",
-  '  args[0] === "fetch" &&',
+  '  (process.env.UPSTREAM_SYNC_TEST_TAG_TRIGGER === "record"',
+  '    ? args[0] === "ls-remote" && args[1] === "--tags" && args[2] === "upstream" && args[3] === "pi-subagents-v*"',
+  '    : args[0] === "fetch") &&',
   "  process.env.UPSTREAM_SYNC_TEST_INJECT_TAG",
   ") {",
   "  const tag = process.env.UPSTREAM_SYNC_TEST_INJECT_TAG;",
@@ -86,6 +88,10 @@ const gitWrapperSource = [
   "}",
   'if (args[0] === "fetch" && process.env.UPSTREAM_SYNC_TEST_FAIL_FETCH_AFTER_TAG) {',
   '  process.stderr.write("simulated fetch failure after tag write\\n");',
+  "  process.exit(1);",
+  "}",
+  'if (args[0] === "ls-remote" && process.env.UPSTREAM_SYNC_TEST_FAIL_RELEASE_QUERY_AFTER_TAG) {',
+  '  process.stderr.write("simulated release query failure after tag write\\n");',
   "  process.exit(1);",
   "}",
   "process.exit(code);",

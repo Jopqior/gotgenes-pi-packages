@@ -148,7 +148,7 @@ export function recordForkSync(repo, statePath, packageDirectory, options) {
   if (!selected) {
     throw new ForkSyncError(
       "no stable upstream package release is contained in the merge's upstream parent. " +
-        "If required objects are missing locally, run scripts/upstream-sync.sh (the normal fetch) — never an ad-hoc tag fetch.",
+        "If required objects are missing locally, run scripts/upstream-sync.sh --fetch — never an ad-hoc tag fetch.",
     );
   }
 

@@ -90,6 +90,40 @@ describe("upstream-sync.sh", () => {
     });
   });
 
+  describe("help and explicit modes", () => {
+    it.each([[], ["--help"], ["-h"]])(
+      "shows help without effects: %j",
+      (...args) => {
+        const { work } = materializeNetwork("divergent");
+        const before = git(work, ["config", "--local", "--list"]).stdout;
+        const result = runScript(work, args);
+        expect(result.status).toBe(0);
+        expect(result.stderr).toContain("--fetch");
+        expect(recordedInvocations()).toEqual([]);
+        expect(git(work, ["config", "--local", "--list"]).stdout).toBe(before);
+      },
+    );
+
+    it.each([
+      ["--merge"],
+      ["--fetch", "--fetch"],
+      ["--fetch", "--merge"],
+      ["--fetch", "--record-fork-sync", "HEAD"],
+      ["--fetch", "--expected-upstream", "f".repeat(40)],
+      ["--upstream-protocol", "ssh"],
+    ])("rejects missing or conflicting modes before effects: %j", (...args) => {
+      const { work } = materializeNetwork("divergent");
+      const result = runScript(work, args);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Usage:");
+      expect(
+        recordedInvocations().filter(({ args: call }) =>
+          ["config", "fetch", "merge", "ls-remote"].includes(call[0]),
+        ),
+      ).toEqual([]);
+    });
+  });
+
   describe("status", () => {
     it("refreshes upstream/main even when remote.fetch maps main elsewhere", () => {
       const { work, upstreamBare } = materializeNetwork("divergent");
@@ -103,7 +137,7 @@ describe("upstream-sync.sh", () => {
       git(work, ["update-ref", "refs/remotes/upstream/main", stale]);
       expect(stale).not.toBe(actual);
 
-      const result = runScript(work, []);
+      const result = runScript(work, ["--fetch"]);
 
       expect(result.status).toBe(0);
       expect(revParse(work, "upstream/main")).toBe(actual);
@@ -126,7 +160,7 @@ describe("upstream-sync.sh", () => {
         }).stdout.trim(),
       ).toBe(githubUpstream);
 
-      expect(runScript(work, []).status).toBe(0);
+      expect(runScript(work, ["--fetch"]).status).toBe(0);
       expect(revParse(work, "upstream/main")).toBe(
         revParse(upstreamBare, "refs/heads/main"),
       );
@@ -144,7 +178,7 @@ describe("upstream-sync.sh", () => {
       const { work } = materializeNetwork("divergent");
       const before = revParse(work, "HEAD");
 
-      const result = runScript(work, []);
+      const result = runScript(work, ["--fetch"]);
 
       expect(result.status).toBe(0);
       expect(revParse(work, "HEAD")).toBe(before);
@@ -405,7 +439,7 @@ describe("upstream-sync.sh", () => {
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(
-        "error: merge conflicts remain; resume /upstream-sync using .pi/prompts/upstream-sync.md",
+        "error: merge conflicts remain; recover against the issue implementation plan and retro",
       );
       expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(true);
       expect(revParse(work, "HEAD")).toBe(before);
@@ -534,9 +568,9 @@ describe("upstream-sync.sh", () => {
       (protocol) => {
         const { work } = materializeNetwork("divergent");
         git(work, ["remote", "remove", "upstream"]);
-        expect(runScript(work, ["--upstream-protocol", protocol]).status).toBe(
-          0,
-        );
+        expect(
+          runScript(work, ["--fetch", "--upstream-protocol", protocol]).status,
+        ).toBe(0);
         expect(git(work, ["remote", "get-url", "upstream"]).stdout.trim()).toBe(
           protocol === "ssh"
             ? githubUpstream
@@ -551,6 +585,7 @@ describe("upstream-sync.sh", () => {
         const { work, upstreamBare } = materializeNetwork("divergent");
         const target = net.prepareFetchedUpstream(work, upstreamBare);
         git(work, ["remote", "remove", "upstream"]);
+        net.prepareFetchedUpstream(work, upstreamBare);
         expect(
           runScript(work, [
             "--merge",
@@ -569,12 +604,20 @@ describe("upstream-sync.sh", () => {
       },
     );
 
-    it.each([{ args: [] }, { args: ["--merge"] }])(
-      "does not choose a protocol for a missing upstream: $args",
-      ({ args }) => {
-        const { work } = materializeNetwork("divergent");
+    it.each(["--fetch", "--merge"])(
+      "does not choose a protocol for a missing upstream: %s",
+      (mode) => {
+        const { work, upstreamBare } = materializeNetwork("divergent");
+        const target = net.prepareFetchedUpstream(work, upstreamBare);
         git(work, ["remote", "remove", "upstream"]);
-        expect(runScript(work, args).status).toBe(1);
+        const result = runScript(work, [
+          mode,
+          ...(mode === "--merge" ? ["--expected-upstream", target] : []),
+        ]);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          "missing upstream remote; choose --upstream-protocol",
+        );
         expect(recordedFetches()).toEqual([]);
         expect(
           recordedInvocations().filter(
@@ -587,7 +630,15 @@ describe("upstream-sync.sh", () => {
 
     it("refuses a protocol conflicting with the existing URL without rewriting it", () => {
       const { work } = materializeNetwork("divergent");
-      expect(runScript(work, ["--upstream-protocol", "https"]).status).toBe(1);
+      const result = runScript(work, [
+        "--fetch",
+        "--upstream-protocol",
+        "https",
+      ]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "selected protocol conflicts with existing upstream URL",
+      );
       expect(git(work, ["remote", "get-url", "upstream"]).stdout.trim()).toBe(
         githubUpstream,
       );
@@ -670,7 +721,7 @@ describe("upstream-sync.sh", () => {
         githubUpstream,
       );
 
-      const result = runScript(work, []);
+      const result = runScript(work, ["--fetch"]);
 
       expect(result.status).toBe(0);
       expect(git(work, ["remote", "get-url", "upstream"]).stdout.trim()).toBe(
@@ -687,9 +738,12 @@ describe("upstream-sync.sh", () => {
         "git@github.com:example/other.git",
       ]);
 
-      const result = runScript(work, []);
+      const result = runScript(work, ["--fetch"]);
 
       expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "unsupported upstream remote URL: git@github.com:example/other.git",
+      );
       expect(recordedFetches()).toEqual([]);
     });
 
@@ -956,6 +1010,138 @@ describe("upstream-sync.sh", () => {
     });
   });
 
+  describe("local pinned input", () => {
+    it("refuses a missing local commit rather than fetching it", () => {
+      const { work, upstreamBare } = materializeNetwork("divergent");
+      const target = revParse(upstreamBare, "refs/heads/main");
+      const result = runScript(work, [
+        "--merge",
+        "--expected-upstream",
+        target,
+      ]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        `approved upstream commit ${target} is not available locally`,
+      );
+      expect(result.stderr).toContain("--fetch");
+      expect(recordedFetches()).toEqual([]);
+    });
+
+    it("refuses a missing tracking ref without refreshing it", () => {
+      const { work, upstreamBare } = materializeNetwork("divergent");
+      const target = net.prepareFetchedUpstream(work, upstreamBare);
+      git(work, ["update-ref", "-d", "refs/remotes/upstream/main"]);
+      const result = runScript(work, [
+        "--merge",
+        "--expected-upstream",
+        target,
+      ]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "upstream/main is not available locally; run ./scripts/upstream-sync.sh --fetch",
+      );
+      expect(recordedFetches()).toEqual([]);
+    });
+
+    it("refuses a local target outside fetched upstream history", () => {
+      const { work, upstreamBare } = materializeNetwork("divergent");
+      net.prepareFetchedUpstream(work, upstreamBare);
+      const target = revParse(work, "HEAD");
+      const result = runScript(work, [
+        "--merge",
+        "--expected-upstream",
+        target,
+      ]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        `approved upstream ${target} is not contained in local upstream/main`,
+      );
+      expect(result.stderr).toContain(
+        "fetch and replan if upstream history changed",
+      );
+      expect(
+        recordedInvocations().filter(({ args }) =>
+          ["fetch", "merge", "ls-remote"].includes(args[0]),
+        ),
+      ).toEqual([]);
+    });
+
+    it("refuses a full object OID that is not a commit", () => {
+      const { work, upstreamBare } = materializeNetwork("divergent");
+      net.prepareFetchedUpstream(work, upstreamBare);
+      const target = revParse(work, "HEAD^{tree}");
+      const result = runScript(work, [
+        "--merge",
+        "--expected-upstream",
+        target,
+      ]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        `approved upstream commit ${target} is not available locally`,
+      );
+      expect(recordedFetches()).toEqual([]);
+    });
+
+    it("keeps merge offline and local tags byte-identical", () => {
+      const { work, upstreamBare } = materializeNetwork("divergent");
+      const target = net.prepareFetchedUpstream(work, upstreamBare);
+      git(work, ["tag", "protected"]);
+      const tags = git(work, [
+        "for-each-ref",
+        "--format=%(refname) %(objectname)",
+        "refs/tags",
+      ]).stdout;
+      const result = runScript(work, [
+        "--merge",
+        "--expected-upstream",
+        target,
+      ]);
+      expect(result.status).toBe(0);
+      expect(
+        recordedInvocations().filter(({ args }) =>
+          ["fetch", "ls-remote"].includes(args[0]),
+        ),
+      ).toEqual([]);
+      expect(
+        git(work, [
+          "for-each-ref",
+          "--format=%(refname) %(objectname)",
+          "refs/tags",
+        ]).stdout,
+      ).toBe(tags);
+      expect(result.stdout).not.toContain("ahead/behind");
+      expect(result.stdout).not.toContain("newest upstream");
+    });
+
+    it.each(["--merge", "--record-fork-sync"])(
+      "refuses a linked worktree on main in %s",
+      (mode) => {
+        const { work, upstreamBare } = materializeNetwork("divergent");
+        const target = net.prepareFetchedUpstream(work, upstreamBare);
+        git(work, ["checkout", "-b", "primary-parked"]);
+        const linked = path.join(net.scratch, "linked");
+        git(work, ["worktree", "add", linked, "main"]);
+        const before = revParse(linked, "HEAD");
+        const result = runScript(
+          linked,
+          mode === "--merge"
+            ? [mode, "--expected-upstream", target]
+            : [mode, "HEAD", "--fork-level", "none", "--rationale", "reviewed"],
+        );
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          "upstream integration requires the primary checkout, not a linked worktree",
+        );
+        expect(revParse(linked, "HEAD")).toBe(before);
+        expect(
+          recordedInvocations().filter(({ args }) =>
+            ["config", "fetch", "merge", "ls-remote"].includes(args[0]),
+          ),
+        ).toEqual([]);
+      },
+    );
+  });
+
   describe("inspected upstream input", () => {
     it("merges the fresh target rather than a cached upstream/main under a custom fetch refspec", () => {
       const { work, upstreamBare } = materializeNetwork("divergent");
@@ -973,7 +1159,12 @@ describe("upstream-sync.sh", () => {
         revParse(work, "HEAD~1"),
       ]);
 
-      const result = runScript(work, ["--merge"]);
+      const target = net.prepareFetchedUpstream(work, upstreamBare);
+      const result = runScript(work, [
+        "--merge",
+        "--expected-upstream",
+        target,
+      ]);
 
       expect(result.status).toBe(0);
       expect(parentsOf(work)).toEqual([forkHead, actual]);
@@ -981,7 +1172,7 @@ describe("upstream-sync.sh", () => {
       expect(indexTree(work)).not.toBe(indexBefore);
     });
 
-    it("rejects an expected stale target after fetching the actual new main under a custom refspec", () => {
+    it("merges the approved ancestor after an explicit newer fetch under a custom refspec", () => {
       const { work, upstreamBare } = materializeNetwork("divergent");
       const stale = revParse(upstreamBare, "refs/heads/main");
       git(work, ["fetch", "--no-tags", upstreamBare, "main"]);
@@ -999,21 +1190,22 @@ describe("upstream-sync.sh", () => {
       ]);
       git(work, ["update-ref", "refs/remotes/upstream/main", stale]);
       expect(stale).not.toBe(actual);
+      expect(net.prepareFetchedUpstream(work, upstreamBare)).toBe(actual);
 
       const result = runScript(work, ["--merge", "--expected-upstream", stale]);
 
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain(
-        `expected upstream ${stale} but fetched ${actual}`,
-      );
+      expect(result.status).toBe(0);
       expect(revParse(work, "upstream/main")).toBe(actual);
-      expect(revParse(work, "HEAD")).toBe(forkHead);
-      expect(indexTree(work)).toBe(indexBefore);
+      expect(parentsOf(work)).toEqual([forkHead, stale]);
+      expect(indexTree(work)).not.toBe(indexBefore);
       expect(git(work, ["status", "--porcelain=v1"]).stdout).toBe(
         worktreeBefore,
       );
+      expect(existsSync(path.join(work, "new-upstream.txt"))).toBe(false);
       expect(
-        recordedInvocations().filter(({ args }) => args[0] === "merge"),
+        recordedInvocations().filter(({ args }) =>
+          ["fetch", "ls-remote"].includes(args[0]),
+        ),
       ).toEqual([]);
     });
 
@@ -1037,9 +1229,9 @@ describe("upstream-sync.sh", () => {
       ).toEqual([["merge", "--no-ff", "-m", mergeMessage, target]]);
     });
 
-    it("refuses a moved upstream target after discovery without invoking merge", () => {
+    it("does not discover or integrate a newer remote tip during merge", () => {
       const { work, upstreamBare } = materializeNetwork("divergent");
-      expect(runScript(work, []).status).toBe(0);
+      expect(runScript(work, ["--fetch"]).status).toBe(0);
       const inspected = revParse(work, "upstream/main");
       const before = revParse(work, "HEAD");
       const moved = advanceUpstream(upstreamBare, "feat: upstream moved", {
@@ -1053,15 +1245,12 @@ describe("upstream-sync.sh", () => {
         inspected,
       ]);
 
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain(
-        `expected upstream ${inspected} but fetched ${moved}`,
-      );
-      expect(
-        recordedInvocations().filter(({ args }) => args[0] === "merge"),
-      ).toEqual([]);
-      expect(revParse(work, "HEAD")).toBe(before);
-      expect(revParse(work, "upstream/main")).toBe(moved);
+      expect(result.status).toBe(0);
+      expect(parentsOf(work)).toEqual([before, inspected]);
+      expect(revParse(work, "upstream/main")).toBe(inspected);
+      expect(recordedFetches()).toHaveLength(1);
+      expect(result.stdout).not.toContain("newest upstream");
+      expect(result.stdout).not.toContain("ahead/behind");
     });
   });
 
@@ -1069,7 +1258,7 @@ describe("upstream-sync.sh", () => {
     it("records an explicit fetch --no-tags of upstream main", () => {
       const { work } = materializeNetwork("divergent");
 
-      runScript(work, []);
+      runScript(work, ["--fetch"]);
 
       const fetches = recordedFetches();
       expect(fetches.length).toBeGreaterThan(0);
@@ -1089,7 +1278,7 @@ describe("upstream-sync.sh", () => {
       const before = revParse(work, "HEAD");
       const tagsBefore = git(work, ["tag"]).stdout;
 
-      const result = runScript(work, ["--merge"], {
+      const result = runScript(work, ["--fetch"], {
         UPSTREAM_SYNC_TEST_INJECT_TAG: "imported-collision-v1.0.0",
       });
 
@@ -1111,7 +1300,7 @@ describe("upstream-sync.sh", () => {
       expect(tagsBefore).not.toContain("imported-collision-v1.0.0");
     });
 
-    it.each([{ args: [] }, { args: ["--merge"] }])(
+    it.each([{ args: ["--fetch"] }])(
       "refuses same-name tag retargeting in mode $args",
       ({ args }) => {
         const { work } = materializeNetwork("divergent");
@@ -1134,7 +1323,7 @@ describe("upstream-sync.sh", () => {
       },
     );
 
-    it.each([{ args: [] }, { args: ["--merge"] }])(
+    it.each([{ args: ["--fetch"] }])(
       "refuses tag deletion in mode $args",
       ({ args }) => {
         const { work } = materializeNetwork("divergent");
@@ -1161,7 +1350,7 @@ describe("upstream-sync.sh", () => {
       const { work } = materializeNetwork("divergent");
       const before = revParse(work, "HEAD");
 
-      const result = runScript(work, ["--merge"], {
+      const result = runScript(work, ["--fetch"], {
         UPSTREAM_SYNC_TEST_INJECT_TAG: "imported-on-failed-fetch",
         UPSTREAM_SYNC_TEST_FAIL_FETCH_AFTER_TAG: "1",
       });
@@ -1191,7 +1380,7 @@ describe("upstream-sync.sh", () => {
       const localTagObject = revParse(work, "refs/tags/pi-subagents-v1.0.0");
       expect(localTagObject).toBe(forkOid);
 
-      const result = runScript(work, ["--merge"]);
+      const result = runScript(work, ["--fetch"]);
 
       expect(result.status).toBe(0);
       expect(revParse(work, "refs/tags/pi-subagents-v1.0.0")).toBe(
@@ -1209,7 +1398,7 @@ describe("upstream-sync.sh", () => {
     it("sets remote.upstream.pushurl to DISABLE", () => {
       const { work } = materializeNetwork("divergent");
 
-      const result = runScript(work, []);
+      const result = runScript(work, ["--fetch"]);
 
       expect(result.status).toBe(0);
       expect(
@@ -1227,7 +1416,7 @@ describe("upstream-sync.sh", () => {
       const { work, upstreamBare } = materializeNetwork("divergent");
       const peeled = revParse(upstreamBare, "refs/tags/pi-subagents-v21.7.0");
 
-      const result = runScript(work, []);
+      const result = runScript(work, ["--fetch"]);
 
       expect(result.status).toBe(0);
       expect(result.stdout).toContain(

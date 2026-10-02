@@ -88,14 +88,16 @@ describe("upstream-sync.sh --record-fork-sync", () => {
           .slice(before)
           .map(({ args }) => args)
           .filter((args) => args[0] === "fetch"),
-      ).toEqual([
-        [
-          "fetch",
-          "--no-tags",
-          "upstream",
-          "+refs/heads/main:refs/remotes/upstream/main",
-        ],
-      ]);
+      ).toEqual([]);
+      expect(
+        net
+          .recordedInvocations()
+          .slice(before)
+          .map(({ args }) => args)
+          .filter((args) => args[0] === "ls-remote"),
+      ).toEqual([["ls-remote", "--tags", "upstream", "pi-subagents-v*"]]);
+      expect(result.stdout).not.toContain("ahead/behind");
+      expect(result.stdout).not.toContain("newest upstream");
     });
 
     for (const remote of ["origin", "upstream"]) {
@@ -117,6 +119,11 @@ describe("upstream-sync.sh --record-fork-sync", () => {
         ]);
 
         expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          remote === "origin"
+            ? `origin is not Jopqior/gotgenes-pi-packages (got ${url})`
+            : `unsupported upstream remote URL: ${url}`,
+        );
         expect(
           net
             .recordedInvocations()
@@ -144,6 +151,9 @@ describe("upstream-sync.sh --record-fork-sync", () => {
       ]);
 
       expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "missing upstream remote; choose --upstream-protocol",
+      );
       expect(net.git(work, ["remote"]).stdout.trim()).toBe("origin");
       expect(
         net
@@ -158,6 +168,7 @@ describe("upstream-sync.sh --record-fork-sync", () => {
       const { work, upstreamBare } = net.materializeNetwork("fork-sync");
       const merge = mergeUpstream(work, upstreamBare);
       net.git(work, ["remote", "remove", "upstream"]);
+      net.prepareFetchedUpstream(work, upstreamBare);
 
       const result = net.runScript(work, [
         "--record-fork-sync",
@@ -187,6 +198,9 @@ describe("upstream-sync.sh --record-fork-sync", () => {
       ]);
 
       expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        "selected protocol conflicts with existing upstream URL",
+      );
       expect(
         net.git(work, ["remote", "get-url", "upstream"]).stdout.trim(),
       ).toBe("git@github.com:gotgenes/pi-packages.git");
@@ -230,7 +244,7 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     });
   });
 
-  it("refreshes upstream/main for the recorder with a nonstandard remote.fetch", () => {
+  it("does not refresh an insufficient local upstream/main during recording", () => {
     const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     net.git(work, [
       "fetch",
@@ -259,10 +273,11 @@ describe("upstream-sync.sh --record-fork-sync", () => {
       "upstream-only integration",
     ]);
 
-    expect(result.status).toBe(0);
-    expect(readFileSync(statePathOf(work), "utf8")).not.toBe(before);
-    expect(net.revParse(work, "upstream/main")).toBe(actual);
-    expect(readState(work).syncs[0].merge).toBe(merge);
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("is not contained in upstream/main");
+    expect(readFileSync(statePathOf(work), "utf8")).toBe(before);
+    expect(net.revParse(work, "upstream/main")).toBe(stale);
+    expect(net.recordedFetches()).toEqual([]);
     expect(
       net.git(work, ["config", "--get", "remote.upstream.fetch"]).stdout.trim(),
     ).toBe("+refs/heads/main:refs/remotes/other/main");
@@ -362,10 +377,9 @@ describe("upstream-sync.sh --record-fork-sync", () => {
         report: "retargeted: refs/tags/pi-subagents-v1.0.0",
       },
     ]) {
-      it(`refuses ${scenario.action} without writing evidence`, () => {
+      it(`reports ${scenario.action} at the release query boundary without rolling back state`, () => {
         const { work, upstreamBare } = net.materializeNetwork("fork-sync");
         const merge = mergeUpstream(work, upstreamBare);
-        const stateBefore = readFileSync(statePathOf(work), "utf8");
         const headBefore = net.revParse(work, "HEAD");
         const before = net.recordedInvocations().length;
 
@@ -382,6 +396,7 @@ describe("upstream-sync.sh --record-fork-sync", () => {
           {
             UPSTREAM_SYNC_TEST_INJECT_TAG: scenario.tag,
             UPSTREAM_SYNC_TEST_TAG_ACTION: scenario.action,
+            UPSTREAM_SYNC_TEST_TAG_TRIGGER: "record",
           },
         );
 
@@ -390,7 +405,9 @@ describe("upstream-sync.sh --record-fork-sync", () => {
         expect(result.stderr).toContain(
           "stop for operator approval before any tag recovery",
         );
-        expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
+        // The recorder may have written evidence before drift is detected.
+        // The script must stop for inspection, never silently roll it back.
+        expect(readState(work).syncs[0].merge).toBe(merge);
         expect(net.revParse(work, "HEAD")).toBe(headBefore);
         expect(
           net
@@ -398,24 +415,67 @@ describe("upstream-sync.sh --record-fork-sync", () => {
             .slice(before)
             .map(({ args }) => args)
             .filter((args) => args[0] === "fetch"),
-        ).toEqual([
-          [
-            "fetch",
-            "--no-tags",
-            "upstream",
-            "+refs/heads/main:refs/remotes/upstream/main",
-          ],
-        ]);
+        ).toEqual([]);
       });
     }
   });
 
+  describe("failed recording boundary", () => {
+    it.each([false, true])(
+      "preserves recorder failure and checks tags after a failed query (drift=%s)",
+      (drift) => {
+        const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+        const merge = mergeUpstream(work, upstreamBare);
+        const before = net.recordedInvocations().length;
+        const stateBefore = readFileSync(statePathOf(work), "utf8");
+        const result = net.runScript(
+          work,
+          [
+            "--record-fork-sync",
+            merge,
+            "--fork-level",
+            "none",
+            "--rationale",
+            "reviewed",
+          ],
+          {
+            UPSTREAM_SYNC_TEST_FAIL_RELEASE_QUERY_AFTER_TAG: "1",
+            ...(drift
+              ? {
+                  UPSTREAM_SYNC_TEST_INJECT_TAG: "failed-record-tag",
+                  UPSTREAM_SYNC_TEST_TAG_TRIGGER: "record",
+                }
+              : {}),
+          },
+        );
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          "simulated release query failure after tag write",
+        );
+        if (drift) {
+          expect(result.stderr).toContain("added: refs/tags/failed-record-tag");
+          expect(result.stderr).toContain(
+            "stop for operator approval before any tag recovery",
+          );
+          expect(
+            net.git(work, ["tag", "--list", "failed-record-tag"]).stdout.trim(),
+          ).toBe("failed-record-tag");
+        }
+        expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
+        expect(
+          net
+            .recordedInvocations()
+            .slice(before)
+            .filter(({ args }) => args[0] === "fetch"),
+        ).toEqual([]);
+      },
+    );
+  });
+
   it("selects the contained release, not a newer release advertised after the merge", () => {
     const { work, upstreamBare } = net.materializeNetwork("fork-sync");
-    // The merge incorporated 21.7.0; upstream then cut 21.7.1 before the
-    // operator recorded the sync. The fetch makes 21.7.1's objects local,
-    // but it is not contained in the merge's upstream parent, so recording
-    // must still bind 21.7.0.
+    // A newly advertised release is outside the merged history. Recording
+    // must bind the contained release without recovering newer objects.
     const merge = mergeUpstream(work, upstreamBare);
     net.advanceUpstreamReleases(upstreamBare, [
       {

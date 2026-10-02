@@ -58,7 +58,7 @@ export function requireCommitObject(repo, oid) {
   } catch {
     throw new ForkSyncError(
       `object ${oid} is missing or not a commit in ${repo}. ` +
-        "If this is a shallow or partial clone, fetch history through the normal sync flow (scripts/upstream-sync.sh) — never an ad-hoc tag fetch.",
+        "If this is a shallow or partial clone, fetch history explicitly with scripts/upstream-sync.sh --fetch — never an ad-hoc tag fetch.",
     );
   }
 }
