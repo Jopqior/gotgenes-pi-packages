@@ -184,3 +184,6 @@ A live fork query returned open issues #25 and #26, but neither has a successor 
    The approved direction is one stage-organized specialized document, conditional loaders in generic prompts, preserved general improvements, and synchronization startup checks before fetch/pull.
    Document placement and loading mechanics remain planning decisions; no implementation or real synchronization was performed.
    This is the explicit follow-up selected after the earlier next-action assessment, not an inherited roadmap recommendation.
+4. Refined issue #31 after the operator rejected a potentially lengthy rule-by-rule necessity audit; its title is now `refactor(repo): simplify upstream integration guidance in generic workflows`.
+   The revised scope removes obvious lifecycle duplication, retains fork-specific constraints and startup ordering, and prefers existing documentation owners over a mandatory new stage-organized handbook.
+   Planning may add a short supplement if needed, but does not need a per-rule proof or justification matrix.
