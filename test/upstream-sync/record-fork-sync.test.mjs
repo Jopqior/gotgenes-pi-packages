@@ -37,10 +37,16 @@ describe("upstream-sync.sh --record-fork-sync", () => {
    * resulting merge commit OID.
    *
    * @param {string} work
+   * @param {string} upstreamBare
    * @returns {string}
    */
-  const mergeUpstream = (work) => {
-    const result = net.runScript(work, ["--merge"]);
+  const mergeUpstream = (work, upstreamBare) => {
+    const target = net.prepareFetchedUpstream(work, upstreamBare);
+    const result = net.runScript(work, [
+      "--merge",
+      "--expected-upstream",
+      target,
+    ]);
     expect(result.status).toBe(0);
     expect(result.stdout).toContain("record its reviewed fork sync evidence");
     return net.revParse(work, "HEAD");
@@ -55,8 +61,8 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     ];
 
     it("preserves both HTTPS remote identities during recording", () => {
-      const { work } = net.materializeNetwork("fork-sync");
-      const merge = mergeUpstream(work);
+      const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+      const merge = mergeUpstream(work, upstreamBare);
       const origin = "https://github.com/Jopqior/gotgenes-pi-packages";
       const upstream = "https://github.com/gotgenes/pi-packages.git";
       net.git(work, ["remote", "set-url", "origin", origin]);
@@ -94,8 +100,8 @@ describe("upstream-sync.sh --record-fork-sync", () => {
 
     for (const remote of ["origin", "upstream"]) {
       it(`rejects an unsupported ${remote} identity before recording writes`, () => {
-        const { work } = net.materializeNetwork("fork-sync");
-        const merge = mergeUpstream(work);
+        const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+        const merge = mergeUpstream(work, upstreamBare);
         const url =
           remote === "origin"
             ? "https://github.com/other/Jopqior/gotgenes-pi-packages.git"
@@ -126,8 +132,8 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     }
 
     it("requires explicit protocol when the upstream remote is missing during recording", () => {
-      const { work } = net.materializeNetwork("fork-sync");
-      const merge = mergeUpstream(work);
+      const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+      const merge = mergeUpstream(work, upstreamBare);
       net.git(work, ["remote", "remove", "upstream"]);
       const before = net.recordedInvocations().length;
 
@@ -149,8 +155,8 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     });
 
     it("uses an explicitly chosen HTTPS remote for recording", () => {
-      const { work } = net.materializeNetwork("fork-sync");
-      const merge = mergeUpstream(work);
+      const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+      const merge = mergeUpstream(work, upstreamBare);
       net.git(work, ["remote", "remove", "upstream"]);
 
       const result = net.runScript(work, [
@@ -168,8 +174,8 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     });
 
     it("rejects a conflicting protocol without rewriting the existing recording remote", () => {
-      const { work } = net.materializeNetwork("fork-sync");
-      const merge = mergeUpstream(work);
+      const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+      const merge = mergeUpstream(work, upstreamBare);
       const before = net.recordedInvocations().length;
 
       const result = net.runScript(work, [
@@ -194,8 +200,8 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     });
 
     it("checks a dirty index before adding a missing remote or fetching in recording mode", () => {
-      const { work } = net.materializeNetwork("fork-sync");
-      const merge = mergeUpstream(work);
+      const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+      const merge = mergeUpstream(work, upstreamBare);
       net.git(work, ["remote", "remove", "upstream"]);
       net.writeFiles(work, { "README.md": "staged change\n" });
       net.git(work, ["add", "README.md"]);
@@ -232,7 +238,7 @@ describe("upstream-sync.sh --record-fork-sync", () => {
       upstreamBare,
       "+refs/heads/main:refs/remotes/upstream/main",
     ]);
-    const merge = mergeUpstream(work);
+    const merge = mergeUpstream(work, upstreamBare);
     const actual = net.revParse(upstreamBare, "refs/heads/main");
     const stale = net.revParse(work, `${merge}^1~1`);
     net.git(work, [
@@ -264,7 +270,7 @@ describe("upstream-sync.sh --record-fork-sync", () => {
 
   it("records verified sync evidence after a completed merge", () => {
     const { work, upstreamBare } = net.materializeNetwork("fork-sync");
-    const merge = mergeUpstream(work);
+    const merge = mergeUpstream(work, upstreamBare);
     const releaseOid = net.revParse(
       upstreamBare,
       "refs/tags/pi-subagents-v21.7.0^{}",
@@ -304,8 +310,8 @@ describe("upstream-sync.sh --record-fork-sync", () => {
   });
 
   it("leaves the local tag namespace byte-identical across recording", () => {
-    const { work } = net.materializeNetwork("fork-sync");
-    const merge = mergeUpstream(work);
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+    const merge = mergeUpstream(work, upstreamBare);
     const tagsBefore = net
       .git(work, [
         "for-each-ref",
@@ -357,8 +363,8 @@ describe("upstream-sync.sh --record-fork-sync", () => {
       },
     ]) {
       it(`refuses ${scenario.action} without writing evidence`, () => {
-        const { work } = net.materializeNetwork("fork-sync");
-        const merge = mergeUpstream(work);
+        const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+        const merge = mergeUpstream(work, upstreamBare);
         const stateBefore = readFileSync(statePathOf(work), "utf8");
         const headBefore = net.revParse(work, "HEAD");
         const before = net.recordedInvocations().length;
@@ -410,7 +416,7 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     // operator recorded the sync. The fetch makes 21.7.1's objects local,
     // but it is not contained in the merge's upstream parent, so recording
     // must still bind 21.7.0.
-    const merge = mergeUpstream(work);
+    const merge = mergeUpstream(work, upstreamBare);
     net.advanceUpstreamReleases(upstreamBare, [
       {
         message: "feat(pi-subagents): upstream release 21.7.1",
@@ -459,7 +465,7 @@ describe("upstream-sync.sh --record-fork-sync", () => {
         tag: { name: "pi-subagents-v21.7.1" },
       },
     ]);
-    const merge = mergeUpstream(work);
+    const merge = mergeUpstream(work, upstreamBare);
 
     const result = net.runScript(work, [
       "--record-fork-sync",
@@ -506,7 +512,12 @@ describe("upstream-sync.sh --record-fork-sync", () => {
       "-m",
       "feat(pi-subagents): fork edits shared core",
     ]);
-    const conflicted = net.runScript(work, ["--merge"]);
+    const target = net.prepareFetchedUpstream(work, upstreamBare);
+    const conflicted = net.runScript(work, [
+      "--merge",
+      "--expected-upstream",
+      target,
+    ]);
     expect(conflicted.status).toBe(1);
     expect(existsSync(path.join(net.gitDir(work), "MERGE_HEAD"))).toBe(true);
     writeFileSync(
@@ -546,8 +557,8 @@ describe("upstream-sync.sh --record-fork-sync", () => {
   });
 
   it("refuses an unreviewed record: the review inputs are required", () => {
-    const { work } = net.materializeNetwork("fork-sync");
-    const merge = mergeUpstream(work);
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+    const merge = mergeUpstream(work, upstreamBare);
     const stateBefore = readFileSync(statePathOf(work), "utf8");
 
     const result = net.runScript(work, ["--record-fork-sync", merge]);
@@ -583,7 +594,12 @@ describe("upstream-sync.sh --record-fork-sync", () => {
       "-m",
       "feat(pi-subagents): fork edits shared core",
     ]);
-    const conflicted = net.runScript(work, ["--merge"]);
+    const target = net.prepareFetchedUpstream(work, upstreamBare);
+    const conflicted = net.runScript(work, [
+      "--merge",
+      "--expected-upstream",
+      target,
+    ]);
     expect(conflicted.status).toBe(1);
     const mergeHeadBefore = net.readGitStateFile(work, "MERGE_HEAD");
     const stateBefore = readFileSync(statePathOf(work), "utf8");
@@ -625,7 +641,7 @@ describe("upstream-sync.sh --record-fork-sync", () => {
         },
       },
     ]);
-    const merge = mergeUpstream(work);
+    const merge = mergeUpstream(work, upstreamBare);
     const stateBefore = readFileSync(statePathOf(work), "utf8");
 
     const result = net.runScript(work, [
@@ -663,7 +679,7 @@ describe("upstream-sync.sh --record-fork-sync", () => {
         },
       },
     ]);
-    const merge = mergeUpstream(work);
+    const merge = mergeUpstream(work, upstreamBare);
 
     const result = net.runScript(work, [
       "--record-fork-sync",
@@ -679,8 +695,8 @@ describe("upstream-sync.sh --record-fork-sync", () => {
   });
 
   it("treats an identical re-record as idempotent and a conflicting one as an error", () => {
-    const { work } = net.materializeNetwork("fork-sync");
-    const merge = mergeUpstream(work);
+    const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+    const merge = mergeUpstream(work, upstreamBare);
     const review = [
       "--fork-level",
       "none",

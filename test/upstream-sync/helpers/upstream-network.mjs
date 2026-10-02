@@ -158,6 +158,23 @@ export function createUpstreamNetwork() {
   }
 
   /**
+   * Fetch main into the canonical tracking ref using isolated local transport.
+   *
+   * @param {string} work
+   * @param {string} upstreamBare
+   * @returns {string}
+   */
+  function prepareFetchedUpstream(work, upstreamBare) {
+    git(work, [
+      "fetch",
+      "--no-tags",
+      upstreamBare,
+      "+refs/heads/main:refs/remotes/upstream/main",
+    ]);
+    return revParse(work, "upstream/main^{commit}");
+  }
+
+  /**
    * @param {string} cwd
    * @param {string} [rev]
    */
@@ -505,6 +522,7 @@ export function createUpstreamNetwork() {
     git,
     configureRepo,
     revParse,
+    prepareFetchedUpstream,
     parentsOf,
     gitDir,
     indexTree,
