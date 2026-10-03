@@ -230,3 +230,30 @@ The parent independently reran version prediction after the evidence commit and 
 Next action: `/ship 34` in a fresh root session, carrying the WARN items for operator disposition.
 Use `RANGE_BASE=98239e3fb812d55c95626fa54209c9fb7a9e037b`, retain the synchronization guide's no-incoming-history close scan, and verify fork issue #32 and PR #33 as explicit disposition targets.
 Shipping must not treat these notes or the predicted tag as publication approval; obtain separate approval of release destination and npm scope before publishing.
+
+## Stage: Ship: verification disposition (2026-10-03T11:57:22Z)
+
+### Session summary
+
+Verified root/main, clean state, no pending operation, merge and evidence reachability, and the genuine merge's planned second parent before startup synchronization.
+The operator requested investigation of the permission-log symlink concern, then declined a fork repair after its upstream provenance was established.
+The operator ultimately waived additional human TUI and live-provider/model-judge smoke checks and directed shipping to continue.
+No production changes or real provider calls were made during this investigation.
+
+### Observations
+
+- An isolated constructed filesystem fixture links the permission log directory into another allowed extensions directory.
+  Through Pi 1.0.0's actual tool-call boundary and built-in read, synthetic log contents were returned under external-directory catch-all deny/ask; unsymlinked controls were blocked, and explicit canonical-target denies remained effective.
+  This confirms a conditional behavior in a nonsecret fixture, not exposure of actual operator logs or evidence that an attacker can create that link.
+  The executable probe and raw results remain under `/tmp/f0034-log-symlink-repro.Ddzcde/`.
+- The complete `packages/pi-permission-system/src` tree has the same Git object at HEAD and pinned upstream target `9087a8dfa6edbfa1808fe3deab46ac3e17a7c032`.
+  The lexical exclusion was introduced by upstream commit `0ad34344fb035211adc29317201d6f00cd8c7a76`; this is inherited behavior, not a merge-resolution change.
+  The operator's disposition is to retain it without a fork fix in this synchronization.
+- Additional human verification preparation found that child sessions rediscover project configuration and that model-judge does not inherit parent thinking settings.
+  A no-provider bubblewrap preflight succeeded, but no interactive wizard or live-model smoke ran before the operator decided further testing was unnecessary.
+  Human TUI interaction, real provider responses and nonempty-pattern judge adjudication remain unverified, explicitly accepted for this ship; prior scripted smoke is not relabeled as manual verification.
+- The nonblocking direct mock-call-indexing review warning remains unchanged.
+  The completed independent review and its supplied merge-first-parent range remain recorded above; this ship adds only disposition notes.
+- Startup fetch/pull completed without changing local HEAD; local main was ahead of origin/main by 392 commits including incoming upstream history.
+  Use the actual merge's first parent as the release/close range and skip the incoming-history co-shipped scan.
+  Fork issue #32 and PR #33 were verified open and their original reports read; publication still requires separate approval of the exact registered package set and destination.
