@@ -69,3 +69,23 @@ Each numbered plan step ran in a separate subagent, with the parent dispatching 
 - No actual upstream integration, human/live-provider rehearsal, GitHub mutation, push or publication occurred.
   Text predicates and scenario review do not prove future agent compliance or reduced review time.
   The next action is `/ship 35`; package publication is not authorized.
+
+## Stage: Implementation — TDD (2026-10-03T14:30:50Z)
+
+### Session summary
+
+The operator approved resolving the packed-check trigger warning.
+Clarified that relevant contract changes from incoming changes, sync-authored fork adaptations and post-merge contributions all trigger the existing compatibility checks, and strengthened the existing contract assertion.
+No additional test cases or validation harnesses were introduced.
+
+### Observations
+
+- The implementation subagent observed the strengthened assertion fail against the incoming-only wording, then pass after the guide change.
+  An incoming-only killing mutation failed the same assertion; restoring saved green bytes returned the focused suite to 50 passing tests.
+- A fresh-context reviewer inspected the uncommitted delta before `docs: clarify sync compatibility check triggers (#35)` was committed.
+  Pre-completion reviewer: PASS; the previous WARN is resolved.
+  The reviewer independently passed root check, lint, test, dead-code and diff checks; the root script suite remained at 677 tests.
+- Review distinguished incoming-only, adaptation-only and post-merge-only relevant changes from synchronization with no relevant contract changes.
+  Existing candidate and historical compatibility requirements remain intact, and no unrelated packed checks are added.
+- No push, publication or actual upstream synchronization occurred.
+  The next action remains `/ship 35`.
