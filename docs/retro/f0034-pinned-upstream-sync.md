@@ -193,3 +193,40 @@ Independent review is step 4 and has not run.
 
 Next action: step 4 independent review must use actual merge first parent `98239e3fb812d55c95626fa54209c9fb7a9e037b` through the evidence HEAD and explicitly cover incoming common-base-to-target changes, remerge resolutions, automatic customizations and every post-merge contribution including this evidence.
 Carry the unperformed human TUI and live judge surfaces forward rather than treating the scripted smoke as manual proof.
+
+## Stage: Implementation: independent review and handoff (2026-10-03T11:12:55Z)
+
+### Session summary
+
+Completed step 4 with a fresh-context pre-completion reviewer: Overall: WARN, with no established blocking implementation defect.
+The two implementation TDD steps and the subsequent integration/evidence review are complete; measured root tests increased from 8345 to 9182, a net increase of 837 including upstream changes.
+The parent independently reran version prediction after the evidence commit and obtained `pi-subagents-v5.0.0`; no release or publication occurred.
+
+### Observations
+
+- Reviewer range: `98239e3fb812d55c95626fa54209c9fb7a9e037b` through `7d1d7f56fc9f51b695cc7c88056a917e5ef8238c`, explicitly overriding default tag/plan-derived ranges.
+  The report separately covers incoming common-base `4dd378ca97a35e380ed946cd5ce0bcb9050ced5a` to target `9087a8dfa6edbfa1808fe3deab46ac3e17a7c032`, the genuine merge's remerge diff, automatically merged fork customizations and every post-merge contribution including evidence.
+  Review focused on production contracts and high-risk intersections, not a claim of line-by-line inspection of every incoming historical document.
+- Actual merge: `877efb38d5ea8723391160e8c3d6d9597c40b1e5`; reviewed evidence commit: `7d1d7f56fc9f51b695cc7c88056a917e5ef8238c`.
+  Upstream contribution is `major` from incorporated `21.7.7` to `22.0.0`; independent fork contribution is `none`.
+  The predicted fork tag is not a published version, and the package manifest was not bumped.
+- Reviewer independently reran root check, lint, all 9182 tests and fallow successfully.
+  Additional packed public-type consumers, autoformat acceptance, historical/candidate compatibility matrix and diff checks passed.
+  It verified merge topology, committed evidence, exact merge CHANGELOG bytes and the operator-approved narrowly normalized current bytes.
+- Reviewer warning: `packages/pi-subagents/test/lifecycle/construction-inheritance.test.ts` uses direct `mock.calls[0]` indexing for a new assertion; the documented matcher convention is preferable.
+  This non-blocking test-style observation was not silently folded into the completed integration.
+- Reviewer warning: the permission-system passes canonical access targets to infrastructure classification but retains a lexical log exclusion root.
+  A logs symlink into another permitted extensions directory may evade that exclusion; the reviewer observed the classifier's result for a constructed canonical-target input, not a real symlink through the complete gate.
+  This remains an unconfirmed input-domain concern, not an established end-to-end vulnerability or a passing security check; operator disposition and a real temporary-symlink regression are needed before treating it as resolved.
+- Human TTY interaction, live provider responses and non-empty-pattern model-judge adjudication remain unperformed.
+  The reviewer inspected scripted smoke source/assertions/logs but did not rerun that smoke or historical mutation trials.
+  Local tag checks do not independently verify remote npm tarball or GitHub Release body bytes.
+- The only extra implementation step was the explicitly approved one-time CHANGELOG whitespace cleanup; historical comparison rows were restored rather than rewritten to current host facts.
+  Existing selector isolation tests needed no edits; the new candidate tests exercise the additional row.
+  No remaining module-table item is being represented as interactive verification merely because local tests passed.
+- The working tree was clean at the reviewed evidence HEAD.
+  This final notes-only commit follows that reviewed range without changing implementation or evidence.
+
+Next action: `/ship 34` in a fresh root session, carrying the WARN items for operator disposition.
+Use `RANGE_BASE=98239e3fb812d55c95626fa54209c9fb7a9e037b`, retain the synchronization guide's no-incoming-history close scan, and verify fork issue #32 and PR #33 as explicit disposition targets.
+Shipping must not treat these notes or the predicted tag as publication approval; obtain separate approval of release destination and npm scope before publishing.
