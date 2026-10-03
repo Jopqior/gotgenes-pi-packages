@@ -106,3 +106,21 @@ This amendment changes only the plan and decision record; the cleanup has not ru
   Markdown lint and release correspondence tests must pass unchanged; unexpected differences or contract failures require operator review.
 - The earlier recovery entry remains an accurate record of why the merge used a temporary exception.
   Its next action is superseded by this approval: perform the formatting follow-up before the packed-candidate work in step 2.
+
+## Stage: Implementation: approved whitespace cleanup (2026-10-03T09:00:43Z)
+
+### Session summary
+
+Ran the normal `trailing-whitespace` hook on the core CHANGELOG and removed trailing spaces from 10 lines.
+Verified exact equality with the original bytes after only trailing-space/tab normalization; no release text or other bytes changed.
+The completed integration merge still preserves its first parent's CHANGELOG blob unchanged.
+
+### Observations
+
+- The first hook run reported its expected file modification; the second passed without further changes.
+  No hook exemption or permanent configuration change was used.
+- Root lint passed and the release suite passed 213 tests in 18 files, including correspondence checks with unchanged assertions.
+- The normal Markdown configuration excludes generated CHANGELOG files, so its direct file check reported no files to check.
+  An additional `--no-exclude` diagnostic run failed with 696 findings versus 691 on the saved original; the five added `MD013` findings correspond exactly to the explicitly approved removal of hard line breaks.
+  No broader generated-document reformatting was performed, and the forced diagnostic is not claimed as passing.
+- The operator's requested one-time cleanup is complete; packed-candidate verification in step 2 remains pending.
