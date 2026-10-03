@@ -107,3 +107,71 @@ Pushed the implementation, verified CI, closed fork issue #31 with operator-appr
 - No worktree teardown or roadmap phase close applies to this repository-scoped trunk change.
   No upstream synchronization was performed, and no npm registry polling was needed after the successful release.
   Next action: `/retro 31` from the root checkout on `main`.
+
+## Stage: Final Retrospective (2026-10-03T06:31:50Z)
+
+### Session summary
+
+Reviewed the restarted planning, TDD implementation, and shipping transcripts, including the planning and implementation subagent transcripts, against their accumulated stage notes.
+The change separated synchronization constraints from ordinary workflows, migrated release documentation atomically, and shipped the separately approved package documentation release.
+This retrospective does not reopen the discarded design or authorize upstream integration.
+
+### Observations
+
+#### What went well
+
+- The planning Explore agent traced the generic reviewer's default range before the synchronization branches were removed.
+  This exposed a real handoff hazard: moving prose alone would not ensure that a synchronization reviewer used the merge-first-parent range and inspected incoming and remerge surfaces.
+  The dedicated guide now owns that exception without adding a classifier to ordinary workflows.
+- The implementation distinguished structural navigation checks, executed Git/release fixtures, and fresh-process observations instead of treating them as interchangeable evidence.
+  The two read-only startup rehearsals exercised newly loaded guidance rather than the editing session's stale prompts, while explicitly stopping short of a reliability claim.
+- Atomic reader/writer/staging migration and separate package navigation commits kept repository-tooling compatibility distinct from package API compatibility.
+  The commits `feat(repo)!: move upstream release documentation to descriptive paths (#31)` and `docs(pi-subagents): point release provenance to the upstream correspondence table (#31)` made that distinction reviewable at release time.
+
+#### What caused friction (agent side)
+
+- `missing-context`: planning guessed `.pi/skills/colgrep/SKILL.md` instead of using the advertised package skill path; the second implementation agent resolved `SKILL-MECHANICS.md` from the wrong parent directory.
+  Each failed read was corrected in the next assistant turn.
+  Impact: avoidable failed reads, without design or implementation rework; existing skill-location guidance already covers both cases.
+- `missing-context`: the pre-completion dispatch pointed to rehearsal evidence under `/tmp`, outside the reviewer's permitted search scope.
+  The reviewer requested the tool-call lists, final outputs, and stderr through the parent channel; the parent supplied them on resume before the final verdict.
+  Impact: an extra evidence handoff and reviewer resume, not a code fix or a reason to widen filesystem access.
+- `other`: the long conditional-loader sentence triggered a Markdown link-check false positive during step 2.
+  Impact: a local sentence split and formatter pass before the focused suite was rerun; no follow-up repair commit was needed.
+
+#### What caused friction (user side)
+
+- No corrective operator intervention was visible in the restarted planning, implementation, or shipping transcripts.
+  The decisions were about document names/loading boundaries and separate closure/publication approval, rather than mechanical oversight.
+  Keeping the replacement specification's explicit rejection of the discarded design in the initial issue context helped prevent renewed scope negotiation; preserve that practice when restarting work, without adding another standing rule.
+
+### Diagnostic details
+
+- Model attribution comes from type-unfiltered transcript turn labels, not agent defaults.
+  Planning, implementation coordination, shipping, and the pre-completion reviewer ran on `openai-codex/gpt-6-astra`.
+  The planning Explore agent, Tidy-First assessor, and both implementation agents ran on `openai-codex/gpt-6.1-sol`.
+  The Explore task involved historical ownership and review-range reasoning, and the implementation tasks combined migration with constraint preservation and regression testing; these were not merely grep or formatting jobs.
+  No observed quality mismatch justifies a model-selection change, and these transcripts alone do not establish comparative cost or performance.
+- Evidence accessibility was the actionable feedback-loop gap: provide reviewer-readable raw observations with the initial dispatch when external logs are intentionally outside scope.
+  Keep the reviewer boundary intact; the existing delegation skill already requires raw evidence rather than supplied conclusions.
+- Verification was incremental, not deferred to the final gate: both implementation agents ran Red, Green, killing mutations, restored focused suites, and documentation checks before their commits.
+  The parent then ran the root gates, and the reviewer independently reran them.
+  No repeated-error sequence warranted rabbit-hole escalation; expected Red and mutation failures are not debugging stalls.
+
+### Proposed disposition
+
+Keep this retrospective as observations only, with no prompt, skill, or `AGENTS.md` additions.
+Skill path resolution and evidence provenance already have rules; broadening reviewer access or adding a generic rehearsal framework would be disproportionate to the observed handoff friction.
+No substantive follow-up issue is required by this retrospective.
+
+### Next-work context
+
+This repository-scoped plan has no roadmap successor or phase-close action.
+The latest triage, `docs/triage/2026-09-18-backlog.md`, ranks inherited `gotgenes/pi-packages` work, not this fork's queue, so it supplies no applicable fork rank or severity.
+The fork's open-issue query returned #25, #26, and #32; PR #33 remains open for #32, the TypeBox dependency warning encountered during the rehearsals.
+Consider `/plan-issue #32` as an unranked fork follow-up, reviewing the existing PR rather than assuming its proposed remedy is already accepted.
+
+### Changes made
+
+1. Appended the cross-session retrospective, transcript-based diagnostics, and fork-specific next-work context to `docs/retro/f0031-upstream-documentation-boundaries.md`.
+2. The operator approved committing and pushing only the retrospective; no prompts, skills, `AGENTS.md`, package code, or changelogs were changed.
