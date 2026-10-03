@@ -153,3 +153,43 @@ The selector's manifest, peer range, runtime/UI and CHANGELOG are unchanged, and
 Next action: step 3 completed-integration review and interactive smoke, then recorder-owned evidence and step 4 independent review.
 Loader registration is not chooser confirmation/cancellation/resume smoke; those manual checks remain unperformed.
 No fetch, pull, merge, push, publication, issue closure, actual sync recording or version prediction occurred in step 2.
+
+## Stage: Implementation: integration review and evidence (2026-10-03T10:07:24Z)
+
+### Session summary
+
+Completed step 3 review and fresh validation of merge `877efb38d5ea8723391160e8c3d6d9597c40b1e5` through `d239b24a3dbed2e68ce056e362dd76ce14766dc5`.
+The actual first parent is `98239e3fb812d55c95626fa54209c9fb7a9e037b`; the second parent is the pinned target `9087a8dfa6edbfa1808fe3deab46ac3e17a7c032`.
+Recorded upstream `22.0.0` at `84111ba0e8eebddd3c4bb4ae04298b1a78f96f86` with independently reviewed fork resolution contribution `none` through the supported recorder.
+This entry and the appended sync-state row are committed together as the reviewed evidence handoff; version prediction follows that commit and is retained in `/tmp/f0034-step3-report.md`.
+Independent review is step 4 and has not run.
+
+### Observations
+
+- Reviewed first-parent-to-HEAD inventory, incoming common-base `4dd378ca97a35e380ed946cd5ce0bcb9050ced5a` to pinned target, remerge resolutions, automatic fork customization intersections, active workflow guidance, and all three post-merge commits.
+  Those commits approve the cleanup, apply only trailing-whitespace normalization, and add packed candidate verification.
+  No additional production fix or materially new compatibility decision was identified.
+- The fork resolution retains initial selection ownership, admission and cancellation checks, nested construction scope, synchronous service spawn and no-provider acknowledgement contracts.
+  Observed model/thinking projection, pending suppression and rendering-only background launch sharing adapt those existing contracts to the separately approved upstream behavior; they do not introduce an independent fork feature or break.
+  The breaking integration classification remains correct, while correspondence maps upstream `21.7.7` to `22.0.0` as major independently of the merge subject.
+- Verified the merge CHANGELOG equals the actual first-parent blob exactly, and the current file equals that blob after only trailing space/tab removal.
+  Fork identity/version/URLs/exports, selector manifest/peer/CHANGELOG/runtime, selection-owner modules, public selection service, release algorithms and CI remain unchanged against the first parent before recording.
+  Historical release rows and previous sync rows remain unchanged; the recorder only appended the reviewed sync.
+- Fresh root check, lint, test and fallow passed; lint produced zero Biome warning matches.
+  Root test measured 9182 passing tests, including 2165 core and 5370 permission-system tests.
+  Core and permission-system packed public-type consumers, autoformat acceptance (2 tests in 2 files), selector compatibility matrix, upstream/release/roadmap suites (484 tests in 26 files), and first-parent-to-HEAD diff check also passed.
+- Repeated the real packed candidate matrix on Pi AI/coding-agent/TUI 1.0.0 and TypeBox 1.3.27 with local core 4.0.7 and selector 2.0.0.
+  All historical positive rows, the candidate loader/type-check, negative rows and diagnostic controls passed; exact isolated installed paths are in `/tmp/f0034-step3-logs/selector-matrix.log`.
+- Ran a fresh-process Pi 1.0.0 SDK session using the installed host and actual local extension factories for core 4.0.7, selector 2.0.0, permission-system 39.0.2, nocd 2.0.0 and permission-model-judge 3.0.0.
+  The actual chooser component accepted scripted cancellation and confirmation; cancellation issued no child provider request, confirmation displayed the selected provider/id, and explicit background resume acknowledged before held child completion without reopening the chooser.
+  Actual child tools excluded write/edit/subagent, retained read/ask_parent, and its composed prompt contained child tools and nocd working-directory instructions.
+  Configured model-judge registration was verified in both root and child permission nodes; no extension errors were captured.
+- Manual human interactive TUI remains unavailable: bash stdin is not a TTY, and scripted keyboard/UI boundaries are not a human interaction pass.
+  Provider responses were deterministic synthetic inputs; no live LLM response or non-empty-pattern model-judge adjudication was tested.
+  The isolated permissive smoke policy is harness-only and is not a change to operator permission configuration or evidence of every permission decision.
+- Recorder exited successfully without tag-name/object drift; upstream no-tags and disabled push safeguards remain set.
+  Logs, state/tag snapshots, smoke harness and assertions are retained in `/tmp/f0034-step3-logs/`.
+  No startup pull/fetch, new merge, release preparation, version edit, push, publication, issue closure or independent reviewer dispatch occurred.
+
+Next action: step 4 independent review must use actual merge first parent `98239e3fb812d55c95626fa54209c9fb7a9e037b` through the evidence HEAD and explicitly cover incoming common-base-to-target changes, remerge resolutions, automatic customizations and every post-merge contribution including this evidence.
+Carry the unperformed human TUI and live judge surfaces forward rather than treating the scripted smoke as manual proof.

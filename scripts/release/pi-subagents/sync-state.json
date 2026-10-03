@@ -130,6 +130,18 @@
         "rationale": "Preserved fork package identity and spawn-selection behavior while incorporating upstream prompt-context and widget changes; conflict fixes only updated a UI test stub and type-only architecture boundaries.",
         "paths": []
       }
+    },
+    {
+      "merge": "877efb38d5ea8723391160e8c3d6d9597c40b1e5",
+      "upstream": {
+        "version": "22.0.0",
+        "commit": "84111ba0e8eebddd3c4bb4ae04298b1a78f96f86"
+      },
+      "forkContribution": {
+        "level": "none",
+        "rationale": "Resolution preserves fork identity, initial-selection admission/cancellation/confirmation, nested ownership, synchronous service spawn, and no-provider acknowledgements while adapting pending-safe observed model presentation and background launch rendering to the approved upstream Pi 1.0 contracts; it introduces no independent fork behavior or public API change.",
+        "paths": []
+      }
     }
   ]
 }
