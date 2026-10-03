@@ -84,3 +84,26 @@ Pre-completion reviewer: PASS for `16f7ff33c15409e3c91c971a7e6e29dc04a9eec3..2ed
   The path move retains the approved breaking repository-tooling classification, while the package link correction is a separate documentation commit.
   No actual upstream integration, GitHub mutation, push, or publication occurred.
   Next action: `/ship 31`, preferably in a fresh Pi session so the changed templates and guidance are loaded; publication remains separately approval-gated.
+
+## Stage: Ship (2026-10-03T01:00:24Z)
+
+### Session summary
+
+Shipped through the trunk lane from the root checkout on `main`.
+Pushed the implementation, verified CI, closed fork issue #31 with operator-approved wording, and released `@jopqior/pi-subagents` 4.0.7 to npmjs.org after separate explicit approval.
+
+### Observations
+
+- No issue-31 feature branch or pending merge/rebase was present; the startup fast-forward pull was current with six local commits ahead.
+  Root lint and dead-code checks passed before pushing.
+- Implementation CI run 37083933855 succeeded for `bb62c2238cf9267f3c0c3c32a48e2c8a430a91d4`.
+  The plan-parent implementation range contained no co-shipped issue or adopted PR close target; PR #33 remains unrelated.
+- Registered-candidate discovery returned only `pi-subagents`, with no unregistered changed package.
+  Both version predictions succeeded with `pi-subagents-v4.0.7`; the package history since its previous release contained only this issue's README provenance-link correction.
+- The operator approved the exact close comment and separately approved only `@jopqior/pi-subagents` for npmjs.org.
+  Release run 37084285015 succeeded, including preparation, publication, and GitHub Release creation.
+  The verified tag resolves to `1ac3ac362b2367a8db7df268a049f29f005275b1`, whose parent is the approved implementation SHA; the tagged manifest names the approved package and version.
+  The release commit changed only its manifest, changelog, correspondence table, and release evidence; the exact GitHub Release tag was verified before pulling the release commit.
+- No worktree teardown or roadmap phase close applies to this repository-scoped trunk change.
+  No upstream synchronization was performed, and no npm registry polling was needed after the successful release.
+  Next action: `/retro 31` from the root checkout on `main`.
