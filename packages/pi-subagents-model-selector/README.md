@@ -69,7 +69,12 @@ A core release alone does not.
 
 `pnpm run verify:core-compatibility` in this package reproduces the packed-compatibility checks behind this policy.
 It packs the real selector, asserts the packed manifest contract, and repacks an isolated workspace copy across a changed sibling core version to show the public peer range is unchanged.
-It installs the tarball into disposable consumers with every published core and the pinned Pi host packages, type-checks the packed source against each core, and exercises the Pi loader matrix, including the negative rows and a labeled synthetic incompatible-service row.
+It installs the selector tarball into disposable consumers with the historical core releases listed above and the selector's legacy host pins.
+A separate candidate row packs the actual local core (including its public declarations), installs both local tarballs with Pi 1.0.0 and TypeBox 1.3.27, and checks the installed core's identity and version against its packed manifest.
+The candidate host pins do not change the historical rows or the selector's published peer range.
+Every positive row type-checks the installed selector source without workspace aliases and loads the core before the selector through the real Pi loader in a fresh process, asserting the service's registration capability and selector lifecycle hooks.
+The matrix retains negative missing-package, missing-service, reversed-order and labeled synthetic incompatible-service rows, plus controls rejecting incorrect diagnostics.
+Loader registration is not an interactive chooser, cancellation or resume smoke test.
 The command needs network access to npmjs.org, builds every fixture in a temporary directory it removes afterwards, and stays out of the Vitest suite.
 
 ## Behavior

@@ -124,3 +124,32 @@ The completed integration merge still preserves its first parent's CHANGELOG blo
   An additional `--no-exclude` diagnostic run failed with 696 findings versus 691 on the saved original; the five added `MD013` findings correspond exactly to the explicitly approved removal of hard line breaks.
   No broader generated-document reformatting was performed, and the forced diagnostic is not claimed as passing.
 - The operator's requested one-time cleanup is complete; packed-candidate verification in step 2 remains pending.
+
+## Stage: Implementation: packed candidate verification (2026-10-03T09:21:12Z)
+
+### Session summary
+
+Completed TDD step 2 only: the selector compatibility script now verifies the actual packed local core/selector pair on explicit Pi 1.0 host pins alongside the unchanged historical rows.
+The selector's manifest, peer range, runtime/UI and CHANGELOG are unchanged, and the integration merge and approved cleanup remain intact.
+
+### Observations
+
+- Added three offline tests at the script's install/orchestration boundaries, with separate identity/specifier, candidate-host and candidate-invocation reds before their minimal implementations.
+  Subprocess IO is simulated only in these offline tests; the actual packed matrix separately uses real installation, isolated source type-checking and fresh-process Pi loading.
+- The candidate reads core identity/version from its packed manifest, installs both local tarballs, asserts installed host versions, and prints exact resolved package paths.
+  Pi AI, coding-agent and TUI are pinned to 1.0.0, with TypeBox 1.3.27; historical registry cores 1.0.0, 1.0.1, 1.0.2 and 2.0.0 retain the selector's 0.84.4 host defaults.
+- Applied all four planned mutations against saved green source with retained diffs: tarball as expected version, legacy candidate hosts, skipped candidate invocation and empty actual installed service.
+  The first three fail the offline script test with distinct assertions; the installed-service mutation fails the real candidate loader with the selector's registration-capability diagnostic after all historical rows pass.
+  Restored source and reran the complete matrix successfully.
+- Selector test/check passed: 71 tests in 10 files, up from 68 tests in 9 files.
+  Root check, lint, test and fallow passed; root test measured 9182 passing tests, a net increase of 3 over the step-1 result.
+  Core packed public-declaration consumer verification also passed.
+- Read the installed Pi 1.0.0 compiled loader rather than assuming a sibling checkout exists.
+  Source type-check consumers use no workspace aliases; Pi's internal runtime host mapping remains normal loader behavior.
+  Existing synchronous disposable-root cleanup is unchanged, and the matrix callback adds no asynchronous operations.
+- Raw logs, exact candidate sources, saved mutation bytes and applied diffs are retained in `/tmp/f0034-step2-logs/`; the detailed handoff is `/tmp/f0034-step2-report.md`.
+  The initial public-types invocation rejected an unsupported `pnpm run --registry` option before running; the explicit `npm_config_registry=https://registry.npmjs.org/` retry passed without script edits.
+
+Next action: step 3 completed-integration review and interactive smoke, then recorder-owned evidence and step 4 independent review.
+Loader registration is not chooser confirmation/cancellation/resume smoke; those manual checks remain unperformed.
+No fetch, pull, merge, push, publication, issue closure, actual sync recording or version prediction occurred in step 2.

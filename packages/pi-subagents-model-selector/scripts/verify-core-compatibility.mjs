@@ -3,7 +3,7 @@
  * Reproducible packed-compatibility verification for the model selector.
  *
  * Characterizes what the published tarball declares and what an installed
- * selector does against every published @jopqior/pi-subagents core:
+ * selector does against historical registry cores and the actual local core:
  *
  * 1. Pack the real package and assert its manifest contract (required core
  *    peer, registry development range, no ordinary/optional/bundled core
@@ -13,11 +13,14 @@
  *    public core peer range is preserved. The synthetic sibling version is
  *    never published and the checkout is never edited.
  * 3. Install the packed selector into disposable consumers with each exact
- *    published core and the selector's pinned Pi host packages, with peer
+ *    historical core and the selector's pinned Pi host packages, with peer
  *    auto-install and lifecycle scripts disabled, resolving from npmjs.org.
- * 4. Type-check the packed selector source against each installed core with
+ * 4. Pack the actual local core, read its manifest identity/version separately
+ *    from the file: install specifier, and install both tarballs with explicit
+ *    Pi 1.0 host pins. Historical rows keep their legacy host defaults.
+ * 5. Type-check the packed selector source against each installed core with
  *    the workspace TypeScript binary, with no workspace path aliases.
- * 5. Run the Pi loader matrix in a fresh process per case: positive rows per
+ * 6. Run the Pi loader matrix in a fresh process per case: positive rows per
  *    core, plus negative missing-package, missing-service, reversed-order,
  *    and synthetic incompatible-service rows.
  *
@@ -39,6 +42,7 @@ import {
   mkdtempSync,
   readdirSync,
   readFileSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -63,6 +67,13 @@ export const HOST_PACKAGES = [
   "@earendil-works/pi-tui",
 ];
 export const TSC_BIN = join(PACKAGE_ROOT, "node_modules", ".bin", "tsc");
+
+const CANDIDATE_HOST_PINS = {
+  "@earendil-works/pi-ai": "1.0.0",
+  "@earendil-works/pi-coding-agent": "1.0.0",
+  "@earendil-works/pi-tui": "1.0.0",
+  typebox: "1.3.27",
+};
 
 const TYPES_NODE_RANGE = "^22.15.3"; // matches the repository catalog range
 
@@ -222,7 +233,16 @@ function assertIsolatedPacks(workspace, packRoot) {
   );
 }
 
-export function installConsumer(dir, { selectorTarball, coreVersion }) {
+export function installConsumer(
+  dir,
+  {
+    selectorTarball,
+    coreVersion,
+    coreSpecifier = coreVersion,
+    coreName = CORE_PACKAGE,
+    hostPins,
+  },
+) {
   mkdirSync(dir, { recursive: true });
   // The disposable consumer resolves from npmjs.org and disables peer
   // auto-install, lifecycle scripts, and any registry-age policy; none of
@@ -230,11 +250,15 @@ export function installConsumer(dir, { selectorTarball, coreVersion }) {
   writeFileSync(join(dir, ".npmrc"), `registry=${NPMJS_REGISTRY}\n`);
   const manifest = readJson(join(PACKAGE_ROOT, "package.json"));
   const dependencies = { "@types/node": TYPES_NODE_RANGE };
-  for (const host of HOST_PACKAGES) {
-    dependencies[host] = manifest.devDependencies[host];
+  if (hostPins) {
+    Object.assign(dependencies, hostPins);
+  } else {
+    for (const host of HOST_PACKAGES) {
+      dependencies[host] = manifest.devDependencies[host];
+    }
   }
   if (coreVersion !== null) {
-    dependencies[CORE_PACKAGE] = coreVersion;
+    dependencies[CORE_PACKAGE] = coreSpecifier;
   }
   dependencies[SELECTOR_PACKAGE] = `file:${selectorTarball}`;
   writeFileSync(
@@ -278,10 +302,16 @@ export function installConsumer(dir, { selectorTarball, coreVersion }) {
     "consumer: packed selector version installed",
   );
   if (coreVersion !== null) {
+    const installedCore = readJson(
+      join(dir, "node_modules", ...CORE_PACKAGE.split("/"), "package.json"),
+    );
     assert.equal(
-      readJson(
-        join(dir, "node_modules", ...CORE_PACKAGE.split("/"), "package.json"),
-      ).version,
+      installedCore.name,
+      coreName,
+      "consumer: resolved core identity",
+    );
+    assert.equal(
+      installedCore.version,
       coreVersion,
       `consumer: resolved core version must be ${coreVersion}`,
     );
@@ -317,6 +347,7 @@ const result = await discoverAndLoadExtensions(JSON.parse(entryPathsJson), cwd, 
 process.stdout.write(
   "###RESULT_JSON###\\n" +
     JSON.stringify({
+      canRegister: typeof globalThis[Symbol.for("@gotgenes/pi-subagents:service")]?.registerSpawnSelectionProvider === "function",
       errors: result.errors.map((entry) => ({ path: entry.path, error: entry.error })),
       extensions: result.extensions.map((extension) => ({
         path: extension.path,
@@ -372,6 +403,11 @@ export function assertPositiveLoad(
   { coreEntry, selectorEntry, label },
 ) {
   assert.deepEqual(resultJson.errors, [], `${label}: loader reports no errors`);
+  assert.equal(
+    resultJson.canRegister,
+    true,
+    `${label}: real service registration capability`,
+  );
   const loaded = loadedPaths(resultJson);
   assert.ok(loaded.has(resolve(coreEntry)), `${label}: core extension loaded`);
   assert.ok(
@@ -472,6 +508,97 @@ export function withDisposableRoot(callback) {
   }
 }
 
+function verifyPackedCandidate(root, selectorTarball) {
+  const packDir = join(root, "pack-core");
+  mkdirSync(packDir, { recursive: true });
+  run("pnpm", [
+    "-C",
+    join(REPO_ROOT, "packages", "pi-subagents"),
+    "pack",
+    "--pack-destination",
+    packDir,
+  ]);
+  const coreTarball = onlyTarball(packDir);
+  const packedCore = extractPackedManifest(
+    coreTarball,
+    join(root, "pack-core-extract"),
+  );
+  assert.equal(
+    packedCore.name,
+    CORE_PACKAGE,
+    "candidate: packed core identity",
+  );
+  const consumer = installConsumer(join(root, "consumer-candidate"), {
+    selectorTarball,
+    coreSpecifier: `file:${coreTarball}`,
+    coreName: packedCore.name,
+    coreVersion: packedCore.version,
+    hostPins: CANDIDATE_HOST_PINS,
+  });
+  const sources = [
+    CORE_PACKAGE,
+    SELECTOR_PACKAGE,
+    ...Object.keys(CANDIDATE_HOST_PINS),
+  ].map((name) => {
+    const path = realpathSync(
+      join(consumer.dir, "node_modules", ...name.split("/")),
+    );
+    const installed = readJson(join(path, "package.json"));
+    if (Object.hasOwn(CANDIDATE_HOST_PINS, name)) {
+      assert.equal(
+        installed.version,
+        CANDIDATE_HOST_PINS[name],
+        `candidate: installed host ${name}`,
+      );
+    }
+    return { name: installed.name, version: installed.version, path };
+  });
+  console.log(`candidate sources: ${JSON.stringify(sources)}`);
+  assertPositiveLoad(
+    runLoaderProbe(consumer, [consumer.coreEntry, consumer.selectorEntry]),
+    {
+      ...consumer,
+      label: "candidate",
+    },
+  );
+  typecheckSelector(consumer);
+  console.log(
+    `PASS candidate (+ type-check, packed ${packedCore.name}@${packedCore.version})`,
+  );
+}
+
+function typecheckSelector(consumer) {
+  const tsconfigPath = join(consumer.dir, "tsconfig.verify.json");
+  writeFileSync(
+    tsconfigPath,
+    `${JSON.stringify(
+      {
+        compilerOptions: {
+          strict: true,
+          noEmit: true,
+          target: "es2024",
+          lib: ["es2024"],
+          module: "esnext",
+          moduleResolution: "bundler",
+          types: ["node"],
+          skipLibCheck: true,
+        },
+        files: [
+          join(
+            "node_modules",
+            ...SELECTOR_PACKAGE.split("/"),
+            "src",
+            "index.ts",
+          ),
+        ],
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  run(TSC_BIN, ["-p", tsconfigPath], { cwd: consumer.dir });
+}
+
 export async function main() {
   return withDisposableRoot(async (root) => {
     // Pack the real package and pin its manifest contract.
@@ -514,39 +641,13 @@ export async function main() {
       positiveResults.set(coreVersion, resultJson);
       positiveConsumers.set(coreVersion, consumer);
 
-      const tsconfigPath = join(consumer.dir, "tsconfig.verify.json");
-      writeFileSync(
-        tsconfigPath,
-        `${JSON.stringify(
-          {
-            compilerOptions: {
-              strict: true,
-              noEmit: true,
-              target: "es2024",
-              lib: ["es2024"],
-              module: "esnext",
-              moduleResolution: "bundler",
-              types: ["node"],
-              skipLibCheck: true,
-            },
-            files: [
-              join(
-                "node_modules",
-                ...SELECTOR_PACKAGE.split("/"),
-                "src",
-                "index.ts",
-              ),
-            ],
-          },
-          null,
-          2,
-        )}\n`,
-      );
-      run(TSC_BIN, ["-p", tsconfigPath], { cwd: consumer.dir });
+      typecheckSelector(consumer);
       console.log(
         `PASS positive[${coreVersion}] (+ type-check, selector ${selectorVersion})`,
       );
     }
+
+    verifyPackedCandidate(root, realTarball);
 
     // Control: the missing-package assertion must reject a successful
     // resolution, so a green negative row is evidence and not a vacuous pass.
