@@ -107,6 +107,216 @@ describe("standard synchronization workflow contracts", () => {
       );
     });
   });
+  describe("selector-focused synchronization scope", () => {
+    // These bounded text predicates detect missing instructions, not live agent
+    // compliance or semantic completeness. Subset matches permit unrelated prose.
+    const guide = () => read("docs/upstream/synchronization-guide.md");
+
+    describe("review responsibilities", () => {
+      it("distinguishes complete incoming inventory from targeted deep review", () => {
+        const text = guide().split("## Review scope")[1]?.split("## ")[0];
+        expect(text).toBeDefined();
+        expect(text).toContain(
+          "complete common-base-to-pinned-target inventory",
+        );
+        expect(text).toContain(
+          "selected deep-review paths/contracts and reasons",
+        );
+        expect(text).toContain("not independent audit assignments");
+        expect(text).not.toContain("comprehensive incoming audit is required");
+        expect(guide()).not.toContain("a full review mandate");
+      });
+      it("includes automatically merged intersections beyond package paths", () => {
+        const text = guide().split("## Review scope")[1]?.split("## ")[0];
+        expect(text).toContain(
+          "automatically merged fork customizations with no conflict markers",
+        );
+        expect(text).toContain(
+          "core/service, lifecycle, presentation and loading contracts",
+        );
+        expect(text).toContain("package-path filtering alone is insufficient");
+        expect(text).toContain(
+          "actual conflict resolutions, the remerge diff, sync-authored adaptations and every post-merge contribution",
+        );
+      });
+      it("keeps normal implementation and independent review without a separate comprehensive audit", () => {
+        const text = guide()
+          .split("## Completed integration and review handoff")[1]
+          ?.split("## ")[0];
+        expect(text).toContain("normal local review of adaptations");
+        expect(text).toContain(
+          "fork-contribution classification needed by the recorder",
+        );
+        expect(text).toContain(
+          "No separate comprehensive pre-review integration/evidence audit is required",
+        );
+        expect(text).toContain("ordinary independent pre-completion review");
+        expect(text).toContain(
+          "Normal follow-up review after an in-scope correction remains possible",
+        );
+        expect(text).not.toContain(
+          "A separate comprehensive pre-review integration/evidence audit is required",
+        );
+      });
+      it("requires the independent report to distinguish range, scope, results and disposition", () => {
+        const text = guide()
+          .split("## Completed integration and review handoff")[1]
+          ?.split("## ")[0];
+        expect(text).toContain(
+          "pinned target/common base, changed-file inventory and identified intersections",
+        );
+        expect(text).toContain(
+          "generic deterministic gates and applicable checklist remain intact",
+        );
+        expect(text).toContain(
+          "actual range, inventory versus deep-review scope, relevant results and finding disposition",
+        );
+        expect(text).toContain("without repeating a comprehensive audit");
+      });
+    });
+
+    describe("validation and disposition", () => {
+      it("retains completed-integration root gates and selector regressions", () => {
+        expect(guide()).toContain(
+          "Run root `pnpm run check`, `pnpm run lint`, `pnpm run test`, and `pnpm fallow dead-code` on the completed integration.",
+        );
+        expect(guide()).toContain(
+          "Existing selector regression suites remain part of the root test run",
+        );
+      });
+      it("conditions packed checks on changed host, loading, public or service contracts", () => {
+        const text = guide()
+          .split("## Validation and escalation")[1]
+          ?.split("## ")[0];
+        expect(text).toContain(
+          "host versions, extension loading, package exports/public types or the core/selector service boundary",
+        );
+        expect(text).toContain(
+          "existing packed local-core/selector compatibility and applicable public-consumer checks",
+        );
+        expect(text).toContain("Preserve historical compatibility rows");
+        expect(text).toContain("actual candidate is tested");
+        expect(text).toContain(
+          "When those contracts do not change, do not require unrelated packed or cross-extension acceptance work",
+        );
+      });
+      it("does not turn omitted optional human or live checks into waiver gates", () => {
+        const text = guide()
+          .split("## Validation and escalation")[1]
+          ?.split("## ")[0];
+        expect(text).toContain(
+          "Human Pi/TUI interaction, live model/judge calls and temporary cross-extension end-to-end harnesses are not default requirements",
+        );
+        expect(text).toContain(
+          "Their omission is neither a missing check nor a warning requiring ship-time waiver",
+        );
+        expect(text).not.toContain(
+          "Their omission requires a ship-time waiver",
+        );
+      });
+      it("requires a concrete gap and operator agreement before extra verification", () => {
+        const text = guide()
+          .split("## Validation and escalation")[1]
+          ?.split("## ")[0];
+        expect(text).toContain(
+          "installation/check failure, broken selector behavior, or a named fork-adaptation uncertainty that existing automated tests cannot answer",
+        );
+        expect(text).toContain(
+          "observable uncertainty, the existing evidence and its limit, and the smallest proposed extra verification",
+        );
+        expect(text).toContain(
+          "obtain operator agreement before adding or executing it",
+        );
+      });
+      it("does not infer unrelated repair authority from a failed gate", () => {
+        const text = guide()
+          .split("## Validation and escalation")[1]
+          ?.split("## ")[0];
+        expect(text).toContain(
+          "A failure stops the affected completion path but never implicitly authorizes unrelated upstream repairs, weaker release evidence or a substituted target",
+        );
+      });
+      it("disposes findings by provenance and fork relevance rather than severity alone", () => {
+        const text = guide()
+          .split("## Finding disposition")[1]
+          ?.split("## ")[0];
+        expect(text).toContain(
+          "provenance and relevance, not severity labels alone",
+        );
+        expect(text).toMatch(
+          /Regression introduced by conflict resolution or fork adaptation\s*\| Correct in scope/,
+        );
+        expect(text).toMatch(
+          /Inherited upstream behavior breaks selector compatibility\s*\| In-scope compatibility decision/,
+        );
+        expect(text).toMatch(
+          /Confirmed inherited defect unrelated to fork preservation, with required checks passing\s*\| Outside sync scope; no automatic repair, reproduction, new issue or unresolved ship warning/,
+        );
+        expect(text).toMatch(
+          /Required install\/check fails, including inherited failure\s*\| Stop and report the failed gate and provenance; operator decides the next action, without implied repair authorization/,
+        );
+        expect(text).toMatch(
+          /Specific adaptation uncertainty remains after existing automated checks\s*\| Request the smallest justified verification before executing it/,
+        );
+        expect(text).toMatch(
+          /Optional human\/live check not run and no concrete gap identified\s*\| Not required; no waiver gate/,
+        );
+        expect(text).toContain(
+          "compare the relevant implementation with the pinned target",
+        );
+        expect(text).toContain(
+          "Unknown provenance is not proof of inheritance",
+        );
+        expect(text).toContain(
+          "apply this guide's agreed scope explicitly rather than automatically requiring repair or waiver",
+        );
+      });
+    });
+
+    describe("retained safety", () => {
+      it("uses the actual merge first parent instead of tag or plan defaults", () => {
+        expect(guide()).toContain(
+          "Resolve the actual merge's first parent as the independent review base and review through HEAD",
+        );
+        expect(guide()).toContain(
+          "explicitly supersede the reviewer's default tag/plan-derived range",
+        );
+        expect(guide()).toContain(
+          "For release candidates and the closing summary use the actual merge's first parent through HEAD",
+        );
+        expect(guide()).toContain("pass that resolved OID as `RANGE_BASE`");
+      });
+      it("requires genuine pinned two-parent topology", () => {
+        expect(guide()).toContain(
+          "Complete a genuine two-parent merge before final validation; its second parent must equal the pinned target.",
+        );
+        expect(guide()).toContain(
+          "Feature-worktree rebase, squash, or fast-forward landing cannot replace this merge.",
+        );
+      });
+      it("requires recorder-owned committed reviewed evidence before independent review", () => {
+        expect(guide()).toContain(
+          "Commit reviewed integration changes, invoke the policy-owned recorder, then commit reviewed evidence before final independent review.",
+        );
+        expect(guide()).toContain("Missing or ambiguous facts stop shipping");
+      });
+      it("leaves evidence validity and publication restrictions to release policy", () => {
+        expect(guide()).toContain(
+          "The [fork release policy](fork-release-policy.md) owns evidence validity, recorder semantics, version derivation, and publication restrictions",
+        );
+      });
+      it("protects fork history and the tag namespace", () => {
+        expect(guide()).toContain(
+          "Preserve fork history and immutable changelogs; never import upstream tags into the fork's tag namespace",
+        );
+      });
+      it("separates registration and integration approval from publication", () => {
+        expect(guide()).toContain(
+          "Push and any separately approved publication remain fork-targeted; registration and integration approval do not authorize publication.",
+        );
+      });
+    });
+  });
   describe.each(["tdd-plan", "build-plan"])("%s", (name) => {
     it("guards operation state before startup synchronization", () => {
       const text = prompt(name);
