@@ -42,3 +42,30 @@ No implementation, upstream integration, GitHub mutation, push or publication oc
 
 - `test/upstream-sync/workflow-contract.test.mjs`: a document parser, assertion framework or Git-fixture extraction does not prepare the new prose assertions.
 - `test/upstream-sync/issue-entry.test.mjs`: sharing fence extraction would expand scope despite its executable entry fence remaining unchanged.
+
+## Stage: Implementation — TDD (2026-10-03T14:18:21Z)
+
+### Session summary
+
+Completed two TDD cycles: bounded synchronization review, validation and finding disposition in the guide, then guide-owned scope in generated issue drafting.
+Added 18 contract tests; the focused suite increased from 32 to 50 passing tests and the root script suite from 659 to 677.
+Each numbered plan step ran in a separate subagent, with the parent dispatching the ordinary independent reviewer.
+
+### Observations
+
+- Implementation commits are `docs: focus upstream sync review on fork preservation (#35)` and `docs: bind upstream sync issues to guide-owned scope (#35)`.
+  No substantive scope deviation occurred; generic workflows, packages and issue-34 historical artifacts remain unchanged.
+- Step 1 reported 11 initial failures and five initially green safety characterizations, followed by green tests and 16 individually applied killing mutations.
+  Step 2 reported two initial failures and two independently killed drafting predicates: removing the drafting link while retaining final navigation, and removing ownership while retaining the link.
+  Each step restored saved green bytes after mutations and reran the focused tests.
+- Completion verification independently counted the test delta from the committed test definitions and ran the focused suite.
+  Root `pnpm run test`, `pnpm run check`, `pnpm run lint`, `pnpm fallow dead-code` and `git diff --check` passed.
+  The entry-point executable fence and `issue-entry.test.mjs` remained byte-identical; lockfile and workspace configuration diffs were empty.
+- Pre-completion reviewer: WARN, with no blocking findings; the reviewer independently passed the deterministic gates and verified the acceptance criteria.
+  Reviewer warning: the packed/public-consumer check trigger says incoming changes, leaving ambiguity when only fork adaptations or post-merge contributions change loading, exports or service contracts.
+  The suggested clarification remains unimplemented for operator disposition before shipping; no additional issue was filed.
+- Independent scenario review distinguished automatic fork intersections, adaptation regressions, inherited selector incompatibility, unrelated inherited defects with passing checks, inherited check failures, unknown provenance, loading changes and absent optional live checks.
+  Required gate failures still stop completion without implicit unrelated repair authority; optional checks without a concrete gap do not create waiver gates.
+- No actual upstream integration, human/live-provider rehearsal, GitHub mutation, push or publication occurred.
+  Text predicates and scenario review do not prove future agent compliance or reduced review time.
+  The next action is `/ship 35`; package publication is not authorized.
