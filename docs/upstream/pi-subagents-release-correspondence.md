@@ -31,6 +31,7 @@ See the [fork release guide](fork-release-policy.md) for evidence validation, re
 | 4.0.4                        | `21.7.7`                | [source](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents) |
 | 4.0.5                        | `21.7.7`                | [source](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents) |
 | 4.0.6                        | `21.7.7`                | [source](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents) |
+| 4.0.7                        | `21.7.7`                | [source](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents) |
 
 <!-- release-correspondence:end -->
 
