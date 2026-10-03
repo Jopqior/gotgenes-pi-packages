@@ -7,7 +7,14 @@
 
 import type { Api, Model } from "@earendil-works/pi-ai";
 import { modelsAreEqual } from "@earendil-works/pi-ai";
-import { type Component, Input, matchesKey } from "@earendil-works/pi-tui";
+import {
+  type Component,
+  Input,
+  matchesKey,
+  truncateToWidth,
+  visibleWidth,
+  wrapTextWithAnsi,
+} from "@earendil-works/pi-tui";
 import {
   createSelectionFormState,
   reduceSelectionForm,
@@ -97,13 +104,15 @@ class SelectionFormComponent implements Component {
   }
 
   render(width: number): string[] {
+    if (width <= 0) return [""];
     const view = viewSelectionForm(this.state, this.input);
     const rule = this.theme.fg("border", "─".repeat(width));
     const lines: string[] = [
       rule,
-      this.theme.fg("accent", this.input.title),
+      ...wrapTextWithAnsi(this.theme.fg("accent", this.input.title), width),
       renderTabs(
         this.theme,
+        width,
         view.tab,
         view.pendingModel !== undefined,
         view.pendingModel !== undefined &&
@@ -128,9 +137,12 @@ class SelectionFormComponent implements Component {
         lines.push(this.theme.fg("muted", "Ctrl+S scope (all/scoped)"));
       } else {
         lines.push(
-          this.theme.fg(
-            "warning",
-            "Only showing models from configured providers. Use /login to add providers.",
+          ...wrapTextWithAnsi(
+            this.theme.fg(
+              "warning",
+              "Only showing models from configured providers. Use /login to add providers.",
+            ),
+            width,
           ),
         );
       }
@@ -152,27 +164,47 @@ class SelectionFormComponent implements Component {
     } else {
       const model = view.pendingModel;
       const modelLabel = model ? `${model.id} [${model.provider}]` : "(none)";
-      lines.push(`Model: ${modelLabel}`);
-      lines.push(`Thinking: ${view.thinkingLevel ?? "(none)"}`);
+      lines.push(...wrapTextWithAnsi(`Model: ${modelLabel}`, width));
+      lines.push(
+        ...wrapTextWithAnsi(
+          `Thinking: ${view.thinkingLevel ?? "(none)"}`,
+          width,
+        ),
+      );
       if (view.submitMessage) {
-        lines.push(this.theme.fg("warning", view.submitMessage));
+        lines.push(
+          ...wrapTextWithAnsi(
+            this.theme.fg("warning", view.submitMessage),
+            width,
+          ),
+        );
       }
     }
     lines.push("");
-    lines.push(this.theme.fg("dim", "Tab next · Shift+Tab previous"));
+    lines.push(
+      ...wrapTextWithAnsi(
+        this.theme.fg("dim", "Tab next · Shift+Tab previous"),
+        width,
+      ),
+    );
     if (view.tab === "model") {
-      lines.push(this.theme.fg("dim", "←/→ edit search"));
+      lines.push(
+        ...wrapTextWithAnsi(this.theme.fg("dim", "←/→ edit search"), width),
+      );
     }
     lines.push(
-      this.theme.fg(
-        "dim",
-        view.tab === "submit"
-          ? "Enter submit · Esc cancel"
-          : "Enter confirm · Esc cancel",
+      ...wrapTextWithAnsi(
+        this.theme.fg(
+          "dim",
+          view.tab === "submit"
+            ? "Enter submit · Esc cancel"
+            : "Enter confirm · Esc cancel",
+        ),
+        width,
       ),
     );
     lines.push(rule);
-    return lines;
+    return lines.map((line) => truncateToWidth(line, width, ""));
   }
 
   handleInput(data: string): void {
@@ -278,6 +310,7 @@ class SelectionFormComponent implements Component {
 
 function renderTabs(
   theme: FormTheme,
+  width: number,
   active: SelectionTab,
   modelComplete: boolean,
   thinkingComplete: boolean,
@@ -287,16 +320,59 @@ function renderTabs(
     { id: "thinking", label: "Thinking", complete: thinkingComplete },
     { id: "submit", label: "Submit", complete: undefined },
   ];
-  const labels = tabs.map((tab) => {
-    const marker =
-      tab.complete === undefined
-        ? theme.fg("muted", "☰")
-        : theme.fg(
-            tab.complete ? "success" : "muted",
-            tab.complete ? "☒" : "☐",
-          );
-    const label = ` ${marker} ${theme.fg(tab.id === active ? "text" : "muted", tab.label)} `;
-    return tab.id === active ? theme.bg("selectedBg", label) : label;
-  });
-  return `${theme.fg("muted", "← ")}${labels.join(" ")}${theme.fg("muted", " →")}`;
+  const activeIndex = tabs.findIndex((tab) => tab.id === active);
+  const labels = tabs.map((tab) => renderTab(theme, tab, tab.id === active));
+  const budget = width - 4;
+  let start = activeIndex;
+  let end = activeIndex;
+  let used = visibleWidth(labels[activeIndex]);
+  if (used <= budget) {
+    for (let distance = 1; distance < tabs.length; distance++) {
+      if (start > 0 && used + 1 + visibleWidth(labels[start - 1]) <= budget) {
+        start--;
+        used += 1 + visibleWidth(labels[start]);
+      }
+      if (
+        end < tabs.length - 1 &&
+        used + 1 + visibleWidth(labels[end + 1]) <= budget
+      ) {
+        end++;
+        used += 1 + visibleWidth(labels[end]);
+      }
+    }
+    return `${theme.fg("muted", "← ")}${labels.slice(start, end + 1).join(" ")}${theme.fg("muted", " →")}`;
+  }
+  const tab = tabs[activeIndex];
+  const names = [
+    tab.label,
+    tab.id === "thinking" ? "Think" : tab.label[0],
+    tab.label[0],
+  ];
+  for (const label of names) {
+    const compact = renderTab(theme, { ...tab, label }, true, false);
+    if (visibleWidth(compact) <= budget) {
+      return `${theme.fg("muted", "← ")}${compact}${theme.fg("muted", " →")}`;
+    }
+  }
+  const identity = theme.bg("selectedBg", theme.fg("text", tab.label[0]));
+  if (width >= 5)
+    return `${theme.fg("muted", "← ")}${identity}${theme.fg("muted", " →")}`;
+  if (width >= 3)
+    return `${theme.fg("muted", "←")}${identity}${theme.fg("muted", "→")}`;
+  return identity;
+}
+
+function renderTab(
+  theme: FormTheme,
+  tab: { label: string; complete: boolean | undefined },
+  selected: boolean,
+  padded = true,
+): string {
+  const marker =
+    tab.complete === undefined
+      ? theme.fg("muted", "☰")
+      : theme.fg(tab.complete ? "success" : "muted", tab.complete ? "☒" : "☐");
+  const padding = padded ? " " : "";
+  const label = `${padding}${marker} ${theme.fg(selected ? "text" : "muted", tab.label)}${padding}`;
+  return selected ? theme.bg("selectedBg", label) : label;
 }

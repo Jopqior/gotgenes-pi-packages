@@ -1,5 +1,5 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
-import { stripTerminalSequences } from "@earendil-works/pi-tui";
+import { stripTerminalSequences, visibleWidth } from "@earendil-works/pi-tui";
 import type { SpawnSelection } from "@jopqior/pi-subagents";
 import { describe, expect, it, vi } from "vitest";
 import type {
@@ -408,6 +408,188 @@ describe("presentSelectionForm", () => {
         expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
       });
     });
+    describe("terminal width and resize", () => {
+      const longModel = makeModel({
+        id: "模型-🔬-é-".repeat(12),
+        name: "Research 模型 🧪 é ".repeat(14),
+        provider: "provider-供应商-🌏-".repeat(8),
+      });
+      const longTitle =
+        "Select model for Explore agent-identity-123 — 调查 🔬 é ".repeat(5);
+      const widths = [
+        -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16, 18, 20, 24, 32, 40,
+        80, 120,
+      ];
+
+      describe.each([true, false])("scoped catalogue: %s", (hasScoped) => {
+        it.each(["Model", "Thinking", "Submit"])(
+          "bounds every line and retains active %s and the pending pair through resize",
+          async (page) => {
+            const { component, resultPromise } = await openForm(
+              makeInput({
+                title: longTitle,
+                availableModels: [longModel],
+                currentModel: longModel,
+                defaultModel: {
+                  id: longModel.id,
+                  provider: longModel.provider,
+                },
+                scopedModels: hasScoped ? [{ model: longModel }] : [],
+              }),
+              liveSignal(),
+              ansiTheme(),
+            );
+            component.handleInput(ENTER);
+            component.handleInput(ARROW_DOWN);
+            component.handleInput(ENTER);
+            if (page === "Model") component.handleInput(TAB);
+            if (page === "Thinking") component.handleInput(SHIFT_TAB);
+            const wide = component.render(120);
+            const marker = page === "Submit" ? "☰" : "☒";
+            for (const width of widths) {
+              const lines = component.render(width);
+              for (const line of lines)
+                expect(
+                  visibleWidth(line),
+                  `page=${page}, width=${width}, line=${line}`,
+                ).toBeLessThanOrEqual(Math.max(0, width));
+              if (width <= 0) {
+                expect(lines.every((line) => line === "")).toBe(true);
+                continue;
+              }
+              const active = activeTab(component, width);
+              if (width >= 16) {
+                expect(active).toBe(`${marker} ${page}`);
+                const strip = stripTerminalSequences(
+                  lines.find((line) => line.includes("\u001b[44m")) ?? "",
+                );
+                expect(strip.startsWith("←")).toBe(true);
+                expect(strip.endsWith("→")).toBe(true);
+              } else if (width <= 2) {
+                expect(active).toBe(page[0]);
+              } else {
+                const label = active.replace(/[☒☰ ]/g, "");
+                expect(
+                  page === "Thinking"
+                    ? ["Thinking", "Think", "T"]
+                    : [page, page[0]],
+                ).toContain(label);
+              }
+            }
+            expect(component.render(120)).toEqual(wide);
+            expect(activeTab(component, 120)).toBe(`${marker} ${page}`);
+            if (page === "Model") component.handleInput(SHIFT_TAB);
+            if (page === "Thinking") component.handleInput(TAB);
+            component.handleInput(ENTER);
+            await expect(resultPromise).resolves.toEqual({
+              kind: "submit",
+              model: longModel,
+              thinkingLevel: "high",
+            });
+          },
+        );
+      });
+
+      it("wraps task identity, catalogue notice and keyboard hints instead of dropping their content", async () => {
+        const { component } = await openForm(
+          makeInput({ title: longTitle, scopedModels: [] }),
+        );
+        const lines = component.render(24).map(stripTerminalSequences);
+        for (const line of lines)
+          expect(visibleWidth(line)).toBeLessThanOrEqual(24);
+        const stripIndex = lines.findIndex((line) => line.startsWith("←"));
+        expect(stripIndex).toBeGreaterThan(1);
+        expect(lines.slice(1, stripIndex).join("").replace(/\s/g, "")).toBe(
+          longTitle.replace(/\s/g, ""),
+        );
+        const body = lines
+          .slice(stripIndex + 1)
+          .join(" ")
+          .replace(/\s+/g, " ");
+        expect(body).toContain(
+          "Only showing models from configured providers. Use /login to add providers.",
+        );
+        expect(body).toContain("Tab next · Shift+Tab previous");
+        expect(body).toContain("←/→ edit search");
+        expect(body).toContain("Enter confirm · Esc cancel");
+      });
+
+      it("wraps oversized review values and validation messages within columns", async () => {
+        const { component } = await openForm(
+          makeInput({
+            availableModels: [longModel],
+            currentModel: longModel,
+            scopedModels: [],
+          }),
+        );
+        component.handleInput(SHIFT_TAB);
+        component.handleInput(ENTER);
+        const lines = component.render(24).map(stripTerminalSequences);
+        const text = lines.join("").replace(/\s/g, "");
+        expect(text).toContain(`Model:${longModel.id}[${longModel.provider}]`);
+        expect(text).toContain("Thinking:(none)");
+        expect(lines.join(" ").replace(/\s+/g, " ")).toContain(
+          "Select a thinking level.",
+        );
+        for (const line of lines)
+          expect(visibleWidth(line)).toBeLessThanOrEqual(24);
+      });
+
+      it("clips wide-character model rows by columns rather than code units", async () => {
+        const model = makeModel({
+          id: "界".repeat(20),
+          name: "长名称".repeat(20),
+          provider: "p",
+        });
+        const { component } = await openForm(
+          makeInput({
+            title: "x",
+            availableModels: [model],
+            currentModel: model,
+            scopedModels: [],
+          }),
+        );
+        const lines = component.render(16).map(stripTerminalSequences);
+        expect(lines.find((line) => line.startsWith("→ "))).toBe(
+          `→ ${"界".repeat(7)}`,
+        );
+        for (const line of lines)
+          expect(visibleWidth(line)).toBeLessThanOrEqual(16);
+      });
+
+      it("bounds empty-result pages without inventing completion", async () => {
+        const { component } = await openForm(
+          makeInput(),
+          liveSignal(),
+          ansiTheme(),
+        );
+        component.handleInput("zzzz-no-match");
+        for (const page of ["Model", "Thinking", "Submit"]) {
+          for (const width of [1, 2, 16, 24, 80]) {
+            for (const line of component.render(width))
+              expect(visibleWidth(line)).toBeLessThanOrEqual(width);
+            expect(activeTab(component, width)).toBe(
+              width <= 2 ? page[0] : `${page === "Submit" ? "☰" : "☐"} ${page}`,
+            );
+          }
+          component.handleInput(TAB);
+        }
+      });
+
+      it("bounds the Input prompt when only one column is available", async () => {
+        const { component } = await openForm(
+          makeInput({ title: "x" }),
+          liveSignal(),
+          ansiTheme(),
+        );
+        const lines = component.render(1);
+        expect(lines.map(stripTerminalSequences)).toContain(">");
+        for (const line of lines)
+          expect(visibleWidth(line)).toBeLessThanOrEqual(1);
+        expect(activeTab(component, 1)).toBe("M");
+      });
+    });
+
     describe.each([true, false])("scope catalogue present: %s", (hasScoped) => {
       it.each([0, 1, 2])(
         "shows scope information only on Model (page %s)",
