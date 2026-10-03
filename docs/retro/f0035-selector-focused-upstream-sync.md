@@ -89,3 +89,22 @@ No additional test cases or validation harnesses were introduced.
   Existing candidate and historical compatibility requirements remain intact, and no unrelated packed checks are added.
 - No push, publication or actual upstream synchronization occurred.
   The next action remains `/ship 35`.
+
+## Stage: Ship (2026-10-03T14:41:05Z)
+
+### Session summary
+
+Shipped the implementation from the root checkout on `main` using the trunk lane.
+Pushed the seven implementation and lifecycle commits after root lint and dead-code checks passed; CI run 37130110799 succeeded for cd29581b78d374c97927d845314e500dafe573fb.
+Closed issue #35 with the operator-approved summary.
+
+### Observations
+
+- The full plan and accumulated stage notes established that the earlier compatibility-trigger warning was resolved by the subsequent PASS review.
+  No additional manual or live verification was required for this documentation-only task.
+- The plan recommended independent shipping; the validated release-candidate scan found no changed package directories, registered or unregistered.
+  Version prediction and release dispatch were skipped because this change has no package release surface.
+- The plan-anchored commit and changed-file scan identified no co-shipped issue or third-party PR close target.
+  No worktree teardown or roadmap phase closure applies.
+- This stage involved no actual upstream integration or publication.
+  The next action is `/retro 35` at the root on `main`.
