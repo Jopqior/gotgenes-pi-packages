@@ -257,3 +257,77 @@ No production changes or real provider calls were made during this investigation
 - Startup fetch/pull completed without changing local HEAD; local main was ahead of origin/main by 392 commits including incoming upstream history.
   Use the actual merge's first parent as the release/close range and skip the incoming-history co-shipped scan.
   Fork issue #32 and PR #33 were verified open and their original reports read; publication still requires separate approval of the exact registered package set and destination.
+
+## Stage: Final Retrospective (2026-10-03T12:15:29Z)
+
+### Session summary
+
+Reviewed the planning, implementation/recovery, independent-review and ship records against their parent and child session transcripts.
+The pinned integration shipped, fork issues #34 and #32 closed, and PR #33 closed without merging; the separately approved core release is `pi-subagents-v5.0.0`, with release run `37121937776` independently rechecked as successful.
+This retrospective changes documentation only and retains the operator's accepted verification limits and upstream-defect disposition.
+
+### Observations
+
+#### What went well
+
+- The merge preview identified semantic intersections without conflict markers: confirmed model observation, pending display suppression, background-resume presentation and contradictory roadmap assertions.
+  The packed local candidate row then tested the actual integration rather than borrowing confidence from historical registry rows.
+- Recovery retained the unfinished genuine merge and re-established evidence instead of replaying the integration or trusting interrupted checks.
+  The first implementation agent noticed that a selection-wait mutation failed on display rather than continuation; recovery subsequently required effective current-byte mutations and site-specific failures.
+- The independent reviewer distinguished a classifier-level concern from an end-to-end result.
+  Ship reproduced the conditional log-symlink behavior through the actual Pi tool boundary using nonsecret fixtures, while preserving the distinction between constructed evidence and exposure of real operator logs.
+
+#### What caused friction (agent side)
+
+- `missing-context`: the first ship repair proposal followed the symlink reproduction without first establishing whether the pinned upstream tree already contained the behavior.
+  The operator asked for provenance; a source-tree comparison then established that permission-system production source was identical to the pinned target.
+  Impact: an unnecessary repair-or-stop gate and investigation of a repair direction that the operator did not want in this synchronization; no production repair landed.
+- `wrong-abstraction`: optional live smoke preparation began answering a broader reliability question instead of only proving that the configured judge invocation ran.
+  The child explicitly raised five independent trials versus the original single invocation, while model-thinking support and isolation preparation generated further decisions.
+  Impact: preparation and repeated gates produced no runnable wizard or live-provider result before the operator asked what was being tested and waived the work.
+- `other` (constraint collision): preserving historical CHANGELOG bytes collided with the normal trailing-whitespace hook.
+  Impact: a rejected merge commit attempt, a narrowly scoped temporary hook configuration, then separate `docs: approve one-time changelog whitespace cleanup (#34)` and `style: normalize core changelog trailing whitespace (#34)` commits after operator approval.
+  The temporary exception was removed rather than becoming permanent maintenance machinery.
+- `other` (interrupted execution): the first implementation agent stopped with a pending merge and incomplete final checks.
+  Impact: the parent inspected current index/worktree state and logs, then dispatched a fresh recovery agent to finish only step 1 and rerun mutation/validation evidence.
+  This was not treated as a clean checkpoint or permission to restart the merge.
+
+#### What caused friction (user side)
+
+- The upstream-versus-merge distinction became an explicit repair criterion only after the first repair proposal.
+  Stating that preference earlier could shorten the decision, but the agent already had the pinned target and should have supplied provenance before asking.
+  This is a task-specific disposition, not a rule that inherited defects are harmless or must never be fixed.
+- The operator had to ask what the additional smoke work was proving after several technical approvals.
+  A useful earlier redirect is to ask for the smallest observable success condition and what existing tests cannot establish; the agent should make that distinction before requesting credentials, isolation or trial-count decisions.
+
+### Diagnostic details
+
+- Model attribution uses unfiltered transcript turns, not agent definitions or current environment variables.
+  Observed parent turns ran on `openai-codex/gpt-6-astra`; the two planning investigations, Tidy First assessment, initial implementation, recovery, packed-candidate TDD, integration/evidence review, independent review, symlink investigation and isolated-wizard preflight have observed child turns on `openai-codex/gpt-6.1-sol`.
+  These were judgment-heavy tasks; there is no supported claim that a weaker model caused the failures, nor a measured cheaper-model comparison.
+  The planning-stage unavailable `sonnet` request and ship dispatches without an attributable executed child turn are not counted as successful model runs.
+- Escalation/unused-tool finding: the missing provenance needed existing `git diff` and tree-object comparison, not another research tool or agent.
+  The ship parent used separate dispatches for verification procedure, isolated wizard preparation and a later pending wizard-generation request, with intervening operator gates; this was scope expansion across decisions, not a demonstrated sequence of more than five consecutive failed calls on one error.
+  More delegation would not have solved the missing distinction between invocation smoke and stochastic reliability measurement.
+- Feedback-loop finding: focused checks and mutations occurred during implementation, followed by root gates at completed checkpoints and independent review; verification was not postponed exclusively to the end.
+  Recovery correctly rejected incomplete opening logs as proof of completion.
+  Human TUI, live provider responses and nonempty-pattern judge adjudication remained unperformed and were explicitly waived, not silently inferred from the green suites.
+- Transcript sources: planning session `01a10081-be19-742b-866e-950f56d97df5`, implementation session `01a100b7-c60c-722c-a757-ac952bb4c742`, and ship session `01a10179-3a34-722c-a757-acbec874d847`, including available child transcripts.
+  Model/task attribution and sequence claims above are limited to the rendered turns inspected; abandoned branches are not treated as completed live work.
+
+### Proposed adjustment
+
+Clarify `.pi/skills/reproduction/SKILL.md` so its independent-trial requirement applies to stochastic outcome claims, while a single invocation smoke proves only that the real request/response path executes.
+Keep the existing trial and cache requirements for reliability claims; do not add a mandatory live-provider check or relax the operator's authorization boundary.
+No additional `AGENTS.md` or workflow-template rule is proposed: scope control, evidence provenance and clarification already have owners.
+
+### Next work
+
+This integration is not a roadmap phase member and has no phase successor to close or unblock.
+The newest triage, `docs/triage/2026-10-02-backlog.md`, describes the upstream `gotgenes/pi-packages` queue, not a ranked fork backlog; its numbers must not become fork recommendations.
+The fork's currently open issues are #25 and #26, but neither has a rank or severity in an applicable fork triage, so this retrospective does not invent a prioritized successor.
+
+### Changes made
+
+1. Appended this cross-session retrospective and verified ship/release outcome to `docs/retro/f0034-pinned-upstream-sync.md`, retaining all earlier stage entries.
+2. Recorded the operator's decision to save observations only: the proposed invocation-smoke clarification was not applied, and no skill, prompt, `AGENTS.md`, production code or CHANGELOG was changed.
