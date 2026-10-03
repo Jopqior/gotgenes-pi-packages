@@ -45,3 +45,42 @@ No implementation, real upstream fetch/integration, release dispatch, publicatio
 - `test/release/`: consolidating existing scenario/scaffold frameworks is unrelated to moving their document fixtures.
 - `test/upstream-sync/workflow-contract.test.mjs`: a general document parser, classifier, or orchestration harness is unnecessary for bounded navigation checks and retained executable fences.
 - `scripts/release/fork-sync/`: algorithm and unchanged-module cleanup does not prepare the documentation-boundary change.
+
+## Stage: Implementation — TDD (2026-10-03T00:49:27Z)
+
+### Session summary
+
+Completed two TDD cycles for the atomic release-document path migration and synchronization-guidance consolidation, followed by the separate package README navigation commit and final validation.
+The generated correspondence region remained byte-identical at 2581 bytes; the full suite remained at 8345 passing tests (delta zero), including 383 tests in the focused upstream/release suite.
+Pre-completion reviewer: PASS for `16f7ff33c15409e3c91c971a7e6e29dc04a9eec3..2ed193510e8537388563c8d943c1f7d16d0ac36b`.
+
+### Observations
+
+- Startup found no pending merge/rebase, `main` was already current after `git pull --ff-only`, and the tracked working tree was clean.
+  Both baseline and final root check, lint, test, and dead-code gates passed.
+  Final checks also covered the focused suite, correspondence regeneration check, shell syntax, cold-cache Markdown links, and `git diff --check`.
+- Step 1 Red produced 14 failures and 24 passes in the targeted files; Green and the restored focused suite passed.
+  Restoring the old configuration path killed three target/CLI tests; restoring the old shell copy destination failed preparation; omitting the table from staging failed the clean-tree assertion.
+  Each mutation used a separately saved Green copy and was restored before committing.
+- Step 2 Red produced four failures and seven passes.
+  Removing the conditional guide link, removing startup fetch/pull timing, and reinserting a pinned-target branch each produced one failure and ten passes.
+  These mutations establish bounded structural predicates, not agent compliance; existing executable operation-state, candidate, and issue-entry snippets remained byte-identical.
+- All Module-Level Changes entries were touched.
+  Active old-path references remain only in assertions that the former generated output does not exist; historical plan/retro code-span paths were left intact.
+  Algorithms, schemas, state, published changelogs, package runtime, and the generic reviewer were unchanged.
+  No package architecture or roadmap update was needed for the README-only package change.
+- Manual guide review covered dirty startup, linked worktrees, unfinished operations, advancing upstream tips, automatically merged customizations, missing evidence, and colliding incoming issue numbers.
+  The guide retains stop conditions, the approved target, full review surfaces, and verified fork-only closure without putting classification into ordinary prompts.
+- Fresh-process rehearsal used two separate `pi --approve --offline --tools read,grep,find,ls --no-session --mode json` invocations from the root with normal discovered resources.
+  Each received a read-only hypothetical startup scenario and stopped before shell commands, Git mutation, or issue creation.
+  The ordinary task read `.pi/prompts/tdd-plan.md` and the shell-traps skill, did not load the synchronization guide, and proposed operation-state inspection before ordinary branch synchronization.
+  The synchronization-resume task read the same template and the new guide, then proposed primary-checkout/main, tracked cleanliness, unmerged-entry, and pending-operation checks before any fetch/pull.
+  Both exited successfully; each scenario was observed once, without repeated trials or cache controls, so this is a bounded walkthrough rather than a reliability result or evidence that actual Git prerequisites passed.
+- Both rehearsal processes warned about the unchanged TypeBox dependency placement in `packages/pi-subagents/package.json`.
+  The planning context already identifies fork PR #33 for that separate work; it was not added to this implementation's scope.
+  The reviewer could not read external temporary logs under its scope rules, so the parent supplied both complete tool-call lists, final outputs, and stderr through a message before the final PASS.
+- No substantive plan deviation was needed.
+  A long conditional-loader sentence was split to avoid a Markdown link-check false positive.
+  The path move retains the approved breaking repository-tooling classification, while the package link correction is a separate documentation commit.
+  No actual upstream integration, GitHub mutation, push, or publication occurred.
+  Next action: `/ship 31`, preferably in a fresh Pi session so the changed templates and guidance are loaded; publication remains separately approval-gated.
