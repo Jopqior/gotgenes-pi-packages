@@ -15,6 +15,7 @@ import {
   type SelectionFormInput,
   type SelectionFormResult,
   type SelectionFormState,
+  type SelectionTab,
   viewSelectionForm,
 } from "./selection-form";
 
@@ -22,6 +23,7 @@ const MAX_VISIBLE = 10;
 
 interface FormTheme {
   fg(color: string, text: string): string;
+  bg(color: "selectedBg", text: string): string;
 }
 
 interface FormKeybindings {
@@ -96,7 +98,20 @@ class SelectionFormComponent implements Component {
 
   render(width: number): string[] {
     const view = viewSelectionForm(this.state, this.input);
-    const lines: string[] = [this.theme.fg("accent", this.input.title), ""];
+    const rule = this.theme.fg("border", "─".repeat(width));
+    const lines: string[] = [
+      rule,
+      this.theme.fg("accent", this.input.title),
+      renderTabs(
+        this.theme,
+        view.tab,
+        view.pendingModel !== undefined,
+        view.pendingModel !== undefined &&
+          view.thinkingLevel !== undefined &&
+          view.thinkingLevels.includes(view.thinkingLevel),
+      ),
+      "",
+    ];
     if (view.tab === "model") {
       if (view.hasScoped) {
         const allText =
@@ -144,7 +159,19 @@ class SelectionFormComponent implements Component {
       }
     }
     lines.push("");
-    lines.push(this.theme.fg("dim", "Tab cycle · Enter confirm · Esc cancel"));
+    lines.push(this.theme.fg("dim", "Tab next · Shift+Tab previous"));
+    if (view.tab === "model") {
+      lines.push(this.theme.fg("dim", "←/→ edit search"));
+    }
+    lines.push(
+      this.theme.fg(
+        "dim",
+        view.tab === "submit"
+          ? "Enter submit · Esc cancel"
+          : "Enter confirm · Esc cancel",
+      ),
+    );
+    lines.push(rule);
     return lines;
   }
 
@@ -180,8 +207,14 @@ class SelectionFormComponent implements Component {
       return;
     }
     if (this.state.tab === "model") {
+      const previousQuery = this.search.getValue();
       this.search.handleInput(data);
-      this.apply({ type: "filter", query: this.search.getValue() });
+      const query = this.search.getValue();
+      if (query !== previousQuery) {
+        this.apply({ type: "filter", query });
+      } else {
+        this.requestRender();
+      }
     }
   }
 
@@ -241,4 +274,29 @@ class SelectionFormComponent implements Component {
     lines.push(this.theme.fg("muted", `  Model Name: ${selected.name}`));
     return lines;
   }
+}
+
+function renderTabs(
+  theme: FormTheme,
+  active: SelectionTab,
+  modelComplete: boolean,
+  thinkingComplete: boolean,
+): string {
+  const tabs = [
+    { id: "model", label: "Model", complete: modelComplete },
+    { id: "thinking", label: "Thinking", complete: thinkingComplete },
+    { id: "submit", label: "Submit", complete: undefined },
+  ];
+  const labels = tabs.map((tab) => {
+    const marker =
+      tab.complete === undefined
+        ? theme.fg("muted", "☰")
+        : theme.fg(
+            tab.complete ? "success" : "muted",
+            tab.complete ? "☒" : "☐",
+          );
+    const label = ` ${marker} ${theme.fg(tab.id === active ? "text" : "muted", tab.label)} `;
+    return tab.id === active ? theme.bg("selectedBg", label) : label;
+  });
+  return `${theme.fg("muted", "← ")}${labels.join(" ")}${theme.fg("muted", " →")}`;
 }

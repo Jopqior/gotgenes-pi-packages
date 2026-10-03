@@ -1,4 +1,5 @@
 import type { Api, Model } from "@earendil-works/pi-ai";
+import { stripTerminalSequences } from "@earendil-works/pi-tui";
 import type { SpawnSelection } from "@jopqior/pi-subagents";
 import { describe, expect, it, vi } from "vitest";
 import type {
@@ -20,10 +21,15 @@ const ENTER = "\r";
 const ESCAPE = "\u001b";
 const ARROW_DOWN = "\u001b[B";
 const CTRL_S = "\u0013";
+const ARROW_LEFT = "\u001b[D";
+const ARROW_RIGHT = "\u001b[C";
 
 function plainTheme() {
   return {
     fg(_color: string, text: string) {
+      return text;
+    },
+    bg(_color: "selectedBg", text: string) {
       return text;
     },
   };
@@ -51,7 +57,21 @@ interface CapturedComponent {
   handleInput(data: string): void;
 }
 
-function makeFakeCustom() {
+function ansiTheme() {
+  return {
+    fg(color: string, text: string) {
+      const code = color === "success" ? 32 : color === "text" ? 37 : 90;
+      return `\u001b[${code}m${text}\u001b[39m`;
+    },
+    bg(_color: "selectedBg", text: string) {
+      return `\u001b[44m${text}\u001b[49m`;
+    },
+  };
+}
+
+type TestTheme = ReturnType<typeof plainTheme>;
+
+function makeFakeCustom(theme: TestTheme = plainTheme()) {
   const captured: {
     component?: CapturedComponent;
     options?: unknown;
@@ -64,7 +84,7 @@ function makeFakeCustom() {
     return new Promise<SelectionFormResult>((resolve) => {
       const component = factory(
         { requestRender: vi.fn() },
-        plainTheme(),
+        theme,
         { matches },
         resolve,
       );
@@ -106,17 +126,38 @@ function makeInput(
 async function openForm(
   input: SelectionFormInput = makeInput(),
   signal: AbortSignal = liveSignal(),
+  theme: TestTheme = plainTheme(),
 ) {
-  const { custom, captured } = makeFakeCustom();
+  const { custom, captured } = makeFakeCustom(theme);
   const resultPromise = presentSelectionForm(custom, input, signal);
   await vi.waitFor(() => {
     expect(captured.component).toBeDefined();
   });
-  return { captured, resultPromise };
+  if (!captured.component) throw new Error("Chooser was not captured");
+  return { captured, component: captured.component, resultPromise };
 }
 
 function screen(component: CapturedComponent | undefined): string {
-  return (component?.render(80) ?? []).join("\n");
+  return stripTerminalSequences((component?.render(80) ?? []).join("\n"));
+}
+
+function tabStrip(component: CapturedComponent): string {
+  const line = component
+    .render(80)
+    .find((line) => stripTerminalSequences(line).includes("☰ Submit"));
+  if (!line) throw new Error("Missing tab strip");
+  return stripTerminalSequences(line).trim().replace(/ +/g, " ");
+}
+
+function activeTab(component: CapturedComponent, width = 80): string {
+  const chunks = component.render(width).flatMap((line) =>
+    line
+      .split("\u001b[44m")
+      .slice(1)
+      .map((chunk) => chunk.split("\u001b[49m")[0]),
+  );
+  expect(chunks).toHaveLength(1);
+  return stripTerminalSequences(chunks[0]).trim();
 }
 
 describe("presentSelectionForm", () => {
@@ -136,6 +177,90 @@ describe("presentSelectionForm", () => {
       expect(text).not.toMatch(/> hs/);
     });
 
+    describe("tab navigation and search editing", () => {
+      it.each([
+        { key: TAB, pages: ["☐ Thinking", "☰ Submit", "☒ Model"] },
+        { key: SHIFT_TAB, pages: ["☰ Submit", "☐ Thinking", "☒ Model"] },
+      ])(
+        "cycles without confirmation or submission (key: $key)",
+        async ({ key, pages }) => {
+          const { component, resultPromise } = await openForm(
+            makeInput(),
+            liveSignal(),
+            ansiTheme(),
+          );
+          const resolved = vi.fn();
+          const observed = resultPromise.then(resolved);
+          for (const page of pages) {
+            component.handleInput(key);
+            expect(activeTab(component)).toBe(page);
+            expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
+          }
+          await Promise.resolve();
+          expect(resolved).not.toHaveBeenCalled();
+          component.handleInput(ESCAPE);
+          await observed;
+          expect(resolved).toHaveBeenCalledWith({ kind: "cancel" });
+        },
+      );
+
+      it.each([ARROW_LEFT, ARROW_RIGHT])(
+        "keeps empty search on Model for cursor key %s",
+        async (key) => {
+          const { component } = await openForm(
+            makeInput(),
+            liveSignal(),
+            ansiTheme(),
+          );
+          component.handleInput(key);
+          expect(activeTab(component)).toBe("☒ Model");
+          expect(screen(component)).toContain("> ");
+        },
+      );
+
+      it("inserts at the real cursor after left and right movements in a non-empty search", async () => {
+        const { component } = await openForm(
+          makeInput(),
+          liveSignal(),
+          ansiTheme(),
+        );
+        component.handleInput("hiku");
+        component.handleInput(ARROW_LEFT);
+        component.handleInput(ARROW_LEFT);
+        component.handleInput(ARROW_LEFT);
+        component.handleInput(ARROW_RIGHT);
+        component.handleInput(ARROW_LEFT);
+        component.handleInput("a");
+        expect(activeTab(component)).toBe("☒ Model");
+        expect(screen(component)).toContain("> haiku");
+      });
+
+      it("preserves a non-first filtered model and thinking on cursor-only query movement", async () => {
+        const { component, resultPromise } = await openForm(
+          makeInput({ scopedModels: [], defaultModel: undefined }),
+        );
+        component.handleInput("cl");
+        component.handleInput(ARROW_DOWN);
+        component.handleInput(ENTER);
+        component.handleInput(ARROW_DOWN);
+        component.handleInput(ENTER);
+        component.handleInput(TAB);
+        expect(screen(component)).toContain(`→ ${haiku.id}`);
+        component.handleInput(ARROW_LEFT);
+        expect(screen(component)).toContain(`→ ${haiku.id}`);
+        component.handleInput(ARROW_RIGHT);
+        expect(screen(component)).toContain(`→ ${haiku.id}`);
+        component.handleInput(SHIFT_TAB);
+        expect(screen(component)).toContain("Thinking: high");
+        component.handleInput(ENTER);
+        await expect(resultPromise).resolves.toEqual({
+          kind: "submit",
+          model: haiku,
+          thinkingLevel: "high",
+        });
+      });
+    });
+
     it("moves to the thinking tab on Tab instead of inserting into the search Input", async () => {
       const { captured } = await openForm();
       expect(screen(captured.component)).toContain("> ");
@@ -148,6 +273,141 @@ describe("presentSelectionForm", () => {
   });
 
   describe("rendering", () => {
+    describe("frame and completion", () => {
+      it("places the task title before the tab strip between horizontal rules", async () => {
+        const input = makeInput();
+        const { component } = await openForm(input);
+        const lines = component.render(80);
+        expect(lines[0]).toBe("─".repeat(80));
+        expect(lines[1]).toBe(input.title);
+        expect(stripTerminalSequences(lines[2])).toContain("☰ Submit");
+        expect(lines.at(-1)).toBe("─".repeat(80));
+        expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
+      });
+
+      it.each(["Model", "Thinking", "Submit"])(
+        "styles only the active %s tab and gives accurate hints",
+        async (page) => {
+          const { component } = await openForm(
+            makeInput(),
+            liveSignal(),
+            ansiTheme(),
+          );
+          for (
+            let index = 0;
+            index < ["Model", "Thinking", "Submit"].indexOf(page);
+            index++
+          )
+            component.handleInput(TAB);
+          expect(activeTab(component)).toBe(
+            page === "Model"
+              ? "☒ Model"
+              : page === "Thinking"
+                ? "☐ Thinking"
+                : "☰ Submit",
+          );
+          const strip = component.render(80)[2];
+          expect(strip).toContain("\u001b[32m☒\u001b[39m");
+          expect(strip).toContain("\u001b[90m☐\u001b[39m");
+          expect(strip).toContain(`\u001b[37m${page}\u001b[39m`);
+          const text = screen(component);
+          expect(text).toContain("Tab next · Shift+Tab previous");
+          expect(text).toContain(
+            page === "Submit"
+              ? "Enter submit · Esc cancel"
+              : "Enter confirm · Esc cancel",
+          );
+          expect(text).not.toContain("←/→ tabs");
+          if (page === "Model") expect(text).toContain("←/→ edit search");
+          else expect(text).not.toContain("←/→ edit search");
+        },
+      );
+
+      it("leaves Thinking unchecked for an off-only model until explicitly chosen", async () => {
+        const { component } = await openForm(
+          makeInput({ availableModels: [opus], scopedModels: [] }),
+        );
+        expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
+        component.handleInput(ENTER);
+        expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
+        component.handleInput(ENTER);
+        expect(tabStrip(component)).toBe("← ☒ Model ☒ Thinking ☰ Submit →");
+      });
+
+      it("unchecks Model and Thinking when search has no results", async () => {
+        const { component } = await openForm();
+        component.handleInput(ENTER);
+        component.handleInput(ARROW_DOWN);
+        component.handleInput(ENTER);
+        component.handleInput(TAB);
+        component.handleInput("zzzz-no-match");
+        expect(tabStrip(component)).toBe("← ☐ Model ☐ Thinking ☰ Submit →");
+      });
+
+      describe.each(["row", "search", "scope"])(
+        "model change by %s",
+        (change) => {
+          it.each([true, false])(
+            "reflects supported thinking (compatible: %s)",
+            async (compatible) => {
+              const target = compatible ? haiku : opus;
+              const { component } = await openForm(
+                makeInput({
+                  availableModels: [sonnet, target],
+                  currentModel: undefined,
+                  scopedModels: change === "scope" ? [{ model: sonnet }] : [],
+                  defaultModel:
+                    change === "scope"
+                      ? { provider: target.provider, id: target.id }
+                      : undefined,
+                }),
+              );
+              component.handleInput(ENTER);
+              component.handleInput(ARROW_DOWN);
+              component.handleInput(ENTER);
+              expect(tabStrip(component)).toBe(
+                "← ☒ Model ☒ Thinking ☰ Submit →",
+              );
+              component.handleInput(TAB);
+              component.handleInput(
+                change === "row"
+                  ? ARROW_DOWN
+                  : change === "scope"
+                    ? CTRL_S
+                    : target.id,
+              );
+              expect(tabStrip(component)).toBe(
+                compatible
+                  ? "← ☒ Model ☒ Thinking ☰ Submit →"
+                  : "← ☒ Model ☐ Thinking ☰ Submit →",
+              );
+              component.handleInput(SHIFT_TAB);
+              expect(screen(component)).toContain(
+                `Model: ${target.id} [${target.provider}]`,
+              );
+              expect(screen(component)).toContain(
+                compatible ? "Thinking: high" : "Thinking: (none)",
+              );
+            },
+          );
+        },
+      );
+
+      it("requires a currently supported level rather than just a present value for the Thinking marker", async () => {
+        const supported = vi.fn(
+          (): readonly SpawnSelection["thinkingLevel"][] => ["off", "high"],
+        );
+        const { component } = await openForm(
+          makeInput({ levelsFor: supported }),
+        );
+        component.handleInput(ENTER);
+        component.handleInput(ARROW_DOWN);
+        component.handleInput(ENTER);
+        expect(tabStrip(component)).toBe("← ☒ Model ☒ Thinking ☰ Submit →");
+        supported.mockReturnValue(["off"]);
+        expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
+      });
+    });
     describe.each([true, false])("scope catalogue present: %s", (hasScoped) => {
       it.each([0, 1, 2])(
         "shows scope information only on Model (page %s)",
