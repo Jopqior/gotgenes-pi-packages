@@ -91,4 +91,5 @@ exit 1
 Print the URL, state if reused, and `/plan-issue <number>` for the next session (for multiple matches, report them without choosing one).
 End this session; do not automatically invoke planning.
 No conflict analysis, upstream fetch, sync script execution, implementation, push, or release belongs to this entry point.
-The issue, ordinary plan/retro, and Git carry future handoffs; release evidence and version derivation remain owned by the releasing skill and `docs/upstream/fork-release-policy.md`.
+The issue, ordinary plan/retro, and Git carry future handoffs; read the [synchronization guide](../../docs/upstream/synchronization-guide.md) before integration work.
+Release evidence and version derivation belong to the [fork release policy](../../docs/upstream/fork-release-policy.md); publication authorization remains separate.

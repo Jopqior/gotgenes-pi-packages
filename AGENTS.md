@@ -16,9 +16,10 @@ This section takes precedence over inherited repository-target, roadmap, and rel
 - Before pushing, verify the remote URL and name the intended remote and branch explicitly.
 - Never import upstream tags into this fork's tag namespace.
   `git fetch --tags`, `git fetch --all --tags`, and a flagless `git fetch upstream` are forbidden; they override `remote.upstream.tagOpt`.
-- Invoke no-argument `/upstream-sync` from the repo root to find or create a pinned-target issue for `gotgenes/pi-packages`, then stop.
-  Plan, implement, review, ship, and retro through the standard issue lifecycle; actual integration stays in the root checkout on `main` with a genuine two-parent merge.
-  Use `scripts/upstream-sync.sh` for explicit fetch/pinned merge/record operations; release evidence and version derivation belong to `docs/upstream/fork-release-policy.md` and the releasing skill.
+- Before performing or resuming actual upstream synchronization (including a pinned-target issue), load its constraints.
+  Read the [synchronization guide](docs/upstream/synchronization-guide.md) before relevant Git operations, including startup fetch/pull.
+  Its prerequisites take precedence over a template's startup pull; when synchronization context becomes available, load it before subsequent relevant Git operations.
+  Editing synchronization tooling or documentation is not itself integration work.
 - Treat inherited upstream issue numbers, roadmap priorities, and release procedures as upstream context, not automatic obligations for this fork.
   Qualify upstream issue references with `gotgenes/pi-packages` or a full URL when adding new documentation so they cannot be mistaken for fork issues.
 - Fork plan/retro files are named `fNNNN-<slug>.md` — `f` plus the four-digit zero-padded fork issue number (e.g. `f0001-spawn-model-selection.md`), never the next free `NNNN` among inherited files.
@@ -110,7 +111,6 @@ A package's `docs/plans`, `docs/retro`, `docs/architecture`, `docs/decisions`, `
 
 A peer session runs in its own worktree at `~/development/pi/pi-packages-worktrees/issue-<N>` on branch `issue-<N>-<slug>`, launched with `pi --approve`.
 Feature-worktree landing stays linear: the peer rebases with `/sync-worktree`, and the root fast-forward-merges with `/ship`.
-Upstream synchronization is the exception: `scripts/upstream-sync.sh --merge` preserves a genuine two-parent merge on `main`.
 
 ## Working an issue
 

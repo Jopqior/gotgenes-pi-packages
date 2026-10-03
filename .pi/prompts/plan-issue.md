@@ -89,17 +89,6 @@ Before investigating the issue, load skills relevant to the change:
    - `Release: batch "<name>"` → look up `<name>` in the roadmap's `Release batches` subsection; if this step is the batch tail (last listed member) → **ship now — batch tail**; otherwise → **mid-batch — defer**.
    You will write this into the plan's `Release Recommendation` section (see Write the plan).
 
-## Pinned upstream-target issues
-
-For an issue carrying the exact `Upstream target: gotgenes/pi-packages@<full SHA>` body line, synchronization planning requires the root checkout on `main` (compare absolute Git directory/common-directory identity); stop in a linked worktree or on another branch.
-Keep this fixed upstream target in Design Overview; a newer discovered upstream tip is not a substitute.
-Use `./scripts/upstream-sync.sh --fetch` for safe inspection inputs, choosing `--upstream-protocol ssh|https` with the operator only if the upstream remote is missing; inspect mismatched URLs rather than rewriting them silently.
-Inspect the actual common-base diff through that target, incoming package changes, fork identity and immutable changelog handling, affected fork contracts, compatibility alternatives, validation commands, and genuine two-parent merge/evidence feasibility.
-Agree the compatibility work before finalizing the plan; materially new choices return to the operator before affected implementation edits and are recorded in the ordinary issue artifacts.
-If this target includes unreleased package changes that the recorder rejects, report the release-policy blocker and stop; do not choose a newer target or weaken evidence policy.
-The implementation plan must name explicit pinned merge and recording checkpoints and the trunk-only handoff to `/ship`; use `/build-plan` for integration without new red/green cycles or `/tdd-plan` when tests are planned.
-This conditional applies to real upstream-target issues, not a repository refactor merely mentioning synchronization.
-
 ## Check for prior session context
 
 Before starting fresh, check whether prior sessions have already done work on this issue:

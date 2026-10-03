@@ -80,22 +80,15 @@ Its next tag comes from verified upstream correspondence in `scripts/release/pi-
 
 Evidence failures are strict errors, not "nothing to release": a nonzero exit means record the missing sync or fix the state, never that the package is quiet.
 There is no override flag.
-For upstream integration, no-argument `/upstream-sync` (`.pi/prompts/upstream-sync.md`) only finds or creates the fixed-target issue and stops.
-Use the standard plan/implementation/review/ship/retro lifecycle on root/main; the implementation commits reviewed integration changes, then release evidence before final independent review.
-The script's `--fetch` is explicit; pinned merge and recording never refresh `upstream/main` implicitly, although recording still performs online release lookup.
+Reviewed release evidence must be committed before dispatching a fork release.
 Publication approval remains separate and names the registered package identities and destination.
-After merging upstream, record reviewed evidence before dispatching a fork release:
-
-```bash
-./scripts/upstream-sync.sh --record-fork-sync <merge> --fork-level <none|patch|minor|major> --rationale "<text>"
-```
 
 A blocked fork in a multi-package dispatch fails the whole run before any write.
 `prepare-release.sh` appends the fork release's correspondence to the state file, decorates its CHANGELOG section with a fixed upstream source link and a provenance-not-equivalence statement, and regenerates the marked table region in `docs/upstream/pi-subagents-release-correspondence.md` with the release artifacts.
 Publishing only siblings leaves fork state and table untouched.
 The changelog still lists upstream entries in full; the policy filters commits only to compute the level.
 Existing npm tarballs and historical CHANGELOG entries are immutable; notes-only historical GitHub Release backfill follows the separate preview/approval procedure in `docs/upstream/fork-release-policy.md`.
-See that guide for the mapping rule, blocking cases, and recording procedure; explicit dispatch itself is unchanged.
+Read the [fork release policy](../../../docs/upstream/fork-release-policy.md) for the mapping rule, blocking cases, and recording procedure; explicit dispatch itself is unchanged.
 
 ## A package's first release
 

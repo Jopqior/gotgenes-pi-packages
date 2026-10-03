@@ -48,7 +48,6 @@ If the plan lives under `packages/<PKG>/docs/plans/`, that determines the target
 If the plan lives under `docs/plans/`, it is repository-scoped or cross-package; load skills only for affected packages listed in the plan and use root test commands for root tooling (`pnpm exec vitest run <test-path>`).
 
 Read the plan in full before doing anything else.
-For a pinned upstream-target plan, require root/main, the issue's unchanged target, clean tracked state and no unmerged entries before baseline checks; otherwise stop and recover with the operator instead of stashing or validating an unfinished integration.
 If the plan has a "TDD Order" section with red→green test cycles, stop and tell the user to run `/tdd-plan` instead.
 
 Extract the issue number from the plan's frontmatter `issue:` field first; the filename patterns are `fNNNN-` or `NNNN-`.
@@ -135,21 +134,6 @@ The skill exits at its first step when no phase is open, and recording a disposi
    Confirm both landed before committing: `grep -cE '✅.*#<N>\b' <arch-doc>` must report 2 — no lint gate sees a missing `✅` (Refs #872).
    Key it on the issue number, not the step's ordinal: the heading and the node both carry `#<N>` whether the phase identifies its steps by ordinal or by issue.
 5. **Do not edit `CHANGELOG.md`** — the release workflow owns it and will generate entries from your Conventional Commit messages on the next release.
-
-## Upstream integration completion (only pinned upstream-target plans)
-
-Require the root checkout on `main` (absolute Git directory equals common directory), the issue's full pinned target from Design Overview, and the approved compatibility work before integration.
-Fetch inspection inputs explicitly with `./scripts/upstream-sync.sh --fetch`; merge only with `./scripts/upstream-sync.sh --merge --expected-upstream "<planned full SHA>"`, not a discovered newer tip.
-Complete conflict resolution and the actual merge before post-integration validation or reviewer dispatch; a pending merge/rebase returns to the operation-state stop above.
-Confirm materially new compatibility choices with the operator before affected edits and record them in the ordinary plan/retro.
-Verify the actual merge's two parents, its second parent equals the pinned target, and inspect `git show --remerge-diff <merge>` plus post-merge commits and automatically merged fork customizations.
-Run root `pnpm run check`, `pnpm run lint`, `pnpm run test`, and `pnpm fallow dead-code` for the completed integration, even if no new test file was authored.
-After checks, commit reviewed integration changes to restore tracked cleanliness, then record with `./scripts/upstream-sync.sh --record-fork-sync <actual merge> --fork-level <none|patch|minor|major> --rationale "<reviewed fork contribution>"`.
-Recording still performs online release lookup; on failure or tag drift inspect actual state writes and stop rather than automatically rolling them back or fetching missing objects.
-Commit the reviewed evidence update as an evidence commit before final independent review; missing or inconsistent evidence blocks the `/ship` handoff.
-The final implementation retro must record the planned upstream target, actual merge OID, reviewed fork contribution, evidence commit, checks/reviewer result, and next action.
-Independent review covers the remerge diff, automatically merged fork customizations, and every post-merge contribution, not only textual conflicts.
-Hand off to trunk `/ship <N>`, then `/retro`; this path never uses feature-worktree rebase, squash, or fast-forward landing to replace the genuine upstream merge.
 
 ## Pre-completion review
 

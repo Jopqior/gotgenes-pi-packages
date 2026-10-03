@@ -33,14 +33,79 @@ describe("standard synchronization workflow contracts", () => {
     expect(text).not.toMatch(/^\s*(model|run|deterministic|chain|subagent):/m);
     expect(text).not.toContain("docs/sync/");
   });
-  it("accepts repo scope and plans against the pinned upstream target", () => {
-    const text = prompt("plan-issue");
-    expect(text).toContain("scope:repo");
-    expect(text).toContain("fixed upstream target in Design Overview");
-    expect(text).toContain("common-base diff");
-    expect(text).toContain("unreleased package changes");
-    expect(text).toContain("--fetch");
-    expect(text).toContain("root checkout on `main`");
+  describe("documentation ownership and navigation", () => {
+    it("loads the synchronization owner conditionally from AGENTS", () => {
+      const agents = read("AGENTS.md");
+      const entry = agents
+        .split("\n- ")
+        .find((item) =>
+          item.startsWith(
+            "Before performing or resuming actual upstream synchronization",
+          ),
+        );
+      expect(entry).toBeDefined();
+      // Bounded structural predicates, not proof of live agent compliance.
+      expect(entry).toContain(
+        "[synchronization guide](docs/upstream/synchronization-guide.md)",
+      );
+      expect(entry).toMatch(
+        /before relevant Git operations, including startup fetch\/pull/,
+      );
+    });
+    it("links the entry and README to distinct existing owners", () => {
+      const guide = "docs/upstream/synchronization-guide.md";
+      const policy = "docs/upstream/fork-release-policy.md";
+      const table = "docs/upstream/pi-subagents-release-correspondence.md";
+      for (const file of [guide, policy, table])
+        expect(read(file)).not.toBe("");
+      expect(prompt("upstream-sync")).toContain(`](../../${guide})`);
+      for (const file of [guide, policy, table]) {
+        expect(read("README.md")).toContain(`](${file})`);
+      }
+      expect(read(guide)).toContain("](fork-release-policy.md)");
+      expect(read(policy)).toContain("](synchronization-guide.md)");
+      expect(read(policy)).toContain(
+        "](pi-subagents-release-correspondence.md)",
+      );
+      expect(read(".pi/skills/releasing/SKILL.md")).toContain(
+        "](../../../docs/upstream/fork-release-policy.md)",
+      );
+    });
+    it("keeps sync-only branches out of ordinary prompts and package guidance", () => {
+      for (const file of [
+        ...["plan-issue", "tdd-plan", "build-plan", "ship"].map(
+          (name) => `.pi/prompts/${name}.md`,
+        ),
+        ".pi/skills/package-pi-subagents/SKILL.md",
+      ]) {
+        // Match synchronization-only anchors, not legitimate upstream dependency research.
+        expect(read(file), file).not.toMatch(
+          /pinned upstream-target|Pinned upstream-target|Upstream target: gotgenes\/pi-packages@|record-fork-sync|remerge-diff|verified merge's first parent|incoming-history co-shipped scan/,
+        );
+      }
+    });
+    it("leaves integration procedures to the guide and recorder semantics to policy", () => {
+      for (const file of [
+        "docs/upstream/fork-release-policy.md",
+        ".pi/skills/releasing/SKILL.md",
+      ]) {
+        expect(read(file), file).not.toMatch(
+          /--merge --expected-upstream|--upstream-protocol|implementation retro|standard plan\/implementation\/review\/ship\/retro lifecycle/,
+        );
+      }
+      expect(read(".pi/skills/releasing/SKILL.md")).not.toContain(
+        "./scripts/upstream-sync.sh --record-fork-sync",
+      );
+      expect(prompt("plan-issue")).toContain("scope:repo");
+      for (const name of ["tdd-plan", "build-plan"]) {
+        expect(prompt(name)).toContain("root test commands");
+      }
+      expect(prompt("ship")).toContain("git push origin main");
+      expect(prompt("ship")).toContain("--repo Jopqior/gotgenes-pi-packages");
+      expect(prompt("ship")).not.toContain(
+        "prepare` failing means nothing was tagged",
+      );
+    });
   });
   describe.each(["tdd-plan", "build-plan"])("%s", (name) => {
     it("guards operation state before startup synchronization", () => {
@@ -80,28 +145,6 @@ describe("standard synchronization workflow contracts", () => {
         rmSync(directory, { recursive: true, force: true });
       }
     });
-    it("requires merge completion, evidence before review, and ordinary handoff facts", () => {
-      const text = prompt(name);
-      expect(text).toContain("pinned target from Design Overview");
-      expect(text).toContain("second parent");
-      expect(text).toContain("evidence commit before final independent review");
-      expect(text).toContain("automatically merged fork customizations");
-      expect(text).toContain("actual merge OID");
-      expect(text).toContain("root test commands");
-      expect(text).not.toContain("docs/sync/runs/");
-    });
-  });
-  it("ships only reviewed trunk topology and restricts close targets to fork work", () => {
-    const text = prompt("ship");
-    expect(text).toContain("synchronization is trunk-only");
-    expect(text).toContain("planned second parent");
-    expect(text).toContain("reachable from HEAD");
-    expect(text).toContain("verified merge's first parent");
-    expect(text).toContain("skip the incoming-history co-shipped scan");
-    expect(text).toContain("explicitly identified in the fork plan/retro");
-    expect(text).toContain("git push origin main");
-    expect(text).toContain("--repo Jopqior/gotgenes-pi-packages");
-    expect(text).not.toContain("prepare` failing means nothing was tagged");
   });
   it("derives registered candidates once with a read-only executable command", () => {
     const text = prompt("ship");
@@ -215,7 +258,6 @@ describe("standard synchronization workflow contracts", () => {
       expect(text, file).not.toContain("docs/sync/");
       expect(text, file).not.toContain("sole active sync policy");
     }
-    expect(read("docs/upstream/fork-release-policy.md")).toContain("--fetch");
     expect(read("docs/upstream/fork-release-policy.md")).toContain(
       "online release lookup",
     );
