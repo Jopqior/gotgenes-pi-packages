@@ -134,7 +134,12 @@ class SelectionFormComponent implements Component {
         lines.push(
           `${this.theme.fg("muted", "Scope: ")}${allText}${this.theme.fg("muted", " | ")}${scopedText}`,
         );
-        lines.push(this.theme.fg("muted", "Ctrl+S scope (all/scoped)"));
+        lines.push(
+          ...wrapTextWithAnsi(
+            this.theme.fg("muted", "Ctrl+S scope (all/scoped)"),
+            width,
+          ),
+        );
       } else {
         lines.push(
           ...wrapTextWithAnsi(

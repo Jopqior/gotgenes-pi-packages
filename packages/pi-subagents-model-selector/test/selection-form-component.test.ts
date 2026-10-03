@@ -514,6 +514,16 @@ describe("presentSelectionForm", () => {
         expect(body).toContain("Enter confirm · Esc cancel");
       });
 
+      it("wraps the Model scope shortcut hint without dropping its keyboard instruction", async () => {
+        const { component } = await openForm();
+        const lines = component.render(16).map(stripTerminalSequences);
+        expect(lines.join(" ").replace(/\s+/g, " ")).toContain(
+          "Ctrl+S scope (all/scoped)",
+        );
+        for (const line of lines)
+          expect(visibleWidth(line)).toBeLessThanOrEqual(16);
+      });
+
       it("wraps oversized review values and validation messages within columns", async () => {
         const { component } = await openForm(
           makeInput({
