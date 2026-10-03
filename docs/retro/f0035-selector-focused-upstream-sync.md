@@ -108,3 +108,87 @@ Closed issue #35 with the operator-approved summary.
   No worktree teardown or roadmap phase closure applies.
 - This stage involved no actual upstream integration or publication.
   The next action is `/retro 35` at the root on `main`.
+
+## Stage: Final Retrospective (2026-10-03T15:02:33Z)
+
+### Session summary
+
+Reviewed the planning, implementation and shipping transcripts, their stage records, and the available child-session transcripts for issue #35.
+The shipped change confines synchronization policy to its existing owner and entry point; the independent review found and helped close an adaptation-only compatibility-check gap before shipping.
+This retrospective does not constitute a real synchronization rehearsal or evidence of reduced future review time.
+
+### Observations
+
+#### What went well
+
+- Scenario review caught a semantic omission that green documentation predicates did not: incoming-only wording excluded contract changes introduced solely by fork adaptations or post-merge contributions.
+  The operator-approved correction landed as `docs: clarify sync compatibility check triggers (#35)`, with a strengthened existing assertion and fresh review of the uncommitted delta.
+  This demonstrates complementary value from narrow text regressions and independent scenario reasoning, without adding a live-provider harness.
+- The Tidy First assessor rejected parser, fixture and generic-workflow changes rather than manufacturing preparatory work.
+  The implementation retained that boundary through shipping; no actual upstream integration or package release was used as a proxy for validating the documentation change.
+
+#### What caused friction (agent side)
+
+- `missing-context`: the planning command `pnpm run test:scripts -- ...` selected the full script suite instead of the intended files.
+  Impact: an unnecessary broad test run followed by a corrected `pnpm exec vitest run ...` invocation; the agent identified and corrected the command before writing the plan.
+- `missing-context`: the compatibility trigger in the plan and first implementation considered incoming changes but not adaptation-only or post-merge-only changes to the same contracts.
+  Impact: an additional correction commit, red/green cycle and independent follow-up review; no shipped runtime regression was demonstrated.
+- `wrong-abstraction`: step 3 was delegated with reviewer orchestration even though the child's available tools did not include `subagent`.
+  The child immediately asked the parent to dispatch the reviewer and supply missing step context rather than attempting a CLI workaround.
+  Impact: a pause/resume handoff and parent takeover of review dispatch and stage-note authorship; no implementation rework.
+- `other`: step 2's first byte-comparison helper stopped at the opening code fence, and step 3's initial test census omitted parameterized cases.
+  Both were self-corrected by reading the actual surface and rerunning the measurement before the final report.
+  Impact: replacement verification commands, not product changes; green helper output alone was insufficient evidence.
+- `other`: the step 2 commit hook reformatted test line wrapping and rejected the first commit attempt.
+  Impact: diff inspection, focused revalidation and a second commit attempt; no semantic change.
+
+#### What caused friction (user side)
+
+- The operator redirected an initial combined implementation dispatch to one child per numbered step.
+  Stating that delegation preference with the execution request would avoid the handoff adjustment; the visible record does not establish it as a previously violated instruction.
+- The operator needed an explanation of the packed-check WARN before approving its repair.
+  The parent could have led with the concrete adaptation-only example and proposed wording instead of first presenting the abstract trigger ambiguity.
+  This was avoidable explanation overhead, not missing product requirements from the operator.
+
+### Diagnostic details
+
+#### Model-performance correlation
+
+The planning, implementation and ship parent turns render as `openai-codex/gpt-6-astra`.
+The following task attribution comes from inline model labels in the corresponding child transcripts, not agent-definition defaults.
+
+| Child task                     | Observed model             | Assessment                                                                                                    |
+| ------------------------------ | -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Tidy First assessment          | `openai-codex/gpt-6.1-sol` | Bounded design judgment; rejected unnecessary abstractions                                                    |
+| Step 1 guide and tests         | `openai-codex/gpt-6.1-sol` | TDD, safety mutations and policy editing; no mechanical-only mismatch established                             |
+| Step 2 entry ownership         | `openai-codex/gpt-6.1-sol` | TDD plus executable-fence preservation; corrected its own measurement helper                                  |
+| Step 3 completion verification | `openai-codex/gpt-6.1-sol` | Mostly deterministic orchestration; tool availability, rather than reasoning strength, caused the handoff gap |
+| Initial independent review     | `openai-codex/gpt-6.1-sol` | Found the adaptation-only trigger ambiguity                                                                   |
+| Warning correction             | `openai-codex/gpt-6.1-sol` | Narrow TDD and mutation task; no comparative cost evidence                                                    |
+| Follow-up independent review   | `openai-codex/gpt-6.1-sol` | Reviewed the correction scenarios without repeating unrelated semantic review                                 |
+
+The initial combined dispatch has no corresponding child transcript in the listed task directory; no executed model is attributed to it.
+There is no controlled model comparison or cost measurement supporting a model-policy change.
+For future step-level dispatches, keep unavailable orchestration with the parent rather than asking the child to discover the boundary.
+
+#### Feedback-loop gap analysis
+
+Focused tests and Markdown checks ran within the implementation steps, including after restoring mutation backups; verification was not deferred until completion.
+The bounded prose tests still missed the trigger-source omission until independent scenario review.
+Future validation-condition reviews should enumerate sources of the contract change, not merely check that the trigger sentence exists; this is already covered by the repository's mechanism-input and real-surface principles, so no new standing rule is proposed.
+The focused-command mistake changed strategy on the next test invocation, and the child escalated unavailable orchestration immediately; neither supports a prolonged rabbit-hole finding.
+
+### Proposals and follow-up
+
+Recommend retaining these observations without changing `AGENTS.md`, shared skills, generic prompts or the synchronization guide again.
+A new trigger-enumeration rule would duplicate existing guidance; a universal one-child-per-step policy would overgeneralize a local preference; changing review gates or model defaults is not justified by this record.
+The shipped guide still needs observation during a future genuine synchronization before claiming effectiveness.
+
+Issue #35 has no package-phase successor or phase-close action.
+The newest triage, `docs/triage/2026-10-02-backlog.md`, ranks inherited `gotgenes/pi-packages` work rather than the fork backlog, so its ranking is not a fork recommendation.
+The fork open-issue query returned #25 and #26; neither receives a rank or severity from that triage.
+
+### Changes made
+
+1. Appended the cross-session observations, transcript-based model attribution, verification findings and follow-up limits to `docs/retro/f0035-selector-focused-upstream-sync.md`.
+2. The operator approved notes only; no workflow instructions, shared skills, `AGENTS.md`, product files or changelog were changed.
