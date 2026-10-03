@@ -210,6 +210,7 @@ export class AgentWidget implements SubagentManagerObserver {
       responseText: record.responseText,
       awaitingSelection: record.awaitingSelection,
       contextPercent: record.getContextPercent(),
+      model: record.model,
     };
   }
 

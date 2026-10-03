@@ -59,7 +59,7 @@ export async function runForeground(
   const streamUpdate = () => {
     const toolUses = recordRef?.toolUses ?? 0;
     const details: AgentDetails = {
-      ...presentation.detailFor(recordRef, params.snapshot.model?.id),
+      ...presentation.detailFor(recordRef),
       toolUses,
       tokens: recordRef ? formatLifetimeTokens(recordRef) : "",
       // Read activity off the record; fall back to safe defaults before session creation.
@@ -126,7 +126,7 @@ export async function runForeground(
 
   const tokenText = formatLifetimeTokens(record);
   const details = buildDetails(
-    presentation.detailFor(record, params.snapshot.model?.id),
+    presentation.detailFor(record),
     record,
     { tokens: tokenText },
   );

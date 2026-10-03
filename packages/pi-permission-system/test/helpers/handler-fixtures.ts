@@ -7,7 +7,10 @@
  * `permissionManager.check`; session state overrides are applied
  * via vi.spyOn on the real session instance.
  */
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type {
+  ExtensionContext,
+  NormalizedBuildSystemPromptOptions,
+} from "@earendil-works/pi-coding-agent";
 import { vi } from "vitest";
 import type { ResolvedAccessIntent } from "#src/access-intent/access-intent";
 import { surfaceFamilyOf } from "#src/access-intent/path-surfaces";
@@ -71,6 +74,28 @@ export function makeEvents() {
   };
 }
 
+/**
+ * A `before_agent_start` event's `systemPromptOptions`, collection-complete
+ * the way Pi's runner normalizes it, so a handler that mutates `sections` or
+ * `skills` finds them present. Each call returns a fresh object.
+ */
+export function makePromptOptions(
+  overrides: Partial<NormalizedBuildSystemPromptOptions> = {},
+): NormalizedBuildSystemPromptOptions {
+  return {
+    cwd: "/test/project",
+    selectedTools: [],
+    toolSnippets: {},
+    toolGuidelines: {},
+    promptGuidelines: [],
+    appendSystemPrompt: "",
+    sections: {},
+    contextFiles: [],
+    skills: [],
+    ...overrides,
+  };
+}
+
 export function makeCtx(
   overrides: Partial<ExtensionContext> = {},
 ): ExtensionContext {
@@ -88,6 +113,7 @@ export function makeCtx(
       getEntries: vi.fn().mockReturnValue([]),
       getSessionDir: vi.fn().mockReturnValue("/sessions/test"),
       getSessionId: vi.fn().mockReturnValue("test-session"),
+      getSessionName: vi.fn((): string | undefined => undefined),
       addEntry: vi.fn(),
     },
     ...overrides,
@@ -273,7 +299,7 @@ export function makeBashCommandCheck(opts: {
  *
  * The `session` override bag maps to the real collaborators:
  * - `checkPermission` → applied to `permissionManager.checkPermission`
- * - `getActiveSkillEntries`, `getInfrastructureReadDirs`, `getToolPreviewLimits`
+ * - `getActiveSkillEntries`, `getInfrastructureReadScope`, `getToolPreviewLimits`
  *   → applied as vi.spyOn overrides on the real session
  * - `resolveAgentName` → applied as a vi.spyOn override on the real session
  *
@@ -344,9 +370,9 @@ export function makeHandler(overrides?: {
       so.getActiveSkillEntries,
     );
   }
-  if (so?.getInfrastructureReadDirs) {
-    vi.spyOn(session, "getInfrastructureReadDirs").mockImplementation(
-      so.getInfrastructureReadDirs,
+  if (so?.getInfrastructureReadScope) {
+    vi.spyOn(session, "getInfrastructureReadScope").mockImplementation(
+      so.getInfrastructureReadScope,
     );
   }
   if (so?.getToolPreviewLimits) {

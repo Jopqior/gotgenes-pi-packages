@@ -89,8 +89,6 @@ describe("resolveSpawnConfig — model resolution", () => {
     );
     if ("error" in result) return;
     expect(result.execution.model).toBe(parentModel);
-    // modelName is undefined when same as parent
-    expect(result.presentation.modelName).toBeUndefined();
   });
 
   it("returns error when user-specified model cannot be resolved", () => {
@@ -101,6 +99,41 @@ describe("resolveSpawnConfig — model resolution", () => {
       defaultSettings,
     );
     expect("error" in result && result.error).toBeTruthy();
+  });
+});
+
+describe("resolveSpawnConfig — model label", () => {
+  const parentModel = makeModel({ provider: "anthropic", id: "claude-sonnet-5-5", name: "Claude Sonnet 5.5" });
+  const haiku = makeModel({ provider: "anthropic", id: "claude-haiku-4-5", name: "Claude Haiku 4.5" });
+  const registryWithHaiku = {
+    find: (provider: string, id: string) => (provider === haiku.provider && id === haiku.id ? haiku : undefined),
+    getAll: () => [haiku],
+    getAvailable: () => [haiku],
+  };
+
+  function modelNameFor(params: Record<string, unknown>, modelInfo: Parameters<typeof resolveSpawnConfig>[2]) {
+    const result = resolveSpawnConfig(
+      { subagent_type: "general-purpose", prompt: "test", description: "d", ...params },
+      testRegistry,
+      modelInfo,
+      defaultSettings,
+    );
+    if ("error" in result) throw new Error(result.error);
+    return result.presentation.detailBase.modelName;
+  }
+
+  it("labels an inherited model even though it matches the parent's", () => {
+    expect(modelNameFor({}, makeModelInfo({ parentModel }))).toBe("anthropic/claude-sonnet-5-5");
+  });
+
+  it("labels a requested model as provider/id, not its display name", () => {
+    expect(
+      modelNameFor({ model: "anthropic/claude-haiku-4-5" }, makeModelInfo({ parentModel, modelRegistry: registryWithHaiku })),
+    ).toBe("anthropic/claude-haiku-4-5");
+  });
+
+  it("leaves the label unset when no model resolved", () => {
+    expect(modelNameFor({}, makeModelInfo({ parentModel: undefined }))).toBeUndefined();
   });
 });
 
@@ -160,7 +193,6 @@ describe("resolveSpawnConfig — invocation fields", () => {
     );
     if ("error" in result) return;
     expect(result.execution.agentInvocation).toEqual({
-      modelName: undefined,
       thinking: "high",
       maxTurns: undefined,
       inheritContext: false,
@@ -417,45 +449,45 @@ describe("resolved spawn presentation from one ordinary producer", () => {
     if ("error" in result) throw new Error(result.error);
     const base = {
       displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
-      modelName: "gpt-5.5", tags: ["twin", "thinking: high", "inherit context", "background", "max turns: 9"],
+      modelName: "openai/gpt-5.5", tags: ["twin", "thinking: high", "inherit context", "background", "max turns: 9"],
     };
     expect(result.presentation.detailBase).toEqual(base);
     expect(result.presentation.agentTags).toEqual(base.tags);
     expect(result.execution.agentInvocation).toEqual({
-      modelName: "gpt-5.5", thinking: "high", maxTurns: 9,
+      thinking: "high", maxTurns: 9,
       inheritContext: true, runInBackground: true,
     });
-    expect(result.presentation.detailFor(undefined, parent.id)).toBe(result.presentation.detailBase);
-    expect(result.presentation.detailFor({ awaitingSelection: false }, parent.id)).toBe(result.presentation.detailBase);
+    expect(result.presentation.detailFor(undefined)).toBe(result.presentation.detailBase);
+    expect(result.presentation.detailFor({ awaitingSelection: false })).toBe(result.presentation.detailBase);
     const pair = { model: selected, thinkingLevel: "off" as const };
-    expect(result.presentation.detailFor({ awaitingSelection: true, selectedPair: pair }, parent.id)).toEqual({
+    expect(result.presentation.detailFor({ awaitingSelection: true, selectedPair: pair })).toEqual({
       ...base, modelName: undefined, tags: ["twin", "inherit context", "background", "max turns: 9"],
     });
-    expect(result.presentation.detailFor({ awaitingSelection: false, selectedPair: pair }, parent.id)).toEqual({
-      ...base, modelName: "haiku", tags: ["twin", "thinking: off", "inherit context", "background", "max turns: 9"],
+    expect(result.presentation.detailFor({ awaitingSelection: false, selectedPair: pair })).toEqual({
+      ...base, modelName: "anthropic/claude-haiku", tags: ["twin", "thinking: off", "inherit context", "background", "max turns: 9"],
     });
     expect(result.execution.model).toBe(proposed);
     expect(result.execution.thinking).toBe("high");
     expect(result.execution.agentInvocation).toEqual({
-      modelName: "gpt-5.5", thinking: "high", maxTurns: 9,
+      thinking: "high", maxTurns: 9,
       inheritContext: true, runInBackground: true,
     });
     expect(result.presentation.detailBase).toEqual(base);
     expect(result.notes).toEqual([]);
   });
 
-  it("omits selected model name for the supplied parent id, not the initial proposal", () => {
+  it("shows the selected parent model rather than the initial proposal", () => {
     const result = resolveSpawnConfig(
       { subagent_type: "general-purpose", prompt: "investigate", description: "diagnose", model: "openai/gpt-5.5" },
       testRegistry, modelInfo, defaultSettings,
     );
     if ("error" in result) throw new Error(result.error);
-    expect(result.presentation.detailBase.modelName).toBe("gpt-5.5");
+    expect(result.presentation.detailBase.modelName).toBe("openai/gpt-5.5");
     expect(result.presentation.detailFor({
       awaitingSelection: false, selectedPair: { model: parent, thinkingLevel: "medium" },
-    }, parent.id)).toEqual({
+    })).toEqual({
       displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
-      modelName: undefined, tags: ["twin", "thinking: medium"],
+      modelName: "anthropic/claude-sonnet", tags: ["twin", "thinking: medium"],
     });
   });
 
@@ -466,15 +498,15 @@ describe("resolved spawn presentation from one ordinary producer", () => {
     );
     if ("error" in result) throw new Error(result.error);
     expect(result.presentation.detailBase).toEqual({
-      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: undefined, tags: undefined,
+      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: "anthropic/claude-sonnet", tags: undefined,
     });
-    expect(result.presentation.detailFor({ awaitingSelection: true }, parent.id)).toEqual({
+    expect(result.presentation.detailFor({ awaitingSelection: true })).toEqual({
       displayName: "Explore", description: "scan", subagentType: "Explore", modelName: undefined, tags: undefined,
     });
     expect(result.presentation.detailFor({
       awaitingSelection: false, selectedPair: { model: selected, thinkingLevel: "off" },
-    }, parent.id)).toEqual({
-      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: "haiku", tags: ["thinking: off"],
+    })).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: "anthropic/claude-haiku", tags: ["thinking: off"],
     });
   });
 
@@ -487,29 +519,29 @@ describe("resolved spawn presentation from one ordinary producer", () => {
     expect(result.presentation.detailFor({
       awaitingSelection: false,
       selectedPair: { model: makeModel({ id: "", name: "Claude Zero" }), thinkingLevel: "off" },
-    }, parent.id)).toEqual({
-      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: "zero", tags: ["thinking: off"],
+    })).toEqual({
+      displayName: "Explore", description: "scan", subagentType: "Explore", modelName: "anthropic/", tags: ["thinking: off"],
     });
   });
 
-  it("compares selected model against the runner parent even when initial parent differed", () => {
+  it("labels each selected model independently of the parent", () => {
     const result = resolveSpawnConfig(
       { subagent_type: "Explore", prompt: "investigate", description: "scan" },
       testRegistry, modelInfo, defaultSettings,
     );
     if ("error" in result) throw new Error(result.error);
-    expect(result.presentation.detailBase.modelName).toBeUndefined();
+    expect(result.presentation.detailBase.modelName).toBe("anthropic/claude-sonnet");
     expect(result.presentation.detailFor({ awaitingSelection: false,
       selectedPair: { model: selected, thinkingLevel: "medium" },
-    }, selected.id)).toEqual({
+    })).toEqual({
       displayName: "Explore", description: "scan", subagentType: "Explore",
-      modelName: undefined, tags: ["thinking: medium"],
+      modelName: "anthropic/claude-haiku", tags: ["thinking: medium"],
     });
     expect(result.presentation.detailFor({ awaitingSelection: false,
       selectedPair: { model: parent, thinkingLevel: "off" },
-    }, selected.id)).toEqual({
+    })).toEqual({
       displayName: "Explore", description: "scan", subagentType: "Explore",
-      modelName: "sonnet", tags: ["thinking: off"],
+      modelName: "anthropic/claude-sonnet", tags: ["thinking: off"],
     });
   });
 
@@ -527,17 +559,17 @@ describe("resolved spawn presentation from one ordinary producer", () => {
     configs.set("custom", { name: "custom", description: "custom", systemPrompt: "", promptMode: "replace", displayName: "Changed Agent" });
     registry.reload();
     const pair = { model: selected, thinkingLevel: "off" as const };
-    expect(result.presentation.detailFor({ awaitingSelection: false, selectedPair: pair }, parent.id)).toEqual({
+    expect(result.presentation.detailFor({ awaitingSelection: false, selectedPair: pair })).toEqual({
       displayName: "Original Agent", description: "original task", subagentType: "custom",
-      modelName: "haiku", tags: ["twin", "thinking: off", "inherit context"],
+      modelName: "anthropic/claude-haiku", tags: ["twin", "thinking: off", "inherit context"],
     });
-    expect(result.presentation.detailFor({ awaitingSelection: true, selectedPair: pair }, parent.id)).toEqual({
+    expect(result.presentation.detailFor({ awaitingSelection: true, selectedPair: pair })).toEqual({
       displayName: "Original Agent", description: "original task", subagentType: "custom",
       modelName: undefined, tags: ["twin", "inherit context"],
     });
     expect(result.presentation.detailBase).toEqual({
       displayName: "Original Agent", description: "original task", subagentType: "custom",
-      modelName: undefined, tags: ["twin", "thinking: high", "inherit context"],
+      modelName: "anthropic/claude-sonnet", tags: ["twin", "thinking: high", "inherit context"],
     });
   });
 
@@ -550,17 +582,17 @@ describe("resolved spawn presentation from one ordinary producer", () => {
     if ("error" in result) throw new Error(result.error);
     expect(result.presentation.detailBase).toEqual({
       displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
-      modelName: undefined, tags: ["mirror", "thinking: high", "inherit context"],
+      modelName: "anthropic/claude-sonnet", tags: ["mirror", "thinking: high", "inherit context"],
     });
-    expect(result.presentation.detailFor({ awaitingSelection: true }, parent.id)).toEqual({
+    expect(result.presentation.detailFor({ awaitingSelection: true })).toEqual({
       displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
       modelName: undefined, tags: ["mirror", "inherit context"],
     });
     expect(result.presentation.detailFor({ awaitingSelection: false,
       selectedPair: { model: selected, thinkingLevel: "off" },
-    }, parent.id)).toEqual({
+    })).toEqual({
       displayName: "Agent", description: "diagnose", subagentType: "general-purpose",
-      modelName: "haiku", tags: ["mirror", "thinking: off", "inherit context"],
+      modelName: "anthropic/claude-haiku", tags: ["mirror", "thinking: off", "inherit context"],
     });
   });
 
@@ -580,15 +612,15 @@ describe("resolved spawn presentation from one ordinary producer", () => {
     if ("error" in result) throw new Error(result.error);
     expect(result.presentation.detailFor({ awaitingSelection: false,
       selectedPair: { model: proposed, thinkingLevel: "high" },
-    }, parent.id)).toEqual({
+    })).toEqual({
       displayName: "Explore", description: "scan", subagentType: "Explore",
-      modelName: "gpt-5.5", tags: ["thinking: high"],
+      modelName: "openai/gpt-5.5", tags: ["thinking: high"],
     });
     expect(result.presentation.detailFor({ awaitingSelection: false,
       selectedPair: { model: makeModel({ id: "claude-opus-4-6", name: "Claude Opus 4.6" }), thinkingLevel: "high" },
-    }, parent.id)).toEqual({
+    })).toEqual({
       displayName: "Explore", description: "scan", subagentType: "Explore",
-      modelName: "opus 4.6", tags: ["thinking: high"],
+      modelName: "anthropic/claude-opus-4-6", tags: ["thinking: high"],
     });
   });
 
@@ -601,7 +633,7 @@ describe("resolved spawn presentation from one ordinary producer", () => {
     expect(result.execution.effectiveMaxTurns).toBe(25);
     expect(result.execution.agentInvocation.maxTurns).toBeUndefined();
     expect(result.presentation.detailBase).toEqual({
-      displayName: "Agent", description: "diagnose", subagentType: "general-purpose", modelName: undefined, tags: ["twin"],
+      displayName: "Agent", description: "diagnose", subagentType: "general-purpose", modelName: "anthropic/claude-sonnet", tags: ["twin"],
     });
   });
 });

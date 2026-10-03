@@ -20,7 +20,6 @@ describe("createResolvedSpawnConfig", () => {
         inheritContext: false,
         runInBackground: false,
         agentInvocation: {
-          modelName: undefined,
           thinking: undefined,
           maxTurns: undefined,
           inheritContext: false,
@@ -28,7 +27,6 @@ describe("createResolvedSpawnConfig", () => {
         },
       },
       presentation: {
-        modelName: undefined,
         agentTags: [],
         detailBase: {
           displayName: "Agent",
@@ -44,10 +42,10 @@ describe("createResolvedSpawnConfig", () => {
 
   it("returns the original fixture detail object for selection without implementing production formatting", () => {
     const config = createResolvedSpawnConfig();
-    expect(config.presentation.detailFor({ awaitingSelection: true }, "parent")).toBe(config.presentation.detailBase);
+    expect(config.presentation.detailFor({ awaitingSelection: true })).toBe(config.presentation.detailBase);
     expect(config.presentation.detailFor({ awaitingSelection: false,
-      selectedPair: { model: { id: "other", name: "Other" }, thinkingLevel: "off" },
-    }, "parent")).toBe(config.presentation.detailBase);
+      selectedPair: { model: { provider: "test", id: "other" }, thinkingLevel: "off" },
+    })).toBe(config.presentation.detailBase);
   });
 
   it("applies the scalar overrides", () => {
@@ -88,7 +86,6 @@ describe("createResolvedSpawnConfig", () => {
       description: "scan repo",
       model: "haiku",
     });
-    expect(config.presentation.modelName).toBe("haiku");
     expect(config.presentation.detailBase).toEqual({
       displayName: "Explore",
       description: "scan repo",

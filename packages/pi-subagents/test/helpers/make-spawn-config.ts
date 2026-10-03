@@ -45,7 +45,6 @@ export function createResolvedSpawnConfig(
       inheritContext: false,
       runInBackground,
       agentInvocation: {
-        modelName,
         thinking: undefined,
         maxTurns: undefined,
         inheritContext: false,
@@ -53,7 +52,6 @@ export function createResolvedSpawnConfig(
       },
     },
     presentation: {
-      modelName,
       agentTags: [],
       detailBase,
       detailFor: () => detailBase,

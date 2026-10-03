@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import type { SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
-import { type BackgroundParams, spawnBackground } from "#src/tools/background-spawner";
+import { type BackgroundParams, renderBackgroundLaunch, spawnBackground } from "#src/tools/background-spawner";
 import { resolveSpawnConfig } from "#src/tools/spawn-config";
 import { createToolDeps } from "#test/helpers/make-deps";
 import { makeModel } from "#test/helpers/make-model";
@@ -30,6 +30,33 @@ function makeParams(overrides: Partial<BackgroundParams> = {}): BackgroundParams
   };
 }
 
+describe("background launch messages", () => {
+  it("renders a started launch with its output file", async () => {
+    const record = createTestSubagent({ status: "running" });
+    record.subagentSession = toSubagentSession(createSubagentSessionStub(createMockSession(), "/sessions/bg.jsonl"));
+    const deps = createToolDeps();
+    deps.manager.spawn = vi.fn().mockReturnValue("bg-3");
+    deps.manager.getRecord = vi.fn().mockReturnValue(record);
+    const result = await spawnBackground(deps.manager, makeParams());
+    expect(result.content[0].text).toBe(
+      "Agent started in background.\nAgent ID: bg-3\nType: General-purpose\nDescription: bg task\nOutput file: /sessions/bg.jsonl\n" +
+      "\nYou will be notified when this agent completes.\nUse get_subagent_result to retrieve full results, or steer_subagent to send it messages.\nDo not duplicate this agent's work.",
+    );
+    expect(result.details).toEqual({ displayName: "General-purpose", description: "bg task", subagentType: "general-purpose", modelName: undefined, tags: undefined, toolUses: 0, tokens: "", durationMs: 0, status: "background", agentId: "bg-3" });
+  });
+
+  it("renders a queued launch with its queue position", async () => {
+    const deps = createToolDeps();
+    deps.manager.spawn = vi.fn().mockReturnValue("bg-2");
+    deps.manager.getRecord = vi.fn().mockReturnValue(createTestSubagent({ status: "queued" }));
+    const result = await spawnBackground(deps.manager, makeParams());
+    expect(result.content[0].text).toBe(
+      "Agent queued in background.\nAgent ID: bg-2\nType: General-purpose\nDescription: bg task\nPosition: queued (max 4 concurrent)\n" +
+      "\nYou will be notified when this agent completes.\nUse get_subagent_result to retrieve full results, or steer_subagent to send it messages.\nDo not duplicate this agent's work.",
+    );
+  });
+});
+
 type Deps = ReturnType<typeof createToolDeps>;
 
 /** A deps fixture whose manager reports `outcome` from the selection wait. */
@@ -42,6 +69,65 @@ function makeDepsWithOutcome(outcome: SpawnSelectionOutcome, record?: ReturnType
   deps.manager.getRecord = vi.fn().mockReturnValue(record ?? createTestSubagent({ status: "running" }));
   return deps;
 }
+describe("renderBackgroundLaunch", () => {
+  const detailBase = {
+    displayName: "Explore",
+    description: "answer",
+    subagentType: "Explore",
+    modelName: undefined,
+    tags: undefined,
+  };
+
+  it("renders a resumed launch with its output file", () => {
+    const result = renderBackgroundLaunch({
+      headline: "Agent resumed in background.",
+      id: "agent-7",
+      displayName: "Explore",
+      description: "answer",
+      detailBase,
+      outputFile: "/sessions/agent-7.jsonl",
+    });
+
+    expect(result.content[0].text).toBe(
+      "Agent resumed in background.\n" +
+        "Agent ID: agent-7\n" +
+        "Type: Explore\n" +
+        "Description: answer\n" +
+        "Output file: /sessions/agent-7.jsonl\n" +
+        "\nYou will be notified when this agent completes.\n" +
+        "Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n" +
+        "Do not duplicate this agent's work.",
+    );
+    expect(result.details).toEqual({
+      ...detailBase,
+      toolUses: 0,
+      tokens: "",
+      durationMs: 0,
+      status: "background",
+      agentId: "agent-7",
+    });
+  });
+
+  it("omits the notes, output file, and queue position it was not given", () => {
+    const result = renderBackgroundLaunch({
+      headline: "Agent resumed in background.",
+      id: "agent-7",
+      displayName: "Explore",
+      description: "answer",
+      detailBase,
+    });
+
+    expect(result.content[0].text).toBe(
+      "Agent resumed in background.\n" +
+        "Agent ID: agent-7\n" +
+        "Type: Explore\n" +
+        "Description: answer\n" +
+        "\nYou will be notified when this agent completes.\n" +
+        "Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n" +
+        "Do not duplicate this agent's work.",
+    );
+  });
+});
 
 describe("spawnBackground", () => {
   /**
@@ -153,7 +239,7 @@ describe("spawnBackground", () => {
     );
     if ("error" in config) throw new Error(config.error);
     expect(config.presentation.detailBase).toEqual({
-      displayName: "Agent", description: "bg task", subagentType: "general-purpose", modelName: "gpt-5.5",
+      displayName: "Agent", description: "bg task", subagentType: "general-purpose", modelName: "openai/gpt-5.5",
       tags: ["twin", "thinking: high", "inherit context", "background", "max turns: 9"],
     });
 
@@ -167,10 +253,10 @@ describe("spawnBackground", () => {
     expect(text).toContain("Agent started in background.");
     expect(text).toContain("selection confirmed");
     // The confirmed pair is the presented one.
-    expect(result.details?.modelName).toBe("haiku");
+    expect(result.details?.modelName).toBe("anthropic/claude-haiku");
     expect(result.details?.tags).toEqual(["twin", "thinking: off", "inherit context", "background", "max turns: 9"]);
     expect(config.execution.agentInvocation).toEqual({
-      modelName: "gpt-5.5", thinking: "high", maxTurns: 9, inheritContext: true, runInBackground: true,
+      thinking: "high", maxTurns: 9, inheritContext: true, runInBackground: true,
     });
   });
 

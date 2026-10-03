@@ -2,10 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentTypeRegistry } from "#src/config/agent-types";
 import { type ForegroundParams, runForeground } from "#src/tools/foreground-runner";
 import { resolveSpawnConfig } from "#src/tools/spawn-config";
+import type { Subagent } from "#src/types";
 import { createToolDeps } from "#test/helpers/make-deps";
 import { makeModel } from "#test/helpers/make-model";
 import { createResolvedSpawnConfig } from "#test/helpers/make-spawn-config";
-import { createTestSubagent } from "#test/helpers/make-subagent";
+import { createTestSubagent, makeStubExecution } from "#test/helpers/make-subagent";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 
 function resolvedSelectionConfig() {
@@ -293,7 +294,7 @@ describe("runForeground", () => {
 			makeParams({ config, snapshot: { ...STUB_SNAPSHOT, model: parent } }),
 			undefined, onUpdate,
 		);
-		expect(onUpdate.mock.calls[0][0].details.modelName).toBe("gpt-5.5");
+		expect(onUpdate.mock.calls[0][0].details.modelName).toBe("openai/gpt-5.5");
 		expect(onUpdate.mock.calls[0][0].details.tags).toEqual(["twin", "thinking: high", "inherit context", "max turns: 9"]);
 
 		await vi.advanceTimersByTimeAsync(100);
@@ -328,7 +329,7 @@ describe("runForeground", () => {
 			makeParams({ config, snapshot: { ...STUB_SNAPSHOT, model: parent } }), undefined, onUpdate);
 		await vi.advanceTimersByTimeAsync(100);
 		const details = onUpdate.mock.calls.at(-1)?.[0].details;
-		expect(details?.modelName).toBe("haiku");
+		expect(details?.modelName).toBe("anthropic/claude-haiku");
 		expect(details?.tags).toEqual(["twin", "thinking: off", "inherit context", "max turns: 9"]);
 		held.resolve(selected);
 		await runPromise;
@@ -348,20 +349,20 @@ describe("runForeground", () => {
 		const result = await runForeground(
 			manager, makeParams({ config, snapshot: { ...STUB_SNAPSHOT, model: parent } }), undefined, undefined,
 		);
-		expect(result.details?.modelName).toBe("deepseek flash");
+		expect(result.details?.modelName).toBe("anthropic/deepseek/deepseek-flash");
 		expect(result.details?.tags).toEqual(["twin", "thinking: off", "inherit context", "max turns: 9"]);
 		expect(config.execution.model?.id).toBe("gpt-5.5");
 		expect(config.execution.thinking).toBe("high");
 		expect(config.execution.agentInvocation).toEqual({
-			modelName: "gpt-5.5", thinking: "high", maxTurns: 9, inheritContext: true, runInBackground: false,
+			thinking: "high", maxTurns: 9, inheritContext: true, runInBackground: false,
 		});
 		expect(config.presentation.detailBase).toEqual({
-			displayName: "Agent", description: "fg task", subagentType: "general-purpose", modelName: "gpt-5.5",
+			displayName: "Agent", description: "fg task", subagentType: "general-purpose", modelName: "openai/gpt-5.5",
 			tags: ["twin", "thinking: high", "inherit context", "max turns: 9"],
 		});
 	});
 
-	it("omits modelName on completed details when the selected id equals the parent", async () => {
+	it("shows modelName on completed details even when the selected id equals the parent", async () => {
 		const parent = makeModel({ id: "openai-codex/gpt-5.5", name: "GPT-5.5" });
 		const { manager } = createToolDeps();
 		manager.spawnAndWait = vi.fn().mockResolvedValue(
@@ -376,7 +377,7 @@ describe("runForeground", () => {
 			undefined,
 			undefined,
 		);
-		expect(result.details?.modelName).toBeUndefined();
+		expect(result.details?.modelName).toBe("anthropic/openai-codex/gpt-5.5");
 		expect(result.details?.tags).toEqual(["twin", "thinking: medium", "inherit context", "max turns: 9"]);
 	});
 
@@ -398,6 +399,49 @@ describe("runForeground", () => {
 
 		resolve(createTestSubagent({ result: "done" }));
 		await runPromise;
+	});
+
+	describe("model label", () => {
+		const running = createTestSubagent({
+			status: "running",
+			completedAt: undefined,
+			execution: makeStubExecution({ model: makeModel({ provider: "openai", id: "gpt-5" }) }),
+		});
+		const params = () => {
+      const config = resolveSpawnConfig({ subagent_type: "general-purpose", prompt: "run", description: "task" }, new AgentTypeRegistry(() => new Map()), { parentModel: makeModel({ provider: "anthropic", id: "claude-sonnet-5-5" }), modelRegistry: undefined }, { defaultMaxTurns: undefined });
+      if ("error" in config) throw new Error(config.error);
+      return makeParams({ config });
+    };
+
+		it("streams the model the record runs once its session exists", async () => {
+			const { promise, resolve } = Promise.withResolvers<Subagent>();
+			const spawnAndWait = vi.fn(
+				(_snapshot: unknown, _type: unknown, _prompt: unknown, options: { observer?: { onSessionCreated?: (agent: Subagent) => void } }) => {
+					options.observer?.onSessionCreated?.(running);
+					return promise;
+				},
+			);
+			const deps = createToolDeps({ manager: { ...createToolDeps().manager, spawnAndWait } });
+			const onUpdate = vi.fn();
+			const runPromise = runForeground(deps.manager, params(), undefined, onUpdate);
+
+			await vi.advanceTimersByTimeAsync(100);
+			// Partial match: the streamed details also carry a spinner frame and a wall-clock duration.
+			expect(onUpdate).toHaveBeenLastCalledWith(
+				expect.objectContaining({ details: expect.objectContaining({ modelName: "openai/gpt-5" }) }),
+			);
+
+			resolve(createTestSubagent({ result: "done" }));
+			await runPromise;
+		});
+
+		it("labels the completed result with the model the record ran", async () => {
+			const deps = createToolDeps({
+				manager: { ...createToolDeps().manager, spawnAndWait: vi.fn().mockResolvedValue(running) },
+			});
+			const result = await runForeground(deps.manager, params(), undefined, undefined);
+			expect(result.details?.modelName).toBe("openai/gpt-5");
+		});
 	});
 
 	it("clears spinner interval on error and does not leave it running", async () => {

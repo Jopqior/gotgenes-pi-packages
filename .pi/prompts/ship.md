@@ -1,5 +1,5 @@
 ---
-model: anthropic/claude-sonnet-5, opencode-go/deepseek-v4-flash
+model: anthropic/claude-sonnet-5-5, opencode-go/deepseek-v4-flash
 description: Land the work (trunk or worktree branch), verify CI, close the issue, dispatch the release, and tear down
 ---
 
@@ -17,7 +17,7 @@ The lane is detected in step 1 and changes only five things: where the plan is r
 Every other step is identical.
 
 Every SHA this run handles is command output, not a value you typed.
-Do not measure its shape (`| wc -c`), re-run the command to double-check, or count its characters — in prose or in reasoning (Refs #839, #904, #945).
+Do not measure its shape (`| wc -c`), re-run the command to double-check, or count its characters — in prose or in reasoning.
 
 ## 0. Confirm you are at the root on `main`
 
@@ -27,7 +27,7 @@ Run `git rev-parse --show-toplevel` and `git branch --show-current`.
    On an `issue-<N>-*` branch you are in a peer worktree: run `/sync-worktree $1` here, then `/ship $1` from the root session.
 2. If the toplevel is not the root checkout, stop and report — the same applies.
 3. Resolve the issue number before step 1.
-   With `$1` empty, step 1's glob widens and matches a sibling peer's `issue-<M>-*` branch, which reads as this issue's worktree lane (Refs #885).
+   With `$1` empty, step 1's glob widens and matches a sibling peer's `issue-<M>-*` branch, which reads as this issue's worktree lane.
 
 Do this before anything else, so a mis-invocation costs nothing.
 
@@ -89,11 +89,13 @@ A decision presented early from the plan is far less likely to be reversed than 
      After CI is green, follow that plan's operator first-publish checklist (OTP publish, tag, Trusted Publisher, post-publish commits).
    - Any other `**Release:**` value (`ship independently` or `ship now — batch "<name>" tail`) → record "release now"; note the recommendation in the final report; do **not** ask.
    - No `**Release:**` marker, or no plan found → record "release now" (default); do **not** ask, and say so in the final report rather than letting the absence pass silently.
-3. Read the issue's retro file in full — glob `docs/retro/fNNNN-*.md` and `packages/*/docs/retro/fNNNN-*.md` first; if none match, fall back to the inherited unprefixed `NNNN-*.md` (short-circuit, not union).
+3. Read the issue's retro file in full with `Read` or `git show`, never a keyword grep — glob `docs/retro/fNNNN-*.md` and `packages/*/docs/retro/fNNNN-*.md` first; if none match, fall back to the inherited unprefixed `NNNN-*.md` (short-circuit, not union).
    In the worktree lane it is on the branch (`git show "<branch>:<retro-path>"`), and its `## Stage: Sync (worktree)` entry is where the peer records release-relevant handoff — a sibling package bumped by a docs-only commit, work deferred to this ship, a PR to close.
    Do this in **both** lanes: a plan's risk table and the planning and TDD stage notes routinely record a ship-time close target — an adopted third-party PR — that no commit in the range mentions.
-   A step that only greps the plan for `**Release:**` cannot see it, which is how PR #850 stayed open after its work shipped (Refs #849).
+   A step that only greps the plan for `**Release:**` cannot see it.
    Carry what you find into step 9 and step 10.
+   A verification the stage notes say has not run (a manual or end-to-end check) is a decision, not a report line: ask the operator now whether to run it before step 9 or ship without it, and record the answer in the close comment.
+   A ship-time comment on another issue takes its content from the plan's or retro's wording, not a paraphrase of the hit that named it.
 
 This section only reads and (conditionally) asks — it performs no git, push, or CI action.
 Step 8 applies the recorded release decision.
@@ -108,7 +110,7 @@ A clean completed checkpoint uses the existing pull below; divergence remains a 
    If it fails for **any** reason — uncommitted changes, divergent history, merge conflict, network error, detached HEAD — stop immediately and report.
    Do not attempt to stash, rebase, force, or otherwise resolve.
 3. Check for unpushed root commits: `git rev-list --count origin/main..main`.
-   `git pull --ff-only` reports `Already up to date.` when local `main` is merely *ahead*, so a non-zero count is invisible above (Refs #815).
+   `git pull --ff-only` reports `Already up to date.` when local `main` is merely *ahead*, so a non-zero count is invisible above.
    Report the count before step 4 — it explains a rejected ff-merge but does not predict one; step 4 does that.
 
 ## 4. Land the work
@@ -119,12 +121,12 @@ Skip to step 5.
 Worktree lane: the peer worktree shares this repo's `.git`, so the branch ref is visible locally — no fetch of the branch is needed.
 
 1. Predict the merge before running it: `git merge-base --is-ancestor main "$BRANCH" && echo ff-ok`.
-   If it fails, stop and send the peer back to `/sync-worktree $1` — do not push root commits to `origin` to make a stale rebase target agree (Refs #813).
+   If it fails, stop and send the peer back to `/sync-worktree $1` — do not push root commits to `origin` to make a stale rebase target agree.
 2. Record the pre-merge tip — `PRE_MERGE=$(git rev-parse main)` — and report it.
-   A branch can carry commits that precede its plan commit (a roadmap disposition, a baseline fixup), and steps 9 and 10 read a range anchored on the plan (Refs #899).
+   A branch can carry commits that precede its plan commit (a roadmap disposition, a baseline fixup), and steps 9 and 10 read a range anchored on the plan.
 3. `git merge --ff-only "$BRANCH"`.
 4. If the merge is **not** a fast-forward, stop and report.
-   Name the divergent commits with `git log --oneline "$BRANCH"..main` — run it without `wc -l`, and report those commits, not a cause inferred from `git log main`'s recent subjects (Refs #815).
+   Name the divergent commits with `git log --oneline "$BRANCH"..main` — run it without `wc -l`, and report those commits, not a cause inferred from `git log main`'s recent subjects.
    The peer must re-run `/sync-worktree $1`, rebasing onto the ref this merge will actually use, then retry this step.
 
 ## 5. Pre-push checks
@@ -222,10 +224,10 @@ Use the following plan-anchor commands:
 
 ```bash
 PLAN=$(git log --format='%H' --grep="docs: \(re-\)\?plan .*(#$1)" -1)
-git log --oneline "$PLAN"^..HEAD
+git log --format='%H %s' "$PLAN"^..HEAD
 ```
 
-The `\(re-\)\?` alternation matters: a reopened issue is re-planned with a `docs: re-plan …` subject, and a bare `docs: plan` pattern silently resolves the **abandoned** original instead, yielding a range hundreds of commits wide (Refs #863).
+The `\(re-\)\?` alternation matters: a reopened issue is re-planned with a `docs: re-plan …` subject, and a bare `docs: plan` pattern silently resolves the **abandoned** original instead, yielding a range hundreds of commits wide.
 If no plan commit matches, anchor on the parent of the issue's first commit.
 In the worktree lane, use step 4's `PRE_MERGE` as the anchor instead when it is an ancestor of `"$PLAN"^` — the branch then carried pre-plan commits the plan range cannot see.
 That test is reflexive, so it also reports true when `PRE_MERGE` equals `"$PLAN"^`, where the two ranges are identical and either anchor works.
@@ -233,23 +235,22 @@ That test is reflexive, so it also reports true when `PRE_MERGE` equals `"$PLAN"
 The comment should include:
 
 - The commit hash that lands the change ("Implemented in <sha> …") — the commit carrying the behavior, not the range's last commit.
-  With several `fix:`/`feat:` commits in range, anchor on the one that fixes the **issue's title defect** and list the rest as bullets — not the newest or largest (Refs #907).
-  Run `git rev-parse` for **every** SHA the comment will contain — the landing commit and any follow-on commits — before you start drafting.
+  With several `fix:`/`feat:` commits in range, anchor on the one that fixes the **issue's title defect** and list the rest as bullets — not the newest or largest.
   Paste each exactly; never hand-type or extend a short SHA from memory, and never leave a placeholder to fill in later.
-  A fabricated SHA does not auto-link (Refs #704, #777).
-  A SHA quoted from the plan or a stage note was written before a rebase, so `git rev-parse` resolves it while it is unreachable — substitute the landed SHA (Refs #814).
-  Write them as plain text — no backticks — so GitHub auto-links them to the commits (Refs #733).
+  A fabricated SHA does not auto-link.
+  A SHA quoted from the plan or a stage note was written before a rebase, so `git rev-parse` resolves it while it is unreachable — substitute the landed SHA.
+  Write them as plain text — no backticks — so GitHub auto-links them to the commits.
 - A short bullet list of feature/breaking commits.
-- One sentence on user-visible behavior change.
+- One sentence on user-visible behavior change, worded from the feat/fix commit bodies and the TDD stage note — name the entry point as the code spells it (grep it), never from memory.
 - A note flagging any breaking change (matches `feat!:` commits).
 - If the change unblocks or partially addresses other issues, mention them.
-- Credit by `@login` any third party whose comment supplied the shipped design or measured the defect — read `gh issue view $1 --json comments` first; the commits carry a `Co-authored-by:` only if planning recorded one (Refs #962).
+- Credit by `@login` the issue's author or any commenter who measured the defect or supplied the shipped design — read `gh issue view $1 --json author,comments` first; the commits carry a `Co-authored-by:` only if planning recorded one.
 - Do not cite a released version — step 10 dispatches the release after this comment, so a version here is a prediction.
   When the release was deferred (mid-batch), say the fix is on `main` and releases with the batch.
 
 Before calling `issue_close`, re-resolve every hex token in the finished draft (`git rev-parse <sha>^{commit}`) and confirm each is an ancestor of `main` (`git merge-base --is-ancestor <sha> main`).
-Verify the draft, not your intent to cite — a pre-draft resolve cannot cover a hash drafting itself introduced, and after the call it can no longer prevent publishing one (Refs #788, #814, #890).
-Compose the draft in the `issue_close` call itself, never in a scratch file — the tool takes a string, so a staged file is verified and then retyped, and the two copies are not the same artifact (Refs #861).
+Verify the draft, not your intent to cite — a pre-draft resolve cannot cover a hash drafting itself introduced, and after the call it can no longer prevent publishing one.
+Compose the draft in the `issue_close` call itself, never in a scratch file — the tool takes a string, so a staged file is verified and then retyped, and the two copies are not the same artifact.
 
 Then use `issue_close` with issue number `$1` and the summary as the comment.
 
@@ -257,17 +258,18 @@ When `$1` is a third-party **PR** adopted via `/pr-review` (we re-implemented ra
 Verify with `gh api repos/Jopqior/gotgenes-pi-packages/issues/$1 --jq '.pull_request != null'`.
 Close it with `gh pr comment` then `gh pr close` — never merge — crediting the contributor by `@login`.
 An adopted PR and the issue it addresses are both close targets: shipping either one closes the other too — read the retro's PR Review stage for the counterpart number.
-The multi-SHA credit list here is where hand-extended short hashes slip in (Refs #704).
+The multi-SHA credit list here is where hand-extended short hashes slip in.
 
 A shipped issue can also supersede open third-party PRs without either being the close target — this repo reimplements rather than merges.
-Close each PR that step 2's plan-and-retro read named, with `gh pr comment` then `gh pr close`, never merge, crediting the author by `@login` (Refs #670, #690).
-Read each PR's body first (`gh pr view <M> --json body -q .body`) — what a PR flagged, covered, or omitted is a claim about the PR, and the plan's summary of it is not that source (Refs #907).
+Close each PR that step 2's plan-and-retro read named, with `gh pr comment` then `gh pr close`, never merge, crediting the author by `@login`.
+Read each PR's body first (`gh pr view <M> --json body -q .body`) — what a PR flagged, covered, or omitted is a claim about the PR, and the plan's summary of it is not that source.
 
-Check whether this push shipped work for **other** issues in the `"$PLAN"^..HEAD` range.
+For ordinary fork work, check whether this push shipped work for **other** issues in the `"$PLAN"^..HEAD` range, re-deriving `PLAN` in the same shell call.
 A co-shipped issue shows as a stacked refactor/enabler, a subject-trailing `(#M)` commit ref, or a sibling `docs/plans/`/`docs/retro/` file added in range — a body-line `Refs #M` is a citation, not a ship (Refs #793).
 A roadmap step heading that names a second issue (`#### Step 16: … ([#885], with [#896])`) is a fold-in: its work shipped here and it closes with this issue, even where no commit subject carries its number (Refs #885).
 A mid-batch sibling that shipped on its own ship is already closed by it — this scan is for stacked work that never had a ship of its own.
 Close each with its own short summary — `refactor:` commits are omitted from the changelog, so a stacked refactor issue leaves no reminder.
+A co-shipped issue already `CLOSED` still gets its summary: `gh api repos/Jopqior/gotgenes-pi-packages/issues/<M>/events --jq '.[]|select(.event=="closed")'` showing a `commit_id` means a keyword auto-closed it, so post the summary with `gh issue comment`.
 
 ## 10. Dispatch the release
 

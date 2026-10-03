@@ -18,6 +18,7 @@ import {
   buildInvocationTags,
   getDisplayName,
   getPromptModeLabel,
+  modelLabel,
   type SpawnDetailBase,
 } from "#src/ui/display";
 
@@ -49,13 +50,12 @@ export interface SpawnExecution {
 
 /** Presentation: display/UI values derived from identity and execution. */
 export interface SpawnPresentation {
-  modelName: string | undefined;
   agentTags: string[];
   detailBase: SpawnDetailBase;
-  detailFor(source: SpawnPresentationSource | undefined, parentId: string | undefined): SpawnDetailBase;
+  detailFor(source: SpawnPresentationSource | undefined): SpawnDetailBase;
 }
 
-type DisplayModel = { readonly id: string; readonly name: string };
+type DisplayModel = { readonly provider: string; readonly id: string };
 
 type SpawnDisplayContext = {
   readonly displayName: string;
@@ -64,7 +64,7 @@ type SpawnDisplayContext = {
   readonly modeLabel: string | undefined;
 };
 
-type SpawnInvocationFacts = Omit<AgentInvocation, "modelName">;
+type SpawnInvocationFacts = AgentInvocation;
 
 type SpawnPresentationSource = {
   readonly awaitingSelection: boolean;
@@ -72,6 +72,8 @@ type SpawnPresentationSource = {
     readonly model: DisplayModel;
     readonly thinkingLevel: ThinkingLevel;
   };
+  readonly model?: DisplayModel;
+  readonly thinkingLevel?: ThinkingLevel;
 };
 
 /** Fully resolved config for spawning an agent — composed of domain-aligned sub-interfaces. */
@@ -154,20 +156,19 @@ export function resolveSpawnConfig(
     inheritContext,
     runInBackground,
   };
-  const initial = buildSpawnDisplay(context, invocationFacts, model, modelInfo.parentModel?.id);
-  const { agentInvocation, modelName, agentTags, detailBase } = initial;
+  const initial = buildSpawnDisplay(context, invocationFacts, model);
+  const { agentInvocation, agentTags, detailBase } = initial;
   const presentation: SpawnPresentation = {
-    modelName,
     agentTags,
     detailBase,
-    detailFor(source, parentId) {
-      if (!source || (!source.awaitingSelection && !source.selectedPair)) return detailBase;
-      const selectedFacts: SpawnInvocationFacts = {
+    detailFor(source) {
+      if (!source || (!source.awaitingSelection && !source.selectedPair && !source.model && source.thinkingLevel === undefined)) return detailBase;
+      const observedFacts: SpawnInvocationFacts = {
         ...invocationFacts,
-        thinking: source.awaitingSelection ? undefined : source.selectedPair?.thinkingLevel,
+        thinking: source.awaitingSelection ? undefined : source.thinkingLevel ?? source.selectedPair?.thinkingLevel ?? thinking,
       };
-      const selectedModel = source.awaitingSelection ? undefined : source.selectedPair?.model;
-      return buildSpawnDisplay(context, selectedFacts, selectedModel, parentId).detailBase;
+      const observedModel = source.awaitingSelection ? undefined : source.model ?? source.selectedPair?.model ?? model;
+      return buildSpawnDisplay(context, observedFacts, observedModel).detailBase;
     },
   };
 
@@ -195,10 +196,9 @@ function buildSpawnDisplay(
   context: SpawnDisplayContext,
   facts: SpawnInvocationFacts,
   model: DisplayModel | undefined,
-  parentId: string | undefined,
 ) {
-  const modelName = formatSpawnModelName(model, parentId);
-  const agentInvocation: AgentInvocation = { modelName, ...facts };
+  const modelName = modelLabel(model);
+  const agentInvocation: AgentInvocation = { ...facts };
   const { tags: invocationTags } = buildInvocationTags(agentInvocation);
   const agentTags = context.modeLabel ? [context.modeLabel, ...invocationTags] : invocationTags;
   const detailBase: SpawnDetailBase = {
@@ -209,14 +209,6 @@ function buildSpawnDisplay(
     tags: agentTags.length > 0 ? agentTags : undefined,
   };
   return { agentInvocation, modelName, agentTags, detailBase };
-}
-
-function formatSpawnModelName(
-  model: DisplayModel | undefined,
-  parentId: string | undefined,
-): string | undefined {
-  if (!model || model.id === parentId) return undefined;
-  return model.name.replace(/^Claude\s+/i, "").toLowerCase();
 }
 
 /** Advise that the named type does not exist, so general-purpose ran instead. */

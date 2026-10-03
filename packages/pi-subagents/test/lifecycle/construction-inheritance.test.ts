@@ -58,6 +58,7 @@ import {
 import { makeModel } from "#test/helpers/make-model";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
 import {
+  createAgentLookup,
   createFactorySession,
   createSubagentSessionDeps,
   createSubagentSessionIO,
@@ -221,6 +222,26 @@ describe("construction inheritance through the real resource loader", () => {
     io.createSession.mockResolvedValue({ session: createFactorySession() });
     return createSubagentSessionDeps({ io });
   }
+
+  it("loads the child's requested built-in capabilities through the real loader", async () => {
+    const { tempCwd, tempAgentDir } = makeTempRoots();
+    const io = createSubagentSessionIO();
+    io.getAgentDir.mockReturnValue(tempAgentDir);
+    io.createLoaderSettingsManager.mockImplementation(() => SdkSettingsManager.inMemory());
+    let loader: DefaultResourceLoader | undefined;
+    io.createResourceLoader.mockImplementation((opts: ResourceLoaderOptions) => {
+      loader = new DefaultResourceLoader(opts);
+      return loader;
+    });
+    io.createSession.mockResolvedValue({ session: createFactorySession() });
+    const child = await createSubagentSession({ snapshot: STUB_SNAPSHOT, type: "Explore", cwd: tempCwd }, createSubagentSessionDeps({ io, registry: createAgentLookup({ toolNames: ["read", "codemode", "tool_search"] }) }));
+    try {
+      expect(loader).toBeDefined();
+      expect(loader?.getExtensions().errors).toEqual([]);
+      expect(loader?.getExtensions().extensions.flatMap(extension => [...extension.tools.keys()]).sort()).toEqual(["codemode", "tool_search"]);
+      expect(io.createSession.mock.calls[0]?.[0].tools).toEqual(["read", "codemode", "tool_search"]);
+    } finally { await child.dispose(); }
+  });
 
   it("runs child factories inside the construction context, so the core captures the inherited scope", { timeout: 120_000 }, async () => {
     const { tempCwd, tempAgentDir, fixturePath } = makeTempRoots();

@@ -2,7 +2,7 @@ import type { SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selecti
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type { AgentSpawnConfig } from "#src/lifecycle/subagent-manager";
 import { renderSpawnNotes, textResult } from "#src/tools/helpers";
-import type { ResolvedSpawnConfig } from "#src/tools/spawn-config";
+import type { ResolvedSpawnConfig, SpawnPresentation } from "#src/tools/spawn-config";
 import type { ParentSessionInfo, Subagent } from "#src/types";
 import type { AgentDetails } from "#src/ui/display";
 
@@ -13,7 +13,6 @@ export interface BackgroundManagerDeps {
   getRecord(id: string): Subagent | undefined;
 }
 
-/** All values the background spawner needs beyond the resolved config. */
 export interface BackgroundParams {
   config: ResolvedSpawnConfig;
   snapshot: ParentSnapshot;
@@ -21,14 +20,23 @@ export interface BackgroundParams {
   settings: { readonly maxConcurrent: number };
 }
 
+/** One report shape for every door that returns before the run ends. */
+export interface BackgroundLaunch {
+  headline: string;
+  id: string;
+  displayName: string;
+  description: string;
+  detailBase: SpawnPresentation["detailBase"];
+  notes?: readonly string[];
+  outputFile?: string;
+  queuePosition?: { maxConcurrent: number };
+  selectionConfirmed?: boolean;
+}
+
 /**
- * Spawn a background agent and return the tool result once its initial
- * selection settled — never waiting for the child's task. Owns: launch
- * message formatting and the selected/stopped/failed startup classification.
- *
- * `signal` is a startup-only cancellation lever: it reaches the record's
- * selection wait and is detached there at settlement, so it never binds the
- * confirmed background task.
+ * Hold a new background launch through admission and required initial selection,
+ * never through workspace creation or task completion. The signal cancels only
+ * startup and is detached by the selection owner at settlement.
  */
 export async function spawnBackground(
   manager: BackgroundManagerDeps,
@@ -36,7 +44,6 @@ export async function spawnBackground(
   signal?: AbortSignal,
 ) {
   const { identity, execution, presentation, notes } = params.config;
-
   let id: string;
   try {
     id = manager.spawn(params.snapshot, identity.subagentType, execution.prompt, {
@@ -46,56 +53,53 @@ export async function spawnBackground(
       maxTurns: execution.effectiveMaxTurns,
       inheritContext: execution.inheritContext,
       thinkingLevel: execution.thinking,
-      // resolveSpawnConfig already merged the agent's frontmatter and AgentTool
-      // routed here on the result, so this door has committed.
       background: { kind: "explicit", isBackground: true },
     });
   } catch (err) {
     return textResult(err instanceof Error ? err.message : String(err));
   }
 
-  // The startup boundary: hold this result through concurrency admission and
-  // any required model/thinking selection. The selected pair (if any) is on
-  // the record; this wait does not depend on workspace preparation or session
-  // creation finishing.
   const selection = await manager.waitForSpawnSelection(id, signal);
   const record = manager.getRecord(id);
-
   if (selection.kind === "stopped") {
-    return textResult(
-      `Agent ${id} did not start: the model/thinking selection was cancelled before startup, so no background work is running for it.`,
-    );
+    return textResult(`Agent ${id} did not start: the model/thinking selection was cancelled before startup, so no background work is running for it.`);
   }
   if (selection.kind === "failed") {
     return textResult(`Agent ${id} did not start: model/thinking selection failed. ${selection.error}`);
   }
-
   const isQueued = record?.status === "queued";
-  const launchVerb = isQueued ? "queued" : "started";
-  // Annotated rather than inlined into the call: `textResult` is generic over its
-  // details, so an inline literal would define the type instead of being checked
-  // against it.
+  return renderBackgroundLaunch({
+    headline: `Agent ${isQueued ? "queued" : "started"} in background.`,
+    id,
+    displayName: identity.displayName,
+    description: execution.description,
+    detailBase: presentation.detailFor(record),
+    notes,
+    outputFile: record?.outputFile,
+    queuePosition: isQueued ? { maxConcurrent: params.settings.maxConcurrent } : undefined,
+    selectionConfirmed: selection.kind === "selected",
+  });
+}
+
+/** Render only; lifecycle waiting belongs to the spawning door. */
+export function renderBackgroundLaunch(launch: BackgroundLaunch) {
   const details: AgentDetails = {
-    ...presentation.detailFor(record, params.snapshot.model?.id),
+    ...launch.detailBase,
     toolUses: 0,
     tokens: "",
     durationMs: 0,
     status: "background",
-    agentId: id,
+    agentId: launch.id,
   };
   return textResult(
-    renderSpawnNotes(notes) +
-      `Agent ${launchVerb} in background.\n` +
-      `Agent ID: ${id}\n` +
-      `Type: ${identity.displayName}\n` +
-      `Description: ${execution.description}\n` +
-      (record?.outputFile ? `Output file: ${record.outputFile}\n` : "") +
-      (isQueued
-        ? `Position: queued (max ${params.settings.maxConcurrent} concurrent)\n`
-        : "") +
-      (selection.kind === "selected"
-        ? `Model/thinking selection confirmed — background startup is proceeding.\n`
-        : "") +
+    renderSpawnNotes(launch.notes ?? []) +
+      `${launch.headline}\n` +
+      `Agent ID: ${launch.id}\n` +
+      `Type: ${launch.displayName}\n` +
+      `Description: ${launch.description}\n` +
+      (launch.outputFile ? `Output file: ${launch.outputFile}\n` : "") +
+      (launch.queuePosition ? `Position: queued (max ${launch.queuePosition.maxConcurrent} concurrent)\n` : "") +
+      (launch.selectionConfirmed ? `Model/thinking selection confirmed — background startup is proceeding.\n` : "") +
       `\nYou will be notified when this agent completes.\n` +
       `Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n` +
       `Do not duplicate this agent's work.`,
