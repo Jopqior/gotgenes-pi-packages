@@ -112,6 +112,26 @@ describe("standard synchronization workflow contracts", () => {
     // compliance or semantic completeness. Subset matches permit unrelated prose.
     const guide = () => read("docs/upstream/synchronization-guide.md");
 
+    describe("issue drafting ownership", () => {
+      const drafting = () =>
+        prompt("upstream-sync")
+          .split("## 2. Draft and recheck before creating")[1]
+          ?.split("<!-- issue-entry -->")[0];
+
+      it("requires the absolute fork guide link in drafting, not only final navigation", () => {
+        expect(drafting()).toContain(
+          "[synchronization guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream/synchronization-guide.md)",
+        );
+      });
+      it("assigns review, validation and finding disposition to the guide in drafting", () => {
+        const text = drafting();
+        expect(text).toContain(
+          "the guide governs synchronization review, validation and finding disposition throughout the ordinary stages",
+        );
+        expect(text).toContain("Acceptance criteria: follow the guide's scope");
+      });
+    });
+
     describe("review responsibilities", () => {
       it("distinguishes complete incoming inventory from targeted deep review", () => {
         const text = guide().split("## Review scope")[1]?.split("## ")[0];

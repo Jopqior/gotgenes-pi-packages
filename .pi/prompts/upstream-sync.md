@@ -26,8 +26,10 @@ A residual request after a closed match requires a separate operator decision, n
 
 Only with no match, use the file tool to write an English issue body to a temporary file.
 Include the exact line `Upstream target: gotgenes/pi-packages@<full SHA>` and `https://github.com/gotgenes/pi-packages/commit/<full SHA>`.
+Include the [synchronization guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream/synchronization-guide.md) in the issue body.
+State that the guide governs synchronization review, validation and finding disposition throughout the ordinary stages.
 Require root checkout/main landing with a genuine two-parent merge, never a feature-worktree rebase or squash.
-Acceptance criteria: agree compatibility choices in `/plan-issue`, inspect fork identity/changelog and incoming package changes, implement the pinned target with `/tdd-plan` or `/build-plan`, complete conflicts and checks, record reviewed release evidence, obtain independent review, then `/ship` and `/retro` in separate standard stages.
+Acceptance criteria: follow the guide's scope through `/plan-issue`, `/tdd-plan` or `/build-plan`, independent review, `/ship` and `/retro` in separate standard stages.
 Materially new compatibility choices return to the operator before affected edits; publication remains separately approved for registered fork identities.
 
 Run the same fence with `ENTRY_MODE=create`, `TARGET` set to the previously returned full SHA, and `ISSUE_BODY_FILE` set to that file path, as quoted environment values rather than interpolated shell source.
