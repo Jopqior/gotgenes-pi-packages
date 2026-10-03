@@ -204,15 +204,12 @@ describe("standard synchronization workflow contracts", () => {
           "Existing selector regression suites remain part of the root test run",
         );
       });
-      it("conditions packed checks on changed host, loading, public or service contracts", () => {
+      it("conditions packed checks on relevant contract changes across the completed synchronization", () => {
         const text = guide()
           .split("## Validation and escalation")[1]
           ?.split("## ")[0];
         expect(text).toContain(
-          "host versions, extension loading, package exports/public types or the core/selector service boundary",
-        );
-        expect(text).toContain(
-          "existing packed local-core/selector compatibility and applicable public-consumer checks",
+          "When changes in the completed synchronization, including incoming changes, sync-authored fork adaptations and post-merge contributions, affect host versions, extension loading, package exports/public types or the core/selector service boundary, run existing packed local-core/selector compatibility and applicable public-consumer checks.",
         );
         expect(text).toContain("Preserve historical compatibility rows");
         expect(text).toContain("actual candidate is tested");

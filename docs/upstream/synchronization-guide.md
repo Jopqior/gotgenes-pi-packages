@@ -69,7 +69,7 @@ Run root `pnpm run check`, `pnpm run lint`, `pnpm run test`, and `pnpm fallow de
 Existing selector regression suites remain part of the root test run; use targeted runs while adapting affected behavior rather than requiring an identical full pass at every handoff.
 The independent reviewer still runs its normal gates; no cross-stage result caching is introduced.
 
-When incoming changes affect host versions, extension loading, package exports/public types or the core/selector service boundary, run existing packed local-core/selector compatibility and applicable public-consumer checks.
+When changes in the completed synchronization, including incoming changes, sync-authored fork adaptations and post-merge contributions, affect host versions, extension loading, package exports/public types or the core/selector service boundary, run existing packed local-core/selector compatibility and applicable public-consumer checks.
 Preserve historical compatibility rows when these checks apply and ensure the actual candidate is tested.
 When those contracts do not change, do not require unrelated packed or cross-extension acceptance work merely because upstream was synchronized.
 Select concrete existing commands in the pinned-target plan according to affected contracts, not a new universal harness.
