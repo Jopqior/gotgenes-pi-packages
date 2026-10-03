@@ -86,10 +86,27 @@ The operator's pair is applied after ordinary call and config resolution.
 It overrides defaults, explicit `model`/`thinking` arguments, and `locked:` values for those two fields only.
 Other locked fields are unchanged.
 
-The all-tab catalogue is every authenticated available model of the session whose manager is spawning — not a process-global list.
-The scoped tab is `ctx.scopedModels` intersected with that catalogue, and is hidden when the intersection is empty.
-Ctrl+S toggles all/scoped when the scoped tab exists.
-A model that supports only `off` still shows `off` and requires an explicit choice on the thinking tab.
+The form has a task identity title, horizontal frame rules, and Model, Thinking, and Submit tabs.
+The active tab has a highlighted background.
+Model and Thinking use `☐` / `☒` completion boxes derived from current values, not from whether a page has been visited or confirmed.
+Model is complete when a pending model exists; Thinking is complete only when an explicitly chosen level is supported by that model.
+A model that supports only `off` still requires an explicit choice on Thinking.
+Compatible model changes keep the chosen thinking level; incompatible changes clear it.
+Submit has a distinct review marker (`☰`), not a completion box.
+
+Model's **all** scope lists every authenticated available model of the session whose manager is spawning, not a process-global list.
+Its **scoped** scope is `ctx.scopedModels` intersected with that catalogue and is available only when the intersection is non-empty.
+Scope information, Ctrl+S, and configured-provider catalogue notices appear only on Model.
+Ctrl+S toggles all/scoped there and does nothing on Thinking or Submit.
+When upgrading from the chooser that allowed scope changes on any page, return to Model with Tab or Shift+Tab before pressing Ctrl+S.
+
+Tab moves to the next page; Shift+Tab moves to the previous page, with wraparound and no confirmation or submission.
+The tab strip's arrows are visual cues, not arrow-key navigation.
+Left/right edit the search cursor on Model and do nothing on the other pages.
+Cursor-only movement keeps the pending model and thinking choice.
+Up/down move the highlighted model or thinking row.
+Enter advances from Model, explicitly chooses the highlighted level on Thinking, and submits the pair only on Submit.
+Escape cancels from any page.
 
 Concurrent requests are FIFO at the root chooser.
 A queued run does not open the form until it is admitted.
@@ -115,6 +132,11 @@ A request that arrives before the UI is attached fails closed rather than waitin
 
 - Out-of-process children and third-party session factories are not covered.
 - The form rebuilds the `/model` experience without mounting Pi's `ModelSelectorComponent` (no type-to-filter on the thinking tab, no set-as-default).
+- Layout stays within the supplied terminal columns using ANSI-aware wrapping and clipping.
+  Task titles, catalogue notices, review values, and keyboard hints wrap; model rows and model-name details clip.
+  Narrow tab strips retain the active tab, abbreviating to `M`, `T`, or `S` when needed and dropping decorative arrows or completion boxes at tiny widths.
+  Resizing preserves the active page and pending pair; a non-positive width produces blank output.
+  There is no separate height budget, so wrapped content can make the form taller.
 - Public task status stays `running` while waiting.
   Pending selection is private widget, foreground, and background wording.
 
