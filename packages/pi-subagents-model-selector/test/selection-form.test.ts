@@ -90,6 +90,32 @@ describe("selection form", () => {
       expect(back.models).toEqual([haiku]);
     });
 
+    it.each(["thinking", "submit"] as const)(
+      "preserves the open pending pair when toggling scope on %s",
+      (tab) => {
+        const input = makeInput({
+          currentModel: opus,
+          scopedModels: [{ model: haiku }],
+        });
+        const selected = reduceSelectionForm(
+          {
+            ...createSelectionFormState(input),
+            tab: "thinking",
+            thinkingHighlight: 1,
+          },
+          { type: "confirmTab" },
+          input,
+        );
+        const state = { ...selected, tab };
+        expect(viewSelectionForm(state, input).pendingModel).toBe(haiku);
+        expect(state.thinkingLevel).toBe("high");
+        expect(state.status).toEqual({ kind: "open" });
+        expect(reduceSelectionForm(state, { type: "toggleScope" }, input)).toBe(
+          state,
+        );
+      },
+    );
+
     it("ignores toggleScope when there are no scoped models", () => {
       const view = run(makeInput(), [{ type: "toggleScope" }]);
       expect(view.scope).toBe("all");

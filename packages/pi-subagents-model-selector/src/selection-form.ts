@@ -133,7 +133,7 @@ function toggleScope(
   state: SelectionFormState,
   input: SelectionFormInput,
 ): SelectionFormState {
-  if (scopedCatalogue(input).length === 0) {
+  if (state.tab !== "model" || scopedCatalogue(input).length === 0) {
     return state;
   }
   const scope: SelectionScope = state.scope === "all" ? "scoped" : "all";

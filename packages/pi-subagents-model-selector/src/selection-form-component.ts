@@ -97,29 +97,29 @@ class SelectionFormComponent implements Component {
   render(width: number): string[] {
     const view = viewSelectionForm(this.state, this.input);
     const lines: string[] = [this.theme.fg("accent", this.input.title), ""];
-    if (view.hasScoped) {
-      const allText =
-        view.scope === "all"
-          ? this.theme.fg("accent", "all")
-          : this.theme.fg("muted", "all");
-      const scopedText =
-        view.scope === "scoped"
-          ? this.theme.fg("accent", "scoped")
-          : this.theme.fg("muted", "scoped");
-      lines.push(
-        `${this.theme.fg("muted", "Scope: ")}${allText}${this.theme.fg("muted", " | ")}${scopedText}`,
-      );
-      lines.push(this.theme.fg("muted", "Ctrl+S scope (all/scoped)"));
-    } else {
-      lines.push(
-        this.theme.fg(
-          "warning",
-          "Only showing models from configured providers. Use /login to add providers.",
-        ),
-      );
-    }
-    lines.push("");
     if (view.tab === "model") {
+      if (view.hasScoped) {
+        const allText =
+          view.scope === "all"
+            ? this.theme.fg("accent", "all")
+            : this.theme.fg("muted", "all");
+        const scopedText =
+          view.scope === "scoped"
+            ? this.theme.fg("accent", "scoped")
+            : this.theme.fg("muted", "scoped");
+        lines.push(
+          `${this.theme.fg("muted", "Scope: ")}${allText}${this.theme.fg("muted", " | ")}${scopedText}`,
+        );
+        lines.push(this.theme.fg("muted", "Ctrl+S scope (all/scoped)"));
+      } else {
+        lines.push(
+          this.theme.fg(
+            "warning",
+            "Only showing models from configured providers. Use /login to add providers.",
+          ),
+        );
+      }
+      lines.push("");
       this.search.focused = true;
       lines.push(...this.search.render(width));
       lines.push("");
@@ -150,7 +150,9 @@ class SelectionFormComponent implements Component {
 
   handleInput(data: string): void {
     if (matchesKey(data, "ctrl+s")) {
-      this.apply({ type: "toggleScope" });
+      if (this.state.tab === "model") {
+        this.apply({ type: "toggleScope" });
+      }
       return;
     }
     if (this.keybindings.matches(data, "tui.select.cancel")) {

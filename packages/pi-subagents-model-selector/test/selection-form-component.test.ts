@@ -15,6 +15,7 @@ import {
 } from "#test/helpers/selection-fixtures";
 
 const TAB = "\t";
+const SHIFT_TAB = "\u001b[Z";
 const ENTER = "\r";
 const ESCAPE = "\u001b";
 const ARROW_DOWN = "\u001b[B";
@@ -147,6 +148,40 @@ describe("presentSelectionForm", () => {
   });
 
   describe("rendering", () => {
+    describe.each([true, false])("scope catalogue present: %s", (hasScoped) => {
+      it.each([0, 1, 2])(
+        "shows scope information only on Model (page %s)",
+        async (page) => {
+          const { captured } = await openForm(
+            makeInput({
+              scopedModels: hasScoped ? [{ model: haiku }] : [],
+            }),
+          );
+          for (let index = 0; index < page; index++)
+            captured.component?.handleInput(TAB);
+          const text = screen(captured.component);
+          const scopeLines = [
+            "Scope: scoped | all",
+            "Scope: all | scoped",
+            "Ctrl+S scope (all/scoped)",
+          ];
+          const notice =
+            "Only showing models from configured providers. Use /login to add providers.";
+          if (page === 0 && hasScoped) {
+            expect(text).toContain("Scope: all | scoped");
+            expect(text).toContain(scopeLines[2]);
+            expect(text).not.toContain(notice);
+          } else if (page === 0) {
+            expect(text).toContain(notice);
+            for (const line of scopeLines) expect(text).not.toContain(line);
+          } else {
+            for (const line of scopeLines) expect(text).not.toContain(line);
+            expect(text).not.toContain(notice);
+          }
+        },
+      );
+    });
+
     it("renders inline rather than as an overlay", async () => {
       const { captured } = await openForm();
       expect(captured.options).toEqual({ overlay: false });
@@ -183,6 +218,31 @@ describe("presentSelectionForm", () => {
   });
 
   describe("submission", () => {
+    it.each(["thinking", "submit"])(
+      "ignores Ctrl+S on %s without changing the submitted pair",
+      async (page) => {
+        const { captured, resultPromise } = await openForm(
+          makeInput({ currentModel: opus }),
+        );
+        captured.component?.handleInput(ENTER);
+        captured.component?.handleInput(ARROW_DOWN);
+        captured.component?.handleInput(ENTER);
+        if (page === "thinking") captured.component?.handleInput(SHIFT_TAB);
+        captured.component?.handleInput(CTRL_S);
+        if (page === "thinking") captured.component?.handleInput(TAB);
+        expect(screen(captured.component)).toContain(
+          `Model: ${haiku.id} [${haiku.provider}]`,
+        );
+        expect(screen(captured.component)).toContain("Thinking: high");
+        captured.component?.handleInput(ENTER);
+        await expect(resultPromise).resolves.toEqual({
+          kind: "submit",
+          model: haiku,
+          thinkingLevel: "high",
+        });
+      },
+    );
+
     it("submits the pending pair from the Submit tab", async () => {
       const { captured, resultPromise } = await openForm(
         makeInput({ scopedModels: [] }),
