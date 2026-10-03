@@ -94,9 +94,12 @@ describe("release preparation", () => {
       path.join(repo.dir, "scripts/release/release-packages.json"),
       `${JSON.stringify({ schemaVersion: 2, packages: registrations })}\n`,
     );
-    mkdirSync(path.join(repo.dir, "docs/release"), { recursive: true });
+    mkdirSync(path.join(repo.dir, "docs/upstream"), { recursive: true });
     writeFileSync(
-      path.join(repo.dir, "docs/release/pi-subagents-correspondence.md"),
+      path.join(
+        repo.dir,
+        "docs/upstream/pi-subagents-release-correspondence.md",
+      ),
       "<!-- release-correspondence:start -->\n\nold\n\n<!-- release-correspondence:end -->\n",
     );
     repo.writeChangelog(
@@ -215,8 +218,25 @@ describe("release preparation", () => {
     );
     expect(committed.releases.at(-1).forkTag).toBe("pi-subagents-v1.0.1");
     expect(
-      repo.gitOut("show", "HEAD:docs/release/pi-subagents-correspondence.md"),
+      repo.gitOut(
+        "show",
+        "HEAD:docs/upstream/pi-subagents-release-correspondence.md",
+      ),
     ).toContain(recordedSyncs[0].upstream.commit);
+    expect(
+      existsSync(
+        path.join(repo.dir, "docs/release/pi-subagents-correspondence.md"),
+      ),
+    ).toBe(false);
+    expect(
+      repo.gitOut(
+        "ls-tree",
+        "--name-only",
+        "HEAD",
+        "--",
+        "docs/release/pi-subagents-correspondence.md",
+      ),
+    ).toBe("");
     expect(existsSync(path.join(repo.dir, "docs/upstream-sync.md"))).toBe(
       false,
     );

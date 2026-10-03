@@ -3,5 +3,5 @@
 export const forkSyncTarget = Object.freeze({
   directory: "pi-subagents",
   statePath: "scripts/release/pi-subagents/sync-state.json",
-  correspondencePath: "docs/release/pi-subagents-correspondence.md",
+  correspondencePath: "docs/upstream/pi-subagents-release-correspondence.md",
 });

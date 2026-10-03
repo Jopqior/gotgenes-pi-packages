@@ -126,7 +126,10 @@ describe("level mapping", () => {
       isPackageScopePath("packages/pi-colgrep/src/a.ts", "pi-subagents"),
     ).toBe(false);
     expect(
-      isPackageScopePath("docs/release/fork-sync.md", "pi-subagents"),
+      isPackageScopePath(
+        "docs/upstream/fork-release-policy.md",
+        "pi-subagents",
+      ),
     ).toBe(false);
   });
 });

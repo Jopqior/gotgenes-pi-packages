@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -152,12 +152,12 @@ describe("table CLI", () => {
     );
     const documentPath = path.join(
       repo,
-      "docs/release/pi-subagents-correspondence.md",
+      "docs/upstream/pi-subagents-release-correspondence.md",
     );
     mkdirSync(path.join(repo, "scripts/release/pi-subagents"), {
       recursive: true,
     });
-    mkdirSync(path.join(repo, "docs/release"), { recursive: true });
+    mkdirSync(path.join(repo, "docs/upstream"), { recursive: true });
     writeFileSync(statePath, `${JSON.stringify(fixture.state)}\n`);
     writeFileSync(registryPath, `${JSON.stringify(fixture.registry)}\n`);
     const old = `# Correspondence\n\n${start}\n\nStale rows.\n\n${end}\n\n## Preserve\n`;
@@ -169,6 +169,11 @@ describe("table CLI", () => {
     expect(() => run("--check")).toThrow();
     expect(readFileSync(documentPath, "utf8")).toBe(old);
     run("--write");
+    expect(
+      existsSync(
+        path.join(repo, "docs/release/pi-subagents-correspondence.md"),
+      ),
+    ).toBe(false);
     const written = readFileSync(documentPath, "utf8");
     expect(written).toBe(updateCorrespondenceDocument(old, render()));
     run("--check");
@@ -193,7 +198,10 @@ describe("committed generated correspondence", () => {
       realRepo,
     );
     const document = readFileSync(
-      path.join(realRepo, "docs/release/pi-subagents-correspondence.md"),
+      path.join(
+        realRepo,
+        "docs/upstream/pi-subagents-release-correspondence.md",
+      ),
       "utf8",
     );
     const generated = renderCorrespondenceTable({

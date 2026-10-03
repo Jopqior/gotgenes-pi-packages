@@ -58,7 +58,8 @@ describe("shared fork synchronization boundary", () => {
       expect(forkSyncTarget).toEqual({
         directory: "pi-subagents",
         statePath: "scripts/release/pi-subagents/sync-state.json",
-        correspondencePath: "docs/release/pi-subagents-correspondence.md",
+        correspondencePath:
+          "docs/upstream/pi-subagents-release-correspondence.md",
       });
       expect(Object.isFrozen(forkSyncTarget)).toBe(true);
     });

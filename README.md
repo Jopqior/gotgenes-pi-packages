@@ -111,7 +111,7 @@ The [issue entry point](.pi/prompts/upstream-sync.md) queries a fixed upstream t
 Continue in separate standard `/plan-issue`, `/tdd-plan` or `/build-plan`, independent review, `/ship`, and `/retro` stages, carrying decisions and checkpoints in the ordinary plan/retro and Git.
 Actual upstream integration requires the root checkout on `main` and a genuine two-parent merge, not the feature-worktree rebase/fast-forward route.
 The low-level script uses explicit `--fetch`, `--merge --expected-upstream <full SHA>`, and `--record-fork-sync` operations; publication still requires approval of registered fork identities and destination.
-The [fork release guide](docs/release/fork-sync.md) owns evidence and version policy; the [generated correspondence](docs/release/pi-subagents-correspondence.md) lists published releases.
+The [fork release guide](docs/upstream/fork-release-policy.md) owns evidence and version policy; the [generated correspondence](docs/upstream/pi-subagents-release-correspondence.md) lists published releases.
 
 ### Agentic development workflow
 

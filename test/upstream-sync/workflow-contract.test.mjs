@@ -206,7 +206,7 @@ describe("standard synchronization workflow contracts", () => {
       "README.md",
       ".pi/skills/releasing/SKILL.md",
       ".pi/skills/package-pi-subagents/SKILL.md",
-      "docs/release/fork-sync.md",
+      "docs/upstream/fork-release-policy.md",
       ...["upstream-sync", "plan-issue", "tdd-plan", "build-plan", "ship"].map(
         (name) => `.pi/prompts/${name}.md`,
       ),
@@ -215,8 +215,8 @@ describe("standard synchronization workflow contracts", () => {
       expect(text, file).not.toContain("docs/sync/");
       expect(text, file).not.toContain("sole active sync policy");
     }
-    expect(read("docs/release/fork-sync.md")).toContain("--fetch");
-    expect(read("docs/release/fork-sync.md")).toContain(
+    expect(read("docs/upstream/fork-release-policy.md")).toContain("--fetch");
+    expect(read("docs/upstream/fork-release-policy.md")).toContain(
       "online release lookup",
     );
   });

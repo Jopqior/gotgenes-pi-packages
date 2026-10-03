@@ -7,7 +7,7 @@ Invoke the no-argument [upstream issue entry point](../../.pi/prompts/upstream-s
 Plan, implement, independently review, ship, and retro through the standard issue lifecycle, with compatibility decisions and checkpoints in the ordinary issue plan/retro and Git.
 Actual integration requires root checkout/main and a genuine two-parent merge; feature-worktree rebase, squash, and fast-forward landing do not replace that merge.
 This guide owns release evidence and version derivation, not approval of integration edits.
-The [generated correspondence view](pi-subagents-correspondence.md) records each published fork version's verified direct upstream baseline.
+The [generated correspondence view](pi-subagents-release-correspondence.md) records each published fork version's verified direct upstream baseline.
 
 ## Evidence and tooling migration
 
@@ -87,7 +87,7 @@ The `--fork-level` review classifies what the conflict resolution itself did to 
 `scripts/release/prepare-release.sh` resolves and validates every selected package's registration and the fork correspondence in its all-packages preflight, before any write; the fork decision must agree with the predicted tag.
 The registry at `scripts/release/release-packages.json` classifies actual directory/npm identities as `fork` or `original`; an unregistered package or unsupported fork evidence blocks preparation, publication, and Release creation.
 Workspace discovery and read-only version prediction remain independent of registration, and registration never authorizes publication.
-When a fork release is selected, preparation commits its verified correspondence, decorated CHANGELOG section, and regenerated [table](pi-subagents-correspondence.md) together with the manifest.
+When a fork release is selected, preparation commits its verified correspondence, decorated CHANGELOG section, and regenerated [table](pi-subagents-release-correspondence.md) together with the manifest.
 An original package gets no upstream correspondence block; publishing only a sibling leaves the fork state and table untouched.
 Publishing checks the complete tagged set before the first npm call.
 GitHub Release creation checks the same tagged artifacts and takes each body from that tag's exact CHANGELOG section, not from a new git-cliff render; reruns leave existing Release bodies unchanged.

@@ -13,7 +13,7 @@ node scripts/release/correspondence-table.mjs --check
 After reviewing a corrected state file, use `node scripts/release/correspondence-table.mjs --write` to regenerate only the marked region, then run `--check` again.
 The first data row was released under [#3] with fork `1.0.0` incorporating upstream `21.7.0`.
 Old npm artifacts remain immutable: historical state rows and any later GitHub Release notes cannot change what an already-published tarball contained.
-See the [fork release guide](fork-sync.md) for evidence validation, release decisions, and the separately approved backfill procedure.
+See the [fork release guide](fork-release-policy.md) for evidence validation, release decisions, and the separately approved backfill procedure.
 
 <!-- release-correspondence:start -->
 
