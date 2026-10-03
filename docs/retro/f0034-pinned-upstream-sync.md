@@ -87,3 +87,22 @@ The merge OID and completed-tree validation belong in the recovery report at `/t
   No push, publication, issue closure, or reviewed sync record was performed.
 
 Next action: continue with step 2 only after inspecting the completed merge and recovery report; do not mistake the green local tests for packed-candidate or interactive verification.
+
+## Stage: Plan amendment (2026-10-03T08:57:28Z)
+
+### Session summary
+
+The operator explicitly chose one-time cleanup of historical trailing whitespace in the core CHANGELOG rather than a permanent hook exclusion.
+Updated the plan with a separate post-merge formatting follow-up before step 2 and exact verification of its permitted differences.
+This amendment changes only the plan and decision record; the cleanup has not run.
+
+### Observations
+
+- Approval is limited to removing trailing spaces and tabs in the current branch's `packages/pi-subagents/CHANGELOG.md`, including the resulting loss of Markdown hard line breaks.
+  It is a task-specific exception to historical-byte preservation, not permission to change release text, correspondence data, published tags, npm artifacts, Release bodies, or selector history.
+- Preserve the completed merge unchanged and make the cleanup a separate `style:` commit with the normal hook configuration.
+  Do not retain temporary exemptions or add a permanent exclusion.
+- Verify the cleanup against narrowly normalized original bytes and rerun the whitespace hook to establish idempotence.
+  Markdown lint and release correspondence tests must pass unchanged; unexpected differences or contract failures require operator review.
+- The earlier recovery entry remains an accurate record of why the merge used a temporary exception.
+  Its next action is superseded by this approval: perform the formatting follow-up before the packed-candidate work in step 2.

@@ -145,7 +145,11 @@ Do not import `spawn-config` back from `helpers` if `spawn-config` already reach
 
 Keep core name `@jopqior/pi-subagents`, fork URLs, current fork manifest version until release preparation, selection exports, and `Symbol.for("@gotgenes/pi-subagents:service")` unchanged.
 The process-global key is a compatibility contract, not package branding to rename.
-Resolve the core CHANGELOG conflict by retaining the complete pre-merge fork file byte-for-byte; do not splice upstream release sections into the fork's published history.
+The completed merge retains the complete pre-merge fork CHANGELOG byte-for-byte; do not amend that merge or splice upstream release sections into the fork's published history.
+The operator subsequently approved one narrowly scoped exception to historical-byte preservation: remove trailing horizontal whitespace from `packages/pi-subagents/CHANGELOG.md` in a separate post-merge formatting commit, accepting the loss of Markdown hard line breaks represented by those spaces.
+This exception applies only to the current branch's file, not published tags, npm artifacts, Release bodies, correspondence data, or selector history.
+Preserve every other byte, including line order and final newline; do not author or regenerate entries.
+Keep the permanent hook configuration unchanged and use the normal hooks for the cleanup and subsequent commits.
 Accept other packages' upstream manifests/changelogs with their original provenance where the fork has no competing published history.
 Keep the selector's published manifest and changelog unchanged unless verification reveals a materially new compatibility decision, which returns to the operator.
 
@@ -202,7 +206,7 @@ It is accepted as an integration set; the following table names local reconcilia
 | Files                                                                                                                                                                                                                 | Change or verification                                                                                                                                         |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `packages/pi-subagents/package.json`, `rollup.dts.config.mjs`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`                                                                                                                | Reconcile fork identity/version with upstream peers/typebox/pins; regenerate lockfile, retain fork install/test settings                                       |
-| `packages/pi-subagents/CHANGELOG.md`                                                                                                                                                                                  | Resolve to pre-merge fork bytes; no newly authored entries                                                                                                     |
+| `packages/pi-subagents/CHANGELOG.md`                                                                                                                                                                                  | Preserve pre-merge bytes in the merge; then apply only the approved trailing-whitespace cleanup, with no newly authored entries                                |
 | Core `src/lifecycle/{subagent,subagent-manager,subagent-state,subagent-session,create-subagent-session}.ts`                                                                                                           | Combine selection contract with run claims, resume, model observation, and built-in loading; repair confirmed-pair observation                                 |
 | Core `src/tools/{agent-tool,background-spawner,foreground-runner,helpers,spawn-config,get-result-tool,get-result-report,get-result-renderer}.ts`                                                                      | Reconcile background spawn/resume, narrow presentation, pending suppression, and superseded waiter results                                                     |
 | Core `src/ui/{display,agent-widget,widget-renderer,session-navigation,session-navigator,labeled-rule}.ts` and `src/observation/renderer.ts`                                                                           | Accept upstream model labels/viewer changes without revealing pending proposals                                                                                |
@@ -248,16 +252,16 @@ Run changed prompt commands through existing workflow-contract fixtures; read-on
 
 ## Invariants at risk
 
-| Constituency and invariant                                                                               | Test surface to preserve or extend                                                                                           |
-| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Parent agent: following tool cannot run before required selection; no-provider queue remains nonblocking | Opened real `test/tools/spawn-selection-boundary.test.ts`, queued and sequential continuation groups                         |
-| Operator: pending model/thinking withheld; confirmation reflected before session creation                | Same real boundary test plus `test/tools/spawn-config.test.ts`; extend widget/get-result and actual record observation cases |
-| Child startup: late cancellation cannot bind or leak a created session                                   | `test/lifecycle/create-subagent-session.test.ts` and real loader `construction-inheritance.test.ts`                          |
-| Nested users: child registrations do not replace root provider                                           | Retain construction/nested-selection tests and public service capability checks                                              |
-| Resume callers: initial selection is not rerun; old waiters cannot consume/release a new run             | Incoming lifecycle/state/get-result tests plus a real-record background-resume cross-case                                    |
-| Presentation maintenance: one producer, tag ordering and execution facts not mutated                     | Existing spawn-config exact-object tests; change approved label expectations only                                            |
-| Fork operators: topology, tag namespace, evidence and immutable history                                  | Existing `test/upstream-sync/` and `test/release/`, actual parent/reachability inspection and byte comparison                |
-| Workflow users: `fN` remains distinct from numeric upstream phases                                       | Both phase-identity cases in roadmap parser/validator tests                                                                  |
+| Constituency and invariant                                                                               | Test surface to preserve or extend                                                                                                                   |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parent agent: following tool cannot run before required selection; no-provider queue remains nonblocking | Opened real `test/tools/spawn-selection-boundary.test.ts`, queued and sequential continuation groups                                                 |
+| Operator: pending model/thinking withheld; confirmation reflected before session creation                | Same real boundary test plus `test/tools/spawn-config.test.ts`; extend widget/get-result and actual record observation cases                         |
+| Child startup: late cancellation cannot bind or leak a created session                                   | `test/lifecycle/create-subagent-session.test.ts` and real loader `construction-inheritance.test.ts`                                                  |
+| Nested users: child registrations do not replace root provider                                           | Retain construction/nested-selection tests and public service capability checks                                                                      |
+| Resume callers: initial selection is not rerun; old waiters cannot consume/release a new run             | Incoming lifecycle/state/get-result tests plus a real-record background-resume cross-case                                                            |
+| Presentation maintenance: one producer, tag ordering and execution facts not mutated                     | Existing spawn-config exact-object tests; change approved label expectations only                                                                    |
+| Fork operators: topology, tag namespace, evidence and immutable history                                  | Existing `test/upstream-sync/` and `test/release/`, topology inspection, exact merge-byte comparison and narrowly normalized post-cleanup comparison |
+| Workflow users: `fN` remains distinct from numeric upstream phases                                       | Both phase-identity cases in roadmap parser/validator tests                                                                                          |
 
 No quantitative cache, latency, or token-prefix improvement is claimed.
 Keep upstream prompt identity tests, but do not interpret shared parts as universal provider cache reuse.
@@ -284,6 +288,16 @@ Keep upstream prompt identity tests, but do not interpret shared parts as univer
    ./scripts/upstream-sync.sh --merge --expected-upstream 9087a8dfa6edbfa1808fe3deab46ac3e17a7c032
    ```
 
+   **Approved post-merge formatting follow-up, before step 2.**
+   The operator chose one-time historical trailing-whitespace cleanup rather than permanent hook exclusion after step 1 completed.
+   Save the current core CHANGELOG and run `prek run trailing-whitespace --files packages/pi-subagents/CHANGELOG.md` with the repository's normal configuration.
+   The first run may report failure because it changed the file; inspect that diff rather than skipping the hook.
+   Assert that the result equals the saved bytes with only spaces and tabs immediately before line endings or EOF removed, and verify that the original merge still matches its first parent exactly.
+   Run the same hook again and require success with no byte changes; run Markdown lint and the root release correspondence tests without changing their historical assertions.
+   Any difference beyond the approved whitespace removal, or a release-contract failure, is a stop for operator review, not permission to rewrite release history or weaken a test.
+   Commit separately as `style: normalize core changelog trailing whitespace (#34)` using normal hooks, with no temporary hook configuration or exemption.
+   This is a formatting verification step, not a runtime TDD cycle; record the actual diff and idempotence results in the implementation notes.
+
 2. **Verify the real packed core/selector pair on the new host.**
    Red: add offline script tests separating tarball install specifier, expected manifest version and candidate host pins, and requiring candidate orchestration alongside historical rows.
    Green: extend the existing isolated compatibility script with the actual packed-candidate row and shared private type-check operation only where reused.
@@ -295,7 +309,9 @@ Keep upstream prompt identity tests, but do not interpret shared parts as univer
 
 3. **Review the completed integration and record release evidence.**
    Resolve the actual merge OID and its parents from Git; assert exactly two parents, the planned second parent, and reachability from HEAD.
-   Inspect `git show --remerge-diff <merge>`, automatically merged fork customizations and every post-merge contribution; compare core CHANGELOG against the actual first parent byte-for-byte.
+   Inspect `git show --remerge-diff <merge>`, automatically merged fork customizations and every post-merge contribution, including the approved formatting follow-up.
+   Compare the merge's core CHANGELOG against the actual first parent byte-for-byte; compare the post-cleanup file against that same first-parent blob after removing only trailing spaces and tabs as specified above.
+   Do not use a broad whitespace-insensitive comparison that could hide changes inside release text.
    Run root `pnpm run check`, `pnpm run lint`, `pnpm run test`, and `pnpm fallow dead-code` on the completed integration, not a conflict state.
    Also run core and permission-system `verify:public-types`, autoformat `test:acceptance`, selector `verify:core-compatibility`, root upstream/release/roadmap suites, and `git diff --check`.
    In a fresh Pi 1.0-or-later session, verify chooser cancellation/confirmation, selected labels, background resume, child tool allowlists, permission-system/nocd prompt composition, and the permission-judge combination; use the actual packages under test rather than only old registry dependencies.
@@ -329,7 +345,7 @@ A pending merge is not a resumable clean checkpoint: stop for operator-directed 
 - **Automatic merge retains incompatible semantics:** inspect ordinary/pending/confirmed/live/released and resume paths with distinct values; do not rely on conflict markers or stubbed detail producers.
 - **Host pins hide integration defects:** run packed candidate and real-loader checks on the new host in addition to historical rows and local suites.
 - **New permissions change daily operations:** accept the documented target restrictions, exercise migration scenarios, and never add blanket allows just to pass tests.
-- **Fork history becomes upstream history:** preserve identity, CHANGELOG bytes, tag namespace and committed evidence; derive versions through policy rather than merge-message severity alone.
+- **Fork history becomes upstream history:** preserve identity, CHANGELOG content except the explicitly approved trailing-whitespace cleanup, tag namespace and committed evidence; derive versions through policy rather than merge-message severity alone.
 - **Workflow prose silently targets upstream:** inspect newly added API paths and automatically merged prompts, while retaining guide-owned synchronization exceptions.
 - **New behavior invalidates historical trial assumptions:** update current docs and tests, not historical measured results.
 - **Current Pi process runs old extensions/templates:** restart for manual integration checks and again before shipping if loaded workflow tools changed.
