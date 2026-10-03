@@ -10,6 +10,8 @@ Stop before any tool call if the bracketed input is nonempty; request a no-argum
 Run from the repository root in a fresh Pi session after changing this prompt; read the on-disk version.
 Load `git-workflow` before issue creation, `github-voice` before drafting the English issue, and `roadmap-fit` at filing time (`scope:repo` does not invent a package roadmap).
 
+Before returning a single reused or newly created issue, call `set_session_name` with `#N Upstream sync — gotgenes/pi-packages@<target>` using the resolved fork issue number and pinned target.
+
 ## 1. Query the target and all fork issues
 
 Run the executable fence below with `ENTRY_MODE=lookup`.
