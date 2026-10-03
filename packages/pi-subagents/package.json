@@ -1,6 +1,6 @@
 {
   "name": "@jopqior/pi-subagents",
-  "version": "4.0.7",
+  "version": "5.0.0",
   "type": "module",
   "exports": {
     ".": {

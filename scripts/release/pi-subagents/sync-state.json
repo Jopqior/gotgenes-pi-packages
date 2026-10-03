@@ -104,6 +104,14 @@
         "commit": "1c8c78e888e3b6b404bafeb9221420c204b6e1fe"
       },
       "upstreamTip": "4dd378ca97a35e380ed946cd5ce0bcb9050ced5a"
+    },
+    {
+      "forkTag": "pi-subagents-v5.0.0",
+      "upstream": {
+        "version": "22.0.0",
+        "commit": "84111ba0e8eebddd3c4bb4ae04298b1a78f96f86"
+      },
+      "upstreamTip": "9087a8dfa6edbfa1808fe3deab46ac3e17a7c032"
     }
   ],
   "syncs": [
