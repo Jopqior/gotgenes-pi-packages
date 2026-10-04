@@ -5,6 +5,37 @@ issue_title: "fix(pi-subagents-model-selector): scope model controls and add fra
 
 # Scope model controls and frame the spawn chooser
 
+## Acceptance Correction
+
+The operator approved implementation of this correction after the original implementation.
+This section supersedes the original initial-complete and immediate-selection acceptance rules and the corresponding statements in the earlier retro stages.
+The frame, Model-only scope controls, Tab/Shift+Tab policy, width bounds, and real search-cursor behavior remain required.
+No push, release, issue mutation, or commit is authorized by this correction's implementation task.
+
+### Corrected contract
+
+- Initial Model is unconfirmed and incomplete, even when the current model is highlighted.
+- Row navigation, filtering, and Model scope toggles change only the candidate, never the confirmed model or thinking choice/cursor.
+- Enter on Model confirms the candidate and advances to Thinking; retain a compatible thinking choice and reset its cursor to that choice, otherwise clear thinking and reset its cursor.
+- Enter on Model with no candidate does nothing and preserves the previous confirmed pair.
+- Thinking options and Submit review/result use the confirmed model, including when it is hidden by search or outside the current scope.
+- Without Model confirmation, Thinking cannot choose and Submit cannot finish.
+- Tab and Shift+Tab only navigate; they never confirm or submit.
+- The browsing arrow identifies the candidate; the success checkmark identifies the confirmed selection, with separate muted current/default badges and a visible confirmed-model summary on Model and Thinking.
+
+### Correction TDD Order
+
+1. Pin initial incompleteness and blocked Thinking/Submit through public reducer transitions and the actual component keyboard/render boundary; observe the old behavior before production edits.
+   Add `confirmedModel` to reducer-owned state, confirm it only on Model Enter, and derive Thinking/Submit from it.
+2. Pin browsing isolation, compatible/incompatible re-confirmation, empty-candidate Enter, and hidden/out-of-scope confirmed-pair selection/submission.
+   Restrict candidate synchronization to the model cursor; intentionally replace tests asserting immediate selection changes.
+3. Pin candidate/confirmation rendering and missing-confirmation guidance using existing themes and real component rendering.
+   Keep the frame/layout implementation and search Input rather than adding a framework.
+4. Mutate individual confirmation, browsing, option-source, submission-source, and presentation decisions to verify discriminating tests; restore all mutations.
+   Run the full package test, check, and lint gates plus feasible repository gates.
+5. Update README and this plan; leave fresh-session visual comparison, actual spawn submission/cancellation, and live resize explicitly pending if interactive acceptance is unavailable.
+   The parent records the retro stage and arranges review before any commit.
+
 ## Release Recommendation
 
 **Release:** ship independently
@@ -22,7 +53,7 @@ The chooser also lacks a visible tab strip and frame, and its unbounded title, m
 - Restrict scope information, Ctrl+S, and catalogue notices to Model.
 - Frame every page with horizontal rules, the existing task identity title, and an active/completion-aware tab strip.
 - Preserve Tab/Shift+Tab navigation and left/right search editing, with accurate hints.
-- Derive completion from valid current values, without adding visited or confirmed-page state.
+- Derive completion from a confirmed model and a compatible explicitly chosen thinking level, never from visiting a page or highlighting a candidate.
 - Keep all output within terminal columns and retain the active tab when resizing.
 - Preserve catalogue ordering, fuzzy search, thinking choices, final validation, and cancellation.
 - Classify the scope restriction as breaking under this workflow's observable-behavior rule: Ctrl+S on Thinking and Submit becomes a no-op on upgrade.
@@ -34,7 +65,7 @@ The chooser also lacks a visible tab strip and frame, and its unbounded title, m
 - Tool / Agent / Custom presets, configuration provenance, or inheritance changes; [#26] owns that cross-package flow and depends on this UI repair.
 - A pi-ask runtime dependency, copied generic tab framework, or public rendering API.
 - Changes to core contracts, queue ownership, root/child routing, resume behavior, default selection, or package peer ranges.
-- Replacing the existing submission validator or making confirmation of Model an additional prerequisite.
+- Replacing core-level submission validation or changing selection-provider contracts.
 
 ## Background
 
@@ -75,7 +106,7 @@ Put the tab guard in the reducer's `toggleScope`: return the same state unless `
 In the component, consume Ctrl+S everywhere but dispatch the event only on Model.
 The reducer pin tests the domain rule independently; component tests pin real key routing.
 
-Keep Tab, Shift+Tab, Enter, Escape, and row movement semantics unchanged.
+Keep Tab, Shift+Tab, Escape, and candidate row navigation; Model Enter now explicitly confirms its candidate as specified by the acceptance correction.
 Do not intercept left/right for page navigation, even when the query is empty.
 On Model, forward search editing to the real `Input`; on other pages, those keys have no effect.
 Only dispatch a `filter` event when the Input's value actually changes; cursor-only movement should request a render without reselecting the first filtered model or invalidating thinking.
@@ -84,15 +115,16 @@ Test this with a non-empty query matching multiple models and a non-first highli
 
 Completion is derived during rendering:
 
-- Model: `view.pendingModel !== undefined`.
-- Thinking: a pending model exists, `view.thinkingLevel !== undefined`, and `view.thinkingLevels.includes(view.thinkingLevel)`.
+- Model: `view.confirmedModel !== undefined`.
+- Thinking: a confirmed model exists, `view.thinkingLevel !== undefined`, and `view.thinkingLevels.includes(view.thinkingLevel)`.
 - Submit: a distinct review/submit marker, not another completion checkbox.
 
-Initial Model may therefore be checked immediately, while Thinking remains unchecked even for an off-only model.
-Row movement, search, and scope changes continue through `syncModelCursor`: compatible choices survive, unsupported choices clear.
-No new mutable state or serialized field is needed.
-Do not treat `view.canSubmit` as a strict supported-level predicate: today it checks presence only.
-Leave final submission validation unchanged; normal reducer transitions already maintain its supported-level invariant.
+Initial Model and Thinking are unchecked, even for a current or off-only model.
+`pendingModel` remains the highlighted candidate; `confirmedModel` is reducer-owned state set only by Model Enter.
+Row movement, search, and scope changes continue through `syncModelCursor`, which only bounds the candidate cursor.
+Model Enter reconciles thinking compatibility and its cursor; browsing never invalidates the confirmed pair.
+Thinking options and Submit use `confirmedModel`, not the visible catalogue or candidate.
+`view.canSubmit` checks confirmed-model and thinking presence; the supported-level completion marker and core-level validation remain separate.
 
 ### Frame and layout
 
@@ -126,7 +158,8 @@ Use Pi's ANSI-aware column utilities, never string-length slicing for display wi
 Wrap the title, catalogue notice, review values, and footer hints; clip individual model-list rows and model-name detail as needed.
 Apply a final `truncateToWidth` bound to every emitted line, including Input output; handle non-positive width explicitly before helpers that assume positive widths.
 The final bound is a safety net, not a substitute for keeping the active tab in the visible range.
-Keep the existing model window, provider/default/current badges, and thinking rows.
+Keep the existing model window, provider/default badges, and thinking rows.
+Use a muted `current` badge for the session's current model and the success checkmark for the confirmed selection; show a wrapped confirmed-model summary on Model and Thinking.
 
 ### Structural review and Tidy First
 
@@ -143,9 +176,9 @@ Do not extract Thinking/Submit renderers solely to split the procedure; extract 
 
 ### Changed
 
-- `src/selection-form.ts`: guard `toggleScope` by active page; leave catalogue, search, thinking synchronization, and validation unchanged.
+- `src/selection-form.ts`: Model-only scope guard, separate candidate/confirmed state, confirmation-only thinking reconciliation, and confirmed-model Thinking/Submit transitions; preserve catalogue ordering and fuzzy search.
 - `src/selection-form-component.ts`: page-local controls/notices, Ctrl+S consumption, query-change-only filter dispatch, shared frame, derived completion markers, `FormTheme.bg`, and width-aware output.
-- `test/selection-form.test.ts`: inactive-page scope no-op pins including a selected pair and a still-open status.
+- `test/selection-form.test.ts`: public transition pins for scope guards, explicit confirmation, candidate isolation, compatibility reconciliation, and hidden-model submission without constructing private state.
 - `test/selection-form-component.test.ts`: behavioral groups, typed custom/theme fake, semantic-style assertions, real-Input cursor tests, navigation and completion regressions, width/resize matrix.
 - `README.md`: replace misleading all/scoped "tab" wording with Model-page scope; explain navigation, completion, frame, scope shortcut migration, and narrow-width behavior in Behavior/Limitations as appropriate.
 
@@ -176,7 +209,7 @@ Exercise the same component wide-to-narrow-to-wide on each active tab and confir
 
 - Search users retain fuzzy subsequence matching and score ordering: existing `selection-form.test.ts` filter tests remain unchanged.
 - Operators retain current/default/provider ordering: existing sort-and-highlight tests remain unchanged.
-- Model changes preserve supported thinking and clear unsupported thinking: existing thinking keep/clear tests stay, with component marker tests added across row, filter, and scope transitions.
+- Confirming a model preserves supported thinking and clears unsupported thinking; candidate changes preserve both choices, with reducer and actual-component tests across row, filter, and scope transitions.
 - An off-only model still requires an explicit Thinking choice: existing reducer test plus a new unchecked-marker assertion.
 - Tab navigation never confirms or submits: existing reducer tests plus component result-observer assertions for Tab/Shift+Tab.
 - Existing inline rendering, Escape cancellation, abort-before-open, abort-after-open, and final submitted pair tests remain in `selection-form-component.test.ts`.
@@ -185,7 +218,10 @@ Exercise the same component wide-to-narrow-to-wide on each active tab and confir
 These are current source/test invariants, not claims inferred from an inherited roadmap.
 No quantitative cache, token-budget, or latency invariant is changed or claimed.
 
-## TDD Order
+## Original TDD Order (historical)
+
+The following order records the original implementation, already completed.
+Its immediate-selection and initial-complete test expectations are superseded by the Acceptance Correction and its Correction TDD Order above; do not execute those old expectations again.
 
 1. **Prepare the component test boundary.**
    Group the existing tests under rendering, keyboard input, submission, and cancellation.
@@ -252,7 +288,7 @@ Finish implementation with the standard fresh-context pre-completion review befo
 - Visual arrows could imply arrow-key navigation: explicit Tab/Shift+Tab hints and cursor-editing documentation accompany them, with negative navigation tests.
 - A clipped strip can hide the active tab while satisfying width assertions: assert active identity and background in addition to all-line bounds.
 - Narrow Input output can exceed width: the pinned source explicitly returns its full prompt at tiny widths; test and bound that output.
-- Completion can accidentally become a new submission gate: derive presentation facts without new confirmation state or validator changes.
+- Candidate and confirmed selection can be conflated: use explicit reducer-owned confirmation state, and test Thinking/Submit with a confirmed model absent from the visible catalogue.
 - The two scope guards can mask each other's tests: test reducer and real component separately with the discriminating mutations listed above.
 - Long titles and wrapped hints increase vertical space: preserve task identity and explicit controls; a new height-budget framework is not part of this width repair.
 - In-process extensions remain stale after edits: manual comparison must use a fresh session.

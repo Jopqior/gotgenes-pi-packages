@@ -53,6 +53,7 @@ export interface SelectionFormState {
   readonly scope: SelectionScope;
   readonly query: string;
   readonly highlightedIndex: number;
+  readonly confirmedModel: Model<Api> | undefined;
   readonly thinkingHighlight: number;
   readonly thinkingLevel: SpawnSelection["thinkingLevel"] | undefined;
   readonly submitMessage: string | undefined;
@@ -81,6 +82,7 @@ export function createSelectionFormState(
     scope,
     query: "",
     highlightedIndex: currentIndex >= 0 ? currentIndex : 0,
+    confirmedModel: undefined,
     thinkingHighlight: 0,
     thinkingLevel: undefined,
     submitMessage: undefined,
@@ -118,14 +120,15 @@ export function viewSelectionForm(
 ): SelectionFormView {
   const models = visibleModels(state, input);
   const pendingModel = modelAt(models, state.highlightedIndex);
-  const thinkingLevels = pendingModel ? input.levelsFor(pendingModel) : [];
+  const thinkingLevels = currentThinkingLevels(state, input);
   return {
     ...state,
     hasScoped: scopedCatalogue(input).length > 0,
     models,
     pendingModel,
     thinkingLevels,
-    canSubmit: pendingModel !== undefined && state.thinkingLevel !== undefined,
+    canSubmit:
+      state.confirmedModel !== undefined && state.thinkingLevel !== undefined,
   };
 }
 
@@ -221,12 +224,27 @@ function confirmTab(
   input: SelectionFormInput,
 ): SelectionFormState {
   if (state.tab === "model") {
-    if (
-      modelAt(visibleModels(state, input), state.highlightedIndex) === undefined
-    ) {
+    const confirmedModel = modelAt(
+      visibleModels(state, input),
+      state.highlightedIndex,
+    );
+    if (confirmedModel === undefined) {
       return state;
     }
-    return { ...state, tab: "thinking", submitMessage: undefined };
+    const levels = input.levelsFor(confirmedModel);
+    const thinkingLevel =
+      state.thinkingLevel !== undefined && levels.includes(state.thinkingLevel)
+        ? state.thinkingLevel
+        : undefined;
+    return {
+      ...state,
+      confirmedModel,
+      thinkingLevel,
+      thinkingHighlight:
+        thinkingLevel === undefined ? 0 : levels.indexOf(thinkingLevel),
+      tab: "thinking",
+      submitMessage: undefined,
+    };
   }
   if (state.tab === "thinking") {
     const levels = currentThinkingLevels(state, input);
@@ -241,7 +259,7 @@ function confirmTab(
       submitMessage: undefined,
     };
   }
-  const model = modelAt(visibleModels(state, input), state.highlightedIndex);
+  const model = state.confirmedModel;
   if (model === undefined) {
     return { ...state, submitMessage: "Select a model." };
   }
@@ -264,26 +282,14 @@ function syncModelCursor(
     state.highlightedIndex,
     Math.max(0, models.length - 1),
   );
-  const next = { ...state, highlightedIndex };
-  const levels = currentThinkingLevels(next, input);
-  const kept =
-    next.thinkingLevel !== undefined && levels.includes(next.thinkingLevel)
-      ? next.thinkingLevel
-      : undefined;
-  return {
-    ...next,
-    thinkingLevel: kept,
-    thinkingHighlight:
-      kept === undefined ? 0 : Math.max(0, levels.indexOf(kept)),
-  };
+  return { ...state, highlightedIndex };
 }
 
 function currentThinkingLevels(
   state: SelectionFormState,
   input: SelectionFormInput,
 ): readonly SpawnSelection["thinkingLevel"][] {
-  const model = modelAt(visibleModels(state, input), state.highlightedIndex);
-  return model ? input.levelsFor(model) : [];
+  return state.confirmedModel ? input.levelsFor(state.confirmedModel) : [];
 }
 
 function visibleModels(

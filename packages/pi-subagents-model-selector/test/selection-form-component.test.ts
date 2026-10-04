@@ -179,8 +179,8 @@ describe("presentSelectionForm", () => {
 
     describe("tab navigation and search editing", () => {
       it.each([
-        { key: TAB, pages: ["☐ Thinking", "☰ Submit", "☒ Model"] },
-        { key: SHIFT_TAB, pages: ["☰ Submit", "☐ Thinking", "☒ Model"] },
+        { key: TAB, pages: ["☐ Thinking", "☰ Submit", "☐ Model"] },
+        { key: SHIFT_TAB, pages: ["☰ Submit", "☐ Thinking", "☐ Model"] },
       ])(
         "cycles without confirmation or submission (key: $key)",
         async ({ key, pages }) => {
@@ -194,7 +194,7 @@ describe("presentSelectionForm", () => {
           for (const page of pages) {
             component.handleInput(key);
             expect(activeTab(component)).toBe(page);
-            expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
+            expect(tabStrip(component)).toBe("← ☐ Model ☐ Thinking ☰ Submit →");
           }
           await Promise.resolve();
           expect(resolved).not.toHaveBeenCalled();
@@ -213,7 +213,7 @@ describe("presentSelectionForm", () => {
             ansiTheme(),
           );
           component.handleInput(key);
-          expect(activeTab(component)).toBe("☒ Model");
+          expect(activeTab(component)).toBe("☐ Model");
           expect(screen(component)).toContain("> ");
         },
       );
@@ -231,7 +231,7 @@ describe("presentSelectionForm", () => {
         component.handleInput(ARROW_RIGHT);
         component.handleInput(ARROW_LEFT);
         component.handleInput("a");
-        expect(activeTab(component)).toBe("☒ Model");
+        expect(activeTab(component)).toBe("☐ Model");
         expect(screen(component)).toContain("> haiku");
       });
 
@@ -262,13 +262,13 @@ describe("presentSelectionForm", () => {
     });
 
     it("moves to the thinking tab on Tab instead of inserting into the search Input", async () => {
-      const { captured } = await openForm();
-      expect(screen(captured.component)).toContain("> ");
-      captured.component?.handleInput(TAB);
-      const text = screen(captured.component);
+      const { component } = await openForm();
+      expect(screen(component)).toContain("> ");
+      component.handleInput(TAB);
+      const text = screen(component);
       expect(text).not.toContain("> ");
-      expect(text).toContain("off");
-      expect(text).toContain("high");
+      expect(text).not.toMatch(/^→ (off|high)$/m);
+      expect(tabStrip(component)).toBe("← ☐ Model ☐ Thinking ☰ Submit →");
     });
   });
 
@@ -282,7 +282,7 @@ describe("presentSelectionForm", () => {
         expect(lines[1]).toBe(input.title);
         expect(stripTerminalSequences(lines[2])).toContain("☰ Submit");
         expect(lines.at(-1)).toBe("─".repeat(80));
-        expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
+        expect(tabStrip(component)).toBe("← ☐ Model ☐ Thinking ☰ Submit →");
       });
 
       it.each(["Model", "Thinking", "Submit"])(
@@ -301,13 +301,13 @@ describe("presentSelectionForm", () => {
             component.handleInput(TAB);
           expect(activeTab(component)).toBe(
             page === "Model"
-              ? "☒ Model"
+              ? "☐ Model"
               : page === "Thinking"
                 ? "☐ Thinking"
                 : "☰ Submit",
           );
           const strip = component.render(80)[2];
-          expect(strip).toContain("\u001b[32m☒\u001b[39m");
+          expect(strip).not.toContain("\u001b[32m☒\u001b[39m");
           expect(strip).toContain("\u001b[90m☐\u001b[39m");
           expect(strip).toContain(`\u001b[37m${page}\u001b[39m`);
           const text = screen(component);
@@ -327,21 +327,21 @@ describe("presentSelectionForm", () => {
         const { component } = await openForm(
           makeInput({ availableModels: [opus], scopedModels: [] }),
         );
-        expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
+        expect(tabStrip(component)).toBe("← ☐ Model ☐ Thinking ☰ Submit →");
         component.handleInput(ENTER);
         expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
         component.handleInput(ENTER);
         expect(tabStrip(component)).toBe("← ☒ Model ☒ Thinking ☰ Submit →");
       });
 
-      it("unchecks Model and Thinking when search has no results", async () => {
+      it("keeps Model and Thinking complete when search hides the confirmed model", async () => {
         const { component } = await openForm();
         component.handleInput(ENTER);
         component.handleInput(ARROW_DOWN);
         component.handleInput(ENTER);
         component.handleInput(TAB);
         component.handleInput("zzzz-no-match");
-        expect(tabStrip(component)).toBe("← ☐ Model ☐ Thinking ☰ Submit →");
+        expect(tabStrip(component)).toBe("← ☒ Model ☒ Thinking ☰ Submit →");
       });
 
       describe.each(["row", "search", "scope"])(
@@ -377,11 +377,21 @@ describe("presentSelectionForm", () => {
                     : target.id,
               );
               expect(tabStrip(component)).toBe(
+                "← ☒ Model ☒ Thinking ☰ Submit →",
+              );
+              component.handleInput(SHIFT_TAB);
+              expect(screen(component)).toContain(
+                `Model: ${sonnet.id} [${sonnet.provider}]`,
+              );
+              expect(screen(component)).toContain("Thinking: high");
+              component.handleInput(TAB);
+              component.handleInput(ENTER);
+              expect(tabStrip(component)).toBe(
                 compatible
                   ? "← ☒ Model ☒ Thinking ☰ Submit →"
                   : "← ☒ Model ☐ Thinking ☰ Submit →",
               );
-              component.handleInput(SHIFT_TAB);
+              component.handleInput(TAB);
               expect(screen(component)).toContain(
                 `Model: ${target.id} [${target.provider}]`,
               );
@@ -392,6 +402,76 @@ describe("presentSelectionForm", () => {
           );
         },
       );
+
+      describe("candidate and confirmed selection", () => {
+        it("labels the current model without presenting it as confirmed", async () => {
+          const { component } = await openForm(makeInput({ scopedModels: [] }));
+          const rows = component
+            .render(80)
+            .filter((line) => /^(→ | {2})claude-/.test(line));
+          expect(rows).toEqual([
+            `→ ${sonnet.id} [${sonnet.provider}] · current`,
+            `  ${haiku.id} [${haiku.provider}] · default`,
+          ]);
+          expect(screen(component)).toContain("Confirmed model: (none)");
+          expect(tabStrip(component)).toBe("← ☐ Model ☐ Thinking ☰ Submit →");
+        });
+
+        it("separates the browsing arrow from the confirmed checkmark and Thinking model", async () => {
+          const { component } = await openForm(makeInput({ scopedModels: [] }));
+          component.handleInput(ENTER);
+          component.handleInput(ARROW_DOWN);
+          component.handleInput(ENTER);
+          component.handleInput(TAB);
+          component.handleInput(ARROW_DOWN);
+          component.handleInput(ARROW_DOWN);
+          const rows = component
+            .render(80)
+            .filter((line) => /^(→ | {2})(claude-|gpt-)/.test(line));
+          expect(rows).toEqual([
+            `  ${sonnet.id} [${sonnet.provider}] · current ✓`,
+            `  ${haiku.id} [${haiku.provider}] · default`,
+            `→ ${opus.id} [${opus.provider}]`,
+          ]);
+          expect(screen(component)).toContain(
+            `Confirmed model: ${sonnet.id} [${sonnet.provider}]`,
+          );
+          component.handleInput(TAB);
+          expect(screen(component)).toContain(
+            `Confirmed model: ${sonnet.id} [${sonnet.provider}]`,
+          );
+          expect(screen(component)).toMatch(/^→ high ✓$/m);
+        });
+
+        it("moves the confirmed checkmark only after Enter on a different candidate", async () => {
+          const { component } = await openForm(makeInput({ scopedModels: [] }));
+          component.handleInput(ENTER);
+          component.handleInput(SHIFT_TAB);
+          component.handleInput(ARROW_DOWN);
+          component.handleInput(ENTER);
+          component.handleInput(SHIFT_TAB);
+          const rows = component
+            .render(80)
+            .filter((line) => /^(→ | {2})claude-/.test(line));
+          expect(rows).toEqual([
+            `  ${sonnet.id} [${sonnet.provider}] · current`,
+            `→ ${haiku.id} [${haiku.provider}] · default ✓`,
+          ]);
+          expect(screen(component)).toContain(
+            `Confirmed model: ${haiku.id} [${haiku.provider}]`,
+          );
+        });
+
+        it("explains why Thinking has no choices until Model is confirmed", async () => {
+          const { component } = await openForm();
+          component.handleInput(TAB);
+          expect(screen(component)).toContain("Confirmed model: (none)");
+          expect(screen(component)).toContain(
+            "Confirm a model on Model first.",
+          );
+          expect(screen(component)).not.toMatch(/^(→ | {2})(off|high)/m);
+        });
+      });
 
       it("requires a currently supported level rather than just a present value for the Thinking marker", async () => {
         const supported = vi.fn(
@@ -532,7 +612,8 @@ describe("presentSelectionForm", () => {
             scopedModels: [],
           }),
         );
-        component.handleInput(SHIFT_TAB);
+        component.handleInput(ENTER);
+        component.handleInput(TAB);
         component.handleInput(ENTER);
         const lines = component.render(24).map(stripTerminalSequences);
         const text = lines.join("").replace(/\s/g, "");
@@ -658,18 +739,87 @@ describe("presentSelectionForm", () => {
       expect(text).toContain("(1/12)");
     });
 
-    it("renders provider badges, the current checkmark, and the default badge", async () => {
+    it("renders provider, current, and default badges without a confirmed checkmark", async () => {
       const { captured } = await openForm(
         makeInput({ scopedModels: [], currentModel: sonnet }),
       );
       const text = screen(captured.component);
       expect(text).toContain("[anthropic]");
-      expect(text).toContain("✓");
+      expect(text).toContain("· current");
+      expect(text).not.toContain("✓");
       expect(text).toContain("· default");
     });
   });
 
   describe("submission", () => {
+    it("requires Model Enter before Thinking can choose or Submit can finish", async () => {
+      const { component, resultPromise } = await openForm();
+      const resolved = vi.fn();
+      const observed = resultPromise.then(resolved);
+      expect(tabStrip(component)).toBe("← ☐ Model ☐ Thinking ☰ Submit →");
+      component.handleInput(TAB);
+      component.handleInput(ARROW_DOWN);
+      component.handleInput(ENTER);
+      expect(tabStrip(component)).toBe("← ☐ Model ☐ Thinking ☰ Submit →");
+      component.handleInput(TAB);
+      component.handleInput(ENTER);
+      expect(screen(component)).toContain("Model: (none)");
+      expect(screen(component)).toContain("Thinking: (none)");
+      expect(screen(component)).toContain("Select a model.");
+      await Promise.resolve();
+      expect(resolved).not.toHaveBeenCalled();
+      component.handleInput(ESCAPE);
+      await observed;
+      expect(resolved).toHaveBeenCalledWith({ kind: "cancel" });
+    });
+
+    it.each(["filtered", "empty", "out of scope"])(
+      "chooses Thinking and submits the confirmed model when it is %s",
+      async (hidden) => {
+        const { component, resultPromise } = await openForm(
+          makeInput({
+            scopedModels: [{ model: opus }],
+            defaultModel: undefined,
+          }),
+        );
+        component.handleInput(CTRL_S);
+        component.handleInput(ENTER);
+        component.handleInput(SHIFT_TAB);
+        component.handleInput(
+          hidden === "out of scope"
+            ? CTRL_S
+            : hidden === "empty"
+              ? "zzzz-no-match"
+              : opus.id,
+        );
+        expect(tabStrip(component)).toBe("← ☒ Model ☐ Thinking ☰ Submit →");
+        expect(screen(component)).toContain(
+          `Confirmed model: ${sonnet.id} [${sonnet.provider}]`,
+        );
+        expect(screen(component)).not.toMatch(
+          new RegExp(`^(→ |  )${sonnet.id} `, "m"),
+        );
+        component.handleInput(TAB);
+        expect(screen(component)).toContain(
+          `Confirmed model: ${sonnet.id} [${sonnet.provider}]`,
+        );
+        expect(screen(component)).toMatch(/^→ off$/m);
+        expect(screen(component)).toMatch(/^ {2}high$/m);
+        component.handleInput(ARROW_DOWN);
+        component.handleInput(ENTER);
+        expect(screen(component)).toContain(
+          `Model: ${sonnet.id} [${sonnet.provider}]`,
+        );
+        expect(screen(component)).toContain("Thinking: high");
+        component.handleInput(ENTER);
+        await expect(resultPromise).resolves.toEqual({
+          kind: "submit",
+          model: sonnet,
+          thinkingLevel: "high",
+        });
+      },
+    );
+
     it.each(["thinking", "submit"])(
       "ignores Ctrl+S on %s without changing the submitted pair",
       async (page) => {

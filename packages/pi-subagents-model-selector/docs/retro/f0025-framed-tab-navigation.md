@@ -66,3 +66,31 @@ Measured package tests increased from 71 to 112 (+41), and repository-level test
 - All files in the plan's changed-module list were updated; composition, queue, catalogue/search helpers, peer ranges, and lockfiles were unchanged.
   No architecture roadmap was updated, and deferred configuration-source work remains with fork issue #26.
 - No push, issue closure, release dispatch, or publication was performed.
+
+## Stage: Acceptance correction (2026-10-04T02:03:52Z)
+
+### Session summary
+
+Paused shipping after the operator reported that the original manual checks passed but browsing Model rows changed the selected model without Enter.
+The operator explicitly required initial confirmation too and approved reducer and real-component interaction tests as the verification boundaries.
+Separated the confirmed model from the candidate cursor, updated the plan and README, and completed automated verification.
+
+### Observations
+
+- The previous view derived the pending model directly from the visible highlighted row; Thinking and Submit consumed that candidate.
+  The reducer now owns an initially absent confirmed model, updated only by Model Enter.
+- Row movement, filtering, scope changes, and Tab navigation leave the confirmed model and thinking untouched.
+  Thinking and Submit use the confirmed model even when search or scope hides it.
+  Confirmation retains compatible thinking and restores its cursor; incompatible confirmation clears thinking and resets its cursor.
+- Candidate arrows, confirmation checkmarks, current/default badges, and the confirmed-model summary now describe distinct facts.
+  Model completion requires explicit confirmation, superseding the original plan's initial-complete behavior.
+- Regression cycles observed failures before the production fix; focused mutations exercised confirmation gating, candidate isolation, rendering, and compatibility handling and were restored.
+  The reviewer identified a reconfirmation-cursor test gap; added reachable compatible/incompatible cursor cases and killed the preserved-old-cursor mutation before restoring it.
+- Final package verification measured 10 passing test files and 133 passing tests; package typecheck passed.
+  Both independent review rounds ran repository test, typecheck, lint, and dead-code gates successfully.
+- Pre-completion reviewer: WARN.
+  Delta review accepted the cursor tests; the remaining warning is fresh-session manual acceptance of the corrected implementation.
+  The operator's earlier manual acceptance applies to the preceding implementation, not this correction.
+- Remaining manual checks: initially unchecked Model, explicit Enter confirmation, browsing without changing the confirmed pair, compatible/incompatible reconfirmation, hidden confirmed models, actual submit/cancel, and live narrow/wide resize in a fresh Pi session.
+  Automated component tests do not establish these interactive results.
+- No push, issue closure, or publication was performed; shipping remains paused pending corrected-version acceptance.

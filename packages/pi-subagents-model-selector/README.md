@@ -88,10 +88,15 @@ Other locked fields are unchanged.
 
 The form has a task identity title, horizontal frame rules, and Model, Thinking, and Submit tabs.
 The active tab has a highlighted background.
-Model and Thinking use `☐` / `☒` completion boxes derived from current values, not from whether a page has been visited or confirmed.
-Model is complete when a pending model exists; Thinking is complete only when an explicitly chosen level is supported by that model.
+Model and Thinking use `☐` / `☒` completion boxes: Model starts incomplete and becomes complete only after Enter confirms a highlighted candidate.
+The current model is an initial candidate, not a confirmed selection.
+The browsing arrow marks the candidate; a checkmark marks the confirmed model, while `current` and `default` badges remain informational.
+Model and Thinking show the confirmed model separately, including when search or scope hides its row.
+Thinking is complete only when an explicitly chosen level is supported by the confirmed model.
+Without a confirmed model, Thinking has no choices and Submit is blocked.
 A model that supports only `off` still requires an explicit choice on Thinking.
-Compatible model changes keep the chosen thinking level; incompatible changes clear it.
+Browsing rows, filtering, and toggling scope do not change the confirmed model or thinking choice.
+Confirming a different model keeps compatible thinking and clears incompatible thinking.
 Submit has a distinct review marker (`☰`), not a completion box.
 
 Model's **all** scope lists every authenticated available model of the session whose manager is spawning, not a process-global list.
@@ -103,9 +108,11 @@ When upgrading from the chooser that allowed scope changes on any page, return t
 Tab moves to the next page; Shift+Tab moves to the previous page, with wraparound and no confirmation or submission.
 The tab strip's arrows are visual cues, not arrow-key navigation.
 Left/right edit the search cursor on Model and do nothing on the other pages.
-Cursor-only movement keeps the pending model and thinking choice.
-Up/down move the highlighted model or thinking row.
-Enter advances from Model, explicitly chooses the highlighted level on Thinking, and submits the pair only on Submit.
+Cursor-only movement keeps the highlighted candidate and confirmed pair.
+Up/down move the highlighted model candidate or thinking row.
+Enter on Model confirms the candidate and advances to Thinking; Enter on Thinking explicitly chooses a level for the confirmed model and advances to Submit.
+Submit reviews and submits only the confirmed pair, even if that model is filtered out or outside the current scope.
+Enter on Model with no matching candidate does nothing, preserving any confirmed pair.
 Escape cancels from any page.
 
 Concurrent requests are FIFO at the root chooser.
@@ -135,7 +142,7 @@ A request that arrives before the UI is attached fails closed rather than waitin
 - Layout stays within the supplied terminal columns using ANSI-aware wrapping and clipping.
   Task titles, catalogue notices, review values, and keyboard hints wrap; model rows and model-name details clip.
   Narrow tab strips retain the active tab, abbreviating to `M`, `T`, or `S` when needed and dropping decorative arrows or completion boxes at tiny widths.
-  Resizing preserves the active page and pending pair; a non-positive width produces blank output.
+  Resizing preserves the active page, highlighted candidate, and confirmed pair; a non-positive width produces blank output.
   There is no separate height budget, so wrapped content can make the form taller.
 - Public task status stays `running` while waiting.
   Pending selection is private widget, foreground, and background wording.

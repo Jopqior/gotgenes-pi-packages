@@ -114,13 +114,18 @@ class SelectionFormComponent implements Component {
         this.theme,
         width,
         view.tab,
-        view.pendingModel !== undefined,
-        view.pendingModel !== undefined &&
+        view.confirmedModel !== undefined,
+        view.confirmedModel !== undefined &&
           view.thinkingLevel !== undefined &&
           view.thinkingLevels.includes(view.thinkingLevel),
       ),
       "",
     ];
+    if (view.tab !== "submit") {
+      const model = view.confirmedModel;
+      const label = model ? `${model.id} [${model.provider}]` : "(none)";
+      lines.push(...wrapTextWithAnsi(`Confirmed model: ${label}`, width), "");
+    }
     if (view.tab === "model") {
       if (view.hasScoped) {
         const allText =
@@ -155,9 +160,23 @@ class SelectionFormComponent implements Component {
       this.search.focused = true;
       lines.push(...this.search.render(width));
       lines.push("");
-      lines.push(...this.renderModelRows(view.models, view.highlightedIndex));
+      lines.push(
+        ...this.renderModelRows(
+          view.models,
+          view.highlightedIndex,
+          view.confirmedModel,
+        ),
+      );
     } else if (view.tab === "thinking") {
       this.search.focused = false;
+      if (view.confirmedModel === undefined) {
+        lines.push(
+          ...wrapTextWithAnsi(
+            this.theme.fg("warning", "Confirm a model on Model first."),
+            width,
+          ),
+        );
+      }
       for (const [index, level] of view.thinkingLevels.entries()) {
         const selected = index === view.thinkingHighlight;
         const chosen =
@@ -167,7 +186,7 @@ class SelectionFormComponent implements Component {
         lines.push(`${prefix}${label}${chosen}`);
       }
     } else {
-      const model = view.pendingModel;
+      const model = view.confirmedModel;
       const modelLabel = model ? `${model.id} [${model.provider}]` : "(none)";
       lines.push(...wrapTextWithAnsi(`Model: ${modelLabel}`, width));
       lines.push(
@@ -267,6 +286,7 @@ class SelectionFormComponent implements Component {
   private renderModelRows(
     models: readonly Model<Api>[],
     selectedIndex: number,
+    confirmedModel: Model<Api> | undefined,
   ): string[] {
     const lines: string[] = [];
     if (models.length === 0) {
@@ -291,14 +311,21 @@ class SelectionFormComponent implements Component {
       const defaultBadge = isDefault
         ? this.theme.fg("muted", " · default")
         : "";
-      const checkmark = isCurrent ? this.theme.fg("success", " ✓") : "";
+      const currentBadge = isCurrent
+        ? this.theme.fg("muted", " · current")
+        : "";
+      const checkmark = modelsAreEqual(confirmedModel, model)
+        ? this.theme.fg("success", " ✓")
+        : "";
       const providerBadge = this.theme.fg("muted", `[${model.provider}]`);
       if (isSelected) {
         lines.push(
-          `${this.theme.fg("accent", "→ ")}${this.theme.fg("accent", model.id)} ${providerBadge}${defaultBadge}${checkmark}`,
+          `${this.theme.fg("accent", "→ ")}${this.theme.fg("accent", model.id)} ${providerBadge}${defaultBadge}${currentBadge}${checkmark}`,
         );
       } else {
-        lines.push(`  ${model.id} ${providerBadge}${defaultBadge}${checkmark}`);
+        lines.push(
+          `  ${model.id} ${providerBadge}${defaultBadge}${currentBadge}${checkmark}`,
+        );
       }
     }
     if (startIndex > 0 || endIndex < models.length) {

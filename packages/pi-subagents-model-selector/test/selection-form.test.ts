@@ -97,16 +97,19 @@ describe("selection form", () => {
           currentModel: opus,
           scopedModels: [{ model: haiku }],
         });
-        const selected = reduceSelectionForm(
-          {
-            ...createSelectionFormState(input),
-            tab: "thinking",
-            thinkingHighlight: 1,
-          },
+        const selected = run(input, [
           { type: "confirmTab" },
-          input,
-        );
-        const state = { ...selected, tab };
+          { type: "moveRow", direction: "down" },
+          { type: "confirmTab" },
+        ]);
+        const state =
+          tab === "thinking"
+            ? reduceSelectionForm(
+                selected,
+                { type: "moveTab", direction: "prev" },
+                input,
+              )
+            : selected;
         expect(viewSelectionForm(state, input).pendingModel).toBe(haiku);
         expect(state.thinkingLevel).toBe("high");
         expect(state.status).toEqual({ kind: "open" });
@@ -144,6 +147,7 @@ describe("selection form", () => {
 
     it("treats the highlighted row as the pending model", () => {
       const view = run(makeInput(), [{ type: "moveRow", direction: "down" }]);
+      expect(view.confirmedModel).toBeUndefined();
       expect(view.pendingModel).toBe(haiku);
       expect(view.highlightedIndex).toBe(1);
     });
@@ -197,7 +201,7 @@ describe("selection form", () => {
   });
 
   describe("thinking", () => {
-    it("keeps a still-supported thinking level when the pending model changes", () => {
+    it("keeps a still-supported thinking level when a new model is confirmed", () => {
       const view = run(makeInput(), [
         { type: "confirmTab" },
         { type: "moveRow", direction: "down" },
@@ -207,11 +211,14 @@ describe("selection form", () => {
         { type: "moveRow", direction: "down" },
       ]);
       expect(view.pendingModel).toBe(haiku);
-      expect(view.thinkingLevel).toBe("high");
-      expect(view.canSubmit).toBe(true);
+      expect(view.confirmedModel).toBe(sonnet);
+      const confirmed = run(makeInput(), [{ type: "confirmTab" }], view);
+      expect(confirmed.confirmedModel).toBe(haiku);
+      expect(confirmed.thinkingLevel).toBe("high");
+      expect(confirmed.canSubmit).toBe(true);
     });
 
-    it("clears an unsupported thinking level and blocks submit", () => {
+    it("clears an unsupported thinking level only when the new model is confirmed", () => {
       const view = run(makeInput(), [
         { type: "confirmTab" },
         { type: "moveRow", direction: "down" },
@@ -222,8 +229,63 @@ describe("selection form", () => {
         { type: "moveRow", direction: "down" },
       ]);
       expect(view.pendingModel).toBe(opus);
-      expect(view.thinkingLevel).toBeUndefined();
-      expect(view.canSubmit).toBe(false);
+      expect(view.confirmedModel).toBe(sonnet);
+      expect(view.thinkingLevel).toBe("high");
+      const confirmed = run(makeInput(), [{ type: "confirmTab" }], view);
+      expect(confirmed.confirmedModel).toBe(opus);
+      expect(confirmed.thinkingLevel).toBeUndefined();
+      expect(confirmed.canSubmit).toBe(false);
+    });
+
+    describe("reconfirmation cursor", () => {
+      it("returns the cursor to retained high after browsing off and confirming a compatible model", () => {
+        const input = makeInput();
+        const candidate = run(input, [
+          { type: "confirmTab" },
+          { type: "moveRow", direction: "down" },
+          { type: "confirmTab" },
+          { type: "moveTab", direction: "prev" },
+          { type: "moveRow", direction: "up" },
+          { type: "moveTab", direction: "prev" },
+          { type: "moveRow", direction: "down" },
+        ]);
+        expect(candidate.tab).toBe("model");
+        expect(candidate.pendingModel).toBe(haiku);
+        expect(candidate.thinkingLevel).toBe("high");
+        expect(candidate.thinkingHighlight).toBe(0);
+
+        const confirmed = run(input, [{ type: "confirmTab" }], candidate);
+        expect(confirmed.tab).toBe("thinking");
+        expect(confirmed.confirmedModel).toBe(haiku);
+        expect(confirmed.thinkingLevel).toBe("high");
+        expect(confirmed.thinkingLevels).toEqual(["off", "high"]);
+        expect(confirmed.thinkingHighlight).toBe(1);
+      });
+
+      it("resets a nonzero cursor to off after confirming an incompatible model", () => {
+        const input = makeInput();
+        const candidate = run(input, [
+          { type: "confirmTab" },
+          { type: "moveRow", direction: "down" },
+          { type: "confirmTab" },
+          { type: "moveTab", direction: "prev" },
+          { type: "moveRow", direction: "up" },
+          { type: "moveRow", direction: "down" },
+          { type: "moveTab", direction: "prev" },
+          { type: "moveRow", direction: "up" },
+        ]);
+        expect(candidate.tab).toBe("model");
+        expect(candidate.pendingModel).toBe(opus);
+        expect(candidate.thinkingLevel).toBe("high");
+        expect(candidate.thinkingHighlight).toBe(1);
+
+        const confirmed = run(input, [{ type: "confirmTab" }], candidate);
+        expect(confirmed.tab).toBe("thinking");
+        expect(confirmed.confirmedModel).toBe(opus);
+        expect(confirmed.thinkingLevel).toBeUndefined();
+        expect(confirmed.thinkingLevels).toEqual(["off"]);
+        expect(confirmed.thinkingHighlight).toBe(0);
+      });
     });
 
     it("does not auto-select off when it is the only level", () => {
@@ -234,6 +296,112 @@ describe("selection form", () => {
       expect(view.thinkingLevels).toEqual(["off"]);
       expect(view.thinkingLevel).toBeUndefined();
       expect(view.canSubmit).toBe(false);
+    });
+  });
+
+  describe("candidate browsing", () => {
+    it.each([
+      { event: { type: "moveRow", direction: "down" }, scopedModels: [] },
+      { event: { type: "moveRow", direction: "up" }, scopedModels: [] },
+      { event: { type: "filter", query: "opus" }, scopedModels: [] },
+      { event: { type: "filter", query: "zzzz-no-match" }, scopedModels: [] },
+      { event: { type: "toggleScope" }, scopedModels: [{ model: sonnet }] },
+    ] satisfies {
+      event: SelectionFormEvent;
+      scopedModels: SelectionFormInput["scopedModels"];
+    }[])(
+      "preserves confirmed choice and the Thinking cursor for $event",
+      ({ event, scopedModels }) => {
+        const input = makeInput({ scopedModels });
+        const selected = run(input, [
+          { type: "confirmTab" },
+          { type: "moveRow", direction: "down" },
+          { type: "confirmTab" },
+          { type: "moveTab", direction: "prev" },
+          { type: "moveRow", direction: "up" },
+          { type: "moveTab", direction: "prev" },
+        ]);
+        expect(selected.confirmedModel).toBe(sonnet);
+        expect(selected.thinkingLevel).toBe("high");
+        expect(selected.thinkingHighlight).toBe(0);
+        const browsed = run(input, [event], selected);
+        expect(browsed.confirmedModel).toBe(sonnet);
+        expect(browsed.thinkingLevel).toBe("high");
+        expect(browsed.thinkingHighlight).toBe(0);
+        expect(browsed.thinkingLevels).toEqual(["off", "high"]);
+        expect(browsed.canSubmit).toBe(true);
+      },
+    );
+
+    it.each(["filtered", "empty", "out of scope"])(
+      "uses the confirmed model for Thinking and Submit when it is %s",
+      (hidden) => {
+        const input = makeInput({ scopedModels: [{ model: opus }] });
+        const view = run(input, [
+          { type: "toggleScope" },
+          { type: "confirmTab" },
+          { type: "moveTab", direction: "prev" },
+          hidden === "out of scope"
+            ? { type: "toggleScope" }
+            : {
+                type: "filter",
+                query: hidden === "empty" ? "zzzz-no-match" : opus.id,
+              },
+          { type: "moveTab", direction: "next" },
+          { type: "moveRow", direction: "down" },
+          { type: "confirmTab" },
+          { type: "confirmTab" },
+        ]);
+        expect(view.models.includes(sonnet)).toBe(false);
+        expect(view.thinkingLevels).toEqual(["off", "high"]);
+        expect(view.status).toEqual({
+          kind: "submit",
+          model: sonnet,
+          thinkingLevel: "high",
+        });
+      },
+    );
+
+    it("does not replace a confirmed pair when Model Enter has no candidate", () => {
+      const input = makeInput();
+      const view = run(input, [
+        { type: "confirmTab" },
+        { type: "moveRow", direction: "down" },
+        { type: "confirmTab" },
+        { type: "moveTab", direction: "next" },
+        { type: "filter", query: "zzzz-no-match" },
+      ]);
+      expect(view.pendingModel).toBeUndefined();
+      expect(run(input, [{ type: "confirmTab" }], view)).toEqual(view);
+    });
+  });
+
+  describe("explicit model confirmation", () => {
+    it("starts without thinking choices even when the current model is highlighted", () => {
+      const view = run(makeInput({ currentModel: sonnet }));
+      expect(view.pendingModel).toBe(sonnet);
+      expect(view.confirmedModel).toBeUndefined();
+      expect(view.thinkingLevels).toEqual([]);
+      expect(view.canSubmit).toBe(false);
+    });
+
+    it("cannot choose thinking or submit by navigating past Model without Enter", () => {
+      const input = makeInput();
+      const thinking = run(input, [
+        { type: "moveTab", direction: "next" },
+        { type: "moveRow", direction: "down" },
+        { type: "confirmTab" },
+      ]);
+      expect(thinking.tab).toBe("thinking");
+      expect(thinking.confirmedModel).toBeUndefined();
+      expect(thinking.thinkingLevel).toBeUndefined();
+      expect(thinking.thinkingHighlight).toBe(0);
+      const submit = run(input, [
+        { type: "moveTab", direction: "prev" },
+        { type: "confirmTab" },
+      ]);
+      expect(submit.status).toEqual({ kind: "open" });
+      expect(submit.submitMessage).toBe("Select a model.");
     });
   });
 
@@ -259,6 +427,7 @@ describe("selection form", () => {
     it("advances from the model tab to thinking on Enter without submitting", () => {
       const view = run(makeInput(), [{ type: "confirmTab" }]);
       expect(view.tab).toBe("thinking");
+      expect(view.confirmedModel).toBe(sonnet);
       expect(view.status).toEqual({ kind: "open" });
     });
 
@@ -275,7 +444,7 @@ describe("selection form", () => {
 
     it("refuses Submit until a model and a thinking level are set", () => {
       const missingThinking = run(makeInput(), [
-        { type: "moveTab", direction: "next" },
+        { type: "confirmTab" },
         { type: "moveTab", direction: "next" },
         { type: "confirmTab" },
       ]);
