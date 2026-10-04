@@ -132,3 +132,83 @@ Released version `3.0.0` and confirmed the issue is closed.
   Pulled the release commit with `--ff-only`; no registry polling or retry was needed.
 - No architecture roadmap or phase-close action applies to this package.
   The next workflow stage is `/retro 25` at the root on `main`.
+
+## Stage: Final Retrospective (2026-10-04T02:40:18Z)
+
+### Session summary
+
+Reviewed the planning, implementation, interactive-test, acceptance-correction, and ship transcripts alongside their stage notes.
+The selector shipped with explicit model confirmation after manual acceptance exposed a mismatch between candidate browsing and the intended selection semantics.
+This retrospective changes no runtime behavior or release state.
+
+### Observations
+
+#### What went well
+
+- Manual acceptance supplied a product-contract check that the original automated tests could not supply: they correctly encoded the previously agreed immediate-selection contract.
+  Shipping stopped before push, the operator clarified initial confirmation, and `fix(pi-subagents-model-selector): require explicit model confirmation (#25)` separated candidate browsing from the confirmed pair.
+- The independent review found a semantic width failure despite bounded output: the scope shortcut fit only because its suffix was clipped.
+  The follow-up `fix(pi-subagents-model-selector): keep scope shortcut hint readable` added a full-text preservation test rather than weakening the README claim.
+- The corrected-version acceptance was recorded separately from acceptance of the preceding implementation.
+  The subsequent ship session consumed that record without asking the operator to repeat the completed check.
+
+#### What caused friction (agent side)
+
+- `wrong-abstraction`: planning framed completion as valid values versus explicit confirmation, but did not walk through confirming A, browsing B, then opening Submit without Enter.
+  The operator accepted valid-value markers during planning and later required explicit confirmation; this was a clarified product contract, not an implementation violation of the original decision.
+  Impact: the reducer, component, tests, README, and plan required a correction after the original TDD work, followed by another review and manual acceptance.
+- `missing-context`: the initial width checks emphasized line bounds and selected identity but did not preserve the complete Model scope shortcut text.
+  Impact: the reviewer triggered a separate Red/Green/mutation cycle and fix commit.
+- `other` (handoff usability): the implementation final response referred to fresh-session acceptance without supplying the executable checklist.
+  The operator had to ask where and how to perform it; the agent then supplied launch, keyboard, resize, submit, and cancel steps.
+  Impact: an extra clarification round, with no code rework from the handoff itself.
+- `other` (evidence attribution): the interactive-test session called its completed Explore agent a haiku run, but that child's assistant turns identify `zai-coding-cn/glm-5.3-flash`.
+  Impact: the test report misidentified the executed model; there is no demonstrated code defect or model-quality mismatch from this discrepancy.
+- `missing-context`: the closed issue body still describes Model completion as the presence of a pending model, while the corrected plan and close comment describe explicit confirmation.
+  Impact: future readers of the body alone can recover the superseded contract; the corrected plan is the handoff authority for follow-up planning.
+  No GitHub body edit is included in this retrospective.
+
+#### What caused friction (user side)
+
+- Concrete interaction examples would have exposed the difference between a highlighted candidate and an accepted value earlier than the phrase "valid current values."
+  For future UI decisions, the agent can offer a short action sequence and the operator can state the expected final value, avoiding a requirement to reason about internal state terminology.
+- The operator's live interaction and acceptance decisions were necessary product judgment, not redundant mechanical oversight.
+  The checklist-location question was avoidable agent-side handoff work; preparing that checklist should not fall to the operator.
+
+### Diagnostic details
+
+#### Model-performance correlation
+
+- Parent planning and acceptance correction used `openai-codex/gpt-6-astra`; implementation and final ship used `openai-codex/gpt-6.1-sol`, as labeled on their assistant turns.
+- The Tidy-First assessor used `openai-codex/gpt-6.1-sol` for change-scoped test-boundary and extraction advice.
+- Both original pre-completion review dispatches used `openai-codex/gpt-6-astra`; the first found the clipped scope hint and the delta reviewed its correction.
+- The confirmation implementation agent and its resumed cursor-test task used `openai-codex/gpt-6.1-sol`.
+  The correction reviewer and its resumed delta review also used `openai-codex/gpt-6.1-sol`.
+- The retained completed interactive-test child used `zai-coding-cn/glm-5.3-flash` for a package inventory.
+  Other test dispatches have no retained child transcript in that session's task directory, so their executed models are unknown.
+- These attributions come from type-unfiltered child transcripts, not agent defaults or the parent's model.
+  No task/model reassignment is justified by the observed results; correct the attribution practice rather than inferring that a stronger model would have prevented a product-contract clarification.
+
+#### Feedback-loop gap analysis
+
+- The implementation ran repository baselines before edits and focused/package test and typecheck gates throughout the behavior cycles; this was not end-only verification.
+  Expected mutation failures were deliberate probes, not repeated attempts to repair the same error.
+- The missing loop was scenario-level product validation before encoding the original completion semantics.
+  More runs of those tests would have reinforced the same agreed-but-later-revised behavior.
+  Clarification should contrast the observable result of browsing without confirmation before asking the operator to choose completion semantics.
+
+### Proposal disposition
+
+- Proposed a concise interaction-sequence rule in `.pi/skills/clarification-gates/SKILL.md`, beside the existing substance-first guidance.
+  The operator chose retrospective notes only; the proposal was not implemented.
+  The existing skill remains unchanged.
+- Rejected duplicating the rule in `AGENTS.md` or workflow prompts: the relevant gate already loads the skill.
+- Rejected additional mutation, incremental-check, or fresh-session rules: the existing guidance was followed and did not address the contract mismatch.
+- Rejected a new selector package skill or generalized UI framework in this retro: neither is needed for the small clarification improvement.
+- No roadmap or phase-close action exists for this package.
+  Fork issue #26 is the explicit follow-up named by the plan and is still open; its source-selection design should include browsing-versus-confirmation scenarios.
+
+### Changes made
+
+1. Appended the Final Retrospective stage to `packages/pi-subagents-model-selector/docs/retro/f0025-framed-tab-navigation.md`, preserving prior stages and recording cross-session friction, review findings, model attribution, and verification timing.
+2. Recorded the operator's notes-only decision in this file; no skills, prompts, `AGENTS.md`, runtime code, tests, or GitHub issue bodies were changed.
