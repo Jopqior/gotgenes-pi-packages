@@ -93,4 +93,18 @@ Separated the confirmed model from the candidate cursor, updated the plan and RE
   The operator's earlier manual acceptance applies to the preceding implementation, not this correction.
 - Remaining manual checks: initially unchecked Model, explicit Enter confirmation, browsing without changing the confirmed pair, compatible/incompatible reconfirmation, hidden confirmed models, actual submit/cancel, and live narrow/wide resize in a fresh Pi session.
   Automated component tests do not establish these interactive results.
-- No push, issue closure, or publication was performed; shipping remains paused pending corrected-version acceptance.
+- No push, issue closure, or publication was performed; shipping remained paused pending corrected-version acceptance.
+
+## Stage: Manual acceptance (2026-10-04T02:07:02Z)
+
+### Session summary
+
+The operator reported that manual acceptance passed after correction commit `2df42bca0` and the fresh-session acceptance checklist were provided.
+This is operator-reported acceptance, not an automated or agent-observed interactive result.
+
+### Observations
+
+- The corrected-version manual acceptance prerequisite is satisfied by the operator's confirmation.
+  The earlier review's remaining manual-check warning is resolved.
+- No additional code changes were requested.
+  Shipping may resume separately; this session has not pushed, closed the issue, or published a release.
