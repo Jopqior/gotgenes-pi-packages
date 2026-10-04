@@ -108,3 +108,27 @@ This is operator-reported acceptance, not an automated or agent-observed interac
   The earlier review's remaining manual-check warning is resolved.
 - No additional code changes were requested.
   Shipping may resume separately; this session has not pushed, closed the issue, or published a release.
+
+## Stage: Ship (2026-10-04T02:28:27Z)
+
+### Session summary
+
+Shipped issue #25 through the trunk lane on root `main`.
+The operator approved the exact close comment and publication of `@jopqior/pi-subagents-model-selector` to npmjs.org with tags and GitHub Releases in `Jopqior/gotgenes-pi-packages`.
+Released version `3.0.0` and confirmed the issue is closed.
+
+### Observations
+
+- The independent-release recommendation applied; the latest manual-acceptance entry satisfied the corrected-version prerequisite.
+- Origin synchronization succeeded with 11 unpushed implementation and documentation commits; no merge or worktree teardown was needed.
+- Root lint and dead-code gates passed before pushing.
+  CI run `37170680625` succeeded for `af25afcd659b278f663abfc8c3564f15cedb3471`.
+- The plan-anchored range changed only the registered selector package; no co-shipped issue or third-party PR required closure.
+  Configuration-source work remains with fork issue #26.
+- The major release includes the intentional shortcut restriction: return to Model before using Ctrl+S to change scope.
+  The final implementation also requires Model Enter confirmation and separates candidate browsing from the confirmed pair.
+- Release run `37171048864` succeeded for the approved package and SHA.
+  Verified release commit `7070152eb9ed8191671275dd8e555b894a697cb7`, its parent matching the approved SHA, the sole tag `pi-subagents-model-selector-v3.0.0`, the manifest identity/version, and the exact GitHub Release.
+  Pulled the release commit with `--ff-only`; no registry polling or retry was needed.
+- No architecture roadmap or phase-close action applies to this package.
+  The next workflow stage is `/retro 25` at the root on `main`.
