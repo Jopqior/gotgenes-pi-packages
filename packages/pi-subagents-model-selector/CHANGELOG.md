@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-model-selector-v2.0.0...pi-subagents-model-selector-v3.0.0) (2026-10-04)
+
+
+### Bug Fixes
+
+* **pi-subagents-model-selector:** **breaking:** restrict model scope controls to Model ([cee8ddd](https://github.com/Jopqior/gotgenes-pi-packages/commit/cee8dddb45dacbd7783e9efdd0588a5f48559deb))
+* **pi-subagents-model-selector:** show framed selection progress ([a5eecd1](https://github.com/Jopqior/gotgenes-pi-packages/commit/a5eecd1d7f6d18a5d5bad723e3d30cac8407e0d7))
+* **pi-subagents-model-selector:** keep chooser within terminal width ([40624af](https://github.com/Jopqior/gotgenes-pi-packages/commit/40624af9f73737b59ea416254606d466f4463d03))
+* **pi-subagents-model-selector:** keep scope shortcut hint readable ([c3d030b](https://github.com/Jopqior/gotgenes-pi-packages/commit/c3d030b6b00e278b55aee5f1aff3dec70ae3640a))
+* **pi-subagents-model-selector:** require explicit model confirmation ([#25](https://github.com/Jopqior/gotgenes-pi-packages/issues/25)) ([2df42bc](https://github.com/Jopqior/gotgenes-pi-packages/commit/2df42bca013bc31851402ab43e27b57c77a4e38a))
+
+### Documentation
+
+* **pi-subagents-model-selector:** document chooser navigation and progress ([2ddf6f5](https://github.com/Jopqior/gotgenes-pi-packages/commit/2ddf6f5b66a0a8d582708476d77eb4e27dcbe176))
+
 ## [2.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-model-selector-v1.0.3...pi-subagents-model-selector-v2.0.0) (2026-09-20)
 
 
