@@ -1,6 +1,5 @@
 // Online evidence recording for a selected fork package. The CLI owns the
 // upstream remote and supported-target policy; this module receives paths.
-import { spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
@@ -8,87 +7,10 @@ import {
   isAncestorOf,
   packageCommitsBetween,
   runGit,
-  verifyUpstreamReleaseManifest,
 } from "./evidence.mjs";
 import { readForkSyncState } from "./state.mjs";
-import {
-  compareVersions,
-  ForkSyncError,
-  parseStrictSemVer,
-} from "./values.mjs";
-
-/**
- * @param {string} repo
- * @param {string} oid
- * @returns {boolean}
- */
-function commitExists(repo, oid) {
-  const result = spawnSync("git", ["cat-file", "-e", `${oid}^{commit}`], {
-    cwd: repo,
-    encoding: "utf8",
-  });
-  return result.status === 0;
-}
-
-/**
- * Parse `git ls-remote --tags upstream '<directory>-v*'` into stable release
- * candidates. Annotated tags carry a peeled `^{}` line; lightweight tags are
- * their own commit.
- *
- * @param {string} repo
- * @param {string} packageDirectory
- * @returns {Map<string, string>} version → peeled commit OID
- */
-function lsRemoteStableReleases(repo, packageDirectory) {
-  const tagPrefix = `${packageDirectory}-v`;
-  const listing = runGit(
-    repo,
-    "ls-remote",
-    "--tags",
-    "upstream",
-    `${tagPrefix}*`,
-  );
-  /** @type {Map<string, { tagOid: string, peeledOid: string | null }>} */
-  const tags = new Map();
-  for (const line of listing.split("\n").filter(Boolean)) {
-    const match = /^([0-9a-f]{40})\trefs\/tags\/(.+)$/.exec(line);
-    if (!match) {
-      continue;
-    }
-    const [, oid, ref] = match;
-    const peeledMatch = /^(.*)\^\{\}$/.exec(ref);
-    if (peeledMatch) {
-      const name = peeledMatch[1];
-      if (!name.startsWith(tagPrefix)) {
-        continue;
-      }
-      const version = name.slice(tagPrefix.length);
-      if (!parseStrictSemVer(version)) {
-        continue;
-      }
-      const entry = tags.get(version) ?? { tagOid: "", peeledOid: null };
-      entry.peeledOid = oid;
-      tags.set(version, entry);
-      continue;
-    }
-    if (!ref.startsWith(tagPrefix)) {
-      continue;
-    }
-    const version = ref.slice(tagPrefix.length);
-    if (!parseStrictSemVer(version)) {
-      continue; // prerelease or malformed: not a stable release
-    }
-    const entry = tags.get(version) ?? { tagOid: oid, peeledOid: null };
-    entry.tagOid = oid;
-    tags.set(version, entry);
-  }
-  /** @type {Map<string, string>} */
-  const releases = new Map();
-  for (const [version, entry] of tags) {
-    releases.set(version, entry.peeledOid ?? entry.tagOid);
-  }
-  return releases;
-}
+import { selectIncorporatedUpstreamRelease } from "./upstream-release.mjs";
+import { ForkSyncError } from "./values.mjs";
 
 /**
  * @param {string} repo
@@ -104,55 +26,12 @@ export function recordForkSync(repo, statePath, packageDirectory, options) {
     );
   }
 
-  let merge;
-  try {
-    merge = runGit(repo, "rev-parse", "--verify", `${options.merge}^{commit}`);
-  } catch {
-    throw new ForkSyncError(
-      `cannot resolve merge '${options.merge}' in ${repo}`,
-    );
-  }
-  const parents = runGit(repo, "rev-list", "--parents", "-n", "1", merge)
-    .split(/\s+/)
-    .slice(1);
-  if (parents.length !== 2) {
-    throw new ForkSyncError(
-      `merge ${merge} has ${parents.length} parents; a fork sync is a genuine two-parent merge`,
-    );
-  }
-  if (!isAncestorOf(repo, merge, "HEAD")) {
-    throw new ForkSyncError(
-      `merge ${merge} is not an ancestor of HEAD; complete and commit the merge before recording it`,
-    );
-  }
-  const [forkParent, upstreamParent] = parents;
-  if (!isAncestorOf(repo, upstreamParent, "upstream/main")) {
-    throw new ForkSyncError(
-      `merge ${merge}'s upstream parent ${upstreamParent} is not contained in upstream/main`,
-    );
-  }
-
-  // Select the highest stable release actually contained in the merged
-  // upstream history — not the newest advertised tag.
-  const candidates = lsRemoteStableReleases(repo, packageDirectory);
-  /** @type {{ version: string, commit: string } | null} */
-  let selected = null;
-  for (const [version, oid] of candidates) {
-    if (!commitExists(repo, oid) || !isAncestorOf(repo, oid, upstreamParent)) {
-      continue;
-    }
-    if (!selected || compareVersions(version, selected.version) > 0) {
-      selected = { version, commit: oid };
-    }
-  }
-  if (!selected) {
-    throw new ForkSyncError(
-      "no stable upstream package release is contained in the merge's upstream parent. " +
-        "If required objects are missing locally, run scripts/upstream-sync.sh --fetch — never an ad-hoc tag fetch.",
-    );
-  }
-
-  verifyUpstreamReleaseManifest(repo, selected, packageDirectory);
+  const {
+    merge,
+    forkParent,
+    upstreamTip: upstreamParent,
+    upstream: selected,
+  } = selectIncorporatedUpstreamRelease(repo, packageDirectory, options.merge);
 
   // The merged upstream history must descend from everything already
   // incorporated: the last release's tip, or the last recorded sync's.
