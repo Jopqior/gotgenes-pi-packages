@@ -8,9 +8,13 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { decideForkRelease } from "../../scripts/release/fork-sync/decision.mjs";
-import { isPackageScopePath } from "../../scripts/release/fork-sync/evidence.mjs";
+import {
+  isAncestorOf,
+  isPackageScopePath,
+  packageCommitsBetween,
+} from "../../scripts/release/fork-sync/evidence.mjs";
 import { recordForkSync } from "../../scripts/release/fork-sync/record.mjs";
 import {
   readForkSyncState,
@@ -215,6 +219,150 @@ describe("shared fork synchronization boundary", () => {
           "refs/tags",
         ),
       ).toBe(tagsBefore);
+    });
+
+    describe("evidence validation boundaries", () => {
+      let statePath;
+      let baseline;
+      let upstreamRelease;
+      let forkParent;
+
+      beforeEach(() => {
+        repo = createScratchReleaseRepository({ pkg: "alternate" });
+        repo.writeManifest("alternate", "21.7.0");
+        repo.git("add", "packages/alternate/package.json");
+        repo.git("commit", "-m", "chore(alternate): upstream baseline");
+        baseline = repo.gitOut("rev-parse", "HEAD");
+        repo.git("checkout", "-b", "upstream-side");
+        repo.writeManifest("alternate", "21.7.1");
+        repo.git("add", "packages/alternate/package.json");
+        repo.git("commit", "-m", "chore(alternate): upstream patch release");
+        upstreamRelease = repo.gitOut("rev-parse", "HEAD");
+        repo.git("tag", "alternate-v21.7.1");
+        repo.git("update-ref", "refs/remotes/upstream/main", upstreamRelease);
+        repo.git("remote", "add", "upstream", repo.dir);
+        repo.git("checkout", "main");
+        repo.commitOutOfScope("docs: previously incorporated tip");
+        forkParent = repo.gitOut("rev-parse", "HEAD");
+        repo.git("tag", "alternate-v1.4.0");
+        statePath = path.join(repo.dir, "state.json");
+        writeFileSync(
+          statePath,
+          `${JSON.stringify({
+            schemaVersion: 2,
+            releases: [
+              {
+                forkTag: "alternate-v1.4.0",
+                upstream: { version: "21.7.0", commit: baseline },
+                upstreamTip: baseline,
+              },
+            ],
+            syncs: [],
+          })}\n`,
+        );
+      });
+
+      it("rejects a one-parent commit with the genuine two-parent diagnostic without changing state bytes", () => {
+        expect(
+          repo.gitOut("rev-list", "--parents", "-n", "1", forkParent),
+        ).toBe(`${forkParent} ${baseline}`);
+        const stateBefore = readFileSync(statePath);
+
+        expect(() =>
+          recordForkSync(repo.dir, statePath, "alternate", {
+            merge: forkParent,
+            forkLevel: "none",
+            rationale: "upstream-only integration",
+          }),
+        ).toThrow(
+          `merge ${forkParent} has 1 parents; a fork sync is a genuine two-parent merge`,
+        );
+
+        expect(readFileSync(statePath)).toEqual(stateBefore);
+      });
+
+      it("rejects a genuine merge outside HEAD with the containment diagnostic without changing state bytes", () => {
+        repo.git("checkout", "-b", "uncontained-integration");
+        repo.git(
+          "merge",
+          "--no-ff",
+          "-m",
+          "chore: merge upstream",
+          "upstream-side",
+        );
+        const merge = repo.gitOut("rev-parse", "HEAD");
+        repo.git("checkout", "main");
+        expect(repo.gitOut("rev-list", "--parents", "-n", "1", merge)).toBe(
+          `${merge} ${forkParent} ${upstreamRelease}`,
+        );
+        expect(isAncestorOf(repo.dir, merge, "HEAD")).toBe(false);
+        const stateBefore = readFileSync(statePath);
+
+        expect(() =>
+          recordForkSync(repo.dir, statePath, "alternate", {
+            merge,
+            forkLevel: "none",
+            rationale: "upstream-only integration",
+          }),
+        ).toThrow(
+          `merge ${merge} is not an ancestor of HEAD; complete and commit the merge before recording it`,
+        );
+
+        expect(readFileSync(statePath)).toEqual(stateBefore);
+      });
+
+      it("rejects discontinuous upstream history before its unreleased package tail without changing state bytes", () => {
+        repo.git("checkout", "upstream-side");
+        repo.commitInScope(
+          "feat(alternate): unreleased upstream change",
+          "packages/alternate/src/unreleased.ts",
+        );
+        const upstreamTip = repo.gitOut("rev-parse", "HEAD");
+        repo.git("update-ref", "refs/remotes/upstream/main", upstreamTip);
+        repo.git("checkout", "main");
+        repo.git(
+          "merge",
+          "--no-ff",
+          "-m",
+          "chore: merge upstream",
+          "upstream-side",
+        );
+        const merge = repo.gitOut("rev-parse", "HEAD");
+        const state = readForkSyncState(statePath, "alternate");
+        state.releases[0].upstreamTip = forkParent;
+        writeFileSync(statePath, `${JSON.stringify(state)}\n`);
+        expect(
+          JSON.parse(
+            repo.gitOut(
+              "show",
+              `${upstreamRelease}:packages/alternate/package.json`,
+            ),
+          ),
+        ).toEqual({ name: "@fixture/alternate", version: "21.7.1" });
+        expect(isAncestorOf(repo.dir, upstreamRelease, upstreamTip)).toBe(true);
+        expect(isAncestorOf(repo.dir, forkParent, upstreamTip)).toBe(false);
+        expect(
+          packageCommitsBetween(
+            repo.dir,
+            upstreamRelease,
+            upstreamTip,
+            "alternate",
+          ),
+        ).toEqual([upstreamTip]);
+        const stateBefore = readFileSync(statePath);
+
+        expect(() =>
+          recordForkSync(repo.dir, statePath, "alternate", {
+            merge,
+            forkLevel: "none",
+            rationale: "upstream-only integration",
+          }),
+        ).toThrow(
+          `merge ${merge}'s upstream history does not descend from the previously incorporated tip ${forkParent}`,
+        );
+
+        expect(readFileSync(statePath)).toEqual(stateBefore);
+      });
     });
   });
 
