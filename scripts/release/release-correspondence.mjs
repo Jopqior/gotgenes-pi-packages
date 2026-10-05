@@ -10,7 +10,7 @@ import {
   verifyPublishedTail,
 } from "./fork-sync/evidence.mjs";
 import { ForkSyncError, parseStrictSemVer } from "./fork-sync/values.mjs";
-import { forkSyncTarget } from "./pi-subagents/config.mjs";
+import { resolveForkSyncTarget } from "./fork-sync-targets.mjs";
 
 /**
  * Render a single bounded claim from verified provenance; originals have no
@@ -227,10 +227,8 @@ export function validateReleasePackages(value) {
       });
       continue;
     }
-    if (
-      entry.evidence !== "fork-sync" ||
-      entry.directory !== forkSyncTarget.directory
-    ) {
+    const target = resolveForkSyncTarget(entry.directory);
+    if (entry.evidence !== "fork-sync" || !target) {
       throw new ForkSyncError(`${what} has no supported evidence route`);
     }
     const upstream = requireRecord(entry.upstream, `${what}.upstream`);
@@ -244,7 +242,7 @@ export function validateReleasePackages(value) {
       !/^@[a-z0-9-]+\/[a-z][a-z0-9-]*$/.test(upstream.name) ||
       typeof upstream.repository !== "string" ||
       !/^[a-zA-Z0-9-]+\/[a-zA-Z0-9-]+$/.test(upstream.repository) ||
-      upstream.directory !== `packages/${forkSyncTarget.directory}`
+      upstream.directory !== `packages/${target.directory}`
     ) {
       throw new ForkSyncError(
         `${what}.upstream has invalid identity, repository, or package path`,

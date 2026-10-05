@@ -26,6 +26,8 @@ const scripts = [
   "fork-sync/cliff.mjs",
   "fork-sync/decision.mjs",
   "pi-subagents/config.mjs",
+  "fork-sync-targets.mjs",
+  "pi-subagents-worktrees/config.mjs",
   "release-correspondence.mjs",
   "correspondence-table.mjs",
   "release-artifacts.mjs",

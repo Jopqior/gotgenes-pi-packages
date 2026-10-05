@@ -74,6 +74,27 @@ describe("decision CLI", () => {
     expect(result.stdout).toBe("pi-subagents-v1.0.1\n");
   });
 
+  it("retains explicit core selection and the existing --state override", () => {
+    syncUpstream({ version: "21.7.1" });
+    writeForkSyncState();
+    const result = runCli(
+      "--package",
+      "pi-subagents",
+      "--state",
+      path.join(repo.dir, "scripts/release/pi-subagents/sync-state.json"),
+    );
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe("pi-subagents-v1.0.1\n");
+  });
+
+  it("documents package selection and the preserved core default", () => {
+    const result = runCli("--help");
+    expect(result.status).toBe(0);
+    expect(result.stdout).toMatch(/--package <directory>/);
+    expect(result.stdout).toMatch(/defaults to pi-subagents/);
+    expect(result.stderr).toBe("");
+  });
+
   it("prints nothing with exit status 0 when nothing is releasable", () => {
     writeForkSyncState();
 

@@ -103,6 +103,10 @@ describe("entry-point parity", () => {
       "lib.sh",
       "next-version.sh",
       "verify-cliff-parity.sh",
+      "fork-sync-targets.mjs",
+      "fork-sync/values.mjs",
+      "pi-subagents/config.mjs",
+      "pi-subagents-worktrees/config.mjs",
     );
     repo.writeManifest("demo", "1.0.0");
     repo.commitInScope("feat(demo)!: initial scope", "packages/demo/a.txt");

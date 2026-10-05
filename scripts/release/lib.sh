@@ -126,7 +126,7 @@ fork_sync_cli() {
 # here, so package-specific policy has one home instead of a per-script
 # sequence to keep in step.
 #
-# The fork package (pi-subagents) derives its tag from verified upstream
+# Supported fork packages derive their tags from verified upstream
 # correspondence instead of the repository-wide commit classification: its
 # history advances through upstream merges whose messages describe upstream
 # releases, not the independent fork version. The policy lives in
@@ -139,9 +139,11 @@ fork_sync_cli() {
 # release".
 next_tag() { # <package> <current-tag>
   cliff_args "$1"
-  if [ "$1" = "pi-subagents" ]; then
+  local target
+  target=$(node "$(dirname "$(fork_sync_cli)")/fork-sync-targets.mjs" "$1") || return 1
+  if [ "$target" != "null" ]; then
     local fork_next
-    if ! fork_next=$(node "$(fork_sync_cli)" --repo "$PWD" --current "$2" -- "${CLIFF_ARGS[@]}"); then
+    if ! fork_next=$(node "$(fork_sync_cli)" --repo "$PWD" --package "$1" --current "$2" -- "${CLIFF_ARGS[@]}"); then
       return 1
     fi
     # The fork CLI prints nothing when no level was decided; normalize to the

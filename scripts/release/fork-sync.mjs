@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Offline release prediction for the sole supported fork package. Shared
+// Offline release prediction for a selected supported fork package. Shared
 // decision logic receives explicit package identity and state location.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { decideForkRelease } from "./fork-sync/decision.mjs";
-import { ForkSyncError } from "./fork-sync/values.mjs";
-import { forkSyncTarget } from "./pi-subagents/config.mjs";
+import { ForkSyncError, parseStrictSemVer } from "./fork-sync/values.mjs";
+import { requireForkSyncTarget } from "./fork-sync-targets.mjs";
 
 function main() {
   const args = process.argv.slice(2);
@@ -15,6 +15,8 @@ function main() {
   let current = null;
   /** @type {string | undefined} */
   let statePath;
+  let packageDirectory = "pi-subagents";
+  let packageSelected = false;
   let json = false;
   /** @type {string[]} */
   const cliffArgs = [];
@@ -26,11 +28,21 @@ function main() {
       current = args[++i] ?? null;
     } else if (arg === "--state") {
       statePath = args[i + 1];
-      if (statePath === undefined) {
+      if (!statePath || statePath.startsWith("--")) {
         process.stderr.write("error: --state requires a path\n");
         process.exit(1);
       }
       i++;
+    } else if (arg === "--package") {
+      const directory = args[++i];
+      if (packageSelected || !directory || directory.startsWith("-")) {
+        process.stderr.write(
+          "error: --package requires one directory and cannot be repeated\n",
+        );
+        process.exit(1);
+      }
+      packageSelected = true;
+      packageDirectory = directory;
     } else if (arg === "--json") {
       json = true;
     } else if (arg === "--") {
@@ -39,10 +51,11 @@ function main() {
     } else if (arg === "--help" || arg === "-h") {
       process.stdout.write(
         [
-          "Usage: fork-sync.mjs --repo <path> --current <tag> [--state <path>] [--json] -- <git-cliff args>",
+          "Usage: fork-sync.mjs --repo <path> --current <tag> [--package <directory>] [--state <path>] [--json] -- <git-cliff args>",
           "",
-          "Prints the next pi-subagents-v<version> tag, or nothing when no fork",
-          "release is pending. Arguments after -- are git-cliff scoping flags",
+          "Prints the selected package's next tag, or nothing when no fork",
+          "release is pending. --package defaults to pi-subagents; --state",
+          "overrides its evidence path. Arguments after -- are git-cliff scoping flags",
           "forwarded verbatim. Exits nonzero on evidence failure.",
           "",
         ].join("\n"),
@@ -61,12 +74,20 @@ function main() {
   }
 
   try {
+    const target = requireForkSyncTarget(packageDirectory);
+    const prefix = `${target.directory}-v`;
+    if (
+      !current.startsWith(prefix) ||
+      !parseStrictSemVer(current.slice(prefix.length))
+    ) {
+      throw new ForkSyncError(`invalid package release tag ${current}`);
+    }
     const decision = decideForkRelease({
       repo,
       currentTag: current,
       cliffArgs,
-      statePath: statePath ?? path.join(repo, forkSyncTarget.statePath),
-      packageDirectory: forkSyncTarget.directory,
+      statePath: statePath ?? path.join(repo, target.statePath),
+      packageDirectory: target.directory,
     });
     if (json) {
       process.stdout.write(`${JSON.stringify(decision, null, 2)}\n`);
