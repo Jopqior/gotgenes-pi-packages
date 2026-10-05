@@ -24,9 +24,9 @@ export const ORIGINAL = {
  * Real local Git objects with separate upstream and fork manifest identities.
  * Unlike the version-decision fixture, each fork tag claims its fork version.
  */
-export function createReleaseArtifacts() {
-  const repo = createScratchReleaseRepository({ pkg: "pi-subagents" });
-  const registry = { schemaVersion: 2, packages: [FORK, ORIGINAL] };
+export function createReleaseArtifacts(registration = FORK) {
+  const repo = createScratchReleaseRepository({ pkg: registration.directory });
+  const registry = { schemaVersion: 2, packages: [registration, ORIGINAL] };
   repo.commitOutOfScope("docs: establish history");
   const first = publishFixtureRelease("1.0.0", "21.7.0");
   const second = publishFixtureRelease("1.0.1", "21.7.1");
@@ -44,7 +44,11 @@ export function createReleaseArtifacts() {
 
   function publishFixtureRelease(version, upstreamVersion) {
     repo.git("checkout", "-b", `upstream-${upstreamVersion}`);
-    writeManifest("pi-subagents", FORK.upstream.name, upstreamVersion);
+    writeManifest(
+      registration.directory,
+      registration.upstream.name,
+      upstreamVersion,
+    );
     repo.git("add", ".");
     repo.git("commit", "-m", `chore: upstream ${upstreamVersion}`);
     const upstreamCommit = repo.gitOut("rev-parse", "HEAD");
@@ -57,10 +61,10 @@ export function createReleaseArtifacts() {
       `upstream-${upstreamVersion}`,
     );
     const upstreamTip = upstreamCommit;
-    writeManifest(FORK.directory, FORK.name, version);
+    writeManifest(registration.directory, registration.name, version);
     repo.git("add", ".");
     repo.git("commit", "-m", `chore: fork ${version}`);
-    const forkTag = `pi-subagents-v${version}`;
+    const forkTag = `${registration.directory}-v${version}`;
     repo.git("tag", "-a", forkTag, "-m", `fork ${version}`);
     return {
       forkTag,
