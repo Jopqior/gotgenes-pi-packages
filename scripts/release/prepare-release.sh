@@ -122,14 +122,15 @@ for pkg in ${PACKAGES//,/ }; do
   fi
 
   fork_decision=null
-  if [ "$pkg" = "pi-subagents" ]; then
+  target=$(node scripts/release/fork-sync-targets.mjs "$pkg")
+  if [ "$target" != "null" ]; then
     # Resolve and validate the fork correspondence here, in the preflight, so
     # a blocked fork fails before any sibling manifest, changelog, tag, or
     # state write. The decision must agree with the tag the shared entry
     # predicted: prediction and preparation consume one policy, and two
     # answers from it cannot both be right.
     cliff_args "$pkg"
-    if ! fork_decision=$(node "$(fork_sync_cli)" --repo "$PWD" --current "$(latest_tag "$pkg")" --json -- "${CLIFF_ARGS[@]}"); then
+    if ! fork_decision=$(node "$(fork_sync_cli)" --repo "$PWD" --package "$pkg" --current "$(latest_tag "$pkg")" --json -- "${CLIFF_ARGS[@]}"); then
       exit 1
     fi
     fork_next=$(printf '%s\n' "$fork_decision" | jq -r '.nextTag // ""')
@@ -200,10 +201,15 @@ while [ "$i" -lt ${#pkgs[@]} ]; do
 
   git add "packages/$pkg/package.json" "packages/$pkg/CHANGELOG.md"
 
-  if [ "$pkg" = "pi-subagents" ]; then
-    cp "$artifacts/state.json" scripts/release/pi-subagents/sync-state.json
-    cp "$artifacts/correspondence.md" docs/upstream/pi-subagents-release-correspondence.md
-    git add scripts/release/pi-subagents/sync-state.json docs/upstream/pi-subagents-release-correspondence.md
+  artifact=$(jq -c --arg directory "$pkg" '.[] | select(.directory == $directory)' "$artifacts/fork-artifacts.json")
+  if [ -n "$artifact" ]; then
+    state_path=$(printf '%s\n' "$artifact" | jq -r '.statePath')
+    correspondence_path=$(printf '%s\n' "$artifact" | jq -r '.correspondencePath')
+    state_file=$(printf '%s\n' "$artifact" | jq -r '.stateFile')
+    correspondence_file=$(printf '%s\n' "$artifact" | jq -r '.correspondenceFile')
+    cp "$artifacts/$state_file" "$state_path"
+    cp "$artifacts/$correspondence_file" "$correspondence_path"
+    git add "$state_path" "$correspondence_path"
   fi
 
   subjects+=("$pkg $version")

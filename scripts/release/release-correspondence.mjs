@@ -74,6 +74,12 @@ export function readTaggedReleaseSection(input) {
  */
 export function findReleaseSection(text, tag, directory) {
   const version = tag.slice(`${directory}-v`.length);
+  if (
+    !/^[a-z][a-z0-9-]*$/.test(directory) ||
+    !tag.startsWith(`${directory}-v`) ||
+    !parseStrictSemVer(version)
+  )
+    throw new ForkSyncError(`invalid package release tag ${tag}`);
   const headings = [];
   let fence = null;
   let offset = 0;
@@ -102,15 +108,20 @@ export function findReleaseSection(text, tag, directory) {
             line,
           );
         const previous = heading?.[2].split("...");
+        const first =
+          /^## \[(\d+\.\d+\.\d+)\]\(https:\/\/github\.com\/Jopqior\/gotgenes-pi-packages\/releases\/tag\/([^)]*)\) \([^\r\n]*\)[ \t]*$/.exec(
+            line,
+          );
         headings.push({
           start: offset,
           matches:
-            heading?.[1] === version &&
-            previous?.length === 2 &&
-            previous[0].startsWith(`${directory}-v`) &&
-            parseStrictSemVer(previous[0].slice(`${directory}-v`.length)) !==
-              null &&
-            previous[1] === tag,
+            (heading?.[1] === version &&
+              previous?.length === 2 &&
+              previous[0].startsWith(`${directory}-v`) &&
+              parseStrictSemVer(previous[0].slice(`${directory}-v`.length)) !==
+                null &&
+              previous[1] === tag) ||
+            (first?.[1] === version && first[2] === tag),
         });
       }
     }

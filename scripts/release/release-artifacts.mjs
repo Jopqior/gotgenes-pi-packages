@@ -13,12 +13,13 @@ import {
   validateForkSyncState,
 } from "./fork-sync/state.mjs";
 import { ForkSyncError } from "./fork-sync/values.mjs";
-import { forkSyncTarget } from "./pi-subagents/config.mjs";
+import { requireForkSyncTarget } from "./fork-sync-targets.mjs";
 import {
   findReleaseSection,
   readReleasePackages,
   readTaggedReleaseSection,
   renderUpstreamCorrespondence,
+  requireReleasePackage,
   resolvePendingCorrespondence,
   resolvePublishedCorrespondence,
 } from "./release-correspondence.mjs";
@@ -29,9 +30,7 @@ export function prepareArtifacts(repo, out, specFile) {
   if (!Array.isArray(spec) || spec.length === 0)
     throw new ForkSyncError("release selection must not be empty");
   const registry = registryAt(repo);
-  const state = stateAt(repo);
-  const projected = structuredClone(state);
-  let pending;
+  const projections = new Map();
   for (const [index, item] of spec.entries()) {
     const provenance = resolvePendingCorrespondence({
       repo,
@@ -74,9 +73,17 @@ export function prepareArtifacts(repo, out, specFile) {
       );
     }
     if (provenance.kind === "fork") {
-      if (pending)
-        throw new ForkSyncError("more than one pending fork release");
-      pending = { tag: item.tag, decision: item.decision };
+      const target = requireForkSyncTarget(item.directory);
+      if (projections.has(item.directory))
+        throw new ForkSyncError(
+          `duplicate pending fork release for ${item.directory}`,
+        );
+      const projected = structuredClone(stateAt(repo, target));
+      projections.set(item.directory, {
+        target,
+        projected,
+        pending: { tag: item.tag, decision: item.decision },
+      });
       projected.releases.push({
         forkTag: item.tag,
         upstream: item.decision.upstream,
@@ -84,33 +91,42 @@ export function prepareArtifacts(repo, out, specFile) {
       });
     }
   }
-  validateForkSyncState(projected, forkSyncTarget.directory);
-  if (pending) {
+  const artifacts = [];
+  for (const { target, projected, pending } of projections.values()) {
+    validateForkSyncState(projected, target.directory);
     const document = readFileSync(
-      path.join(repo, forkSyncTarget.correspondencePath),
+      path.join(repo, target.correspondencePath),
       "utf8",
     );
     const table = renderCorrespondenceTable({
       repo,
       registry,
       state: projected,
+      directory: target.directory,
       pending,
     });
+    const stateFile = `state-${target.directory}.json`;
+    const correspondenceFile = `correspondence-${target.directory}.md`;
     writeFileSync(
-      path.join(out, "state.json"),
+      path.join(out, stateFile),
       `${JSON.stringify(projected, null, 2)}\n`,
     );
     writeFileSync(
-      path.join(out, "correspondence.md"),
+      path.join(out, correspondenceFile),
       updateCorrespondenceDocument(document, table),
     );
+    artifacts.push({ ...target, stateFile, correspondenceFile });
   }
+  writeFileSync(
+    path.join(out, "fork-artifacts.json"),
+    `${JSON.stringify(artifacts, null, 2)}\n`,
+  );
 }
 
 /** @param {string} repo @param {string} out @param {string[]} tags */
 export function validatePublishedArtifacts(repo, out, tags) {
   const registry = registryAt(repo);
-  const state = stateAt(repo);
+  const states = new Map();
   for (const [index, tag] of tags.entries()) {
     const peeled = execFileSync(
       "git",
@@ -125,13 +141,16 @@ export function validatePublishedArtifacts(repo, out, tags) {
       throw new ForkSyncError(
         `release tag ${tag} is not at the checked-out release commit`,
       );
+    const directory = tag.slice(0, tag.lastIndexOf("-v"));
+    const registration = requireReleasePackage(registry, directory);
+    if (registration.kind === "fork" && !states.has(directory))
+      states.set(directory, stateAt(repo, requireForkSyncTarget(directory)));
     const provenance = resolvePublishedCorrespondence({
       repo,
       tag,
       registry,
-      state,
+      state: states.get(directory) ?? { releases: [] },
     });
-    const directory = tag.slice(0, tag.lastIndexOf("-v"));
     const section = readTaggedReleaseSection({
       repo,
       tag,
@@ -223,11 +242,8 @@ function registryAt(repo) {
     repo,
   );
 }
-function stateAt(repo) {
-  return readForkSyncState(
-    path.join(repo, forkSyncTarget.statePath),
-    forkSyncTarget.directory,
-  );
+function stateAt(repo, target) {
+  return readForkSyncState(path.join(repo, target.statePath), target.directory);
 }
 
 function main(args) {

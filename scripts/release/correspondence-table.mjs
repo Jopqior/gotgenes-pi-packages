@@ -6,9 +6,12 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { readForkSyncState } from "./fork-sync/state.mjs";
+import {
+  readForkSyncState,
+  validateForkSyncState,
+} from "./fork-sync/state.mjs";
 import { compareVersions, ForkSyncError } from "./fork-sync/values.mjs";
-import { forkSyncTarget } from "./pi-subagents/config.mjs";
+import { requireForkSyncTarget } from "./fork-sync-targets.mjs";
 import {
   readReleasePackages,
   requireReleasePackage,
@@ -20,18 +23,18 @@ const START = "<!-- release-correspondence:start -->";
 const END = "<!-- release-correspondence:end -->";
 
 /**
- * @param {{ repo: string, registry: import('./release-correspondence.mjs').ReleaseRegistry, state: import('./fork-sync/state.mjs').ForkSyncState, pending?: { tag: string, decision: { nextTag: string | null, upstream: { version: string, commit: string }, upstreamTip: string } } }} input
+ * @param {{ repo: string, registry: import('./release-correspondence.mjs').ReleaseRegistry, state: import('./fork-sync/state.mjs').ForkSyncState, directory?: string, pending?: { tag: string, decision: { nextTag: string | null, upstream: { version: string, commit: string }, upstreamTip: string } } }} input
  * @returns {string}
  */
 export function renderCorrespondenceTable(input) {
-  const registration = requireReleasePackage(
-    input.registry,
-    forkSyncTarget.directory,
-  );
+  const target = requireForkSyncTarget(input.directory ?? "pi-subagents");
+  validateForkSyncState(input.state, target.directory);
+  const prefix = `${target.directory}-v`;
+  if (input.pending && !input.pending.tag.startsWith(prefix))
+    throw new ForkSyncError(`invalid pending package tag ${input.pending.tag}`);
+  const registration = requireReleasePackage(input.registry, target.directory);
   if (registration.kind !== "fork") {
-    throw new ForkSyncError(
-      `${forkSyncTarget.directory} must be registered as a fork`,
-    );
+    throw new ForkSyncError(`${target.directory} must be registered as a fork`);
   }
   const pendingTag = input.pending?.tag;
   const projectedRow = input.state.releases.find(
@@ -71,7 +74,6 @@ export function renderCorrespondenceTable(input) {
       }),
     });
   }
-  const prefix = `${forkSyncTarget.directory}-v`;
   released.sort((a, b) =>
     compareVersions(a.tag.slice(prefix.length), b.tag.slice(prefix.length)),
   );
@@ -145,7 +147,7 @@ export function updateCorrespondenceDocument(document, table) {
 function main(args) {
   if (args.length === 1 && args[0] === "--help") {
     process.stdout.write(
-      "Usage: node scripts/release/correspondence-table.mjs (--check|--write) [--repo <path>]\n",
+      "Usage: node scripts/release/correspondence-table.mjs (--check|--write) [--repo <path>] [--package <directory>] (default: pi-subagents)\n",
     );
     return;
   }
@@ -154,6 +156,16 @@ function main(args) {
     "../..",
   );
   const flags = [...args];
+  let directory = "pi-subagents";
+  const packageIndex = flags.indexOf("--package");
+  if (packageIndex !== -1) {
+    const value = flags[packageIndex + 1];
+    if (!value || value.startsWith("-"))
+      throw new ForkSyncError("--package requires a directory");
+    directory = value;
+    flags.splice(packageIndex, 2);
+  }
+  const target = requireForkSyncTarget(directory);
   const repoIndex = flags.indexOf("--repo");
   if (repoIndex !== -1) {
     if (!flags[repoIndex + 1]) {
@@ -168,18 +180,18 @@ function main(args) {
     );
   }
   const state = readForkSyncState(
-    path.join(repo, forkSyncTarget.statePath),
-    forkSyncTarget.directory,
+    path.join(repo, target.statePath),
+    target.directory,
   );
   const registry = readReleasePackages(
     path.join(repo, "scripts/release/release-packages.json"),
     repo,
   );
-  const documentPath = path.join(repo, forkSyncTarget.correspondencePath);
+  const documentPath = path.join(repo, target.correspondencePath);
   const current = readFileSync(documentPath, "utf8");
   const expected = updateCorrespondenceDocument(
     current,
-    renderCorrespondenceTable({ repo, state, registry }),
+    renderCorrespondenceTable({ repo, state, registry, directory }),
   );
   if (flags[0] === "--check") {
     if (current !== expected) {
