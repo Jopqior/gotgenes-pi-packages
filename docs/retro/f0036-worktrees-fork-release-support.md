@@ -35,3 +35,43 @@ No implementation, real evidence update, registration, synchronization, push or 
 
 - Keep `test/release/helpers/fork-sync-scenario.mjs`, `release-artifacts.mjs` and `test/upstream-sync/helpers/upstream-network.mjs` as separate lifecycle fixtures rather than a universal factory.
 - Do not reorganize the large decision/merge test files, rewrite CLI parsers, add a generic script-copy bundle, expand backfill or extract the entire CHANGELOG fence scanner for this change.
+
+## Stage: Implementation — TDD (2026-10-05T16:58:43Z)
+
+### Session summary
+
+Completed all eight planned TDD/characterization cycles as separate commits, with a fresh implementation subagent for each step and parent inspection at each handoff.
+Implemented independently selected worktrees prediction, recording, artifact preparation/publication preflight and an external first-release candidate generator while retaining core defaults and original-package behavior.
+Root tests increased from the measured baseline of 677 to 880 (+203); final collection contains 41 files, including 604 release/sync tests.
+
+### Observations
+
+- Startup confirmed clean primary `main`, no pending merge/rebase and an already-up-to-date fast-forward-only pull.
+  Starting `pnpm run check`, `pnpm run lint`, `pnpm run test` and `pnpm fallow dead-code` all passed.
+  The same root gates passed after implementation and in independent pre-completion review.
+- Each step ran its focused Red or current-behavior characterization, then Green and the planned killing mutations before committing.
+  The recorder extraction retained release/version validation before continuity, and continuity before unreleased-tail rejection.
+  Green copies were saved separately before mutations and restored before final verification.
+- No substantive design deviation occurred.
+  Focused `worktrees-prediction.test.mjs`, `multi-fork-release.test.mjs`, `upstream-release.test.mjs` and `first-fork-release.test.mjs` hold the added contracts rather than distributing every assertion across the large existing suites.
+  Existing correspondence, table, history, migration and core-only backfill suites remained in the verification set even where their files needed no edit.
+  Actual script import paths required target/config copy-list updates but no copied recorder-selector dependency.
+- Missing recording review inputs now reject before remote/config effects; an existing dirty-precondition fixture was updated to provide its explicit review.
+  Independent fork baselines and full unselected manifest/CHANGELOG/state/view bytes were used to distinguish routing rather than equal-valued evidence.
+- Intermediate parallel release/sync runs encountered an existing recorder-case timeout.
+  Affected files passed alone and the full release/sync suite passed with one worker; no timeout configuration was changed.
+  Final full root tests and the independent review did not reproduce the timeout.
+- First CHANGELOG insertion preserves inherited header/disclosure bytes and the historical suffix while keeping first Release notes bounded to the reviewed summary and generated provenance.
+  The worktrees scaffold's marker-external unreleased statement was made conditional so a projected released view does not carry a stale claim; the managed region remains empty in the real checkout.
+- The implemented interface is `node scripts/release/prepare-first-fork-release.mjs --repo <primary-checkout> --package pi-subagents-worktrees --version <explicit-stable-version> --merge <completed-incorporated-merge> --notes <reviewed-summary-file> --output <fresh-external-directory>`.
+  Every input is required; the output parent must exist, and there is no default version or apply/publish/dispatch mode.
+  Issue #37 supplies the already selected `0.1.0` after committing its actual migration and registration.
+- The external candidate's exact application set is `packages/pi-subagents-worktrees/package.json`, `packages/pi-subagents-worktrees/CHANGELOG.md`, `scripts/release/pi-subagents-worktrees/sync-state.json` and `docs/upstream/pi-subagents-worktrees-release-correspondence.md`.
+  Its `first-fork-release.json` records `sourceHead`, selected merge, tag/version, incorporated upstream evidence and `applicationFiles`; retain this transient review manifest externally.
+  Issue #37 must revalidate source HEAD and candidate bytes, run its packing/compatibility checks, apply and commit the reviewed set together, and obtain separate scope/destination approval before tagging or publication.
+- The actual worktrees state remains schema 2 with empty `releases` and `syncs`; the real registry, all package files, core state/view, ordinary prompts, lockfile/workspace YAML, global cliff configuration and publication workflows/scripts were compared against the starting checkpoint without differences.
+  No real first artifacts, release rows, tags, integration, push, npm publication or GitHub mutation occurred.
+  Real core/selector prediction stayed quiet; worktrees prediction still refuses its missing first tag and its selected table command refuses missing registration.
+- Pre-completion reviewer: PASS, with no warnings or required fixes, for `405b7675aa859f5186388bf03f61e4abc48013fd..b915938a055043b8382d38e88b34ac17b8009b5e`.
+  The reviewer independently ran the root gates and re-derived routing, ancestry, exact-heading, no-effects and approval boundaries.
+  Next action is `/ship 36` on `main`; shipping repository support does not authorize package publication, and issue #37 remains the migration/first-publication handoff.
