@@ -108,7 +108,10 @@ An equivalent command for [Diffview.nvim](https://github.com/sindrets/diffview.n
 
 From a fresh Pi session at the repo root, invoke the no-argument [upstream-sync entry point](.pi/prompts/upstream-sync.md) to find or create a fixed-target fork issue, then stop.
 The [synchronization guide](docs/upstream/synchronization-guide.md) owns integration constraints and lifecycle exceptions.
-The [fork release policy](docs/upstream/fork-release-policy.md) owns evidence and version policy; the [generated correspondence view](docs/upstream/pi-subagents-release-correspondence.md) lists published releases.
+The [fork release policy](docs/upstream/fork-release-policy.md) owns independent evidence and version policy for the maintained core and worktrees forks.
+The generated [core correspondence view](docs/upstream/pi-subagents-release-correspondence.md) and [worktrees correspondence view](docs/upstream/pi-subagents-worktrees-release-correspondence.md) track separate release windows; the worktrees scaffold is not publication evidence.
+For untagged worktrees, follow the [first fork release handoff](docs/upstream/fork-release-policy.md#first-fork-release-handoff): artifact-only generation, reviewed application and separately approved manual first publication precede ordinary dispatch.
+Support does not migrate or register the inherited worktrees manifest; [issue #37](https://github.com/Jopqior/gotgenes-pi-packages/issues/37) owns that handoff.
 
 ### Agentic development workflow
 

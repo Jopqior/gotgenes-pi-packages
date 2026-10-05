@@ -2,7 +2,7 @@
 
 These are exceptions to the [standard issue lifecycle](../../AGENTS.md#working-an-issue), not a separate workflow.
 The no-argument [upstream-sync entry point](../../.pi/prompts/upstream-sync.md) only finds or creates an exact-target fork issue and stops.
-The [fork release policy](fork-release-policy.md) owns evidence validity, recorder semantics, version derivation, and publication restrictions; the [correspondence view](pi-subagents-release-correspondence.md) is machine-owned.
+The [fork release policy](fork-release-policy.md) owns evidence validity, recorder semantics, version derivation, and publication restrictions; the [core correspondence view](pi-subagents-release-correspondence.md) and [worktrees correspondence view](pi-subagents-worktrees-release-correspondence.md) are independently machine-owned.
 
 ## Prerequisites before Git operations
 
@@ -28,6 +28,9 @@ Keep the issue's exact full `Upstream target: gotgenes/pi-packages@<full SHA>` i
 Plan against the incoming common-base-to-target diff, incoming package changes, fork identities/contracts, immutable changelogs, validation, and release-evidence feasibility.
 Agree compatibility choices in the ordinary plan; return materially new choices to the operator before affected edits and record them in the ordinary artifacts.
 Use `./scripts/upstream-sync.sh --fetch` for explicit safe inspection inputs; if the remote is missing, agree `--upstream-protocol ssh|https` with the operator, and inspect mismatched URLs rather than silently rewriting them.
+Use `./scripts/upstream-sync.sh --fetch --package pi-subagents-worktrees` to select worktrees release-status inspection; omitting `--package` retains the core default.
+Package selection affects record/status only, not the repository-wide fetch or integration.
+Never pass `--package` with `--merge`; the merge remains repository-level and pinned.
 Merge only the locally present approved target with `./scripts/upstream-sync.sh --merge --expected-upstream <full SHA>`.
 Merge does not implicitly refresh `upstream/main`; missing inputs need explicit fetch and inspection.
 Unreleased upstream package work rejected by the recorder is a blocker, not permission to move the target or weaken release policy.
@@ -42,6 +45,8 @@ Unrelated upstream modules and historical documentation remain inventoried but a
 
 Deep review covers upstream/fork intersections, including automatically merged fork customizations with no conflict markers.
 Include selector compatibility and its core/service, lifecycle, presentation and loading contracts; package-path filtering alone is insufficient.
+Preserve the eventual `@jopqior/pi-subagents-worktrees` identity and fork repository metadata, published `@jopqior/pi-subagents` imports and dependency, core-first initialization, shared workspace-provider service contract, `subagents-worktrees.json` and `worktreeAgents`, and workspace preparation/disposal, rescue and recovery behavior.
+These worktrees intersections require review even when adaptations merge automatically; fork migration and packed loading/provider checks belong to [issue #37](https://github.com/Jopqior/gotgenes-pi-packages/issues/37).
 Review actual conflict resolutions, the remerge diff, sync-authored adaptations and every post-merge contribution, including fork-owned workflow/identity adaptations and release evidence.
 Inspect only the surrounding unchanged/upstream code necessary to judge those changes and contracts.
 
@@ -53,6 +58,8 @@ The implementer performs normal local review of adaptations, required validation
 Use `git show --remerge-diff <merge>` for resolution review within the scope above.
 No separate comprehensive pre-review integration/evidence audit is required; this does not remove the obligation to understand and justify evidence.
 Commit reviewed integration changes, invoke the policy-owned recorder, then commit reviewed evidence before final independent review.
+After both forks have release anchors, classify and record each affected package separately under the policy; never reuse one fork's level/rationale or state/view for the other.
+Before the first worktrees release, use the policy's first-release evidence handoff rather than manufacture a published anchor to unblock recording.
 In the ordinary retro record the target, actual merge OID, reviewed fork contribution, evidence commit, checks/reviewer result, and next action.
 
 Resolve the actual merge's first parent as the independent review base and review through HEAD; supply that OID and this guide as required context for the ordinary independent pre-completion review.
@@ -73,10 +80,11 @@ When changes in the completed synchronization, including incoming changes, sync-
 Preserve historical compatibility rows when these checks apply and ensure the actual candidate is tested.
 When those contracts do not change, do not require unrelated packed or cross-extension acceptance work merely because upstream was synchronized.
 Select concrete existing commands in the pinned-target plan according to affected contracts, not a new universal harness.
+When worktrees identity, dependency/loading or workspace-provider contracts change, reuse the applicable packed fork-core/worktrees loading and provider checks from issue #37 once available; do not replace them with a new universal acceptance harness.
 
 Human Pi/TUI interaction, live model/judge calls and temporary cross-extension end-to-end harnesses are not default requirements.
 Their omission is neither a missing check nor a warning requiring ship-time waiver.
-Escalation requires installation/check failure, broken selector behavior, or a named fork-adaptation uncertainty that existing automated tests cannot answer.
+Escalation requires installation/check failure, broken selector or worktrees behavior, or a named fork-adaptation uncertainty that existing automated tests cannot answer.
 State the observable uncertainty, the existing evidence and its limit, and the smallest proposed extra verification; obtain operator agreement before adding or executing it.
 A failure stops the affected completion path but never implicitly authorizes unrelated upstream repairs, weaker release evidence or a substituted target.
 
@@ -87,7 +95,7 @@ Use provenance and relevance, not severity labels alone, to decide synchronizati
 | Finding                                                                                 | Sync disposition                                                                                                       |
 | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | Regression introduced by conflict resolution or fork adaptation                         | Correct in scope, add appropriate regression coverage and revalidate                                                   |
-| Inherited upstream behavior breaks selector compatibility                               | In-scope compatibility decision; return materially new choices to the operator                                         |
+| Inherited upstream behavior breaks selector or worktrees compatibility                  | In-scope compatibility decision; return materially new choices to the operator                                         |
 | Confirmed inherited defect unrelated to fork preservation, with required checks passing | Outside sync scope; no automatic repair, reproduction, new issue or unresolved ship warning                            |
 | Required install/check fails, including inherited failure                               | Stop and report the failed gate and provenance; operator decides the next action, without implied repair authorization |
 | Specific adaptation uncertainty remains after existing automated checks                 | Request the smallest justified verification before executing it                                                        |

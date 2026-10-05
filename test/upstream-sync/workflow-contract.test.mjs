@@ -107,6 +107,117 @@ describe("standard synchronization workflow contracts", () => {
       );
     });
   });
+  describe("worktrees fork release handoff instructions", () => {
+    // Bounded owner/section predicates pin instructions, not agent compliance.
+    const policy = () => read("docs/upstream/fork-release-policy.md");
+    const first = () =>
+      policy().split("## First fork release handoff")[1]?.split("## ")[0];
+
+    it("navigates to the independent worktrees view from each owner", () => {
+      const view = "pi-subagents-worktrees-release-correspondence.md";
+      expect(read("README.md")).toContain(`](docs/upstream/${view})`);
+      for (const owner of [
+        "synchronization-guide.md",
+        "fork-release-policy.md",
+      ])
+        expect(read(`docs/upstream/${owner}`)).toContain(`](${view})`);
+    });
+    it("preserves worktrees identity, fork-core loading and workspace behavior in intersection review", () => {
+      const text = read("docs/upstream/synchronization-guide.md")
+        .split("## Review scope")[1]
+        ?.split("## ")[0];
+      for (const instruction of [
+        "Preserve the eventual `@jopqior/pi-subagents-worktrees` identity and fork repository metadata",
+        "published `@jopqior/pi-subagents` imports and dependency",
+        "core-first initialization",
+        "shared workspace-provider service contract",
+        "`subagents-worktrees.json` and `worktreeAgents`",
+        "workspace preparation/disposal, rescue and recovery behavior",
+      ])
+        expect(text).toContain(instruction);
+    });
+    it("selects independent recorder review and evidence without package-selecting a merge", () => {
+      const recording = policy()
+        .split("## Recording a completed sync")[1]
+        ?.split("## ")[0];
+      expect(recording).toContain("--package pi-subagents-worktrees");
+      expect(recording).toContain(
+        "classify and record each package independently with its own explicit level and rationale",
+      );
+      const authority = policy()
+        .split("## Evidence authority and validity")[1]
+        ?.split("## ")[0];
+      expect(authority).toContain(
+        "scripts/release/pi-subagents-worktrees/sync-state.json",
+      );
+      expect(authority).toContain(
+        "only that selected package's state and view",
+      );
+      const guide = read("docs/upstream/synchronization-guide.md")
+        .split("## Fixed target and compatibility")[1]
+        ?.split("## ")[0];
+      expect(guide).toContain(
+        "./scripts/upstream-sync.sh --fetch --package pi-subagents-worktrees",
+      );
+      expect(guide).toContain("Never pass `--package` with `--merge`");
+    });
+    it("separates bounded generation from freshness-checked application", () => {
+      for (const instruction of [
+        "node scripts/release/prepare-first-fork-release.mjs",
+        "--version 0.1.0",
+        "operator-selected first version",
+        "bounded UTF-8 summary",
+        "direct upstream npm identity/version",
+        "empty package-scope upstream tail",
+        "first-fork-release.json",
+        "`sourceHead` still equals the current HEAD before copying",
+        "`applicationFiles`",
+        "not a persistent ledger",
+      ])
+        expect(first()).toContain(instruction);
+    });
+    it("requires explicit separate first-publication approval and forbids untagged dispatch", () => {
+      const text = first();
+      expect(text).toContain(
+        "Obtain explicit separate operator approval of the npm scope and release destination before first publication",
+      );
+      expect(text).toContain(
+        "Do not dispatch ordinary release preparation for an untagged first release",
+      );
+      expect(text).toContain("manual first npm publish without `--provenance`");
+      expect(text).toContain("release-artifacts.mjs published");
+    });
+    it("routes the release skill to both supported evidence paths and the guarded first handoff", () => {
+      const skill = read(".pi/skills/releasing/SKILL.md");
+      expect(
+        skill.split("## Fork release levels")[1]?.split("## ")[0],
+      ).toContain("`pi-subagents` and `pi-subagents-worktrees`");
+      const firstRelease = skill
+        .split("## A package's first release")[1]
+        ?.split("## ")[0];
+      expect(firstRelease).toContain("artifact-only first-release generator");
+      expect(firstRelease).toContain("#first-fork-release-handoff");
+      expect(firstRelease).toContain(
+        "Never dispatch ordinary preparation for an untagged first release",
+      );
+    });
+    it("keeps scaffold prose valid after projection and an empty managed region", () => {
+      const view = read(
+        "docs/upstream/pi-subagents-worktrees-release-correspondence.md",
+      );
+      const outside = view.split("<!-- release-correspondence:start -->")[0];
+      expect(outside).toContain(
+        "Until a verified fork release row is recorded",
+      );
+      expect(outside).not.toContain("This fork is unreleased.");
+      expect(
+        view
+          .split("<!-- release-correspondence:start -->")[1]
+          ?.split("<!-- release-correspondence:end -->")[0]
+          .trim(),
+      ).toBe("No fork release has been recorded.");
+    });
+  });
   describe("selector-focused synchronization scope", () => {
     // These bounded text predicates detect missing instructions, not live agent
     // compliance or semantic completeness. Subset matches permit unrelated prose.
@@ -236,7 +347,7 @@ describe("standard synchronization workflow contracts", () => {
           .split("## Validation and escalation")[1]
           ?.split("## ")[0];
         expect(text).toContain(
-          "installation/check failure, broken selector behavior, or a named fork-adaptation uncertainty that existing automated tests cannot answer",
+          "installation/check failure, broken selector or worktrees behavior, or a named fork-adaptation uncertainty that existing automated tests cannot answer",
         );
         expect(text).toContain(
           "observable uncertainty, the existing evidence and its limit, and the smallest proposed extra verification",
@@ -264,7 +375,7 @@ describe("standard synchronization workflow contracts", () => {
           /Regression introduced by conflict resolution or fork adaptation\s*\| Correct in scope/,
         );
         expect(text).toMatch(
-          /Inherited upstream behavior breaks selector compatibility\s*\| In-scope compatibility decision/,
+          /Inherited upstream behavior breaks selector or worktrees compatibility\s*\| In-scope compatibility decision/,
         );
         expect(text).toMatch(
           /Confirmed inherited defect unrelated to fork preservation, with required checks passing\s*\| Outside sync scope; no automatic repair, reproduction, new issue or unresolved ship warning/,
