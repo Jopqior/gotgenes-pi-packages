@@ -124,7 +124,124 @@ describe("upstream-sync.sh", () => {
     });
   });
 
+  describe("package selection", () => {
+    it.each([
+      ["--package", "pi-subagents-worktrees"],
+      ["--fetch", "--package"],
+      ["--fetch", "--package", ""],
+      ["--fetch", "--package", "--help"],
+      ["--fetch", "--package", "unknown"],
+      ["--fetch", "--package", "../pi-subagents"],
+      [
+        "--fetch",
+        "--package",
+        "pi-subagents",
+        "--package",
+        "pi-subagents-worktrees",
+      ],
+    ])(
+      "rejects invalid/orphan selectors before remote/config effects: %j",
+      (...args) => {
+        const { work } = materializeNetwork("divergent");
+        git(work, ["remote", "remove", "upstream"]);
+        const configBefore = readFileSync(path.join(gitDir(work), "config"));
+        const result = runScript(work, [...args, "--upstream-protocol", "ssh"]);
+        expect(result.status).toBe(1);
+        expect(
+          recordedInvocations().filter(({ args: call }) =>
+            ["config", "remote", "fetch", "merge", "ls-remote"].includes(
+              call[0],
+            ),
+          ),
+        ).toEqual([]);
+        expect(readFileSync(path.join(gitDir(work), "config"))).toEqual(
+          configBefore,
+        );
+      },
+    );
+
+    it.each(["pi-subagents", "pi-subagents-worktrees"])(
+      "rejects %s selection for a valid pinned repository merge before effects",
+      (directory) => {
+        const { work, upstreamBare } = materializeNetwork("divergent");
+        const target = net.prepareFetchedUpstream(work, upstreamBare);
+        const headBefore = revParse(work, "HEAD");
+        const configBefore = readFileSync(path.join(gitDir(work), "config"));
+        const result = runScript(work, [
+          "--merge",
+          "--expected-upstream",
+          target,
+          "--package",
+          directory,
+        ]);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain("Usage:");
+        expect(
+          recordedInvocations().filter(({ args }) =>
+            ["config", "remote", "fetch", "merge", "ls-remote"].includes(
+              args[0],
+            ),
+          ),
+        ).toEqual([]);
+        expect(revParse(work, "HEAD")).toBe(headBefore);
+        expect(readFileSync(path.join(gitDir(work), "config"))).toEqual(
+          configBefore,
+        );
+      },
+    );
+  });
+
   describe("status", () => {
+    it.each([undefined, "pi-subagents", "pi-subagents-worktrees"])(
+      "queries only the selected upstream release status (%s)",
+      (directory) => {
+        const { work, upstreamBare } = materializeNetwork("divergent");
+        git(upstreamBare, ["tag", "pi-subagents-worktrees-v0.3.3", "main"]);
+        const selected = directory ?? "pi-subagents";
+        const headBefore = revParse(work, "HEAD");
+        const tagsBefore = git(work, [
+          "for-each-ref",
+          "--sort=refname",
+          "--format=%(refname) %(objectname)",
+          "refs/tags",
+        ]).stdout;
+        const result = runScript(work, [
+          "--fetch",
+          ...(directory ? ["--package", directory] : []),
+        ]);
+        expect(result.status).toBe(0);
+        expect(
+          recordedInvocations()
+            .map(({ args }) => args)
+            .filter((args) => args[0] === "ls-remote"),
+        ).toEqual([["ls-remote", "--tags", "upstream", `${selected}-v*`]]);
+        const tag =
+          selected === "pi-subagents"
+            ? "pi-subagents-v21.7.0"
+            : "pi-subagents-worktrees-v0.3.3";
+        expect(result.stdout).toContain(
+          `newest upstream ${selected} tag: ${tag} (${revParse(upstreamBare, `refs/tags/${tag}`)})`,
+        );
+        expect(recordedFetches()).toEqual([
+          [
+            "fetch",
+            "--no-tags",
+            "upstream",
+            "+refs/heads/main:refs/remotes/upstream/main",
+          ],
+        ]);
+        expect(revParse(work, "HEAD")).toBe(headBefore);
+        expect(
+          git(work, [
+            "for-each-ref",
+            "--sort=refname",
+            "--format=%(refname) %(objectname)",
+            "refs/tags",
+          ]).stdout,
+        ).toBe(tagsBefore);
+      },
+    );
+
     it("refreshes upstream/main even when remote.fetch maps main elsewhere", () => {
       const { work, upstreamBare } = materializeNetwork("divergent");
       const actual = revParse(upstreamBare, "refs/heads/main");
@@ -680,7 +797,17 @@ describe("upstream-sync.sh", () => {
       ).toEqual([]);
     });
 
-    for (const args of [["--merge"], ["--record-fork-sync", "HEAD"]]) {
+    for (const args of [
+      ["--merge"],
+      [
+        "--record-fork-sync",
+        "HEAD",
+        "--fork-level",
+        "none",
+        "--rationale",
+        "reviewed",
+      ],
+    ]) {
       it(`checks local preconditions before setup and fetch in ${args[0]}`, () => {
         const { work, upstreamBare } = materializeNetwork("divergent");
         const target = net.prepareFetchedUpstream(work, upstreamBare);

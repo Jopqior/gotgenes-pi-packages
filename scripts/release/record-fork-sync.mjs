@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Recording is composed at the sole supported fork boundary; shared record
+// Recording is composed at a fixed supported fork boundary; shared record
 // logic receives its selected directory and committed evidence location.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { recordForkSync } from "./fork-sync/record.mjs";
 import { ForkSyncError, isReleaseLevel } from "./fork-sync/values.mjs";
-import { forkSyncTarget } from "./pi-subagents/config.mjs";
+import { requireForkSyncTarget } from "./fork-sync-targets.mjs";
 
 function main() {
   const args = process.argv.slice(2);
@@ -13,10 +13,22 @@ function main() {
   const options = {};
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (["--repo", "--merge", "--fork-level", "--rationale"].includes(arg)) {
+    if (
+      [
+        "--repo",
+        "--merge",
+        "--fork-level",
+        "--rationale",
+        "--package",
+      ].includes(arg)
+    ) {
       const value = args[i + 1];
-      if (value === undefined) {
+      if (!value || value.startsWith("--")) {
         process.stderr.write(`error: ${arg} requires a value\n`);
+        process.exit(1);
+      }
+      if (arg === "--package" && options.package !== undefined) {
+        process.stderr.write("error: --package cannot be repeated\n");
         process.exit(1);
       }
       options[arg.slice(2)] = value;
@@ -24,10 +36,12 @@ function main() {
     } else if (arg === "--help" || arg === "-h") {
       process.stdout.write(
         [
-          "Usage: record-fork-sync.mjs --repo <path> --merge <oid>",
+          "Usage: record-fork-sync.mjs --repo <path> --merge <oid> [--package <directory>]",
           "       --fork-level <none|patch|minor|major> --rationale <text>",
           "",
-          `Appends a reviewed sync record to ${forkSyncTarget.statePath}.`,
+          "Appends a reviewed sync record to the selected package's state.",
+          "--package defaults to pi-subagents; pi-subagents-worktrees is also supported.",
+          "Each package requires its own explicit review level and rationale.",
           "Run through scripts/upstream-sync.sh --record-fork-sync, which supplies",
           "the upstream identity and no-tag safeguards. Never pushes.",
           "",
@@ -40,7 +54,7 @@ function main() {
     }
   }
   const missing = ["repo", "merge", "fork-level", "rationale"].filter(
-    (name) => !options[name],
+    (name) => !options[name]?.trim(),
   );
   if (missing.length > 0) {
     for (const name of missing) {
@@ -56,10 +70,11 @@ function main() {
   }
 
   try {
+    const target = requireForkSyncTarget(options.package ?? "pi-subagents");
     recordForkSync(
       options.repo,
-      path.join(options.repo, forkSyncTarget.statePath),
-      forkSyncTarget.directory,
+      path.join(options.repo, target.statePath),
+      target.directory,
       {
         merge: options.merge,
         forkLevel: /** @type {"none" | "patch" | "minor" | "major"} */ (

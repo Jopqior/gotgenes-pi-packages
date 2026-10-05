@@ -5,7 +5,11 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readForkSyncState } from "../../scripts/release/fork-sync/state.mjs";
 
-import { createUpstreamNetwork, realGit } from "./helpers/upstream-network.mjs";
+import {
+  baseGitEnv,
+  createUpstreamNetwork,
+  realGit,
+} from "./helpers/upstream-network.mjs";
 
 /** @type {ReturnType<typeof createUpstreamNetwork>} */
 let net;
@@ -620,12 +624,31 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     const { work, upstreamBare } = net.materializeNetwork("fork-sync");
     const merge = mergeUpstream(work, upstreamBare);
     const stateBefore = readFileSync(statePathOf(work), "utf8");
+    net.git(work, ["remote", "remove", "upstream"]);
+    const configBefore = readFileSync(path.join(net.gitDir(work), "config"));
+    const start = net.recordedInvocations().length;
 
-    const result = net.runScript(work, ["--record-fork-sync", merge]);
+    const result = net.runScript(work, [
+      "--record-fork-sync",
+      merge,
+      "--upstream-protocol",
+      "ssh",
+    ]);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("--fork-level is required");
     expect(result.stderr).toContain("--rationale is required");
+    expect(
+      net
+        .recordedInvocations()
+        .slice(start)
+        .filter(({ args }) =>
+          ["config", "remote", "fetch", "ls-remote"].includes(args[0]),
+        ),
+    ).toEqual([]);
+    expect(readFileSync(path.join(net.gitDir(work), "config"))).toEqual(
+      configBefore,
+    );
     expect(readFileSync(statePathOf(work), "utf8")).toBe(stateBefore);
   });
 
@@ -794,6 +817,325 @@ describe("upstream-sync.sh --record-fork-sync", () => {
     expect(conflicting.stderr).toContain("a different record already exists");
     expect(readFileSync(statePathOf(work), "utf8")).toBe(recorded);
   }, 30_000);
+
+  describe("selected worktrees recording", () => {
+    const directory = "pi-subagents-worktrees";
+    const stateRelative = `scripts/release/${directory}/sync-state.json`;
+    const viewRelative = "docs/upstream/pi-subagents-release-correspondence.md";
+    const review = [
+      "--fork-level",
+      "none",
+      "--rationale",
+      "worktrees-only review",
+    ];
+
+    beforeEach(() => {
+      net.dispose();
+      net = createUpstreamNetwork(`${directory}-v*`);
+    });
+
+    function selectedHistory() {
+      const { work, upstreamBare } = net.materializeNetwork("fork-sync");
+      const [release] = net.advanceUpstreamReleases(upstreamBare, [
+        {
+          message: "feat(pi-subagents-worktrees): upstream release 0.3.3",
+          files: {
+            [`packages/${directory}/package.json`]: `${JSON.stringify({ name: "@gotgenes/pi-subagents-worktrees", version: "0.3.3" })}\n`,
+          },
+          tag: { name: `${directory}-v0.3.3`, annotated: true },
+        },
+      ]);
+      const initialState = {
+        schemaVersion: 2,
+        releases: [
+          {
+            forkTag: `${directory}-v0.1.0`,
+            upstream: { version: "0.3.3", commit: release },
+            upstreamTip: release,
+          },
+        ],
+        syncs: [],
+      };
+      net.commit(work, "test: independent published worktrees baseline", {
+        [stateRelative]: `${JSON.stringify(initialState, null, 2)}\n`,
+        [viewRelative]: "core correspondence sentinel\n",
+      });
+      net.git(work, ["tag", `${directory}-v0.1.0`]);
+      const merge = mergeUpstream(work, upstreamBare);
+      return { work, merge, release, initialState };
+    }
+
+    const tagMap = (work) =>
+      net.git(work, [
+        "for-each-ref",
+        "--sort=refname",
+        "--format=%(refname) %(objectname)",
+        "refs/tags",
+      ]).stdout;
+    const releaseQueries = (start) =>
+      net
+        .recordedInvocations()
+        .slice(start)
+        .map(({ args }) => args)
+        .filter((args) => args[0] === "ls-remote");
+
+    function runRecorder(work, args) {
+      return spawnSync(
+        process.execPath,
+        [
+          path.resolve("scripts/release/record-fork-sync.mjs"),
+          "--repo",
+          work,
+          ...args,
+        ],
+        {
+          cwd: work,
+          encoding: "utf8",
+          env: {
+            ...baseGitEnv,
+            PATH: `${path.join(net.scratch, "bin")}${path.delimiter}${process.env.PATH}`,
+            UPSTREAM_SYNC_TEST_REAL_GIT: realGit,
+            UPSTREAM_SYNC_TEST_GIT_LOG: path.join(
+              net.scratch,
+              "git-args.jsonl",
+            ),
+            UPSTREAM_SYNC_TEST_UPSTREAM_BARE: path.join(
+              net.scratch,
+              "remotes/gotgenes/pi-packages.git",
+            ),
+          },
+        },
+      );
+    }
+
+    it.each(["shell", "CLI"])(
+      "selects worktrees query/state and preserves core bytes through %s",
+      (entry) => {
+        const { work, merge, release, initialState } = selectedHistory();
+        const coreBefore = readFileSync(statePathOf(work));
+        const viewBefore = readFileSync(path.join(work, viewRelative));
+        const tagsBefore = tagMap(work);
+        const headBefore = net.revParse(work, "HEAD");
+        const start = net.recordedInvocations().length;
+        const result =
+          entry === "shell"
+            ? net.runScript(work, [
+                "--record-fork-sync",
+                merge,
+                "--package",
+                directory,
+                ...review,
+              ])
+            : runRecorder(work, [
+                "--merge",
+                merge,
+                "--package",
+                directory,
+                ...review,
+              ]);
+
+        expect(releaseQueries(start)).toEqual([
+          ["ls-remote", "--tags", "upstream", `${directory}-v*`],
+        ]);
+        expect(result.status).toBe(0);
+        expect(
+          readForkSyncState(path.join(work, stateRelative), directory),
+        ).toEqual({
+          ...initialState,
+          syncs: [
+            {
+              merge,
+              upstream: { version: "0.3.3", commit: release },
+              forkContribution: {
+                level: "none",
+                rationale: "worktrees-only review",
+                paths: [],
+              },
+            },
+          ],
+        });
+        expect(
+          net
+            .recordedInvocations()
+            .slice(start)
+            .filter(({ args }) => args[0] === "fetch"),
+        ).toEqual([]);
+        expect(readFileSync(statePathOf(work))).toEqual(coreBefore);
+        expect(readFileSync(path.join(work, viewRelative))).toEqual(viewBefore);
+        expect(tagMap(work)).toBe(tagsBefore);
+        expect(net.revParse(work, "HEAD")).toBe(headBefore);
+      },
+    );
+
+    it("records each package with independent review and preserves repeated/conflicting worktrees records", () => {
+      const { work, merge } = selectedHistory();
+      const args = [
+        "--record-fork-sync",
+        merge,
+        "--package",
+        directory,
+        ...review,
+      ];
+      expect(net.runScript(work, args).status).toBe(0);
+      const selectedBefore = readFileSync(path.join(work, stateRelative));
+      net.git(work, ["add", stateRelative]);
+      net.git(work, ["commit", "-m", "test: save worktrees review"]);
+
+      const repeated = net.runScript(work, args);
+      expect(repeated.status).toBe(0);
+      expect(repeated.stdout).toContain("already recorded");
+      const conflict = net.runScript(work, [
+        "--record-fork-sync",
+        merge,
+        "--package",
+        directory,
+        "--fork-level",
+        "none",
+        "--rationale",
+        "different worktrees review",
+      ]);
+      expect(conflict.status).toBe(1);
+      expect(conflict.stderr).toContain("a different record already exists");
+      expect(readFileSync(path.join(work, stateRelative))).toEqual(
+        selectedBefore,
+      );
+
+      const core = net.runScript(work, [
+        "--record-fork-sync",
+        merge,
+        "--fork-level",
+        "none",
+        "--rationale",
+        "separate core review",
+      ]);
+      expect(core.status).toBe(0);
+      expect(readState(work).syncs[0].forkContribution.rationale).toBe(
+        "separate core review",
+      );
+      expect(readState(work).syncs[0].upstream.version).toBe("21.7.0");
+      expect(readFileSync(path.join(work, stateRelative))).toEqual(
+        selectedBefore,
+      );
+    }, 30_000);
+
+    it.each([false, true])(
+      "detects selected-query tag drift without recovery (query failure=%s)",
+      (failed) => {
+        const { work, merge } = selectedHistory();
+        const coreBefore = readFileSync(statePathOf(work));
+        const stateBefore = readFileSync(path.join(work, stateRelative));
+        const protectedTag = `${directory}-v0.1.0`;
+        const oldTag = net.revParse(work, protectedTag);
+        const headBefore = net.revParse(work, "HEAD");
+        const start = net.recordedInvocations().length;
+        const result = net.runScript(
+          work,
+          ["--record-fork-sync", merge, "--package", directory, ...review],
+          {
+            UPSTREAM_SYNC_TEST_TAG_TRIGGER: "record",
+            UPSTREAM_SYNC_TEST_INJECT_TAG: protectedTag,
+            UPSTREAM_SYNC_TEST_TAG_ACTION: "retarget",
+            ...(failed
+              ? { UPSTREAM_SYNC_TEST_FAIL_RELEASE_QUERY_AFTER_TAG: "1" }
+              : {}),
+          },
+        );
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          `retargeted: refs/tags/${protectedTag}`,
+        );
+        expect(result.stderr).toContain(
+          "stop for operator approval before any tag recovery",
+        );
+        expect(releaseQueries(start)).toEqual([
+          ["ls-remote", "--tags", "upstream", `${directory}-v*`],
+        ]);
+        expect(net.revParse(work, protectedTag)).toBe(
+          net.revParse(work, "upstream/main"),
+        );
+        expect(net.revParse(work, protectedTag)).not.toBe(oldTag);
+        expect(net.revParse(work, "HEAD")).toBe(headBefore);
+        expect(readFileSync(statePathOf(work))).toEqual(coreBefore);
+        if (failed) {
+          expect(result.stderr).toContain(
+            "simulated release query failure after tag write",
+          );
+          expect(readFileSync(path.join(work, stateRelative))).toEqual(
+            stateBefore,
+          );
+        } else {
+          expect(
+            readForkSyncState(path.join(work, stateRelative), directory)
+              .syncs[0].merge,
+          ).toBe(merge);
+        }
+      },
+    );
+
+    describe("early input rejection", () => {
+      const invalid = [
+        ["unknown", ["--package", "unknown"], true],
+        ["path traversal", ["--package", "../pi-subagents"], true],
+        ["missing value", ["--package"], true],
+        ["empty value", ["--package", ""], true],
+        ["option value", ["--package", "--help"], true],
+        ["duplicate", ["--package", directory, "--package", directory], true],
+        [
+          "missing level",
+          ["--package", directory, "--rationale", "review"],
+          false,
+        ],
+        [
+          "missing rationale",
+          ["--package", directory, "--fork-level", "none"],
+          false,
+        ],
+        ["missing review", ["--package", directory], false],
+      ];
+      for (const entry of ["shell", "CLI"]) {
+        it.each(invalid)(
+          `rejects %s before remote/config/query effects through ${entry}`,
+          (label, options, completeReview) => {
+            const { work } = net.materializeNetwork("fork-sync");
+            net.git(work, ["remote", "remove", "upstream"]);
+            const configBefore = readFileSync(
+              path.join(net.gitDir(work), "config"),
+            );
+            const coreBefore = readFileSync(statePathOf(work));
+            const args = [...options, ...(completeReview ? review : [])];
+            const result =
+              entry === "shell"
+                ? net.runScript(work, [
+                    "--record-fork-sync",
+                    "HEAD",
+                    "--upstream-protocol",
+                    "ssh",
+                    ...args,
+                  ])
+                : runRecorder(work, ["--merge", "HEAD", ...args]);
+            expect(result.status).toBe(1);
+            if (["unknown", "path traversal"].includes(label)) {
+              expect(result.stderr).toContain("unsupported fork sync package");
+            }
+            if (entry === "CLI" && label === "duplicate") {
+              expect(result.stderr).toContain("--package cannot be repeated");
+            }
+            expect(
+              net
+                .recordedInvocations()
+                .filter(({ args }) =>
+                  ["config", "remote", "fetch", "ls-remote"].includes(args[0]),
+                ),
+            ).toEqual([]);
+            expect(readFileSync(path.join(net.gitDir(work), "config"))).toEqual(
+              configBefore,
+            );
+            expect(readFileSync(statePathOf(work))).toEqual(coreBefore);
+          },
+        );
+      }
+    });
+  });
 
   it("refuses a merge that cannot be resolved", () => {
     const { work } = net.materializeNetwork("fork-sync");
