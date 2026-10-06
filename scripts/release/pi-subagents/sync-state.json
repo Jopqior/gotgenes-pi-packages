@@ -150,6 +150,18 @@
         "rationale": "Resolution preserves fork identity, initial-selection admission/cancellation/confirmation, nested ownership, synchronous service spawn, and no-provider acknowledgements while adapting pending-safe observed model presentation and background launch rendering to the approved upstream Pi 1.0 contracts; it introduces no independent fork behavior or public API change.",
         "paths": []
       }
+    },
+    {
+      "merge": "0b865f9b2f34413d6a09684560f66f5978fffd76",
+      "upstream": {
+        "version": "23.2.0",
+        "commit": "6879774308ba8056859fa42284da71763fe1fe78"
+      },
+      "forkContribution": {
+        "level": "none",
+        "rationale": "Reviewed actual remerge resolutions and automatic lifecycle/service/presentation/persistence intersections: retain exact fork manifest and CHANGELOG, admission-before-selection and confirmation acknowledgement, nested scope ownership, synchronous service IDs, pending-safe detailFor/onStarted presentation and no resume selection; adopt target-owned budgets and workspace outcomes, with postmerge characterization/public-consumer tests only. Resolutions introduce no independent fork contract change.",
+        "paths": []
+      }
     }
   ]
 }
