@@ -40,6 +40,9 @@ jobs:
       - name: Test
         run: pnpm run test
 
+      - name: Verify packed worktrees fork-core compatibility
+        run: pnpm --filter @jopqior/pi-subagents-worktrees run verify:core-compatibility
+
       # Runs on its own, after the concurrent workspace suite. These tests spawn
       # the real `pi` CLI, and doing so alongside eight other packages' vitest
       # processes is what made them flake (#678).
