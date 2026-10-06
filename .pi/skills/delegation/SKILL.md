@@ -19,6 +19,7 @@ When delegating lint-fix or refactoring work to a background agent:
 
 A read-only agent needs a scope bound too — `find /` is read-only and still walks every mounted volume, trips the external-directory permission gate, and can read a stale copy of a dependency.
 Bound its searches to the repo, and require fixing a failed pattern before widening its root.
+For read-only exploration, allow `colgrep`'s derived local index/cache writes while keeping project files and Git/GitHub state unchanged.
 
 ## Reading the report
 

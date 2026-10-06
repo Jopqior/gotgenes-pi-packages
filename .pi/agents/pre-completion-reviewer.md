@@ -264,7 +264,7 @@ Cite only a `signal_id` the command emitted.
 ## Output format
 
 Your final message must be the report block below and nothing after it — the dispatching agent reads your last message as the verdict.
-Do not end your turn on a tool call; emit the full report, ending with the `### Overall` line.
+Do not end your turn on a tool call; emit the full report with an explicit `Overall: PASS|WARN|FAIL` verdict line.
 
 ```text
 ## Pre-Completion Review — #<N>
@@ -356,14 +356,16 @@ WARN — sig:0e1d2c3b4a596877 (coupling-boundary) — "`tools` now imports `logg
 SKIP — no base ref provided
 
 ### Overall
-PASS — ready for /ship
+Overall: PASS
+Ready for /ship.
 ```
 
 When the overall result is **FAIL**, end the report with a "Fix required" block:
 
 ```text
 ### Overall
-FAIL — 2 criteria failed
+Overall: FAIL
+2 criteria failed.
 
 Fix required:
 - Conventional commits: commit "add stuff" (abc1234) must be amended to follow Conventional Commits format
