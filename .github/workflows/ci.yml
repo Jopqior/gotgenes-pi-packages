@@ -37,6 +37,9 @@ jobs:
       # The root suite's release-script tests shell out to git-cliff (test/release/).
       - uses: taiki-e/install-action@git-cliff
 
+      # Release fixtures exercise the ordinary trailing-whitespace builtin.
+      - uses: taiki-e/install-action@prek
+
       - name: Test
         run: pnpm run test
 

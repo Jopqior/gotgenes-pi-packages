@@ -162,6 +162,22 @@ describe("historical backfill preview", () => {
       expect(edits).toEqual([]);
     }
   });
+  it("intentionally refuses old double-space provenance rather than rewriting an existing Release", () => {
+    const { artifact, repo } = preview(["pi-subagents-v1.0.1"]);
+    const canonical = artifact.releases[0].proposedBody;
+    expect(canonical).toContain("`@gotgenes/pi-subagents`\n\n");
+    expect(canonical).toContain("`21.7.1`\n\n");
+    const historical = canonical
+      .replace("`@gotgenes/pi-subagents`\n\n", "`@gotgenes/pi-subagents`  \n")
+      .replace("`21.7.1`\n\n", "`21.7.1`  \n");
+    expect(() =>
+      previewReview({
+        repo: repo.dir,
+        tags: ["pi-subagents-v1.0.1"],
+        readRelease: () => release("pi-subagents-v1.0.1", historical),
+      }),
+    ).toThrow(/conflicting/);
+  });
   it("rejects duplicate, malformed, and conflicting blocks, and makes identical blocks a no-op", () => {
     const first = preview(["pi-subagents-v1.0.1"]);
     const body = first.artifact.releases[0].proposedBody;

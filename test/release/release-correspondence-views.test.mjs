@@ -5,10 +5,15 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+  assertExistingRelease,
+  assertReleaseProvenance,
+} from "../../scripts/release/release-artifacts.mjs";
+import {
   findReleaseSection,
   readReleasePackages,
   readTaggedReleaseSection,
   renderUpstreamCorrespondence,
+  resolvePublishedCorrespondence,
 } from "../../scripts/release/release-correspondence.mjs";
 import { createReleaseArtifacts } from "./helpers/release-artifacts.mjs";
 
@@ -52,17 +57,49 @@ describe("canonical upstream correspondence block", () => {
       "https://github.com/gotgenes/pi-packages/blob/b3b6159399f541fd0623f65818557dd3e707a34f/packages/pi-subagents",
   };
 
-  it("renders the complete bounded claim, source, and non-equivalence disclaimer", () => {
-    expect(renderUpstreamCorrespondence(provenance)).toBe(
-      "<!-- upstream-correspondence:start -->\n" +
-        "### Upstream correspondence\n\n" +
-        "Direct upstream package: `@gotgenes/pi-subagents`  \n" +
-        "Incorporated upstream release: `21.7.0`  \n" +
-        "Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/b3b6159399f541fd0623f65818557dd3e707a34f/packages/pi-subagents)\n\n" +
-        "This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.\n" +
-        "<!-- upstream-correspondence:end -->",
-    );
+  const canonical =
+    "<!-- upstream-correspondence:start -->\n" +
+    "### Upstream correspondence\n\n" +
+    "Direct upstream package: `@gotgenes/pi-subagents`\n\n" +
+    "Incorporated upstream release: `21.7.0`\n\n" +
+    "Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/b3b6159399f541fd0623f65818557dd3e707a34f/packages/pi-subagents)\n\n" +
+    "This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.\n" +
+    "<!-- upstream-correspondence:end -->";
+
+  it("renders exact blank-line paragraphs, source, and non-equivalence disclaimer", () => {
+    expect(renderUpstreamCorrespondence(provenance)).toBe(canonical);
   });
+
+  it("emits no trailing whitespace on any line", () => {
+    expect(renderUpstreamCorrespondence(provenance)).not.toMatch(/[\t ]+$/m);
+  });
+
+  it("accepts the new canonical block in an exact release section", () => {
+    expect(() =>
+      assertReleaseProvenance(`Release notes\n\n${canonical}\n\n`, provenance),
+    ).not.toThrow();
+  });
+
+  it.each([
+    ["historical double-space hardbreaks", "  \n"],
+    ["single-newline labels", "\n"],
+  ])(
+    "intentionally rejects %s rather than normalizing old artifacts",
+    (_name, separator) => {
+      const noncanonical = canonical
+        .replace(
+          "`@gotgenes/pi-subagents`\n\n",
+          `\`@gotgenes/pi-subagents\`${separator}`,
+        )
+        .replace("`21.7.0`\n\n", `\`21.7.0\`${separator}`);
+      expect(() => assertReleaseProvenance(noncanonical, provenance)).toThrow(
+        "missing or conflicting managed upstream correspondence",
+      );
+      expect(() => assertExistingRelease(noncanonical, canonical)).toThrow(
+        "conflicting managed upstream correspondence",
+      );
+    },
+  );
 
   it("renders no block or implied baseline for an original package", () => {
     expect(renderUpstreamCorrespondence({ kind: "original" })).toBe("");
@@ -120,6 +157,38 @@ describe("exact tagged CHANGELOG section", () => {
 });
 
 describe("actual current and tagged CHANGELOG corpus", () => {
+  it("intentionally rejects immutable historical hardbreak provenance under current validation", () => {
+    const tag = "pi-subagents-v5.0.0";
+    const registry = readReleasePackages(
+      path.join(realRepo, "scripts/release/release-packages.json"),
+      realRepo,
+    );
+    const state = JSON.parse(
+      gitText(
+        realRepo,
+        "show",
+        `${tag}:scripts/release/pi-subagents/sync-state.json`,
+      ),
+    );
+    const provenance = resolvePublishedCorrespondence({
+      repo: realRepo,
+      tag,
+      registry,
+      state,
+    });
+    const section = readTaggedReleaseSection({
+      repo: realRepo,
+      tag,
+      packageDirectory: "pi-subagents",
+    });
+    expect(section).toContain(
+      "Direct upstream package: `@gotgenes/pi-subagents`  \n",
+    );
+    expect(() => assertReleaseProvenance(section, provenance)).toThrow(
+      "missing or conflicting managed upstream correspondence",
+    );
+  });
+
   it("replays all tracked CHANGELOGs and registered package tags without an unsafe manual fallback", () => {
     const registry = readReleasePackages(
       path.join(realRepo, "scripts/release/release-packages.json"),

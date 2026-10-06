@@ -101,6 +101,8 @@ Check one registered view with `node scripts/release/correspondence-table.mjs --
 The selected worktrees table command intentionally refuses before registration.
 Publishing checks the complete tagged set before the first npm call.
 GitHub Release creation checks the same tagged artifacts and takes each body from that tag's exact CHANGELOG section, not from a new git-cliff render; reruns leave existing Release bodies unchanged.
+Managed provenance uses blank-line-separated paragraphs without trailing spaces; artifact validation and backfill accept only that exact canonical block.
+Current tooling intentionally rejects historical double-space hardbreak blocks when reading old tagged artifacts or existing managed Release bodies; immutable tags and published artifacts are not migrated, and historical workflow reruns retain their original scripts.
 After publication, the next window anchors at the recorded fork tag and upstream release, so prediction works offline from committed evidence and local Git objects alone.
 Offline prediction revalidates the baseline and every window sync's release manifest, checks their incorporated tips for unreleased package changes, and verifies that successive upstream tips form a continuous ancestry chain.
 It also rejects malformed git-cliff context entries or commit IDs rather than silently discarding fork changes.

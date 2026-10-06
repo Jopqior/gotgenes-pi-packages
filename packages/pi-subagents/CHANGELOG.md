@@ -41,8 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- upstream-correspondence:start -->
 ### Upstream correspondence
 
-Direct upstream package: `@gotgenes/pi-subagents`  
-Incorporated upstream release: `22.0.0`  
+Direct upstream package: `@gotgenes/pi-subagents`
+
+Incorporated upstream release: `22.0.0`
+
 Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/84111ba0e8eebddd3c4bb4ae04298b1a78f96f86/packages/pi-subagents)
 
 This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
@@ -59,7 +61,9 @@ This records incorporated source provenance, not behavioral equivalence or the i
 ### Upstream correspondence
 
 Direct upstream package: `@gotgenes/pi-subagents`
+
 Incorporated upstream release: `21.7.7`
+
 Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents)
 
 This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
@@ -76,7 +80,9 @@ This records incorporated source provenance, not behavioral equivalence or the i
 ### Upstream correspondence
 
 Direct upstream package: `@gotgenes/pi-subagents`
+
 Incorporated upstream release: `21.7.7`
+
 Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents)
 
 This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
@@ -93,7 +99,9 @@ This records incorporated source provenance, not behavioral equivalence or the i
 ### Upstream correspondence
 
 Direct upstream package: `@gotgenes/pi-subagents`
+
 Incorporated upstream release: `21.7.7`
+
 Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents)
 
 This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
@@ -110,7 +118,9 @@ This records incorporated source provenance, not behavioral equivalence or the i
 ### Upstream correspondence
 
 Direct upstream package: `@gotgenes/pi-subagents`
+
 Incorporated upstream release: `21.7.7`
+
 Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents)
 
 This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
@@ -146,7 +156,9 @@ This records incorporated source provenance, not behavioral equivalence or the i
 ### Upstream correspondence
 
 Direct upstream package: `@gotgenes/pi-subagents`
+
 Incorporated upstream release: `21.7.7`
+
 Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/1c8c78e888e3b6b404bafeb9221420c204b6e1fe/packages/pi-subagents)
 
 This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
@@ -163,7 +175,9 @@ This records incorporated source provenance, not behavioral equivalence or the i
 ### Upstream correspondence
 
 Direct upstream package: `@gotgenes/pi-subagents`
+
 Incorporated upstream release: `21.7.3`
+
 Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/f918568bbb643a6145898c76c5cc225c63b5b793/packages/pi-subagents)
 
 This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.

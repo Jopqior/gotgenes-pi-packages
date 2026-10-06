@@ -448,6 +448,38 @@ describe("first fork candidate", () => {
         `${heading}\n\n### Features\n\n- Reviewed migration to fork core.\n\n${block}\n\n`,
       );
     });
+    it("keeps generated provenance byte-identical through the ordinary trailing-whitespace hook twice", () => {
+      // Other fixture tests preserve deliberately dirty inherited bytes; this
+      // hook probe starts with hook-clean history, like the real worktrees file.
+      s.write(
+        FILES[1],
+        s.inherited
+          .toString()
+          .replace("- inherited bytes \r\n", "- inherited bytes\r\n"),
+      );
+      s.commit("test: hook-clean inherited history");
+      prepare();
+      const candidate = readFileSync(path.join(s.output, FILES[1]));
+      const sample = path.join(s.repo.dir, FILES[1]);
+      copyFileSync(path.join(s.output, FILES[1]), sample);
+      for (let pass = 0; pass < 2; pass++) {
+        const result = spawnSync(
+          "prek",
+          [
+            "run",
+            "trailing-whitespace",
+            "--config",
+            path.resolve("prek.toml"),
+            "--files",
+            FILES[1],
+          ],
+          { cwd: s.repo.dir, encoding: "utf8" },
+        );
+        expect(result.status, `${result.stdout}\n${result.stderr}`).toBe(0);
+        expect(readFileSync(sample)).toEqual(candidate);
+      }
+      expect(readFileSync(path.join(s.output, FILES[1]))).toEqual(candidate);
+    });
     it("applies exact candidate files, validates publication and fake effects, then predicts from first row", () => {
       const review = prepare();
       for (const file of review.applicationFiles)

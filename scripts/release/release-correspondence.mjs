@@ -26,8 +26,8 @@ export function renderUpstreamCorrespondence(provenance) {
   return (
     "<!-- upstream-correspondence:start -->\n" +
     "### Upstream correspondence\n\n" +
-    `Direct upstream package: \`${provenance.upstreamPackage}\`  \n` +
-    `Incorporated upstream release: \`${provenance.upstreamVersion}\`  \n` +
+    `Direct upstream package: \`${provenance.upstreamPackage}\`\n\n` +
+    `Incorporated upstream release: \`${provenance.upstreamVersion}\`\n\n` +
     `Source: [fixed upstream release commit](${provenance.sourceUrl})\n\n` +
     "This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.\n" +
     "<!-- upstream-correspondence:end -->"
