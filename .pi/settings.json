@@ -41,6 +41,13 @@
       "skills": []
     },
     {
+      "source": "npm:@jopqior/pi-subagents-worktrees",
+      "extensions": [],
+      "skills": [],
+      "prompts": [],
+      "themes": []
+    },
+    {
       "source": "npm:@gotgenes/pi-session-tools",
       "extensions": [],
       "skills": []

@@ -95,3 +95,33 @@ Final tests measured 9571 passing cases, a net increase of 106 root tests over t
   Artifact-application approval does not approve tags, public npmjs.org destination/identity or GitHub Release effects; those still require separate operator approval.
   Any approved tag must identify artifact commit `bec7ce63e09658c948d0da951c80834cbf885d8d`, not blindly the later retro `HEAD`, and publication must use that exact tagged checkout after published preflight into an existing external output directory.
   No tag, push, npm publication, GitHub Release, release dispatch or issue closure occurred; the fork npm settings source remains absent until confirmed first publication, and Trusted Publisher/dashboard setup remains a later operator gate.
+
+## Stage: Ship (2026-10-06T08:03:28Z)
+
+### Session summary
+
+Shipped on primary `main` in the trunk lane after fast-forward-only synchronization, root lint and dead-code checks.
+The initial push carried ten commits through `606836fc18ac545f674798fe8d6761fb70c1de79`; [CI run 37432044463](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/37432044463) succeeded.
+Closed issue #37 with the operator-approved comment anchored on behavior commit `1b55307a853eaefcdfbfbd8a24a0d09f31429a58`, then completed the separately approved manual first publication and GitHub Release.
+
+### Observations
+
+- The operator separately approved the exact close-comment text and the sole package `@jopqior/pi-subagents-worktrees`, public npmjs.org destination, selected first version `0.1.0`, artifact tag and GitHub Release effects.
+  Candidate, artifact-commit and current application-file bytes matched before tagging.
+- Tag `pi-subagents-worktrees-v0.1.0` points at approved artifact commit `bec7ce63e09658c948d0da951c80834cbf885d8d`, not the later retro tip.
+  A temporary detached tagged checkout passed `release-artifacts.mjs published`, the tagged correspondence-table check and packing before the approved tag push.
+- The operator ran `/tmp/worktrees-publish-37-U4S1Ik/wizard.sh` in an interactive terminal and confirmed completion.
+  The script recorded successful manual npm publication and confirmation of Trusted Publisher fields: owner `Jopqior`, repository `gotgenes-pi-packages`, workflow `release.yml`, empty environment and direct publishing enabled.
+  Credentials were not captured; dashboard configuration is not proof of exercised OIDC permission, and no verification release was dispatched.
+- Created [the GitHub Release](https://github.com/Jopqior/gotgenes-pi-packages/releases/tag/pi-subagents-worktrees-v0.1.0) for that exact tag after re-running tagged preflight.
+  Readback matched the tagged CHANGELOG section apart from GitHub's terminal newlines.
+  No historical tag, npm artifact or Release body was rewritten, and successful publication required no registry polling.
+- Added the fork npm suppression object to `.pi/settings.json` only after confirmed publication, with `extensions`, `skills`, `prompts` and `themes` all empty.
+  Local core-first order and the upstream suppression entry remain unchanged.
+  The existing package-contract suite passed all 14 tests; root lint and dead-code gates passed for this post-publication configuration.
+- The changed-directory registry scan found only registered core and worktrees packages, with no unregistered directories or co-shipped close targets.
+  Core's predictor exited successfully with empty stdout; its CHANGELOG whitespace correction cuts no release.
+  Worktrees used the planned untagged-bootstrap exception, so ordinary prediction and `release.yml` dispatch were skipped rather than attempting to infer a first version.
+- No peer branch or feature worktree existed to merge or tear down.
+  Removed the clean temporary publication checkout; retained external candidate, tagged notes, packed tarball and completion markers for the handoff.
+  Worktrees has no roadmap phase to finish; the deliberate next step is `/retro 37` at the root on `main`.
