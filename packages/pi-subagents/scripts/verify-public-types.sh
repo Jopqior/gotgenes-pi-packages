@@ -65,6 +65,14 @@ JSON
 cat > "$CONSUMER/probe.ts" <<'TS'
 import {
   getSubagentsService,
+  SUBAGENT_EVENTS,
+  type SpawnSelection,
+  type SpawnSelectionProvider,
+  type SpawnSelectionRegistration,
+  type SpawnSelectionRequest,
+  type SubagentRecord,
+  type TurnBudget,
+  type TurnBudgetPhase,
   type Workspace,
   type WorkspaceDisposeOutcome,
   type WorkspaceDisposeResult,
@@ -85,8 +93,47 @@ const provider: WorkspaceProvider = {
   },
 };
 
+const phase: TurnBudgetPhase = "warned";
+const budget: TurnBudget = { maxTurns: 4, used: 2, phase };
+const unlimitedBudget: TurnBudget = { used: 1, phase: "within" };
+
+function inspectRecord(record: SubagentRecord): TurnBudget | undefined {
+  const currentBudget: TurnBudget | undefined = record.turnBudget;
+  if (currentBudget) {
+    const used: number = currentBudget.used;
+    const ceiling: number | undefined = currentBudget.maxTurns;
+    const currentPhase: TurnBudgetPhase = currentBudget.phase;
+    void [used, ceiling, currentPhase];
+  }
+  // @ts-expect-error Public snapshots expose turnBudget, not a turn counter.
+  void record.turnCount;
+  // @ts-expect-error The ceiling belongs to turnBudget, not the snapshot itself.
+  void record.maxTurns;
+  return currentBudget;
+}
+
+// @ts-expect-error Steering is an operation/event, not a terminal record status.
+const terminalStatus: SubagentRecord["status"] = "steered";
+const steeringEvent: "subagents:steered" = SUBAGENT_EVENTS.STEERED;
+
+const selectionProvider: SpawnSelectionProvider = {
+  async select(request: SpawnSelectionRequest, signal: AbortSignal): Promise<SpawnSelection | undefined> {
+    const model = request.availableModels[0];
+    if (signal.aborted || !model) return undefined;
+    return { model, thinkingLevel: "off" };
+  },
+};
+
+const service = getSubagentsService();
+const registration: SpawnSelectionRegistration | undefined =
+  service?.registerSpawnSelectionProvider(selectionProvider);
+if (registration?.kind === "owned") registration.dispose();
+const spawnedId: string | undefined = service?.spawn("Explore", "Inspect the contract", { maxTurns: 4 });
+const record: SubagentRecord | undefined = spawnedId ? service?.getRecord(spawnedId) : undefined;
+if (record) inspectRecord(record);
+
 void provider;
-void getSubagentsService;
+void [budget, unlimitedBudget, terminalStatus, steeringEvent];
 TS
 
 cat > "$CONSUMER/probe-settings.ts" <<'TS'
