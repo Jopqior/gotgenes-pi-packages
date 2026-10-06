@@ -18,6 +18,10 @@ vi.mock("node:fs", async () => {
   };
 });
 
+import {
+  resetWarmBashParser,
+  warmBashParser,
+} from "#src/access-intent/bash/parser";
 import { BashProgram } from "#src/access-intent/bash/program";
 import { UNPROVEN_EFFECT } from "#src/access-intent/effect";
 import { pathFlavorForPlatform, win32PathFlavor } from "#src/path/path-flavor";
@@ -594,6 +598,8 @@ describe("BashProgram", () => {
             text: "bash -c 'rm -rf /tmp/x'",
             wrapperKind: "opaque-payload",
             executedUnit: "rm -rf /tmp/x",
+            // The path projection reads the payload as a relative path.
+            spellings: ["bash -c /projects/my-app/rm -rf /tmp/x"],
           },
         ]);
       });
@@ -1254,7 +1260,14 @@ describe("BashProgram", () => {
       ])("flags %s as opaque", async (command, text) => {
         const program = await BashProgram.parse(command, normalizer);
         expect(program.commands()).toEqual([
-          { text, wrapperKind: "opaque-payload", executedUnit: "rm -rf /" },
+          {
+            text,
+            wrapperKind: "opaque-payload",
+            executedUnit: "rm -rf /",
+            // The path projection reads the payload as a relative path, so
+            // the unit carries its absolute spelling; the floor holds anyway.
+            spellings: [text.replace('"rm -rf /"', "/projects/my-app/rm -rf ")],
+          },
         ]);
       });
 
@@ -1268,6 +1281,7 @@ describe("BashProgram", () => {
             text: 'bash -c "rm -rf /"',
             wrapperKind: "opaque-payload",
             executedUnit: "rm -rf /",
+            spellings: ["bash -c /projects/my-app/rm -rf "],
           },
         ]);
       });
@@ -1286,16 +1300,11 @@ describe("BashProgram", () => {
         ["sudo aws s3 ls", "sudo aws s3 ls", "aws s3 ls"],
         ["env FOO=bar aws s3 ls", "env FOO=bar aws s3 ls", "aws s3 ls"],
         ["xargs rm -rf", "xargs rm -rf", "rm -rf"],
-        ["time aws s3 ls", "time aws s3 ls", "aws s3 ls"],
         ["nohup aws s3 ls", "nohup aws s3 ls", "aws s3 ls"],
-        ["timeout 10 aws s3 ls", "timeout 10 aws s3 ls", "aws s3 ls"],
-        ["nice -n 10 aws s3 ls", "nice -n 10 aws s3 ls", "aws s3 ls"],
         ["/usr/bin/sudo aws s3 ls", "/usr/bin/sudo aws s3 ls", "aws s3 ls"],
         // Exec-capable rewrites and prefix wrappers (#575).
         ["parallel rm ::: x", "parallel rm ::: x", "rm ::: x"],
         ["doas aws s3 ls", "doas aws s3 ls", "aws s3 ls"],
-        ["setsid aws s3 ls", "setsid aws s3 ls", "aws s3 ls"],
-        ["stdbuf -oL aws s3 ls", "stdbuf -oL aws s3 ls", "aws s3 ls"],
         ["flock /tmp/lock aws s3 ls", "flock /tmp/lock aws s3 ls", "aws s3 ls"],
       ])(
         "flags %s as an indirection wrapper",
@@ -1323,6 +1332,29 @@ describe("BashProgram", () => {
               wrapperKind: "indirection",
               executedUnit,
               floorExemption: "core-reader",
+            },
+          ]);
+        },
+      );
+
+      // Wrappers that change only how the command runs, so the unit inherits
+      // the inner command's verdict rather than flooring (#963).
+      it.each([
+        ["time aws s3 ls", "aws s3 ls"],
+        ["timeout 10 aws s3 ls", "aws s3 ls"],
+        ["nice -n 10 aws s3 ls", "aws s3 ls"],
+        ["setsid aws s3 ls", "aws s3 ls"],
+        ["stdbuf -oL aws s3 ls", "aws s3 ls"],
+      ])(
+        "flags %s as an indirection wrapper that only modifies execution",
+        async (command, executedUnit) => {
+          const program = await BashProgram.parse(command, normalizer);
+          expect(program.commands()).toEqual([
+            {
+              text: command,
+              wrapperKind: "indirection",
+              executedUnit,
+              floorExemption: "execution-modifier",
             },
           ]);
         },
@@ -1365,19 +1397,33 @@ describe("BashProgram", () => {
         "flags %s as an indirection wrapper",
         async (command, executedUnit) => {
           const program = await BashProgram.parse(command, normalizer);
+          // `find`'s `.` resolves to the working directory.
+          const spellings = command.startsWith("find .")
+            ? { spellings: [command.replace(".", "/projects/my-app")] }
+            : {};
           expect(program.commands()).toEqual([
-            { text: command, wrapperKind: "indirection", executedUnit },
+            {
+              text: command,
+              wrapperKind: "indirection",
+              executedUnit,
+              ...spellings,
+            },
           ]);
         },
       );
 
-      it.each(["find . -name foo", "fd pattern", "fd -H -t f pattern"])(
-        "does not flag a bare %s search",
-        async (command) => {
-          const program = await BashProgram.parse(command, normalizer);
-          expect(program.commands()).toEqual([{ text: command }]);
-        },
-      );
+      it.each([
+        ["find . -name foo", ["find /projects/my-app -name foo"]],
+        ["fd pattern", undefined],
+        ["fd -H -t f pattern", undefined],
+      ])("does not flag a bare %s search", async (command, spellings) => {
+        const program = await BashProgram.parse(command, normalizer);
+        expect(program.commands()).toEqual([
+          spellings === undefined
+            ? { text: command }
+            : { text: command, spellings },
+        ]);
+      });
     });
 
     describe("executed unit", () => {
@@ -1386,6 +1432,8 @@ describe("BashProgram", () => {
         ["sudo aws s3 rm", "aws s3 rm"],
         ["sudo -u root aws s3 rm", "aws s3 rm"],
         ["timeout 10 grep foo", "grep foo"],
+        ["timeout -- 5 sudo rm x", "rm x"],
+        ["timeout -s KILL -- 5 rm x", "rm x"],
         ["find . -name x -exec grep foo {} \\;", "grep foo {}"],
         ["sudo timeout 5 xargs grep foo", "grep foo"],
       ])("names what %s actually runs", async (command, executedUnit) => {
@@ -1437,6 +1485,41 @@ describe("BashProgram", () => {
         ["xargs awk -f p.awk", "`-f` withdraws awk's read claim"],
       ])("does not exempt %s (%s)", async (command) => {
         await expect(exemptions(command)).resolves.toEqual([undefined]);
+      });
+
+      it("exempts an execution modifier whose statement redirects to a file", async () => {
+        await expect(
+          exemptions("time pnpm run lint >/tmp/lintout.txt 2>&1"),
+        ).resolves.toEqual(["execution-modifier"]);
+      });
+
+      it.each([
+        [
+          "time (rm -rf /tmp/x)",
+          "the grammar reads the subshell as an argument",
+        ],
+        ["timeout --sig KILL 5 rm -rf /", "an abbreviation hides its value"],
+        ["time sudo rm -rf x", "a peeled layer changes who runs it"],
+        ["timeout {5,sudo} rm x", "brace expansion adds a word"],
+        ["timeout $D rm x", "an unquoted expansion may split"],
+        ['timeout "$D" rm x', "a computed operand is not proven"],
+        ["timeout $(echo 5 sudo) rm x", "a substitution may split"],
+        ["timeout * rm x", "a glob may expand to several words"],
+        ["nice -n $N rm x", "an option value may split"],
+        ["nice -n$N rm x", "an attached value may split"],
+        ["stdbuf -o$M rm x", "an attached value may split"],
+      ])("does not exempt the modifier unit of %s (%s)", async (command) => {
+        const [first] = await exemptions(command);
+        expect(first).toBeUndefined();
+      });
+
+      it("does not exempt a brace group after time", async () => {
+        // The grammar has no `time` keyword: the group's words become the
+        // `time` unit's arguments and the closing brace a unit of its own.
+        await expect(exemptions("time { rm -rf /tmp/x; }")).resolves.toEqual([
+          undefined,
+          undefined,
+        ]);
       });
 
       describe("a withdrawing option spelled with quotes", () => {
@@ -1593,7 +1676,11 @@ describe("BashProgram", () => {
           normalizer,
         );
         expect(program.commands()).toEqual([
-          { text: "git add -A .", parseUnresolved: true },
+          {
+            text: "git add -A .",
+            parseUnresolved: true,
+            spellings: ["git add -A /projects/my-app"],
+          },
           { text: "git commit -F", parseUnresolved: true },
           { text: "rm -rf /tmp/x", parseUnresolved: true, salvaged: true },
           { text: "git add -A .", parseUnresolved: true, salvaged: true },
@@ -2151,6 +2238,53 @@ describe("BashProgram", () => {
       expect(
         program.externalAccesses().map(({ path }) => path.value()),
       ).toEqual(["/etc/passwd"]);
+    });
+  });
+
+  describe("parseSync", () => {
+    const normalizer = new PathNormalizer(
+      pathFlavorForPlatform(process.platform),
+      "/projects/my-app",
+    );
+
+    beforeEach(() => {
+      resetWarmBashParser();
+      realpathSync.mockReset();
+      realpathSync.mockImplementation((p: string) => p);
+    });
+    afterEach(() => {
+      resetWarmBashParser();
+    });
+
+    it("answers null while the parser is cold", () => {
+      expect(BashProgram.parseSync("echo hi", normalizer)).toBeNull();
+    });
+
+    describe("once warm, builds the program parse builds", () => {
+      beforeEach(async () => {
+        await warmBashParser();
+      });
+
+      it.each([
+        ["a chain with a cd", "cd /tmp && rm a/x; cat ../secret", undefined],
+        [
+          "a command the parse could not resolve",
+          "> f <<'M' 2>&1 | rm -rf /tmp/x",
+          undefined,
+        ],
+        ["a seeded workdir", "cat notes.txt ../up.txt", "/elsewhere"],
+      ])("%s", async (_label, command, workdir) => {
+        const options = workdir === undefined ? undefined : { workdir };
+        const expected = await BashProgram.parse(command, normalizer, options);
+        const actual = BashProgram.parseSync(command, normalizer, options);
+        if (actual === null) throw new Error("parser not warm");
+        expect(actual.commandText()).toBe(command);
+        expect(actual.commands()).toEqual(expected.commands());
+        expect(actual.externalAccesses()).toEqual(expected.externalAccesses());
+        expect(actual.pathRuleCandidates()).toEqual(
+          expected.pathRuleCandidates(),
+        );
+      });
     });
   });
 });

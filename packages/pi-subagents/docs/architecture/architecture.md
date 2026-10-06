@@ -278,12 +278,10 @@ stateDiagram-v2
     [*] --> running : spawn (foreground or under limit)
     queued --> running : capacity available
     queued --> stopped : stopQueued() — never started
-    running --> completed : all turns finished
+    running --> completed : agent finished, including after the turn-budget warning
     running --> error : unhandled exception
-    running --> aborted : max turns reached
+    running --> aborted : harness stop at the turn ceiling
     running --> stopped : abort() called
-    running --> steered : steer message injected
-    steered --> running : continues with message
     completed --> running : resetForResume
     stopped --> running : resetForResume
     error --> running : resetForResume
@@ -295,10 +293,16 @@ stateDiagram-v2
 
     note right of running
         markCompleted, markAborted,
-        markSteered, and markError
+        and markError
         are no-ops when status is stopped
     end note
 ```
+
+A steer (`steer_subagent`, `SubagentsService.steer()`) redirects a running agent and changes no status.
+The turn budget is not a status either: it is the live `turnBudget` (`{ used, maxTurns, phase }`) the turn loop reports to the record before the first turn and after each turn boundary.
+A `TurnBudgetTracker` (`turn-limits.ts`) counts successful turns and decides when `SubagentSession` warns the child (a context-only custom message once `wrapUpTurns` turns remain, which forces no turn) and when it stops the run (after a ceiling turn that ran tools, or as a turn starts past the ceiling).
+`phase` is `warned` once the warning went out and `exhausted` when the harness stopped the run: the one case `completeRun` and `completeResume` end `aborted`.
+A resume runs a fresh tracker under the initial run's limits.
 
 Note: `markStopped` always succeeds regardless of current status.
 Other terminal transitions guard against overwriting `stopped` — once an agent is stopped, only `resetForResume` can return it to `running`.
@@ -386,6 +390,7 @@ src/
 ├── index.ts                        entry point, tool registration, event wiring; captures inherited selection scope at factory initialization
 ├── runtime.ts                      SubagentRuntime factory (session-scoped state); owns selection-scope lifetime and revokes the root lease before teardown
 ├── types.ts                        shared type definitions
+├── persisted-record.ts             subagents:record session-entry contract (writer's builder, reader's parser)
 ├── settings.ts                     SettingsManager (persistent operational settings)
 ├── debug.ts                        debug logging utility
 ├── layered-settings.ts             loadLayeredSettings helper (published as @jopqior/pi-subagents/settings)
@@ -419,7 +424,7 @@ src/
 │   ├── subagent-manager.ts         collection manager + selection-owner construction + observer wiring + session-retention sweep (consumption-aware; an unanswered question holds the safety cap); the resume choke point, refusing from the record's own predicate and reporting a discriminated outcome, so every front door declines the same resumes
 │   ├── create-subagent-session.ts  assembly factory: session creation, spawn-tool denylist, core child-tool install, binding, child built-in selection and MCP pattern expansion; gated-run cancellation checks after asynchronous loader and creation handoffs
 │   ├── subagent-session.ts         born-complete child session: turn loop, steer, shutdown-then-dispose teardown
-│   ├── turn-limits.ts              normalizeMaxTurns (turn-count policy)
+│   ├── turn-limits.ts              turn-budget policy: TurnBudget, TurnBudgetTracker warnings/stops, normalizeMaxTurns (minimum 2)
 │   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); delegates initial selection and terminal acknowledgement to its owner after the original observer, rechecking its permit after workspace preparation before creating a session; a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal, including a live run), which the resume choke point and every result carrier read rather than re-deriving; reports a resume's start as well as its end
 │   ├── subagent-state.ts           lifecycle status + metrics + result-delivery value object (transitions, accumulators, classification predicates); delivery carries per-run carrier handles (each releases only its own claim), retained superseded outcomes, a one-way consumption latch, and a per-run update ledger that renders only what no announcement delivered
 │   ├── initial-spawn-selection.ts  initial provider attempt, pending activity, validated pair, cancellation race, and one-shot tool acknowledgement; receives recorded terminal facts after the original observer
@@ -479,13 +484,15 @@ src/
 
 ### Observation model
 
-Record statistics (tool uses, token usage, compaction counts) and live activity (active tools, response text, turn counts) are updated by `record-observer.ts`, which subscribes directly to session events.
-This is the single per-child session subscription — all run state lives on the `Subagent` record.
+Record statistics (tool uses, token usage, compaction counts) and live activity (active tools, response text) are updated by `record-observer.ts`, which subscribes directly to session events.
+The turn budget is the exception: the turn loop owns the count it enforces, and reports each change to the record through its `onTurnBudget` option.
+All run state still lives on the `Subagent` record.
 
-The widget reads agent state by polling the records exposed via `SubagentManager.listAgents()` every 250 ms; that poll loop is driven by the manager's lifecycle notifications (the widget subscribes as a `SubagentManagerObserver` fanned out through `CompositeSubagentObserver`), not by inbound calls from the spawn tools.
+The widget reads agent state by polling the records exposed via `SubagentManager.listAgents()` every 80 ms in fullscreen mode and every 250 ms in regular mode, where a frame's cost scales with the transcript; that poll loop is driven by the manager's lifecycle notifications (the widget subscribes as a `SubagentManagerObserver` fanned out through `CompositeSubagentObserver`), not by inbound calls from the spawn tools.
 It runs if and only if a subagent is running, since a finished agent's line carries a fixed duration and the queued line is a count, so animating either would ask Pi to re-render its whole component tree for a byte-identical result.
 The widget's rendered height is also bounded by the terminal's row count rather than a fixed ceiling: Pi's regular-mode differential renderer clears the screen and the scrollback whenever the first changed line sits above the previous viewport top, and the widget's spinner is that line on every tick, so a widget taller than the rows beneath it turns every tick into a destructive repaint ([#864]).
 The `/subagents:sessions` navigator reads messages via `Subagent.agentMessages` and subscribes to updates via `Subagent.subscribeToUpdates()` — no direct `AgentSession` reference (#277).
+It also reads the parent session's `subagents:record` entries (`persisted-record.ts`), so runs the manager no longer holds, such as those from before a `/reload`, open from their transcript file.
 
 ## Cross-extension architecture
 
@@ -622,16 +629,16 @@ If Pi gains a native service registry ([earendil-works/pi#4207]), these accessor
 
 The core emits events on `pi.events` that any extension can observe:
 
-| Channel               | Payload                                                                             | When                                                                                      |
-| --------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `subagents:started`   | `{ id, type, description }`                                                         | Agent begins running                                                                      |
-| `subagents:completed` | `{ id, type, description, status, result?, error?, toolUses, durationMs, tokens? }` | Agent finishes successfully                                                               |
-| `subagents:failed`    | same as `completed` (`buildEventData` shape)                                        | Agent ends in `error`/`stopped`/`aborted`                                                 |
-| `subagents:resuming`  | `{ id, type, description }`                                                         | A resume starts, from either front door                                                   |
-| `subagents:resumed`   | same as `completed` (`buildEventData` shape)                                        | Resumed run reaches a terminal state (`completed`/`error`); `status`/`error` discriminate |
-| `subagents:compacted` | `{ id, type, description, reason, tokensBefore, compactionCount }`                  | Child session compacts                                                                    |
-| `subagents:created`   | `{ id, type, description, isBackground }`                                           | Background agent created (pre-admission)                                                  |
-| `subagents:steered`   | `{ id, message }`                                                                   | Steering message delivered to a running agent                                             |
+| Channel               | Payload                                                                                          | When                                                                                      |
+| --------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| `subagents:started`   | `{ id, type, description }`                                                                      | Agent begins running                                                                      |
+| `subagents:completed` | `{ id, type, description, status, turnBudget?, result?, error?, toolUses, durationMs, tokens? }` | Agent finishes successfully                                                               |
+| `subagents:failed`    | same as `completed` (`buildEventData` shape)                                                     | Agent ends in `error`/`stopped`/`aborted`                                                 |
+| `subagents:resuming`  | `{ id, type, description }`                                                                      | A resume starts, from either front door                                                   |
+| `subagents:resumed`   | same as `completed` (`buildEventData` shape)                                                     | Resumed run reaches a terminal state (`completed`/`error`); `status`/`error` discriminate |
+| `subagents:compacted` | `{ id, type, description, reason, tokensBefore, compactionCount }`                               | Child session compacts                                                                    |
+| `subagents:created`   | `{ id, type, description, isBackground }`                                                        | Background agent created (pre-admission)                                                  |
+| `subagents:steered`   | `{ id, message }`                                                                                | Steering message delivered to a running agent                                             |
 
 These are fire-and-forget broadcast events — no request IDs, no reply channels.
 

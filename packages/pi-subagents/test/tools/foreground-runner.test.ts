@@ -304,6 +304,7 @@ describe("runForeground", () => {
 		expect(pendingDetails.length).toBeGreaterThan(0);
 		for (const details of pendingDetails) {
 			expect(details.modelName).toBeUndefined();
+			expect(details.turnBudget).toBeUndefined();
 			expect(details.tags).toEqual(["twin", "inherit context", "max turns: 9"]);
 		}
 
@@ -330,6 +331,7 @@ describe("runForeground", () => {
 		await vi.advanceTimersByTimeAsync(100);
 		const details = onUpdate.mock.calls.at(-1)?.[0].details;
 		expect(details?.modelName).toBe("anthropic/claude-haiku");
+		expect(details?.turnBudget).toBeUndefined();
 		expect(details?.tags).toEqual(["twin", "thinking: off", "inherit context", "max turns: 9"]);
 		held.resolve(selected);
 		await runPromise;
@@ -442,6 +444,35 @@ describe("runForeground", () => {
 			const result = await runForeground(deps.manager, params(), undefined, undefined);
 			expect(result.details?.modelName).toBe("openai/gpt-5");
 		});
+	});
+
+	it("streams the live turn budget of the record once its session exists", async () => {
+		const running = createTestSubagent({
+			status: "running",
+			completedAt: undefined,
+			turnBudget: { maxTurns: 10, used: 8, phase: "warned" },
+		});
+		const { promise, resolve } = Promise.withResolvers<Subagent>();
+		const spawnAndWait = vi.fn(
+			(_snapshot: unknown, _type: unknown, _prompt: unknown, options: { observer?: { onSessionCreated?: (agent: Subagent) => void } }) => {
+				options.observer?.onSessionCreated?.(running);
+				return promise;
+			},
+		);
+		const deps = createToolDeps({ manager: { ...createToolDeps().manager, spawnAndWait } });
+		const onUpdate = vi.fn();
+		const runPromise = runForeground(deps.manager, makeParams(), undefined, onUpdate);
+
+		await vi.advanceTimersByTimeAsync(100);
+		// Partial match: the streamed details also carry a spinner frame and a wall-clock duration.
+		expect(onUpdate).toHaveBeenLastCalledWith(
+			expect.objectContaining({
+				details: expect.objectContaining({ turnBudget: { maxTurns: 10, used: 8, phase: "warned" } }),
+			}),
+		);
+
+		resolve(createTestSubagent({ result: "done" }));
+		await runPromise;
 	});
 
 	it("clears spinner interval on error and does not leave it running", async () => {

@@ -1,4 +1,5 @@
 import type { AgentConfigLookup } from "#src/config/agent-types";
+import type { TurnBudget } from "#src/lifecycle/turn-limits";
 import { getLifetimeTotal, type LifetimeUsage } from "#src/lifecycle/usage";
 import { type AgentDetails, formatTokens, type SpawnDetailBase } from "#src/ui/display";
 
@@ -13,9 +14,7 @@ export function buildDetails(
     error?: string;
     id?: string;
     lifetimeUsage: LifetimeUsage;
-    /** Live-activity counters — exposed as getters on Subagent (Phase 18 Step 2). */
-    turnCount?: number;
-    maxTurns?: number;
+    turnBudget?: TurnBudget;
   },
   overrides?: Partial<AgentDetails>,
 ): AgentDetails {
@@ -23,12 +22,11 @@ export function buildDetails(
     ...base,
     toolUses: record.toolUses,
     tokens: formatLifetimeTokens(record),
-    turnCount: record.turnCount,
-    maxTurns: record.maxTurns,
     durationMs: (record.completedAt ?? Date.now()) - record.startedAt,
     status: record.status as AgentDetails["status"],
     agentId: record.id,
     error: record.error,
+    turnBudget: record.turnBudget,
     ...overrides,
   };
 }

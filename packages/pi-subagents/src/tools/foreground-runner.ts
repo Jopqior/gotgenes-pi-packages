@@ -62,10 +62,7 @@ export async function runForeground(
       ...presentation.detailFor(recordRef),
       toolUses,
       tokens: recordRef ? formatLifetimeTokens(recordRef) : "",
-      // Read activity off the record; fall back to safe defaults before session creation.
-      // onStarted fires at admission, so pending selection is visible before onSessionCreated.
-      turnCount: recordRef?.turnCount ?? 1,
-      maxTurns: recordRef?.maxTurns ?? execution.effectiveMaxTurns,
+      turnBudget: recordRef?.turnBudget,
       durationMs: Date.now() - startedAt,
       status: "running",
       activity: describeActivity(
@@ -157,7 +154,7 @@ export async function runForeground(
   const statsParts = [`${record.toolUses} tool uses`];
   if (tokenText) statsParts.push(tokenText);
   return textResult(
-    `${noteText}Agent completed in ${formatMs(durationMs)} (${statsParts.join(", ")})${renderStatusNote(record.status)}.\n` +
+    `${noteText}Agent completed in ${formatMs(durationMs)} (${statsParts.join(", ")})${renderStatusNote(record)}.\n` +
       `Agent ID: ${record.id}\n\n` +
       renderOutcomeBody(record) +
       renderOutcomeAddenda(record),

@@ -18,6 +18,8 @@ import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import { SpawnSelectionScope } from "#src/lifecycle/spawn-selection";
 import { SubagentManager } from "#src/lifecycle/subagent-manager";
+import type { TurnLoopResult } from "#src/lifecycle/subagent-session";
+import type { TurnBudget } from "#src/lifecycle/turn-limits";
 import type { Workspace, WorkspacePrepareContext } from "#src/lifecycle/workspace";
 import type { SpawnSelection, SpawnSelectionRequest } from "#src/service/service";
 import type { ModelRegistry } from "#src/session/model-resolver";
@@ -27,15 +29,11 @@ import { makeModel } from "#test/helpers/make-model";
 import { makeWorkspace } from "#test/helpers/make-workspace";
 import { createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_CTX } from "#test/helpers/stub-ctx";
+import { turnLoopResult } from "#test/helpers/turn-loop-result";
 
 type ToolExecuteResult = Awaited<ReturnType<AgentTool["execute"]>>;
 
-/** The shape the session stub's runTurnLoop resolves with. */
-interface TaskResult {
-	responseText: string;
-	aborted: boolean;
-	steered: boolean;
-}
+type TaskResult = TurnLoopResult;
 
 /** A test-held phase gate with an observable settled flag. */
 interface Deferred<T> {
@@ -76,7 +74,7 @@ async function settleBound(check: () => boolean, what: string): Promise<void> {
 	if (!check()) throw new Error(`${what} did not happen within the failure bound`);
 }
 
-const taskDone = (responseText: string): TaskResult => ({ responseText, aborted: false, steered: false });
+const taskDone = (responseText: string): TaskResult => turnLoopResult({ responseText });
 
 /** A provider whose select() calls park on test-held deferrals. */
 function heldSelectionProvider() {
@@ -110,6 +108,7 @@ interface TestWorld {
 	factoryGates: Deferred<null>[];
 	taskGates: Deferred<TaskResult>[];
 	workspaceGates: Deferred<Workspace>[];
+	budgetReporters: Array<((budget: TurnBudget) => void) | undefined>;
 	releaseFactory(index: number): void;
 	releaseTask(index: number, result: TaskResult): void;
 	releaseWorkspace(index: number): void;
@@ -148,6 +147,7 @@ function makeWorld(options: { maxConcurrent?: number; withProvider?: boolean; wi
 	const factoryGates: Deferred<null>[] = [];
 	const taskGates: Deferred<TaskResult>[] = [];
 	const workspaceGates: Deferred<Workspace>[] = [];
+	const budgetReporters: TestWorld["budgetReporters"] = [];
 	const createSubagentSession = vi.fn(async (_params: CreateSubagentSessionParams) => {
 		const factoryGate = deferred<null>();
 		factoryGates.push(factoryGate);
@@ -155,7 +155,10 @@ function makeWorld(options: { maxConcurrent?: number; withProvider?: boolean; wi
 		const taskGate = deferred<TaskResult>();
 		taskGates.push(taskGate);
 		const stub = createSubagentSessionStub();
-		stub.runTurnLoop.mockImplementation(() => taskGate.promise);
+		stub.runTurnLoop.mockImplementation((_prompt: string, options: { onTurnBudget?: (budget: TurnBudget) => void }) => {
+			budgetReporters.push(options.onTurnBudget);
+			return taskGate.promise;
+		});
 		return toSubagentSession(stub);
 	});
 
@@ -203,6 +206,7 @@ function makeWorld(options: { maxConcurrent?: number; withProvider?: boolean; wi
 		factoryGates,
 		taskGates,
 		workspaceGates,
+		budgetReporters,
 		releaseFactory: (index) => { factoryGates[index]?.resolve(null); },
 		releaseTask: (index, result) => { taskGates[index]?.resolve(result); },
 		releaseWorkspace: (index) => { workspaceGates[index]?.resolve(makeWorkspace(`/repo/child-${index}`)); },
@@ -316,6 +320,7 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			expect(world.provider!.select).toHaveBeenCalledTimes(1);
 			const record = mainRecord(world);
 			expect(record.status).toBe("running");
+			expect(record.turnBudget).toBeUndefined();
 
 			// Initial pending snapshot; the selected pair captured inside askUser
 			// below pins the actual continuation order independently of this yield.
@@ -344,6 +349,7 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			expect(world.factoryGates[0].settled).toBe(false);
 			expect(record.isSessionReady()).toBe(false);
 			expect(record.result).toBeUndefined();
+			expect(record.turnBudget).toBeUndefined();
 
 			world.releaseFactory(0);
 			await settleBound(() => world.taskGates.length >= 1, "the main record's task gate");
@@ -499,6 +505,7 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			for (const update of updates.slice(1)) {
 				expect(update.details.activity).toBe(PENDING_SELECTION_ACTIVITY);
 				expect(update.details.modelName).toBeUndefined();
+				expect(update.details.turnBudget).toBeUndefined();
 				expect(update.details.tags).toEqual(["twin", "inherit context"]);
 			}
 
@@ -517,10 +524,17 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			}, "a selected-pair streamed update");
 			expect(updates.at(-1)?.details.tags).toEqual(["twin", "thinking: off", "inherit context"]);
 			expect(mainRecord(world).isSessionReady()).toBe(false);
+			expect(updates.at(-1)?.details.turnBudget).toBeUndefined();
 
 			await settleBound(() => world.factoryGates.length >= 1, "the foreground record's factory gate");
 			world.releaseFactory(0);
 			await settleBound(() => world.taskGates.length >= 1, "the foreground record's task gate");
+			await settleBound(() => world.budgetReporters.length === 1, "the initial budget callback");
+			const budget: TurnBudget = { maxTurns: 7, used: 3, phase: "warned" };
+			world.budgetReporters[0]?.(budget);
+			expect(mainRecord(world).turnBudget).toEqual(budget);
+			await settleBound(() => updates.at(-1)?.details.turnBudget?.used === 3, "live budget progress");
+			expect(updates.at(-1)?.details.turnBudget).toEqual(budget);
 			// The whole-run wait is the only settle path left, and the task gate
 			// holding it is test-held.
 			expect(toolReturned).toBe(false);
@@ -560,6 +574,7 @@ describe("spawn selection tool boundary (real AgentTool → manager → record)"
 			expect(world.factoryGates).toHaveLength(0);
 			const record = mainRecord(world);
 			expect(record.isSessionReady()).toBe(false);
+			expect(record.turnBudget).toBeUndefined();
 
 			// Release the workspace; the factory boundary is reached and held next.
 			world.releaseWorkspace(0);
