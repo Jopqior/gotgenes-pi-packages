@@ -574,7 +574,7 @@ describe("standard synchronization workflow contracts", () => {
       });
       expect(result.status).toBe(0);
       expect(JSON.parse(result.stdout)).toEqual({
-        registered: registry.packages,
+        registered: [registry.packages[0], registry.packages[1]],
         unregistered: ["incoming-unregistered"],
       });
     } finally {

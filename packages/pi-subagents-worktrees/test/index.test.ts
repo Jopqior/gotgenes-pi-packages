@@ -17,7 +17,7 @@ const {
 }));
 
 vi.mock("@earendil-works/pi-coding-agent", () => ({ getAgentDir }));
-vi.mock("@gotgenes/pi-subagents", () => ({ getSubagentsService }));
+vi.mock("@jopqior/pi-subagents", () => ({ getSubagentsService }));
 vi.mock("#src/config", () => ({ loadWorktreesConfig }));
 vi.mock("#src/worktree", () => ({ pruneWorktrees }));
 vi.mock("#src/preserved", () => ({
@@ -96,7 +96,7 @@ describe("piSubagentsWorktrees extension entry", () => {
     );
   });
 
-  it("no-ops when the subagents service is unavailable", () => {
+  it("no-ops when the resolvable core service is uninitialized", () => {
     getSubagentsService.mockReturnValue(undefined);
 
     const { pi } = fakePi();

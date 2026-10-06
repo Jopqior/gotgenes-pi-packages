@@ -16,6 +16,17 @@
       "directory": "pi-subagents-model-selector",
       "name": "@jopqior/pi-subagents-model-selector",
       "kind": "original"
+    },
+    {
+      "directory": "pi-subagents-worktrees",
+      "name": "@jopqior/pi-subagents-worktrees",
+      "kind": "fork",
+      "upstream": {
+        "name": "@gotgenes/pi-subagents-worktrees",
+        "repository": "gotgenes/pi-packages",
+        "directory": "packages/pi-subagents-worktrees"
+      },
+      "evidence": "fork-sync"
     }
   ]
 }
