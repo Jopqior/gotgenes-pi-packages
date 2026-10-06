@@ -1,5 +1,14 @@
 {
   "schemaVersion": 2,
-  "releases": [],
+  "releases": [
+    {
+      "forkTag": "pi-subagents-worktrees-v0.1.0",
+      "upstream": {
+        "version": "0.3.3",
+        "commit": "62924b0a8389eed41c4da93b0bf0ea89e0b5c794"
+      },
+      "upstreamTip": "9087a8dfa6edbfa1808fe3deab46ac3e17a7c032"
+    }
+  ],
   "syncs": []
 }

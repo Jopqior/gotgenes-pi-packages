@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.1.0](https://github.com/Jopqior/gotgenes-pi-packages/releases/tag/pi-subagents-worktrees-v0.1.0) (2026-10-06)
+
+### Fork identity and compatibility
+
+- Introduces `@jopqior/pi-subagents-worktrees` as a separate companion for `@jopqior/pi-subagents`, with fork installation guidance and issue destinations while retaining direct upstream attribution and the MIT license.
+- Uses the required fork-core peer `>=1.0.0` for service, workspace and layered-settings imports; install and initialize the fork core before worktrees.
+- Adds a packed compatibility check for the published core floor, published development core and local core candidate, covering real registration, configured Git workspace preparation, clean and dirty disposal, shutdown unregistering and missing-core/load-order controls.
+
+### Existing workspace behavior
+
+- Keeps per-agent opt-in through layered `subagents-worktrees.json` settings: opted-in subagents use detached Git worktrees, while other agent types stay in the parent directory.
+- Preserves clean workspace removal, changed-file rescue branches and recovery notes, and preserved worktrees with human-confirmed recovery when cleanup fails.
+- Preserves factory-time registration and shutdown cleanup; a missing required core module fails extension loading, while a resolvable but uninitialized core registers no provider and does not retry later.
+
+This first fork version is independently selected; switching from the upstream companion requires an explicit installation change and does not automatically replace the old npm identity.
+
+<!-- upstream-correspondence:start -->
+### Upstream correspondence
+
+Direct upstream package: `@gotgenes/pi-subagents-worktrees`
+
+Incorporated upstream release: `0.3.3`
+
+Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/62924b0a8389eed41c4da93b0bf0ea89e0b5c794/packages/pi-subagents-worktrees)
+
+This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
+<!-- upstream-correspondence:end -->
+
 ## [0.3.3](https://github.com/gotgenes/pi-packages/compare/pi-subagents-worktrees-v0.3.2...pi-subagents-worktrees-v0.3.3) (2026-09-05)
 
 

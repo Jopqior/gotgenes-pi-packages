@@ -6,6 +6,8 @@ The table below is generated from this package's own state; the renderer owns on
 
 <!-- release-correspondence:start -->
 
-No fork release has been recorded.
+| Fork `@jopqior/pi-subagents-worktrees` | Direct upstream release | Fixed source                                                                                                                    |
+| -------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| 0.1.0                                  | `0.3.3`                 | [source](https://github.com/gotgenes/pi-packages/blob/62924b0a8389eed41c4da93b0bf0ea89e0b5c794/packages/pi-subagents-worktrees) |
 
 <!-- release-correspondence:end -->

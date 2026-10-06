@@ -1,6 +1,6 @@
 {
   "name": "@jopqior/pi-subagents-worktrees",
-  "version": "0.3.3",
+  "version": "0.1.0",
   "description": "Git worktree isolation for @jopqior/pi-subagents — a WorkspaceProvider that runs subagents in isolated worktrees.",
   "keywords": [
     "pi-package",
