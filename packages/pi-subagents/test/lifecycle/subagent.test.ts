@@ -918,9 +918,11 @@ async function runWithWorkspace(
 		askParent = params.askParent;
 		return toSubagentSession(stub);
 	};
-	stub.runTurnLoop.mockImplementation(() => {
+	stub.runTurnLoop.mockImplementation((_prompt, options) => {
 		if (result.question !== undefined) askParent?.(result.question);
-		return Promise.resolve(turnLoopResult(result));
+		const outcome = turnLoopResult(result);
+		options.onTurnBudget?.(outcome.turnBudget);
+		return Promise.resolve(outcome);
 	});
 	const workspace = makeWorkspace("/ws/dir", { resultAddendum: ADDENDUM });
 	const agent = createRunnableAgent({
@@ -935,6 +937,88 @@ async function runWithWorkspace(
 function heldWorkspaceAgent() {
 	return runWithWorkspace({ responseText: "Mapped the configs.", question: "Which one?" });
 }
+
+describe("Subagent — budget-dependent workspace lifetime", () => {
+	const within: TurnBudget = { maxTurns: 5, used: 1, phase: "within" };
+
+	describe("initial outcomes", () => {
+		it.each([
+			{ phase: "within", turnBudget: within, question: "Which one?", questionLabel: "question", hold: true, status: "completed" },
+			{ phase: "warned", turnBudget: WARNED, question: "Which one?", questionLabel: "question", hold: false, status: "completed" },
+			{ phase: "exhausted", turnBudget: EXHAUSTED, question: "Which one?", questionLabel: "question", hold: false, status: "aborted" },
+			{ phase: "within", turnBudget: within, question: undefined, questionLabel: "no question", hold: false, status: "completed" },
+			{ phase: "warned", turnBudget: WARNED, question: undefined, questionLabel: "no question", hold: false, status: "completed" },
+			{ phase: "exhausted", turnBudget: EXHAUSTED, question: undefined, questionLabel: "no question", hold: false, status: "aborted" },
+		])("$phase with $questionLabel: hold=$hold, status=$status", async ({ turnBudget, question, hold, status }) => {
+			const { agent, workspace, stub } = await runWithWorkspace({ responseText: "Initial answer.", turnBudget, question });
+
+			expect(agent.status).toBe(status);
+			expect(agent.isTerminalError()).toBe(status === "aborted");
+			expect(agent.pendingQuestion).toBe(question);
+			expect(agent.turnBudget).toEqual(turnBudget);
+			expect(agent.workspaceDisposed).toBe(!hold);
+			expect(agent.result).toBe(hold ? "Initial answer." : `Initial answer.${ADDENDUM}`);
+			expect(agent.workspaceNotice).toBeUndefined();
+			if (hold) expect(workspace.dispose).not.toHaveBeenCalled();
+			else expect(workspace.dispose).toHaveBeenCalledExactlyOnceWith({ status, description: "run test" });
+
+			await agent.releaseSession();
+			await agent.disposeSession();
+			await agent.releaseSession();
+
+			expect(workspace.dispose).toHaveBeenCalledExactlyOnceWith({ status, description: "run test" });
+			expect(agent.workspaceDisposed).toBe(true);
+			expect(agent.status).toBe(status);
+			expect(agent.result).toBe(hold ? "Initial answer." : `Initial answer.${ADDENDUM}`);
+			expect(agent.workspaceNotice).toBe(hold ? ADDENDUM : undefined);
+			expect(stub.dispose).toHaveBeenCalledOnce();
+		});
+	});
+
+	describe("resumed outcomes", () => {
+		it.each([
+			{ phase: "within", turnBudget: within, question: "And the fallback?", questionLabel: "question", hold: true, status: "completed" },
+			{ phase: "warned", turnBudget: WARNED, question: "And the fallback?", questionLabel: "question", hold: true, status: "completed" },
+			{ phase: "exhausted", turnBudget: EXHAUSTED, question: "And the fallback?", questionLabel: "question", hold: false, status: "aborted" },
+			{ phase: "within", turnBudget: within, question: undefined, questionLabel: "no question", hold: false, status: "completed" },
+			{ phase: "warned", turnBudget: WARNED, question: undefined, questionLabel: "no question", hold: false, status: "completed" },
+			{ phase: "exhausted", turnBudget: EXHAUSTED, question: undefined, questionLabel: "no question", hold: false, status: "aborted" },
+		])("$phase with $questionLabel: hold=$hold, status=$status", async ({ turnBudget, question, hold, status }) => {
+			const { agent, workspace, stub, ask } = await heldWorkspaceAgent();
+			expect(agent.status).toBe("completed");
+			expect(agent.workspaceDisposed).toBe(false);
+			expect(workspace.dispose).not.toHaveBeenCalled();
+			stub.resumeTurnLoop.mockImplementation((_prompt, options) => {
+				if (question !== undefined) ask(question);
+				options.onTurnBudget?.(turnBudget);
+				return Promise.resolve(turnLoopResult({ responseText: "Resumed answer.", turnBudget }));
+			});
+
+			await agent.resume("The project one.");
+
+			expect(agent.status).toBe(status);
+			expect(agent.isTerminalError()).toBe(status === "aborted");
+			expect(agent.pendingQuestion).toBe(question);
+			expect(agent.turnBudget).toEqual(turnBudget);
+			expect(agent.workspaceDisposed).toBe(!hold);
+			expect(agent.result).toBe(hold ? "Resumed answer." : `Resumed answer.${ADDENDUM}`);
+			expect(agent.workspaceNotice).toBeUndefined();
+			if (hold) expect(workspace.dispose).not.toHaveBeenCalled();
+			else expect(workspace.dispose).toHaveBeenCalledExactlyOnceWith({ status, description: "run test" });
+
+			await agent.releaseSession();
+			await agent.disposeSession();
+			await agent.releaseSession();
+
+			expect(workspace.dispose).toHaveBeenCalledExactlyOnceWith({ status, description: "run test" });
+			expect(agent.workspaceDisposed).toBe(true);
+			expect(agent.status).toBe(status);
+			expect(agent.result).toBe(hold ? "Resumed answer." : `Resumed answer.${ADDENDUM}`);
+			expect(agent.workspaceNotice).toBe(hold ? ADDENDUM : undefined);
+			expect(stub.dispose).toHaveBeenCalledOnce();
+		});
+	});
+});
 
 describe("Subagent — workspace hold for a declared question", () => {
 	it("holds the workspace when a completed child declared a question", async () => {
