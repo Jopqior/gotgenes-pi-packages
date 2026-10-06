@@ -1,6 +1,8 @@
 # pi-packages
 
-A monorepo of [Pi](https://github.com/badlogic/pi-mono) extension packages, published to npm under `@gotgenes/`.
+A personal fork of [gotgenes/pi-packages](https://github.com/gotgenes/pi-packages), containing [Pi](https://github.com/earendil-works/pi) extensions with mixed npm identities.
+The maintained subagents core, model selector and worktrees companion use `@jopqior/*`; other packages retain their upstream `@gotgenes/*` identities.
+Retained upstream identities do not authorize fork publication; see each manifest and the [fork release policy](docs/upstream/fork-release-policy.md).
 Some packages (like pi-permission-system) are designed for broad use; others scratch a personal itch and are shared in case they help others.
 
 ## Packages
@@ -15,38 +17,51 @@ Some packages (like pi-permission-system) are designed for broad use; others scr
 | [@gotgenes/pi-autoformat](./packages/pi-autoformat/)                            | Prompt-end auto-formatting (Biome, Prettier, etc.)             | [![npm](https://img.shields.io/npm/dm/@gotgenes/pi-autoformat)](https://www.npmjs.com/package/@gotgenes/pi-autoformat)                           |
 | [@gotgenes/pi-colgrep](./packages/pi-colgrep/)                                  | Semantic code search via ColGrep as an agent tool              | [![npm](https://img.shields.io/npm/dm/@gotgenes/pi-colgrep)](https://www.npmjs.com/package/@gotgenes/pi-colgrep)                                 |
 | [@gotgenes/pi-session-tools](./packages/pi-session-tools/)                      | Session naming and context bridge for multi-session workflows  | [![npm](https://img.shields.io/npm/dm/@gotgenes/pi-session-tools)](https://www.npmjs.com/package/@gotgenes/pi-session-tools)                     |
-| [@gotgenes/pi-subagents-worktrees](./packages/pi-subagents-worktrees/)          | Git worktree isolation WorkspaceProvider for pi-subagents      | [![npm](https://img.shields.io/npm/dm/@gotgenes/pi-subagents-worktrees)](https://www.npmjs.com/package/@gotgenes/pi-subagents-worktrees)         |
+| [@jopqior/pi-subagents-worktrees](./packages/pi-subagents-worktrees/)           | Git worktree isolation for the fork subagents core             | [![npm](https://img.shields.io/npm/dm/@jopqior/pi-subagents-worktrees)](https://www.npmjs.com/package/@jopqior/pi-subagents-worktrees)           |
 | [@gotgenes/pi-nocd](./packages/pi-nocd/)                                        | System-prompt guard against cd-prefixing the working directory | [![npm](https://img.shields.io/npm/dm/@gotgenes/pi-nocd)](https://www.npmjs.com/package/@gotgenes/pi-nocd)                                       |
 
 Each package has its own README with setup instructions, usage, and configuration details.
 
 ## Install
 
-Install every package in this repo at once:
+Install the packages from this fork via git:
 
 ```bash
-pi install git:github.com/gotgenes/pi-packages
+pi install git:github.com/Jopqior/gotgenes-pi-packages
 ```
 
-Or install a single package via npm:
+Or install individual published packages using their actual npm identities, loading the fork core before its companions:
 
 ```bash
-pi install npm:@gotgenes/<package-name>
+pi install npm:@jopqior/pi-subagents
+pi install npm:@jopqior/pi-subagents-model-selector
+pi install npm:@jopqior/pi-subagents-worktrees
+pi install npm:@gotgenes/pi-autoformat
 ```
+
+The worktrees npm command applies only after its approved first publication; the table's fork badge does not establish publication status.
+See the [worktrees README](packages/pi-subagents-worktrees/README.md#install) for the required core floor, load order and distinct import-loading versus uninitialized-service failures.
+Switching from an upstream npm companion requires explicitly removing the old source; fork identities are not automatic upgrades.
+Commands default to personal settings; add `--local` for project settings, subject to project trust.
 
 ## Uninstall
 
 If installed via git:
 
 ```bash
-pi remove git:github.com/gotgenes/pi-packages
+pi remove git:github.com/Jopqior/gotgenes-pi-packages
 ```
 
 If installed individually via npm:
 
 ```bash
-pi remove npm:@gotgenes/<package-name>
+pi remove npm:@jopqior/pi-subagents-worktrees
+pi remove npm:@jopqior/pi-subagents-model-selector
+pi remove npm:@jopqior/pi-subagents
+pi remove npm:@gotgenes/pi-autoformat
 ```
+
+Use the same settings scope (`--local` for a project install) and the exact source you installed; an earlier upstream git install is removed with its upstream source, not the fork URL.
 
 ## Contributing
 
@@ -111,7 +126,8 @@ The [synchronization guide](docs/upstream/synchronization-guide.md) owns integra
 The [fork release policy](docs/upstream/fork-release-policy.md) owns independent evidence and version policy for the maintained core and worktrees forks.
 The generated [core correspondence view](docs/upstream/pi-subagents-release-correspondence.md) and [worktrees correspondence view](docs/upstream/pi-subagents-worktrees-release-correspondence.md) track separate release windows; the worktrees scaffold is not publication evidence.
 For untagged worktrees, follow the [first fork release handoff](docs/upstream/fork-release-policy.md#first-fork-release-handoff): artifact-only generation, reviewed application and separately approved manual first publication precede ordinary dispatch.
-Support does not migrate or register the inherited worktrees manifest; [issue #37](https://github.com/Jopqior/gotgenes-pi-packages/issues/37) owns that handoff.
+Worktrees is registered under `@jopqior/pi-subagents-worktrees`; registration does not establish a first published anchor or approve publication.
+[Issue #37](https://github.com/Jopqior/gotgenes-pi-packages/issues/37) owns the guarded first-artifact and publication handoff.
 
 ### Agentic development workflow
 
@@ -239,8 +255,9 @@ Load the relevant skill before working on a package:
 - `package-pi-github-tools` — for `packages/pi-github-tools/`
 - `package-pi-permission-system` — for `packages/pi-permission-system/`
 - `package-pi-subagents` — for `packages/pi-subagents/`
+- `package-pi-subagents-worktrees` — for `packages/pi-subagents-worktrees/`
 
-The remaining packages (`pi-session-tools`, `pi-subagents-worktrees`, `pi-subagents-model-selector`, `pi-nocd`, `pi-permission-model-judge`) have no dedicated skill — their READMEs cover everything you need.
+For other packages, load any available `package-<name>` skill and consult the package README.
 
 ## License
 

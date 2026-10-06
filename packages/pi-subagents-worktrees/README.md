@@ -1,27 +1,61 @@
-# @gotgenes/pi-subagents-worktrees
+# @jopqior/pi-subagents-worktrees
 
-[![npm version](https://img.shields.io/npm/v/@gotgenes/pi-subagents-worktrees?style=flat&logo=npm&logoColor=white)](https://www.npmjs.com/package/@gotgenes/pi-subagents-worktrees) [![CI](https://img.shields.io/github/actions/workflow/status/gotgenes/pi-packages/ci.yml?style=flat&logo=github&label=CI)](https://github.com/gotgenes/pi-packages/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![pnpm](https://img.shields.io/badge/pnpm-%3E%3D11-F69220?style=flat&logo=pnpm&logoColor=white)](https://pnpm.io/) [![Pi Package](https://img.shields.io/badge/Pi-Package-6366F1?style=flat)](https://pi.mariozechner.at/)
+[![npm version](https://img.shields.io/npm/v/@jopqior/pi-subagents-worktrees?style=flat&logo=npm&logoColor=white)](https://www.npmjs.com/package/@jopqior/pi-subagents-worktrees) [![CI](https://img.shields.io/github/actions/workflow/status/Jopqior/gotgenes-pi-packages/ci.yml?style=flat&logo=github&label=CI)](https://github.com/Jopqior/gotgenes-pi-packages/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat)](https://opensource.org/licenses/MIT) [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?style=flat&logo=typescript&logoColor=white)](https://www.typescriptlang.org/) [![pnpm](https://img.shields.io/badge/pnpm-%3E%3D11-F69220?style=flat&logo=pnpm&logoColor=white)](https://pnpm.io/) [![Pi Package](https://img.shields.io/badge/Pi-Package-6366F1?style=flat)](https://pi.mariozechner.at/)
 
-Git worktree isolation for [`@gotgenes/pi-subagents`](https://github.com/gotgenes/pi-packages/tree/main/packages/pi-subagents).
+Git worktree isolation for [`@jopqior/pi-subagents`](https://github.com/Jopqior/gotgenes-pi-packages/tree/main/packages/pi-subagents).
+
+This package forks [`@gotgenes/pi-subagents-worktrees` in `gotgenes/pi-packages`](https://github.com/gotgenes/pi-packages/tree/main/packages/pi-subagents-worktrees), retaining its author attribution and MIT license.
+Report fork issues in [Jopqior/gotgenes-pi-packages](https://github.com/Jopqior/gotgenes-pi-packages/issues).
 
 This extension registers a `WorkspaceProvider` with the subagents core: opted-in agents run in a temporary git worktree (an isolated copy of the repo), and any changes they make are saved to a branch when they finish.
 Worktrees are one _workspace strategy_, not core behavior — so the git plumbing lives here, outside the minimal subagents core (see [ADR-0002] in the pi-subagents package).
 
 ## Install
 
-Install **after** `@gotgenes/pi-subagents`.
-Pi loads packages in the order they are listed in `.pi/settings.json`, and this extension registers its provider with the subagents service at load time — so the subagents core must load first.
+The required peer is `@jopqior/pi-subagents >=1.0.0`; install and load the fork core **before** worktrees.
+The open upper bound is a maintenance policy, not a guarantee of compatibility with future core majors.
+Worktrees retains its Pi host peer `>=0.75.0`; the selected core's independently declared host peers must also be satisfied.
+Installing the upstream core does not satisfy the fork-core import.
+
+The npm commands below apply only after the approved first publication; a fork badge or manifest is not evidence that publication has happened.
+
+```bash
+pi install npm:@jopqior/pi-subagents
+pi install npm:@jopqior/pi-subagents-worktrees
+```
+
+These commands use personal settings (`~/.pi/agent/settings.json`); add `--local` to each for project settings (`.pi/settings.json`), subject to project trust.
+Use the same scope when removing a source.
+Review the configured package order: this extension registers its provider once when its factory runs, so the core must initialize first.
 
 ```json
 {
   "packages": [
-    "npm:@gotgenes/pi-subagents",
-    "npm:@gotgenes/pi-subagents-worktrees"
+    "npm:@jopqior/pi-subagents",
+    "npm:@jopqior/pi-subagents-worktrees"
   ]
 }
 ```
 
-If `@gotgenes/pi-subagents` is not loaded first (or not installed at all), this extension does nothing.
+If the required fork-core module cannot resolve, the static import fails and Pi reports a worktrees extension-loading error.
+If the core is installed and resolvable but has not initialized, worktrees still loads configuration and prunes orphaned Git administrative entries, but registers no provider, recovery command or lifecycle handlers.
+Loading the core later does not trigger a registration retry; correct the order and reload the extensions.
+
+This is a separate npm identity, not an automatic upgrade or replacement of the upstream package.
+When switching an existing npm installation, remove the old companion in its configured scope before installing the fork companion:
+
+```bash
+pi remove npm:@gotgenes/pi-subagents-worktrees
+```
+
+## Uninstall
+
+```bash
+pi remove npm:@jopqior/pi-subagents-worktrees
+```
+
+Add `--local` if it was installed project-locally.
+This removes the package source, not your rescue branches or preserved worktrees; recover those using the sections below.
 
 ## Configuration
 
@@ -103,7 +137,48 @@ The git plumbing bracketing a child run, not losing the child's work when cleanu
 - _Worktree knowledge in the subagents core._ `git` does not appear there; uninstalling this package leaves children running in the parent's directory.
 
 **Where adjacent requests belong.**
-Whether a child gets an isolated workspace at all, the seam that asks, and a child's system prompt or working-directory claim → [@gotgenes/pi-subagents](https://www.npmjs.com/package/@gotgenes/pi-subagents).
+Whether a child gets an isolated workspace at all, the seam that asks, and a child's system prompt or working-directory claim → [@jopqior/pi-subagents](https://www.npmjs.com/package/@jopqior/pi-subagents).
+
+## Maintainer: first fork publication
+
+Follow the [first fork release handoff](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream/fork-release-policy.md#first-fork-release-handoff).
+The operator explicitly selected `0.1.0` for bootstrap; it is not a guessed next version or the inherited upstream version.
+Migration, registration and candidate review do not authorize publication, tags or GitHub Releases.
+Ordinary release preparation refuses an untagged fork; do not dispatch `release.yml` for bootstrap.
+
+1. Commit migration and compatibility checks on clean primary `main`, then use `node scripts/release/prepare-first-fork-release.mjs --help` from the repository root for its six required inputs.
+   The generator has no apply, publish or dispatch mode; it queries upstream tags without fetching or changing refs and writes only to a fresh external directory whose parent exists.
+   Review the external candidate's `sourceHead`, incorporated evidence, complete diff and exact four `applicationFiles` with the operator.
+   Obtain artifact-application approval, recheck clean `main`, `sourceHead === HEAD` and unchanged reviewed bytes, then apply and commit exactly those files together; retain `first-fork-release.json` externally.
+   If the source or candidate changes, regenerate or stop for review.
+2. Obtain separate explicit approvals for the `@jopqior/pi-subagents-worktrees` identity and public npmjs.org destination, the exact tagged artifacts, and tagging/GitHub Release effects.
+   Tag the approved artifact commit as `pi-subagents-worktrees-v0.1.0` only after approval and check out that exact commit for publication.
+3. Before any npm or GitHub effect, preflight the complete approved tagged set with the artifact validator.
+   Its external output directory must already exist:
+
+   ```bash
+   node scripts/release/release-artifacts.mjs published "$PWD" <existing-temp-dir> pi-subagents-worktrees-v0.1.0
+   ```
+
+   This checks the tag against the checkout and exact tagged package/CHANGELOG bytes and writes the tagged notes externally; it does not publish.
+4. After successful preflight and publication approval, the operator runs this manual bootstrap command from the tagged checkout in their terminal:
+
+   ```bash
+   pnpm --filter @jopqior/pi-subagents-worktrees publish --access public --no-git-checks --registry=https://registry.npmjs.org/
+   ```
+
+   Publish without `--provenance`; this is not the Trusted Publishing `publish-released.sh` route.
+   Any OTP interaction belongs in the operator's terminal, not an agent command or stored credential.
+5. Any separately approved GitHub Release must use that same exact tag and tagged CHANGELOG section (the preflight's notes), explicitly targeting `--repo Jopqior/gotgenes-pi-packages`.
+6. Only after successful first publication, configure the package's npmjs.org [GitHub Actions Trusted Publisher](https://docs.npmjs.com/trusted-publishers/): owner `Jopqior`, repository `gotgenes-pi-packages`, workflow filename `release.yml`, and no environment unless the actual workflow gains one.
+   The current publish job uses GitHub-hosted `ubuntu-latest` and `id-token: write`, with no environment; permit direct publishing for this workflow.
+   Saving the dashboard configuration does not verify publishing; do not use `whoami` as proof of OIDC permission.
+7. Only after confirmed approved publication, add a fully disabled `npm:@jopqior/pi-subagents-worktrees` source object to the repository's `.pi/settings.json` with `extensions`, `skills`, `prompts` and `themes` all set to `[]`.
+   Retain the local core-first load order and the upstream worktrees suppression entry.
+   Until then, leave the unpublished fork npm source absent.
+   Subsequent releases use separately approved ordinary guarded dispatch after Trusted Publisher setup.
+
+If any approval is withheld, stop at an explicit unpublished handoff without tagging, publishing or dispatching.
 
 ## License
 

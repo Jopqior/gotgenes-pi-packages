@@ -5,7 +5,7 @@ A broad `feat!:` integration message describes upstream's release, not the fork'
 Fork release levels derive from verified correspondence evidence instead.
 This policy owns release evidence and version derivation; the [synchronization guide](synchronization-guide.md) owns integration constraints and lifecycle exceptions.
 The generated [core correspondence view](pi-subagents-release-correspondence.md) and [worktrees correspondence view](pi-subagents-worktrees-release-correspondence.md) record each package's own verified direct upstream baseline.
-Tooling supports both fixed directories; worktrees remains unregistered under its inherited manifest until the separate [issue #37 migration](https://github.com/Jopqior/gotgenes-pi-packages/issues/37).
+Tooling supports both fixed directories; worktrees is registered under its migrated `@jopqior/pi-subagents-worktrees` identity, with the guarded first-release handoff owned by [issue #37](https://github.com/Jopqior/gotgenes-pi-packages/issues/37).
 
 ## Evidence authority and validity
 

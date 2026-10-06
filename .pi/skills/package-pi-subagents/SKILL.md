@@ -169,7 +169,7 @@ The bundles are gitignored, regenerated at `prepack`, and shipped via the `packa
 Never commit `dist/`.
 `pnpm run verify:public-types` (`scripts/verify-public-types.sh`, also a CI step) packs the tarball and type-checks a throwaway consumer against both entries - run it after any change to the public surface, the `exports` map, or the rollup config.
 Sibling packages consume this one from the **published** registry release (the repo sets `linkWorkspacePackages: false`), not via a workspace symlink - a symlink resolves `exports.types` to the gitignored, unbuilt `dist/*.d.ts`.
-See `@gotgenes/pi-subagents-worktrees` for the pattern.
+See `@jopqior/pi-subagents-worktrees` for the pattern.
 
 ## Upstream assumptions
 
