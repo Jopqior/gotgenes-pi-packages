@@ -125,3 +125,34 @@ Closed issue #37 with the operator-approved comment anchored on behavior commit 
 - No peer branch or feature worktree existed to merge or tear down.
   Removed the clean temporary publication checkout; retained external candidate, tagged notes, packed tarball and completion markers for the handoff.
   Worktrees has no roadmap phase to finish; the deliberate next step is `/retro 37` at the root on `main`.
+
+## Stage: Ship recovery (2026-10-06T08:31:31Z)
+
+### Session summary
+
+Reproduced the post-publication failure from [CI run 37433765386](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/37433765386) with the real first worktrees tag present on primary `main`.
+Corrected only the release-correspondence corpus test and added discriminating first-heading controls; parent review, push and CI verification remain pending.
+
+### Observations
+
+- The first unpiped `pnpm exec vitest run test/release/release-correspondence-views.test.mjs` exited 1 with 1 failed and 11 passed tests at the original line 278.
+  The corpus assumed every readable tagged section contained `/compare/`, then equated all matched tags with compare-heading count.
+  The first-release generator deliberately emits a fork-owned `/releases/tag/` heading, and the production reader already validates its exact repository, package, version and tag.
+  Actual tagged worktrees notes use that permitted first-release format; no fake previous tag or new manual exception is appropriate.
+- The corpus now compares current and tagged headings exactly and distinguishes first headings from ordinary comparisons.
+  First headings must belong to a registered fork, identify the first release row in that tag's state, resolve published correspondence and pass canonical provenance validation.
+  Compare-heading census retains its count check and adds exact heading-array correspondence; historical manual exceptions and hardbreak rejection remain unchanged.
+- New controls exercise a non-special first version, inherited same-version notes, wrong repository/package/URL version/heading version, malformed tags, noncanonical or suffixed URLs, duplicate first headings and mixed first/compare matches.
+  Invalid headings remain rejected even when a valid compare link appears in their body.
+  A temporary test-helper mutation that returned first-link text without invoking the strict reader caused all 9 new controls to fail while the other 12 tests passed; the mutation was removed before verification.
+  Production files were not mutated, including during this test-seam probe.
+- Targeted verification passed all 21 tests after restoring the helper.
+  Red, green and mutation runs used Vitest's default plus JSON reporters without piping output; reports are retained at `/tmp/issue-37-release-views-red.json`, `/tmp/issue-37-release-views-green.json` and `/tmp/issue-37-release-views-mutation.json`.
+  The applicable `pnpm exec vitest run test/release` suite passed 24 files and 403 tests.
+- Root `pnpm run check`, `pnpm run lint`, `pnpm run test` and `pnpm fallow dead-code` exited successfully without changed timeout limits or new lint warnings.
+  The root test script runs `pnpm -r run test` before the root suite; its root portion passed 43 files and 995 tests.
+  No separate redundant workspace run was needed.
+- Only the test file and this recovery entry changed.
+  Published tag `pi-subagents-worktrees-v0.1.0` still resolves to artifact commit `bec7ce63e09658c948d0da951c80834cbf885d8d`.
+  Package sources, manifests, CHANGELOGs, release production code, registry, evidence states, correspondence views and historical format policy remain untouched.
+  No GitHub mutation, push, release dispatch, publication, tag change, upstream fetch, integration or history rewriting occurred; this recovery does not claim remote CI success.

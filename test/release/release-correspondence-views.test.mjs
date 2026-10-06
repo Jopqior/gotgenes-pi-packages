@@ -23,6 +23,8 @@ const realRepo = path.resolve(
 );
 const comparison = (directory, previous, version) =>
   `## [${version}](https://github.com/Jopqior/gotgenes-pi-packages/compare/${directory}-v${previous}...${directory}-v${version}) (2026-09-25)`;
+const firstRelease = (directory, version) =>
+  `## [${version}](https://github.com/Jopqior/gotgenes-pi-packages/releases/tag/${directory}-v${version}) (2026-09-25)`;
 const releasePath = (directory) => `packages/${directory}/CHANGELOG.md`;
 const gitText = (repo, ...args) =>
   execFileSync("git", args, { cwd: repo, encoding: "utf8" });
@@ -107,6 +109,53 @@ describe("canonical upstream correspondence block", () => {
 });
 
 describe("exact tagged CHANGELOG section", () => {
+  describe("first-release tag headings", () => {
+    // Use a version other than 0.1.0: validity comes from the exact tag,
+    // not a conventional first-version number.
+    const heading = firstRelease("pi-subagents", "1.0.1");
+
+    it("selects the exact fork tag heading over same-version inherited notes", () => {
+      const section = `${heading}\n\nFirst fork body.\n\n`;
+      expect(
+        tagChangelog(
+          `${firstRelease("pi-subagents", "9.0.0")}\nLater notes.\n\n` +
+            section +
+            `${heading.replace("Jopqior/gotgenes-pi-packages", "gotgenes/pi-packages")}\nInherited body.\n`,
+        ),
+      ).toBe(section);
+    });
+
+    it.each([
+      ["wrong repository", "Jopqior/gotgenes-pi-packages", "other/repo"],
+      ["wrong URL package", "tag/pi-subagents-", "tag/pi-subagents-worktrees-"],
+      ["wrong URL version", "-v1.0.1)", "-v1.0.10)"],
+      ["wrong heading version", "[1.0.1]", "[1.0.10]"],
+      ["malformed tag", "-v1.0.1)", "-v01.0.1)"],
+      ["noncanonical URL", "https://", "http://"],
+      ["extra URL suffix", "-v1.0.1)", "-v1.0.1/extra)"],
+    ])(
+      "rejects a %s first heading even with a compare link in its body",
+      (_name, from, to) => {
+        expect(() =>
+          tagChangelog(
+            `${heading.replace(from, to)}\n\n${comparison("pi-subagents", "1.0.0", "1.0.1").slice(3)}\n`,
+          ),
+        ).toThrow(/missing.*exact fork section/);
+      },
+    );
+
+    it("rejects duplicate first headings and mixed first/compare matches", () => {
+      for (const duplicate of [
+        heading,
+        comparison("pi-subagents", "1.0.0", "1.0.1"),
+      ]) {
+        expect(() => tagChangelog(`${heading}\nA\n${duplicate}\nB\n`)).toThrow(
+          /ambiguous/,
+        );
+      }
+    });
+  });
+
   it("selects the fork link, not a matching upstream version or a wrong repository", () => {
     const heading = comparison("pi-subagents", "1.0.0", "1.0.1");
     const section = `${heading}\n\n### Fork notes\n\nFork body.\r\n\r\n`;
@@ -233,6 +282,8 @@ describe("actual current and tagged CHANGELOG corpus", () => {
       ),
     ).toThrow();
     let matched = 0;
+    let matchedFirst = 0;
+    const comparedHeadings = [];
     for (const entry of registry.packages) {
       const tags = gitText(realRepo, "tag", "--list", `${entry.directory}-v*`)
         .trimEnd()
@@ -275,12 +326,42 @@ describe("actual current and tagged CHANGELOG corpus", () => {
             `## [${tag.slice(`${entry.directory}-v`.length)}](`,
           ),
         ).toBe(true);
-        expect(section.includes(`/compare/`)).toBe(true);
+        const heading = section.split(/\r?\n/, 1)[0];
+        expect(currentSection.split(/\r?\n/, 1)[0]).toBe(heading);
+        if (heading.includes("/releases/tag/")) {
+          // The strict section reader already checks repository, package,
+          // version and URL. A first-tag link also needs published evidence,
+          // not a hardcoded version or another manual corpus exception.
+          expect(entry.kind).toBe("fork");
+          const state = JSON.parse(
+            gitText(
+              realRepo,
+              "show",
+              `${tag}:scripts/release/${entry.directory}/sync-state.json`,
+            ),
+          );
+          expect(state.releases[0].forkTag).toBe(tag);
+          const provenance = resolvePublishedCorrespondence({
+            repo: realRepo,
+            tag,
+            registry,
+            state,
+          });
+          expect(() =>
+            assertReleaseProvenance(section, provenance),
+          ).not.toThrow();
+          matchedFirst++;
+        } else {
+          // Inspect the heading, not a compare URL mentioned in the body.
+          expect(heading.includes("/compare/")).toBe(true);
+          comparedHeadings.push(heading);
+        }
         matched++;
       }
     }
     expect(observedExceptions).toEqual(exceptions);
     expect(matched).toBeGreaterThanOrEqual(11);
-    expect(forkCompareHeadings).toHaveLength(matched);
+    expect(forkCompareHeadings).toHaveLength(matched - matchedFirst);
+    expect(forkCompareHeadings.toSorted()).toEqual(comparedHeadings.toSorted());
   });
 });
