@@ -10,6 +10,12 @@ import {
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { updateCorrespondenceDocument } from "../../scripts/release/correspondence-table.mjs";
+import {
+  readForkSyncState,
+  validateForkSyncState,
+} from "../../scripts/release/fork-sync/state.mjs";
+import { compareVersions } from "../../scripts/release/fork-sync/values.mjs";
 
 const read = (file) => readFileSync(file, "utf8");
 const prompt = (name) => read(`.pi/prompts/${name}.md`);
@@ -20,6 +26,50 @@ const fence = (text, marker, language) => {
   expect(match, `executable ${marker} fence`).not.toBeNull();
   return match[1];
 };
+
+function assertWorktreesView(state, view) {
+  const directory = "pi-subagents-worktrees";
+  validateForkSyncState(state, directory);
+  // Reuse the strict standalone-marker boundary, preserving all external prose.
+  const outside = updateCorrespondenceDocument(view, "");
+  for (const sentence of [
+    "Until a verified fork release row is recorded, this document is an unreleased scaffold.",
+    "An empty synchronization state does not establish release evidence or authorize publication.",
+    "The table below is generated from this package's own state; the renderer owns only the marked region.",
+  ])
+    expect(outside).toContain(sentence);
+  expect(outside).not.toContain("This fork is unreleased.");
+  const region = view
+    .split("<!-- release-correspondence:start -->")[1]
+    .split("<!-- release-correspondence:end -->")[0]
+    .trim();
+  if (state.releases.length === 0) {
+    expect(region).toBe("No fork release has been recorded.");
+    return;
+  }
+  // This checks state/view correspondence, not tag existence or release approval.
+  // The first-release/artifact fixtures own verified pending and tagged evidence.
+  const versions = state.releases.map((row) => ({
+    version: row.forkTag.slice(`${directory}-v`.length),
+    upstream: row.upstream,
+  }));
+  versions.sort((a, b) => compareVersions(a.version, b.version));
+  // Column padding belongs to the renderer; compare every cell and every row.
+  const actual = region.split("\n").map((line) =>
+    line
+      .split("|")
+      .map((cell) => (/^-+$/.test(cell.trim()) ? "---" : cell.trim()))
+      .join("|"),
+  );
+  expect(actual).toEqual([
+    "|Fork `@jopqior/pi-subagents-worktrees`|Direct upstream release|Fixed source|",
+    "|---|---|---|",
+    ...versions.map(
+      ({ version, upstream }) =>
+        `|${version}|\`${upstream.version}\`|[source](https://github.com/gotgenes/pi-packages/blob/${upstream.commit}/packages/${directory})|`,
+    ),
+  ]);
+}
 
 describe("standard synchronization workflow contracts", () => {
   it("keeps the entry point issue-only and hands off without invoking planning", () => {
@@ -201,21 +251,132 @@ describe("standard synchronization workflow contracts", () => {
         "Never dispatch ordinary preparation for an untagged first release",
       );
     });
-    it("keeps scaffold prose valid after projection and an empty managed region", () => {
-      const view = read(
-        "docs/upstream/pi-subagents-worktrees-release-correspondence.md",
-      );
-      const outside = view.split("<!-- release-correspondence:start -->")[0];
-      expect(outside).toContain(
-        "Until a verified fork release row is recorded",
-      );
-      expect(outside).not.toContain("This fork is unreleased.");
-      expect(
-        view
-          .split("<!-- release-correspondence:start -->")[1]
-          ?.split("<!-- release-correspondence:end -->")[0]
-          .trim(),
-      ).toBe("No fork release has been recorded.");
+    describe("state-aware worktrees correspondence view", () => {
+      const start = "<!-- release-correspondence:start -->";
+      const end = "<!-- release-correspondence:end -->";
+      const preface =
+        "# Worktrees fork release correspondence\n\n" +
+        "Until a verified fork release row is recorded, this document is an unreleased scaffold.\n" +
+        "An empty synchronization state does not establish release evidence or authorize publication.\n" +
+        "The table below is generated from this package's own state; the renderer owns only the marked region.\n\n";
+      const empty = { schemaVersion: 2, releases: [], syncs: [] };
+      const projected = {
+        ...empty,
+        releases: [
+          {
+            forkTag: "pi-subagents-worktrees-v0.1.0",
+            upstream: { version: "0.3.3", commit: "a".repeat(40) },
+            upstreamTip: "b".repeat(40),
+          },
+        ],
+      };
+      const table =
+        "| Fork `@jopqior/pi-subagents-worktrees` | Direct upstream release | Fixed source |\n" +
+        "| --- | --- | --- |\n" +
+        `| 0.1.0 | \`0.3.3\` | [source](https://github.com/gotgenes/pi-packages/blob/${"a".repeat(40)}/packages/pi-subagents-worktrees) |`;
+      const emptyView = `${preface}${start}\n\nNo fork release has been recorded.\n\n${end}\n`;
+      const projectedView = `${preface}${start}\n\n${table}\n\n${end}\n`;
+
+      it("matches the real view against authoritative worktrees state", () => {
+        assertWorktreesView(
+          readForkSyncState(
+            "scripts/release/pi-subagents-worktrees/sync-state.json",
+            "pi-subagents-worktrees",
+          ),
+          read(
+            "docs/upstream/pi-subagents-worktrees-release-correspondence.md",
+          ),
+        );
+      });
+      describe("empty and first-row projection", () => {
+        it("accepts the empty scaffold", () => {
+          assertWorktreesView(empty, emptyView);
+        });
+        it("accepts the first projected row without resolving a fork tag", () => {
+          assertWorktreesView(projected, projectedView);
+        });
+        it("rejects the empty placeholder for populated state", () => {
+          expect(() => assertWorktreesView(projected, emptyView)).toThrow();
+        });
+        it("rejects a projected table for empty state", () => {
+          expect(() => assertWorktreesView(empty, projectedView)).toThrow();
+        });
+      });
+      describe("view and state disagreement", () => {
+        it.each([
+          ["fork version", "| 0.1.0 |", "| 0.1.1 |"],
+          ["upstream version", "`0.3.3`", "`0.3.4`"],
+          ["source commit", "a".repeat(40), "c".repeat(40)],
+          ["floating source", "a".repeat(40), "main"],
+          [
+            "npm identity",
+            "@jopqior/pi-subagents-worktrees",
+            "@gotgenes/pi-subagents-worktrees",
+          ],
+          ["missing row", table.split("\n")[2], ""],
+          [
+            "duplicate row",
+            table.split("\n")[2],
+            `${table.split("\n")[2]}\n${table.split("\n")[2]}`,
+          ],
+        ])("rejects altered %s", (_label, from, to) => {
+          expect(() =>
+            assertWorktreesView(projected, projectedView.replace(from, to)),
+          ).toThrow();
+        });
+      });
+      describe("exact standalone managed-marker pair", () => {
+        it.each([
+          ["missing start", emptyView.replace(start, "")],
+          ["missing end", emptyView.replace(end, "")],
+          ["duplicate start", `${emptyView}${start}\n`],
+          ["duplicate end", `${emptyView}${end}\n`],
+          ["second pair", `${emptyView}${start}\n${end}\n`],
+          [
+            "reversed markers",
+            `${preface}${end}\n\nNo fork release has been recorded.\n\n${start}\n`,
+          ],
+          ["inline start prefix", emptyView.replace(start, `prefix ${start}`)],
+          ["inline start suffix", emptyView.replace(start, `${start} suffix`)],
+          ["inline end prefix", emptyView.replace(end, `prefix ${end}`)],
+          ["inline end suffix", emptyView.replace(end, `${end} suffix`)],
+        ])("rejects %s", (_label, view) => {
+          expect(() => assertWorktreesView(empty, view)).toThrow(
+            /marker|region/,
+          );
+        });
+      });
+      describe("external prose", () => {
+        it.each([
+          [
+            "missing conditional scaffold claim",
+            emptyView.replace(
+              "Until a verified fork release row is recorded",
+              "This fork",
+            ),
+          ],
+          [
+            "unconditional suffix claim",
+            `${emptyView}\nThis fork is unreleased.\n`,
+          ],
+          [
+            "missing evidence boundary",
+            emptyView.replace(
+              "An empty synchronization state does not establish release evidence or authorize publication.\n",
+              "",
+            ),
+          ],
+          [
+            "missing region ownership",
+            emptyView.replace(
+              "The table below is generated from this package's own state; the renderer owns only the marked region.\n",
+              "",
+            ),
+          ],
+        ])("rejects %s", (_label, view) => {
+          expect(() => assertWorktreesView(empty, view)).toThrow();
+        });
+      });
     });
   });
   describe("selector-focused synchronization scope", () => {
