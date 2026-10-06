@@ -10,5 +10,18 @@
       "upstreamTip": "9087a8dfa6edbfa1808fe3deab46ac3e17a7c032"
     }
   ],
-  "syncs": []
+  "syncs": [
+    {
+      "merge": "0b865f9b2f34413d6a09684560f66f5978fffd76",
+      "upstream": {
+        "version": "0.3.3",
+        "commit": "62924b0a8389eed41c4da93b0bf0ea89e0b5c794"
+      },
+      "forkContribution": {
+        "level": "none",
+        "rationale": "Independent worktrees review: first-parent-to-merge and postmerge diffs leave the whole worktrees package unchanged, including fork identity/history, published core imports and required peer/development ranges, core-first provider registration, configuration opt-in, once-only disposal, dirty rescue and recovery. Core target budget guards preserve the approved workspace seam without worktrees resolution changes; direct worktrees upstream remains released 0.3.3 with no package tail. No independent worktrees fork contribution.",
+        "paths": []
+      }
+    }
+  ]
 }
