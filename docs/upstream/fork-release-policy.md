@@ -139,11 +139,15 @@ The candidate files are:
 - `docs/upstream/pi-subagents-worktrees-release-correspondence.md`
 - `first-fork-release.json` (transient review handoff, not a persistent ledger)
 
+Before requesting application approval, validate generated evidence in a disposable repository in both projected-untagged and first-tag states.
+Run candidate application files through unchanged commit hooks in a disposable repository before requesting approval of their exact bytes.
 Review `first-fork-release.json`: its `sourceHead`, completed `merge`, selected version/tag, incorporated upstream evidence and exact `applicationFiles`, plus all candidate contents and the unchanged unselected core evidence.
 Verify `sourceHead` still equals the current HEAD before copying and that the source checkout and reviewed candidate bytes have not changed; otherwise regenerate in a new external directory or stop for review.
 Apply only the four `applicationFiles` at their repository-relative paths, rerun the issue's packing/compatibility and root checks, and commit them together; retain the review manifest externally, not as a new tracked ledger.
 If contents change before application or publication, regenerate or stop for review rather than silently reusing a stale candidate.
 After separately approved tagging, the exact tag must point at the artifact commit checked out for publication.
+After approved local tagging, rerun repository tests that consume release evidence or enumerate tags before tag push, npm publication or GitHub Release creation.
+For the tagged corpus check, run `pnpm exec vitest run test/release/release-correspondence-views.test.mjs`.
 Preflight the complete proposed tagged set through the same artifact validator before any npm/GitHub effects (the output directory must already exist):
 
 ```bash

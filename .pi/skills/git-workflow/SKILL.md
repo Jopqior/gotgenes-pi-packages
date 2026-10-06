@@ -21,7 +21,8 @@ A `commit-msg` hook runs [`committed`](https://github.com/crate-ci/committed) (w
 When a `prek` hook fails to **install** (a network error building the hook env — e.g. `uv` fetching `setuptools`, not a lint/grammar failure), it blocks the commit without having run any check.
 Run the equivalent gate manually (`pnpm exec rumdl check`, `pnpm run lint`) and, once clean, commit with `--no-verify`.
 This applies only to a hook *install* failure — a hook that runs and *reports* a violation is a real gate; fix it, never `--no-verify` past it.
-When a commit-lint or format gate fires a false positive, disable the single offending check (the specific `committed.toml` field), not the whole gate.
+When a commit-message gate fires a demonstrated false positive, disable only the offending `committed.toml` field.
+When a formatter changes generated artifacts, inspect the generator and exact validators before proposing a hook exception.
 Commit at meaningful checkpoints without waiting for an explicit reminder.
 Prefer small, reviewable commits that leave the repository in a valid state.
 
