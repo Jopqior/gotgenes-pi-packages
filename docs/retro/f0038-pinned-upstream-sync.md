@@ -155,3 +155,29 @@ The final raw logs/statuses, inventories/diffs, full reviewer report and transcr
 Restart Pi before `/ship 38` invokes changed GitHub tools or prompt templates; ship from the root primary checkout using the same resolved merge-first-parent `RANGE_BASE` and verify committed evidence/topology again.
 Do not run the incoming-history co-shipped closure scan or dispatch publication without separate operator approval.
 Shipping and the separate final retrospective remain subsequent stages; neither was executed here.
+
+## Stage: Ship (2026-10-07T01:43:51Z)
+
+### Session summary
+
+Shipped from the clean primary checkout on `main` in the trunk lane, preserving the genuine two-parent integration merge `0b865f9b2f34413d6a09684560f66f5978fffd76` and its fixed upstream second parent.
+Verified both committed sync evidence records, independent review PASS and the documentation-only postreview delta before pushing.
+The operator approved the exact closing comment and independently authorized only `@jopqior/pi-subagents` publication to npmjs.org with fork tags and GitHub Release creation.
+Closed fork issue #38 and released core 6.0.0; the separate final retrospective remains `/retro 38` at the root on `main`.
+
+### Observations
+
+- Startup fast-forward pull succeeded; the measured 174 unpushed commits included incoming upstream history, not additional fork close targets.
+  Used actual merge-first-parent `RANGE_BASE` `49a8e68407f404869e84e460b061738faf4e06e0`, overriding the generic plan-parent anchor and incoming-history co-shipped scan.
+- Root lint and dead-code passed on the exact pre-push tree.
+  Pushed `ee9b0fa25ef95e2030c39bdf0ac7a50c17be13dd` to verified fork `origin/main`; CI run 37557766525 succeeded before issue closure or release.
+- Registered changed candidates contained only `pi-subagents`; the offline prediction and its approved-SHA recheck both succeeded with `pi-subagents-v6.0.0`.
+  Changed `pi-colgrep`, `pi-github-tools` and `pi-permission-system` directories are unregistered and were not publication-eligible; neither unchanged companion was dispatched.
+- The approved closing comment credits `@gotgenes`, describes the breaking budget/workspace/host/path-rule changes and cites the actual reachable integration merge.
+  Only fork #38 was closed; no explicit additional fork issue or PR close target was found, and inherited upstream issue references were not scanned as fork targets.
+- Dispatched release run 37558383686 once for `pi-subagents`, guarded by the approved pushed SHA.
+  Its prepare, publish and github-release jobs succeeded; release commit `b4f2dadd93ad2e2eb63b16b8dc8fe72802d17e5e` has the approved SHA as its parent and only the selected package's four release artifacts changed.
+- Verified `pi-subagents-v6.0.0` peels to that release commit, its manifest is `@jopqior/pi-subagents` 6.0.0, and the exact GitHub Release exists in `Jopqior/gotgenes-pi-packages`.
+  Its correspondence records direct upstream 23.2.0 at the pinned target; both generated views pass their checks after the final fast-forward pull.
+- No worktree teardown was needed in the trunk lane, no release retry or npm polling was performed, and no optional live/TUI waiver or phase-close action was required.
+  These Ship notes are a separate documentation-only checkpoint after the verified release; their push and CI are the remaining handoff verification.
