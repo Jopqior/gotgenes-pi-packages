@@ -274,6 +274,52 @@ Verification was incremental: the parent established root check/lint/test/dead-c
 Step 4 and the independent reviewer then ran completed-tree gates, followed by shipping lint/dead-code, CI and release-artifact verification.
 The actionable gaps were validating the root corpus before staging resolved conflicts, sharing one insufficient outer timeout across several gates, and overwriting an earlier failed log, not deferring all verification until the end.
 
+#### Context growth and high-occupancy resume
+
+The operator identified a missing diagnostic in the initial retrospective: planning, the step-4 evidence/review-handoff worker and the independent reviewer each compacted once.
+The initial model-correlation analysis named the executed models but did not account for the common context-capacity cost.
+The following measurements walk each persisted session's active entry chain up to its first compaction, count returned tool-result text characters and read calls, and retain the actual `tokensBefore` record.
+Character counts describe returned text, not file bytes, token estimates or billed token totals.
+
+| Session              | Precompaction `read` calls | Returned tool-result characters | `read` result characters | Recorded `tokensBefore` |
+| -------------------- | -------------------------- | ------------------------------- | ------------------------ | ----------------------- |
+| Planning             | 77                         | 976263                          | 875931                   | 256190                  |
+| Step 4 worker        | 51                         | 880947                          | 727042                   | 255726                  |
+| Independent reviewer | 84                         | 1012018                         | 890471                   | 257076                  |
+
+The first provider-reported input counts were 22726, 11628 and 15194 respectively; the last requests before compaction reported 237495, 254549 and 252042.
+These input counts sum the recorded input/cache-read/cache-write components and exclude output; they are distinct from Pi's projected compaction estimate, which can include trailing tool results.
+The small starting inputs and large returned tool text identify accumulated ingestion, rather than a huge startup payload, as the dominant measured growth source.
+No new LLM replay or before/after optimization trial was run; the proposed improvements below have not been performance-validated.
+
+- `wrong-abstraction`: bounded synchronization review was treated as broad material ingestion rather than a contract-guided reading plan.
+  Planning loaded the entire inherited triage (46703 returned characters), multiple historical plans and long package skills; step 4 paged through `intersections.diff` (162270 returned characters) and also read corresponding source.
+  The reviewer loaded complete plan/workflow/remerge/core-docs surfaces and then source/tests, carrying overlapping representations of the same changes.
+  Multiple reads of a path can be legitimate pagination, so the measurements do not label every repeat as redundant.
+  Impact: each named session reached a recorded compaction; independently correct scope selection did not bound the amount of text entering its context.
+- `other`: saving raw logs did not prevent their contents from being returned to the model.
+  Step 4's interrupted combined gate call returned 40850 characters, the full root-test rerun returned 39006, and the all-process inspection returned 29827.
+  Impact: diagnostic output consumed context even though full raw files already existed; the earlier approved logging adjustment preserves evidence/status but does not itself limit log reinjection.
+- `wrong-abstraction`: the step-4 worker combined local review, separate recorders, completed-tree gates, independent-review handoff, report consumption, stage notes and final handoff in one continuing session.
+  At `2026-10-06T17:25:35.369Z`, the parent received `contextPercent: 89.04595588235294` and `compactionCount: 0`; at `2026-10-06T17:40:29.254Z`, it resumed that same worker for stage notes.
+  Eight further assistant responses preceded compaction at `2026-10-06T17:44:02.323Z`; provider input grew from 242120 before that resume to 254549 on the last precompaction request.
+  Impact: an avoidable high-occupancy continuation crossed the compaction boundary even though the remaining work was documentation/handoff, not another semantic review.
+  Resume retains the existing child session; the fresh turn budget does not reset its conversation context.
+  This is a scheduling error, not a violation of a previously adopted percentage gate, and no correctness regression is attributed to compaction without evidence.
+
+Future improvement candidates, not implemented or filed in this follow-up:
+
+1. Keep complete inventory and required deep-review coverage, but use contract-specific source/diff sections instead of loading every representation in full.
+   Required full skill loading is unchanged; splitting long skills into task-triggered reference branches needs separate planning rather than silently skipping their contents.
+2. Preserve complete raw gate logs while returning status, narrowly derived measurements and log paths on success; inspect the relevant diagnostic sections on failure.
+3. Trial an 80-percent dispatch checkpoint: prepare a bounded handoff rather than automatically resuming a high-occupancy worker for a new stage.
+   This is a proposed threshold, not an empirically established optimum or a new runtime prohibition; at the observed 89-percent boundary, the parent or a fresh documentation worker could have owned the remaining notes.
+4. Retain the sole independent reviewer and its required checks, but give it a contract-grouped reading plan and raw evidence pointers without making implementation summaries proof of PASS.
+   Saved notes support a fresh handoff but do not remove already-ingested history from a continuing session.
+
+Increasing the model window, lowering thinking or compacting earlier does not address the measured ingestion volume.
+The operator approved recording this diagnosis only; no dispatch protocol, reviewer definition, compaction configuration or runtime mechanism changed.
+
 ### Proposed adjustments
 
 - Clarify per-package recorder commit sequencing in `docs/upstream/fork-release-policy.md`, which already owns recorder semantics; keep the existing clean-tree mechanism unchanged.
@@ -304,3 +350,4 @@ No approved roadmap/triage successor is available to recommend.
 1. `docs/retro/f0038-pinned-upstream-sync.md`: appended this cross-session retrospective, diagnostic details, durable transcript sources, late CI recovery and next-work disposition without changing prior stages.
 2. `docs/upstream/fork-release-policy.md`: added the operator-approved per-invocation clean-tree requirement and sequential per-package evidence commit recipe; recorder behavior and release authorization remain unchanged.
 3. `.pi/skills/testing/SKILL.md`: replaced the blanket redirect prohibition and stale suite-size rationale with the operator-approved status-preserving logging reference, distinct rerun paths and targeted failure output.
+4. `docs/retro/f0038-pinned-upstream-sync.md`: added the operator-requested, measured context-growth diagnosis, confirmed the 89-percent step-4 resume and recorded unimplemented improvement candidates; no new issue or behavioral adjustment was authorized.
