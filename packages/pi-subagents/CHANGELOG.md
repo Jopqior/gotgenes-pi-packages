@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v5.0.0...pi-subagents-v6.0.0) (2026-10-07)
+
+
+### Features
+
+* **pi-subagents:** report the turn budget on finished subagents ([5607009](https://github.com/Jopqior/gotgenes-pi-packages/commit/560700977651554635aadeb9b2717a8d5ae6eae9)), closes [#1021](https://github.com/Jopqior/gotgenes-pi-packages/issues/1021)
+* **pi-subagents:** **breaking:** report a run that wraps up at its turn limit as completed ([d457702](https://github.com/Jopqior/gotgenes-pi-packages/commit/d4577024e37249f3a11fdb4ef7abb01d0424597b)), closes [#1021](https://github.com/Jopqior/gotgenes-pi-packages/issues/1021)
+* **pi-subagents:** **breaking:** report the turn budget on subagents:child:completed ([1ec3240](https://github.com/Jopqior/gotgenes-pi-packages/commit/1ec32405b302a93d5dbf3318035a1dc1f8dce047)), closes [#1021](https://github.com/Jopqior/gotgenes-pi-packages/issues/1021)
+* **pi-subagents:** **breaking:** stop a subagent at max_turns, after warning it while wrap-up turns remain ([0bb9cc7](https://github.com/Jopqior/gotgenes-pi-packages/commit/0bb9cc79475fe5d172f7d06cf7ddd0698a6d38ac)), closes [#1022](https://github.com/Jopqior/gotgenes-pi-packages/issues/1022)
+* **pi-subagents:** describe a warned or stopped run by its turn budget ([a013f1d](https://github.com/Jopqior/gotgenes-pi-packages/commit/a013f1df8fc8e837e2ae7ca9692de1173bffbfca)), closes [#1022](https://github.com/Jopqior/gotgenes-pi-packages/issues/1022)
+* **pi-subagents:** track a running subagent's turn budget live ([71a5223](https://github.com/Jopqior/gotgenes-pi-packages/commit/71a5223f771bb553d5bf014eb93193fc9779ee9e)), closes [#1022](https://github.com/Jopqior/gotgenes-pi-packages/issues/1022)
+* **pi-subagents:** **breaking:** give a resumed subagent a fresh turn budget ([4411a80](https://github.com/Jopqior/gotgenes-pi-packages/commit/4411a8086983a55a75307a2905092237accb410e)), closes [#1022](https://github.com/Jopqior/gotgenes-pi-packages/issues/1022)
+* **pi-subagents:** **breaking:** report turns only through turnBudget ([9ac16d3](https://github.com/Jopqior/gotgenes-pi-packages/commit/9ac16d304a07475c3fb2f93efe87f6ca40667376)), closes [#1022](https://github.com/Jopqior/gotgenes-pi-packages/issues/1022)
+* **pi-subagents:** **breaking:** run subagents for at least two turns and warn below that ([62e0977](https://github.com/Jopqior/gotgenes-pi-packages/commit/62e0977834f4af4de241b79ff8fe125f7dcbf12b)), closes [#1022](https://github.com/Jopqior/gotgenes-pi-packages/issues/1022)
+* **pi-subagents:** the session viewer's paging keys follow your keybindings ([c83225b](https://github.com/Jopqior/gotgenes-pi-packages/commit/c83225bc226aa2fbcba216a03e82c5de2d31d42b)), closes [#1032](https://github.com/Jopqior/gotgenes-pi-packages/issues/1032)
+* **pi-subagents:** scroll the session viewer with the mouse wheel ([b800890](https://github.com/Jopqior/gotgenes-pi-packages/commit/b80089052e7afb41d2cdfdaacc98abfb09ba15c9)), closes [#1032](https://github.com/Jopqior/gotgenes-pi-packages/issues/1032)
+* **pi-subagents:** record each run's transcript path and tool count in its session entry ([f019748](https://github.com/Jopqior/gotgenes-pi-packages/commit/f019748c7378eb289c7472d94224e3de19aa9c1b)), closes [#1034](https://github.com/Jopqior/gotgenes-pi-packages/issues/1034)
+* **pi-subagents:** **breaking:** adopt pinned upstream turn budgets ([#38](https://github.com/Jopqior/gotgenes-pi-packages/issues/38)) ([0b865f9](https://github.com/Jopqior/gotgenes-pi-packages/commit/0b865f9b2f34413d6a09684560f66f5978fffd76)), closes [#38](https://github.com/Jopqior/gotgenes-pi-packages/issues/38)
+
+### Bug Fixes
+
+* **pi-subagents:** page the session viewer natively in fullscreen mode ([915bbf2](https://github.com/Jopqior/gotgenes-pi-packages/commit/915bbf23676af80758943336e43c5cc5597b12bd)), closes [#1032](https://github.com/Jopqior/gotgenes-pi-packages/issues/1032)
+* **pi-subagents:** keep earlier subagents in /subagents:sessions after /reload ([77ef88a](https://github.com/Jopqior/gotgenes-pi-packages/commit/77ef88af6424a3dc0006665ad34061dab5074f1b)), closes [#1034](https://github.com/Jopqior/gotgenes-pi-packages/issues/1034)
+
+### Performance Improvements
+
+* **pi-subagents:** animate the agents widget at 80 ms in fullscreen mode ([cda4a5c](https://github.com/Jopqior/gotgenes-pi-packages/commit/cda4a5ced6bf3318ebfaeb696451191c0dece817)), closes [#1035](https://github.com/Jopqior/gotgenes-pi-packages/issues/1035)
+
+### Documentation
+
+* **pi-subagents:** document the turn budget outcome and correct the lifecycle diagram ([dbed2c9](https://github.com/Jopqior/gotgenes-pi-packages/commit/dbed2c92873ccb797e61d971f58d55748927d03e)), closes [#1021](https://github.com/Jopqior/gotgenes-pi-packages/issues/1021)
+* **pi-subagents:** document the turn ceiling and live turn budget ([4624cf3](https://github.com/Jopqior/gotgenes-pi-packages/commit/4624cf3e07997beba779056f50942ad656905ffc)), closes [#1022](https://github.com/Jopqior/gotgenes-pi-packages/issues/1022)
+* **pi-subagents:** record why the fullscreen session viewer is an overlay ([8c688ba](https://github.com/Jopqior/gotgenes-pi-packages/commit/8c688bab100ce1597a5d7178202822c7a29f12de)), closes [#1032](https://github.com/Jopqior/gotgenes-pi-packages/issues/1032)
+* **pi-subagents:** document persisted runs in /subagents:sessions ([9900b2c](https://github.com/Jopqior/gotgenes-pi-packages/commit/9900b2ca8dd7a1ab7ba84060c01c45cc9443513a)), closes [#1034](https://github.com/Jopqior/gotgenes-pi-packages/issues/1034)
+
+<!-- upstream-correspondence:start -->
+### Upstream correspondence
+
+Direct upstream package: `@gotgenes/pi-subagents`
+
+Incorporated upstream release: `23.2.0`
+
+Source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/6879774308ba8056859fa42284da71763fe1fe78/packages/pi-subagents)
+
+This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
+<!-- upstream-correspondence:end -->
+
 ## [5.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v4.0.7...pi-subagents-v5.0.0) (2026-10-03)
 
 
