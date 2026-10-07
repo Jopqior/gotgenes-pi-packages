@@ -181,3 +181,126 @@ Closed fork issue #38 and released core 6.0.0; the separate final retrospective 
   Its correspondence records direct upstream 23.2.0 at the pinned target; both generated views pass their checks after the final fast-forward pull.
 - No worktree teardown was needed in the trunk lane, no release retry or npm polling was performed, and no optional live/TUI waiver or phase-close action was required.
   These Ship notes are a separate documentation-only checkpoint after the verified release; their push and CI are the remaining handoff verification.
+
+## Stage: Final Retrospective (2026-10-07T02:09:53Z)
+
+### Session summary
+
+Reviewed the issue-entry, planning, implementation, step-owner, independent-review and shipping transcripts alongside their committed handoffs.
+The fixed-target two-parent integration and separately authorized core release are complete; this retrospective records recurring context-ordering failures, recorder sequencing, diagnostic preservation and the late shipping CI recovery.
+No runtime change, new synchronization, evidence correction or publication is part of this stage.
+
+### Observations
+
+#### What went well
+
+- The semantic-intersection review found that selection confirmation precedes budget startup and that unchanged worktrees sources still consume changed core disposal timing.
+  Those findings produced separate operator-approved workspace semantics and discriminating lifecycle/selection pins, rather than a conflict-marker-only integration or an unnecessary coordinator extraction.
+- Step 3 distinguished a failed build from a failed public consumer: removing the provider export stopped at `Rollup`, so the worker mutated the actual packed declaration and demonstrated the installed consumer's compiler failure separately.
+  The final candidate and both companion matrices used the restored ordinary package flow, without retaining the temporary shim.
+- The operator's step-per-subagent direction produced bounded sequential ownership with inspectable raw handoffs; the parent supplied the sole independent reviewer when the step-4 worker lacked the dispatch tool.
+  The reviewer used the actual merge-first-parent range and separated incoming inventory from deep review, preserving the synchronization scope without an unrelated upstream repair campaign.
+
+#### What caused friction (agent side)
+
+- `instruction-violation`: both planning and implementation ran startup `git pull --ff-only` before reading `docs/upstream/synchronization-guide.md`, despite the existing `AGENTS.md` prerequisite.
+  Implementation self-identified the ordering error immediately after loading the guide; the planning occurrence was identified from its transcript during this retrospective, not by an operator correction.
+  Impact: added friction but no rework; both pulls reported already up to date, and later integration operations used the guide.
+  Shipping loaded the guide and checked prerequisites before startup synchronization, so the earlier failure did not recur there.
+- `instruction-violation` (self-identified in the implementation handoff): step 1 compared the planning source with the actual premerge first parent after integration rather than before the merge as the plan required.
+  Impact: assurance arrived late; the checked delta contained only the plan/planning retro, with no runtime or constraint change and no resulting repair.
+- `missing-context`: planning read the release-evidence modules but failed to apply `scripts/upstream-sync.sh`'s per-invocation clean-tree precondition to the proposed combined two-package evidence commit.
+  Step 4 caught the incompatibility before invoking either recorder; the parent checked the wrapper and obtained approval for sequential package commits.
+  Impact: an avoidable operator decision and worker pause, replacing one planned evidence commit with `docs: record reviewed core upstream sync evidence (#38)` and `docs: record reviewed worktrees upstream sync evidence (#38)`.
+  Neither a weaker gate nor temporary evidence swapping was used.
+- `rabbit-hole`: after the root correspondence-corpus failure, step 1 made seven inspection calls, including three reads of `test/release/release-correspondence-views.test.mjs`, before the eighth call staged resolved conflicts and reran the checks.
+  The failure depended on unresolved three-stage index entries, not on a release-tooling defect.
+  Impact: extra diagnostic reads and a full-root rerun; overwriting `precommit-test.log` also removed the separate raw failure artifact, leaving the transcript as its diagnostic witness.
+- `other`: step 4 placed install, check, lint, root tests and dead-code inside one outer 120-second tool budget; the call was interrupted during tests without a captured test exit.
+  Impact: a worker handoff/resume and a complete test rerun with a 600-second outer budget, without changing source, assertions or suite scope.
+  It preserved `interrupted-root-test.log` before rerunning, improving on step 1's overwritten failure log.
+- `missing-context`: the parent planner, planning explorer and step-2 worker guessed nonexistent local `colgrep` skill paths instead of using the advertised `packages/pi-colgrep/skills/colgrep/SKILL.md` location.
+  The assessor also guessed the renderer test under `test/ui/` before locating `test/widget-renderer.test.ts`.
+  Impact: failed reads and corrected paths, but no code rework; the existing skill catalogue and `find` tool already supplied the needed lookup.
+- `other`: the first implementation-stage note misattributed the implementation parent's startup pull to planning; parent review corrected it before shipping.
+  Impact: one unpushed documentation amend and a handoff OID update, producing final notes commit `ee9b0fa25ef95e2030c39bdf0ac7a50c17be13dd`.
+  The correction was made by the parent agent, not the operator; the planning transcript independently shows its own ordering failure, but that was not what the implementation note was describing.
+- `other`: after successful implementation CI and publication, the Ship-note commit `0a11ae2b870774a7089a99e7d5946958e1cf8817` initially failed CI while a first-release fixture ran `git clone --bare`, before its identity assertion.
+  Impact: the operator requested recovery; the exact local case and full repository-script suite passed, and failed jobs were rerun once on the same commit.
+  The verified run `37558671955` is now `success`, attempt 2; no code change, assertion relaxation or second release dispatch occurred.
+  The failure did not reproduce and its root cause remains unconfirmed; a passing rerun is not proof of a particular Git maintenance or filesystem hypothesis.
+- `other`: `.pi/skills/testing/SKILL.md` prohibits raw-log redirection, while `.pi/prompts/tdd-plan.md` expressly permits it with retained command status and the Git workflow skill documents status-preserving redirection.
+  Impact: conflicting guidance, not a demonstrated masked test exit; this implementation retained command statuses and used raw logs for mutations, handoffs and independent review.
+
+#### What caused friction (user side)
+
+- The operator introduced step-per-subagent ownership after the green baseline, before implementation began.
+  Stating that preference with the initial implementation command would simplify orchestration setup; no completed step had to be redone.
+- The recorder batching decision was mechanical oversight the agent could have avoided by checking the wrapper during planning.
+  Budget/workspace compatibility and independent publication authorization were genuine operator decisions and should remain explicit gates.
+- Requesting action after the late CI failure was sufficient; no earlier user-supplied context would have established its unconfirmed cause.
+
+### Diagnostic details
+
+#### Model-performance correlation
+
+Type-unfiltered transcript turns identify `openai-codex/gpt-6.1-sol` for the entry point, planning, implementation parent, shipping and every located child transcript below.
+The observed model is taken from turn labels, not agent definitions or current environment variables.
+
+| Located child           | Task                                                                     | Observed model             |
+| ----------------------- | ------------------------------------------------------------------------ | -------------------------- |
+| Planning explorer       | Budget/selection/workspace semantic intersections and fixture boundaries | `openai-codex/gpt-6.1-sol` |
+| Tidy First assessor     | Judge preparatory refactors and scope exclusions                         | `openai-codex/gpt-6.1-sol` |
+| Step 1 owner            | Atomic merge, adaptations and budget/selection mutation cycles           | `openai-codex/gpt-6.1-sol` |
+| Step 2 owner            | Workspace outcome characterization and five mutation classes             | `openai-codex/gpt-6.1-sol` |
+| Step 3 owner            | Installed public-type consumer and companion matrices                    | `openai-codex/gpt-6.1-sol` |
+| Step 4 owner            | Separate release evidence, gates and review handoff                      | `openai-codex/gpt-6.1-sol` |
+| Pre-completion reviewer | Independent first-parent-range review and fresh deterministic checks     | `openai-codex/gpt-6.1-sol` |
+
+The planning parent shows two `Explore` dispatch calls, but only one corresponding explorer transcript was located beside the assessor transcript; the other call's runtime model/task completion is not attributed.
+Worker resumes reused their existing step-owner transcripts rather than establishing additional fresh review identities.
+No reasoning-weak model or purely mechanical dedicated dispatch was observed, and this single-model run cannot establish a causal model-performance comparison.
+
+#### Escalation-delay tracking and unused tools
+
+The corpus/index episode exceeded the five-call escalation threshold: seven inspections preceded the resolving staging/rerun call.
+A direct `git ls-files -u` inspection was available through `bash`; the worker should have checked that state first, or used `ask_parent` after five calls instead of continuing to reread the same test.
+For the recorder planning gap, the needed surface was the wrapper's `check_merge_preconditions`, not another architecture agent or a policy change.
+The guessed skill/test paths similarly needed the available catalogue/`find`, not broader research.
+
+#### Feedback-loop gap analysis
+
+Verification was incremental: the parent established root check/lint/test/dead-code baseline; step 1 ran targeted/core checks and repeated typechecks during fixture adaptation; step 2 checked characterization before mutations; step 3 verified the packed consumer before its mutations and both matrices afterward.
+Step 4 and the independent reviewer then ran completed-tree gates, followed by shipping lint/dead-code, CI and release-artifact verification.
+The actionable gaps were validating the root corpus before staging resolved conflicts, sharing one insufficient outer timeout across several gates, and overwriting an earlier failed log, not deferring all verification until the end.
+
+### Proposed adjustments
+
+- Clarify per-package recorder commit sequencing in `docs/upstream/fork-release-policy.md`, which already owns recorder semantics; keep the existing clean-tree mechanism unchanged.
+- Replace the testing skill's blanket redirect prohibition with its established status-preserving alternative and distinct rerun log paths, removing the stale suite-size rationale.
+- Do not duplicate startup guide precedence in `AGENTS.md` or every prompt: the rule already exists, and shipping followed it correctly.
+- Do not add automatic clone retries, claim a Git maintenance root cause, expand optional live checks, introduce another reviewer, or turn this independent sync into a phase-close task.
+
+### Durable transcript sources
+
+All paths below are under `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/`.
+
+- Entry point: `2026-10-06T15-51-40-745Z_01a111e9-d9c9-7244-ac03-503162dd6971.jsonl`.
+- Planning: `2026-10-06T15-54-16-967Z_01a111ec-3c07-7244-ac03-503352fafe42.jsonl`.
+  Its `tasks/` contains explorer `2026-10-06T15-56-43-037Z_01a111ee-769d-7244-ac03-5036c9f3e970.jsonl` and assessor `2026-10-06T16-00-56-266Z_01a111f2-53ca-7244-ac03-503b3a5206ee.jsonl`.
+- Implementation: `2026-10-06T16-19-14-199Z_01a11203-1497-74aa-8bc9-5317dfb5ff69.jsonl`.
+  Its `tasks/` contains step 1 `2026-10-06T16-25-03-735Z_01a11208-69f7-74aa-8bc9-531b58686f12.jsonl`, step 2 `2026-10-06T16-50-21-127Z_01a1121f-9147-74aa-8bc9-531e3ccdd9b7.jsonl`, step 3 `2026-10-06T16-57-57-978Z_01a11226-89da-74aa-8bc9-53222d854cde.jsonl`, step 4 `2026-10-06T17-09-22-114Z_01a11230-fa42-74aa-8bc9-53264b4fe1ee.jsonl`, and reviewer `2026-10-06T17-26-14-627Z_01a11240-6d63-74aa-8bc9-532a342b06ab.jsonl`.
+- Shipping and CI recovery: `2026-10-07T01-31-38-741Z_01a113fc-d375-7571-a0a4-0ac58fc16cb1.jsonl`.
+
+### Next-work disposition
+
+Issue #38 is an independently shipped repository synchronization, not a final improvement-phase step; neither phase close nor another pinned target follows automatically.
+The latest triage, `docs/triage/2026-10-02-backlog.md`, ranks inherited `gotgenes/pi-packages` work, not this fork's tracker.
+The fork open-issue query returned only #26, which this plan explicitly deferred; this retrospective does not promote it or reinterpret upstream issue numbers as fork candidates.
+No approved roadmap/triage successor is available to recommend.
+
+### Changes made
+
+1. `docs/retro/f0038-pinned-upstream-sync.md`: appended this cross-session retrospective, diagnostic details, durable transcript sources, late CI recovery and next-work disposition without changing prior stages.
+2. `docs/upstream/fork-release-policy.md`: added the operator-approved per-invocation clean-tree requirement and sequential per-package evidence commit recipe; recorder behavior and release authorization remain unchanged.
+3. `.pi/skills/testing/SKILL.md`: replaced the blanket redirect prohibition and stale suite-size rationale with the operator-approved status-preserving logging reference, distinct rerun paths and targeted failure output.

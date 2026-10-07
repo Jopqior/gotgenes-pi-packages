@@ -72,6 +72,8 @@ For a completed, reviewed integration, run the recorder only through the sync sc
 
 Omitting `--package` selects core; `--package pi-subagents` is explicit core selection.
 After both forks have published anchors, classify and record each package independently with its own explicit level and rationale, including `none` for an unchanged fork rather than copying the other's contribution.
+The sync script requires a clean tracked index/worktree before every recorder invocation.
+For multiple packages, record and commit each package's reviewed state/view pair before invoking the next recorder.
 Before worktrees bootstrap, use the first-release handoff below; do not invent a published release row to make the recorder run.
 
 It selects the highest stable upstream release whose peeled commit is contained in the merge's upstream parent (not the newest advertised tag) and verifies the release manifest agrees with the tag.
