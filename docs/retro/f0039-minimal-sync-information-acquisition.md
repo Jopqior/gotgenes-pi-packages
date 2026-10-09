@@ -26,3 +26,24 @@ Checked historical Git reading routes and the existing workflow-contract test ba
   Preserve its existing headings and section-local safety clauses; new prose semantics require walkthrough and independent judgment, not claims of runtime enforcement.
 - Only `docs/upstream/synchronization-guide.md` is planned to change during implementation, alongside ordinary lifecycle notes.
   Use `/build-plan`; no Tidy-First assessment or concrete follow-up issue is required.
+
+## Stage: Implementation — Build (2026-10-09T16:44:55Z)
+
+### Session summary
+
+Completed all three plan steps: the acquisition table and reading boundaries in `b4423e056`, followed by plan-mediated reviewer handoff requirements in `8348fea76`, then ordinary validation and independent review.
+Only `docs/upstream/synchronization-guide.md` changed as the contract owner; generic definitions, source/tests, release policy and publication behavior remained untouched.
+
+### Observations
+
+- No deviations, new compatibility decisions or concrete follow-up issues.
+  Baseline `pnpm run check` and `pnpm run lint` passed; both implementation steps passed markdown lint, the existing workflow-contract suite and root lint.
+- Re-ran the real `#38` Git reading routes recorded in this issue's plan, keeping incoming and actual-change inventories separate.
+  The selected prompt's empty remerge output contrasted with its nonempty automatic-merge diff; the post-merge inventory exposed public-type verification, lifecycle tests and both release-state contributions.
+  These checks establish reading entry points, not measured savings or renewed certification of all `#38` behavior.
+- Walked through complete sync dispatch, missing temporary inventory, stale pointer, absent handoff step, cross-step/shared warnings and ordinary non-sync review.
+  Regeneration/source lookup does not reduce coverage; new compatibility choices retain operator approval.
+- Pre-completion reviewer: PASS for `0f52a5af5dc90b20ab4cf445e8df8a3015e6fb7d..8348fea760630994b53ba3731d8fe00d0a3d7ee3`.
+  The reviewer ran the normal deterministic gates, independently regenerated the historical inventories and checked retained safety/ownership and handoff semantics; no WARN findings or required fixes.
+- Next action: `/ship 39` on `main`.
+  No actual synchronization, push or publication occurred; material-intake and omission observations remain for the next real synchronization's existing stage notes.
