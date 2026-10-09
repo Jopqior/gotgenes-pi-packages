@@ -36,6 +36,36 @@ Merge does not implicitly refresh `upstream/main`; missing inputs need explicit 
 Unreleased upstream package work rejected by the recorder is a blocker, not permission to move the target or weaken release policy.
 Preserve fork history and immutable changelogs; never import upstream tags into the fork's tag namespace.
 
+## Information acquisition
+
+For actual upstream synchronization only, select task/history sources by the question they answer:
+
+| Question                                        | Preferred source / entry point                                                                       | Expand when                                               |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| What is approved and must be preserved?         | Current plan: shared decisions, compatibility contracts, acceptance requirements and stop conditions | A decision is missing, contradictory or changed           |
+| What arrived, including unselected paths?       | Complete common-base-to-pinned-target inventory, then relevant incoming diffs                        | An unexpected path, dependency or contract appears        |
+| What actually changed in this integration?      | Separate complete merge-first-parent-to-reviewed-HEAD inventory                                      | Actual changes differ from incoming expectations          |
+| How were conflicts resolved?                    | Merge remerge diff by affected path                                                                  | A resolution needs surrounding source or caller context   |
+| What happened to automatic fork merges?         | Relevant first-parent-to-merge diffs and preservation contracts                                      | A customization or cross-package contract may be affected |
+| What was added after the merge?                 | Merge-to-reviewed-HEAD inventory/diffs, accounting for every contribution                            | Behavior, evidence or approved scope changes              |
+| What does the final tree do; is evidence valid? | Relevant final source/tests, callers/state owners; policy-owned release evidence and checks          | Behavior, reachability, ownership or evidence is unclear  |
+| Why does an older constraint exist?             | Specifically implicated historical section                                                           | Current evidence is insufficient or points into history   |
+
+Account for all paths in both complete inventories, not only preselected intersections; unexpected or unselected changes require a depth decision, not silent omission.
+An empty remerge diff does not show that an automatically merged customization is unchanged.
+Read both diff and final source when they answer different questions; avoid equivalent rereads without an unresolved question.
+Expand when evidence is insufficient, a change is unexpected or a contract is unclear; reading expansion needs no new approval gate, while materially new compatibility decisions retain operator approval.
+Do not load historical backlogs, plans or retros wholesale merely because they exist.
+
+Coordinating sessions and the independent reviewer retain full current-plan reads and all applicable shared decisions and acceptance requirements.
+Step workers read shared constraints, their assigned step and relevant dependencies, not unrelated steps' execution detail.
+Existing mandatory prior-stage retro reads and complete triggered-skill reads remain unchanged; this sync-only narrowing applies to task/history sources and worker execution detail, not ordinary workflows.
+
+Record exact inventory commit inputs and generation commands in the ordinary plan, alongside selected deep-review contracts/paths and reasons.
+Each stage generates separate complete incoming and actual integration-change inventories as temporary text files using `git diff --name-status <common-base> <pinned-target>` and `git diff --name-status <actual-merge-first-parent> <reviewed-HEAD>` once those refs exist.
+Record resolved integration refs in ordinary artifacts when available; regenerate from these durable inputs rather than embedding complete listings or broad diffs in the plan or relying on temporary-file survival.
+The independent reviewer generates and checks its own complete inventories against actual refs; a dispatcher's count or coverage summary is not proof.
+
 ## Review scope
 
 Keep a complete common-base-to-pinned-target inventory of incoming changes, including package/dependency changes and relevant contract changes.
