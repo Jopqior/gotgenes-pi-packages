@@ -92,13 +92,26 @@ After both forks have release anchors, classify and record each affected package
 Before the first worktrees release, use the policy's first-release evidence handoff rather than manufacture a published anchor to unblock recording.
 In the ordinary retro record the target, actual merge OID, reviewed fork contribution, evidence commit, checks/reviewer result, and next action.
 
+Every actual synchronization plan must include a final numbered reviewer-handoff step requiring the executing session to resolve the actual merge, its first parent, pinned target/common base and reviewed HEAD before dispatch.
+Planning records how to resolve future integration refs, not invented or frozen OIDs.
+The step must require this guide and current plan paths, reproducible inventory inputs/commands, and contract-grouped source/diff/test/evidence entry points in the actual reviewer dispatch.
+If the step is missing, repair the ordinary plan/handoff before review; do not silently fall back to a tag range.
+
 Resolve the actual merge's first parent as the independent review base and review through HEAD; supply that OID and this guide as required context for the ordinary independent pre-completion review.
 The dispatch must explicitly supersede the reviewer's default tag/plan-derived range and include the pinned target/common base, changed-file inventory and identified intersections.
+Resolve reviewed HEAD to an OID so the supplied range is exact; require the reviewer to independently regenerate and check both complete inventories against the actual refs.
+Missing or stale temporary pointers require regeneration or source lookup, not reduced coverage; a newly revealed compatibility choice still follows the approval boundary above.
 Require complete incoming inventory and deep review of the intersections, remerge diff, automatically merged customizations and every post-merge contribution as defined above, not a comprehensive fresh upstream audit.
 The reviewer's generic deterministic gates and applicable checklist remain intact.
 Do not dispatch an additional reviewer merely for the same incoming inventory or evidence.
 Normal follow-up review after an in-scope correction remains possible; a failed in-scope review is not accepted as complete.
 Before accepting completion, verify the report states the actual range, inventory versus deep-review scope, relevant results and finding disposition against the supplied context, without repeating a comprehensive audit.
+
+The plan owns decisions, steps, acceptance requirements, selected intersections/reasons and inventory generation inputs; handoffs and retros record actual commits, deviations, new decisions, unresolved matters and evidence locations without restating it.
+Dispatch supplies the exact scope and reading entry points, with concise references to those updates and critical warnings, not copied narratives or a predicted verdict.
+Brief repetition of critical boundaries and warnings is allowed; durable decisions and continuity information belong in ordinary repository artifacts, never only temporary files.
+During the next real synchronization, note material intake, reading expansions and noticed omissions/corrections briefly in existing stage notes; this is observation, not a controlled comparison with #38 or measured token savings.
+Editing synchronization tooling or documentation is not integration work: ordinary non-sync tasks retain their normal review range and workflow.
 
 ## Validation and escalation
 
