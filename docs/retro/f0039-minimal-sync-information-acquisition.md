@@ -65,3 +65,90 @@ This checkpoint precedes the push, CI verification and issue closure; their resu
   Both origin fetch/push URLs target this fork, with no configured URL rewrites.
 - Real-sync material-intake observations remain a next-sync requirement, not a claim of measured savings or a waived ship-time check.
   The next workflow action after successful delivery is `/retro 39` at the root on `main`.
+
+## Stage: Final Retrospective (2026-10-09T17:05:52Z)
+
+### Session summary
+
+Reviewed the Planning, Build, Ship and independent-review transcripts alongside their existing stage notes.
+The delivered range changes only the plan, this retro and `docs/upstream/synchronization-guide.md`; CI succeeded on `4ac949bdb`, and fork issue #39 is closed.
+This retrospective records planning rework and acquisition overhead without treating the documentation walkthrough as measured savings or a completed real synchronization.
+
+### Observations
+
+#### What went well
+
+- The operator's distinction between direct session instructions and plan-mediated handoff produced a narrower design: guide → numbered synchronization-plan step → execution-time reviewer dispatch.
+  `docs: require plan-mediated upstream sync review handoffs (#39)` (`8348fea76`) implements that route without editing reusable skills or agent definitions.
+- Real historical Git evidence prevented an incorrect simplification of the reading contract.
+  The selected `.pi/prompts/tdd-plan.md` remerge diff was empty while its first-parent-to-merge diff was not; both the implementation and independent reviewer exercised those routes instead of treating conflict output as the entire change surface.
+
+#### What caused friction (agent side)
+
+- `premature-convergence` — Planning initially proposed changing `.pi/skills/pre-completion/SKILL.md` and `.pi/agents/pre-completion-reviewer.md` before comparing the guide-only, plan-mediated alternative.
+  The operator stopped a pending plan write, asked whether reusable definitions would change, then supplied the alternative handoff route.
+  Impact: the proposed plan was withdrawn and redesigned before any successful write; no implementation rollback or corrective code commit was needed.
+  This was a newly clarified scope preference, not evidence that the initial proposal violated an already-explicit ban on those files.
+- `other` — Oversized `codemode` reading batches undermined the intended reduction in acquisition overhead.
+  The Build startup batch was followed by five individual skill-recovery reads: `git-workflow`, `edit-tool`, `writing-for-agents`, `delegation` and `pre-completion`.
+  This retrospective repeated oversized batches and subsequent recovery reads.
+  Impact: additional calls and repeated material, but no implementation rework; no token or cost saving is measured here.
+- `instruction-violation` — Build artifact discovery used `find` instead of the required fork-first shell-glob lookup.
+  Its initial `*/docs/plans/f0039-*` pattern missed the root `docs/plans/` path; a second discovery call found the plan.
+  Impact: an avoidable rescan, with no wrong plan selected.
+  Self-identified during this retrospective, not user-caught; the original stage recovered the lookup but did not explicitly identify the convention violation.
+- `missing-context` — This retrospective first passed an unverified prior-session filename to `read_session_file`, which returned file-not-found.
+  Impact: one failed read before using `list_session_files` to obtain the actual path; self-corrected without operator intervention.
+
+#### What caused friction (user side)
+
+- An earlier scope statement such as “only the synchronization guide changes; do not modify reusable skill/agent definitions” would have removed the initial ownership ambiguity.
+  The issue allowed synchronization-only conditional references, so the later restriction was useful additional context rather than a missed instruction.
+- The operator's question about putting the handoff requirement into the plan was strategic design input, not mechanical oversight.
+  No recurring need for the operator to repair implementation or verification was found after that decision.
+
+### Diagnostic details
+
+#### Model-performance correlation
+
+- The live-path Planning, Build and Ship assistant turns all carry `openai-codex/gpt-6.1-sol` labels.
+  The sole completed subagent dispatch was `pre-completion-reviewer`; its own transcript also carries `openai-codex/gpt-6.1-sol`.
+  It performed independent documentation/coverage judgment and deterministic checks, not merely formatting or lookup.
+  No model/task quality mismatch is evidenced; model cost and comparative performance were not measured.
+
+#### Acquisition recovery and available tools
+
+- The five consecutive Build skill reads were recovery of required context, not five attempts at a failing design or command.
+  The useful adjustment is to bound tool-output batches and use `read` offsets or stored-output recovery when necessary; an additional Explore or Plan dispatch would not fix oversized output.
+- The failed session read had a direct available discovery tool, `list_session_files`, which resolved it immediately afterward.
+  The artifact lookup already has an explicit shell-glob rule; another policy paragraph is unnecessary.
+- Incremental verification was present: Build ran baseline `pnpm run check` and `pnpm run lint`, then markdown lint, the workflow-contract suite, `git diff --check` and root lint after each implementation edit, before the corresponding commit.
+  The independent reviewer ran `pnpm run check`, `pnpm run lint`, `pnpm run test` and `pnpm fallow dead-code`; Ship ran lint/dead-code gates and verified CI before closure.
+  Verification was not deferred until the end.
+
+#### Evidence locations
+
+- Planning transcript: `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-10-09T16-03-32-639Z_01a12167-ca9e-7515-a8eb-d28e4f86e949.jsonl`.
+- Build transcript: `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-10-09T16-28-23-327Z_01a1217e-899e-7515-a8eb-d290b9f882ad.jsonl`.
+- Reviewer transcript: the Build session's `tasks/2026-10-09T16-36-36-578Z_01a12186-1062-7515-a8eb-d295bb563f75.jsonl`.
+- Ship transcript: `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-10-09T16-47-36-370Z_01a12190-21b1-77f8-a76f-6afb1b51a0dc.jsonl`.
+- Delivered commit subjects: `docs: define focused upstream sync information acquisition (#39)` (`b4423e056`) and `docs: require plan-mediated upstream sync review handoffs (#39)` (`8348fea76`).
+  CI evidence: [successful delivery run](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/37962118027).
+
+### Proposed workflow disposition
+
+Recommend recording observations only, with no changes to `AGENTS.md`, prompt templates, skills or agent definitions.
+Existing scope, clarification, artifact-discovery and complete-reading instructions already cover the failures; duplicating them would fail the admission test.
+Do not remove required skill reads, alter harness/tool returns, add context checkpoints or create tracking machinery to address output batching.
+Keep actual material-intake and omission observations in the next real synchronization's existing stage notes, as #39 already requires.
+
+### Next-work context
+
+The plan has no phase successor or concrete follow-up issue.
+The newest root triage, `docs/triage/2026-10-02-backlog.md`, describes the inherited `gotgenes/pi-packages` queue, not ranked fork issues; its issue numbers must not be applied to this fork.
+The fork's open-issue query returned only #26, `feat(pi-subagents-model-selector): choose Tool, Agent, or Custom configuration before spawn`; it is not ranked by an applicable triage or unblocked by this plan.
+
+### Changes made
+
+1. Appended cross-stage observations, diagnostic evidence and the operator-approved decision to retain existing workflow instructions in `docs/retro/f0039-minimal-sync-information-acquisition.md`.
+   No workflow, runtime or release files changed.
