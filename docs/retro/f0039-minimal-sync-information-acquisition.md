@@ -47,3 +47,21 @@ Only `docs/upstream/synchronization-guide.md` changed as the contract owner; gen
   The reviewer ran the normal deterministic gates, independently regenerated the historical inventories and checked retained safety/ownership and handoff semantics; no WARN findings or required fixes.
 - Next action: `/ship 39` on `main`.
   No actual synchronization, push or publication occurred; material-intake and omission observations remain for the next real synchronization's existing stage notes.
+
+## Stage: Ship (2026-10-09T16:49:55Z)
+
+### Session summary
+
+Prepared trunk delivery on root `main` after a successful fast-forward-only pull and root lint/dead-code gates.
+This checkpoint precedes the push, CI verification and issue closure; their results remain in the corresponding GitHub run and issue history.
+
+### Observations
+
+- The implementation range starts at the plan commit's parent, `0f52a5af5dc90b20ab4cf445e8df8a3015e6fb7d`.
+  The title's contract change is in `b4423e0567d823cec3aa24314731ac2b1375d896`; `8348fea760630994b53ba3731d8fe00d0a3d7ee3` adds the plan-mediated reviewer handoff.
+- The plan recommends independent delivery, but all changed paths are root documentation: no package publication or release dispatch is applicable.
+  No additional issue/PR close targets or skipped-verification decision were found in the plan or prior stage notes.
+- `pnpm run lint` and `pnpm fallow dead-code` passed on the implementation tree.
+  Both origin fetch/push URLs target this fork, with no configured URL rewrites.
+- Real-sync material-intake observations remain a next-sync requirement, not a claim of measured savings or a waived ship-time check.
+  The next workflow action after successful delivery is `/retro 39` at the root on `main`.
