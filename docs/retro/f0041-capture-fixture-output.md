@@ -71,3 +71,27 @@ The full suite passed 9,990 tests before and after implementation, a test-count 
   Existing consumers and the complete return/error comparison showed no contract break; the warning does not change the operator-approved decision to use disposable verification only.
 - No push, package publication, release dispatch or production synchronization was performed.
   The next stage is `/ship 41` on `main`.
+
+## Stage: Ship (2026-10-11T00:32:00+08:00)
+
+### Session summary
+
+Shipped the implementation directly from the root checkout on `main` and closed fork issue #41 with the operator-approved comment.
+The implementation push passed [CI run 38067516359](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/38067516359).
+No release was dispatched and no worktree teardown was needed.
+
+### Observations
+
+- Trunk-lane detection found no `issue-41-*` branch, no pending merge/rebase and a clean working tree.
+  The fast-forward-only pull reported the checkout current; seven local commits were pushed, including fork issue #40's planning artifacts, not its implementation.
+  Issue #40 remains open and is not a co-shipped completion.
+- Root `pnpm run lint` and `pnpm fallow dead-code` passed on the implementation tree before pushing.
+  Both origin URLs named only this fork and no URL rewrite was configured.
+- The plan's release marker was `ship independently`.
+  The validated registry found only `@jopqior/pi-subagents-worktrees` as a changed package, with no unregistered changed directory.
+  Its version predictor exited zero with empty stdout, so there was nothing to publish; publication approval, dispatch and release verification were skipped.
+- The plan and complete retro contained no additional close target or unfinished verification requiring a ship-time decision.
+  The issue's author was the operator and there were no commenters to credit separately.
+  Both implementation hashes in the approved close comment were resolved and confirmed ancestors of `main` before publication.
+- This checkpoint records the completed implementation ship; its documentation-only commit still needs the final push and CI verification.
+  The next workflow step is `/retro 41` at the root on `main`.
