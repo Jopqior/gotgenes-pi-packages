@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { selectIncorporatedUpstreamRelease } from "../../scripts/release/fork-sync/upstream-release.mjs";
+import { captureOutput } from "../helpers/capture-output.mjs";
 import { createScratchReleaseRepository } from "./helpers/git-repository.mjs";
 
 let repo;
@@ -222,18 +223,33 @@ describe("incorporated upstream release selection", () => {
         repo.git("tag", "-f", "alternate-v21.7.1");
         const merge = integrate();
 
-        expect(() =>
-          selectIncorporatedUpstreamRelease(repo.dir, directory, merge),
-        ).toThrow(`upstream release 21.7.1 (${commit}) ${diagnostic}`);
+        const captured = captureOutput(() => {
+          expect(() =>
+            selectIncorporatedUpstreamRelease(repo.dir, directory, merge),
+          ).toThrow(`upstream release 21.7.1 (${commit}) ${diagnostic}`);
+        });
+        if (bytes === undefined) {
+          expect(captured.stderr).toContain("fatal:");
+          expect(captured.stderr).toContain("packages/alternate/package.json");
+        } else {
+          expect(captured.stderr).toBe("");
+        }
       },
     );
   });
 
   describe("merge evidence validation", () => {
     it("rejects an unresolved merge input", () => {
-      expect(() =>
-        selectIncorporatedUpstreamRelease(repo.dir, directory, "absent-merge"),
-      ).toThrow(`cannot resolve merge 'absent-merge' in ${repo.dir}`);
+      const captured = captureOutput(() => {
+        expect(() =>
+          selectIncorporatedUpstreamRelease(
+            repo.dir,
+            directory,
+            "absent-merge",
+          ),
+        ).toThrow(`cannot resolve merge 'absent-merge' in ${repo.dir}`);
+      });
+      expect(captured.stderr).toMatch(/^fatal: .+\n$/);
     });
 
     it.each([

@@ -9,6 +9,7 @@ import {
   resolvePublishedCorrespondence,
   validateReleasePackages,
 } from "../../scripts/release/release-correspondence.mjs";
+import { captureOutput } from "../helpers/capture-output.mjs";
 import {
   createReleaseArtifacts,
   FORK,
@@ -204,11 +205,14 @@ describe("exact tagged correspondence", () => {
   });
 
   it("rejects a missing annotated tag or an object that is not a commit", () => {
-    expect(() =>
-      published("pi-subagents-v9.0.0", {
-        releases: [{ ...fixture.first, forkTag: "pi-subagents-v9.0.0" }],
-      }),
-    ).toThrow(/git|tag|object/);
+    const captured = captureOutput(() => {
+      expect(() =>
+        published("pi-subagents-v9.0.0", {
+          releases: [{ ...fixture.first, forkTag: "pi-subagents-v9.0.0" }],
+        }),
+      ).toThrow(/git|tag|object/);
+    });
+    expect(captured.stderr).toMatch(/^fatal: .+\n$/);
   });
 
   it("rejects a fork npm identity mismatch in the tagged manifest", () => {

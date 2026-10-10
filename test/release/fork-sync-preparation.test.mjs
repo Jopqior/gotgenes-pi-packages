@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { recordForkSync } from "../../scripts/release/fork-sync/record.mjs";
 import { readForkSyncState } from "../../scripts/release/fork-sync/state.mjs";
+import { captureOutput } from "../helpers/capture-output.mjs";
 import {
   BASE_TAG,
   createForkSyncScenario,
@@ -151,11 +152,18 @@ describe("release preparation", () => {
     );
     repo.git("remote", "add", "upstream", repo.dir);
     repo.git("update-ref", "refs/remotes/upstream/main", upstreamParent);
-    recordForkSync(repo.dir, statePath(), "pi-subagents", {
-      merge,
-      forkLevel: "none",
-      rationale: "reviewed integration preserving fork identity",
-    });
+    const captured = captureOutput(() =>
+      recordForkSync(repo.dir, statePath(), "pi-subagents", {
+        merge,
+        forkLevel: "none",
+        rationale: "reviewed integration preserving fork identity",
+      }),
+    );
+    expect(captured.stdout).toContain(`recorded sync ${merge}:\n`);
+    expect(captured.stdout).toContain(
+      `  upstream release 21.7.1 (${releaseCommit})\n`,
+    );
+    expect(captured.stderr).toBe("");
     const recorded = readForkSyncState(statePath(), "pi-subagents");
     expect(recorded.syncs).toEqual([
       {

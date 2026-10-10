@@ -21,6 +21,7 @@ import {
   validateForkSyncState,
 } from "../../scripts/release/fork-sync/state.mjs";
 import { forkSyncTarget } from "../../scripts/release/pi-subagents/config.mjs";
+import { captureOutput } from "../helpers/capture-output.mjs";
 import { createScratchReleaseRepository } from "./helpers/git-repository.mjs";
 
 const oid = "a".repeat(40);
@@ -195,11 +196,21 @@ describe("shared fork synchronization boundary", () => {
         "refs/tags",
       );
 
-      recordForkSync(repo.dir, statePath, "alternate", {
-        merge,
-        forkLevel: "none",
-        rationale: "upstream-only integration",
-      });
+      const captured = captureOutput(() =>
+        recordForkSync(repo.dir, statePath, "alternate", {
+          merge,
+          forkLevel: "none",
+          rationale: "upstream-only integration",
+        }),
+      );
+      expect(captured.stdout).toBe(
+        `recorded sync ${merge}:\n` +
+          `  upstream release 21.7.1 (${upstream})\n` +
+          "  fork contribution: none\n" +
+          "  state: state.json\n" +
+          "Commit the state update before the next release prediction.\n",
+      );
+      expect(captured.stderr).toBe("");
 
       expect(readForkSyncState(statePath, "alternate").syncs).toEqual([
         {
@@ -394,13 +405,15 @@ describe("shared fork synchronization boundary", () => {
         })}\n`,
       );
       expect(
-        decideForkRelease({
-          repo: repo.dir,
-          statePath,
-          packageDirectory: "alternate",
-          currentTag: "alternate-v1.4.0",
-          cliffArgs: repo.cliffArgs("alternate"),
-        }),
+        captureOutput(() =>
+          decideForkRelease({
+            repo: repo.dir,
+            statePath,
+            packageDirectory: "alternate",
+            currentTag: "alternate-v1.4.0",
+            cliffArgs: repo.cliffArgs("alternate"),
+          }),
+        ).value,
       ).toEqual({
         currentTag: "alternate-v1.4.0",
         nextTag: "alternate-v1.4.1",

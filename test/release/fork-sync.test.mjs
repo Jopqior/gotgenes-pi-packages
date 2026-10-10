@@ -8,6 +8,7 @@ import {
   changedPackageFiles,
   packageCommitsBetween,
 } from "../../scripts/release/fork-sync/evidence.mjs";
+import { captureOutput } from "../helpers/capture-output.mjs";
 import {
   BASE_TAG,
   createForkSyncScenario,
@@ -60,7 +61,7 @@ beforeEach(() => {
   baseUpstream = scenario.baseUpstream;
   baseUpstreamTip = scenario.baseUpstreamTip;
   writeForkSyncState = scenario.writeForkSyncState;
-  decide = scenario.decide;
+  decide = (...args) => captureOutput(() => scenario.decide(...args)).value;
   syncUpstream = scenario.syncUpstream;
   uniqueUpstreamBranch = scenario.uniqueUpstreamBranch;
 });
@@ -82,8 +83,10 @@ describe("window derivation", () => {
     });
     writeForkSyncState();
 
-    const decision = decide();
+    const captured = captureOutput(() => scenario.decide());
+    const decision = captured.value;
 
+    expect(captured.stderr).toContain("there is nothing to bump");
     expect(decision.nextTag).toBeNull();
     expect(decision.upstreamLevel).toBe("none");
     expect(decision.forkLevel).toBe("none");

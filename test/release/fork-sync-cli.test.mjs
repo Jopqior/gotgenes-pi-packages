@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { captureOutput } from "../helpers/capture-output.mjs";
 
 import {
   BASE_TAG,
@@ -139,7 +140,7 @@ describe("decision CLI", () => {
     writeForkSyncState();
 
     const cli = runCli();
-    const library = decide();
+    const library = captureOutput(() => decide()).value;
 
     expect(cli.stdout.trim()).toBe(library.nextTag);
   });
