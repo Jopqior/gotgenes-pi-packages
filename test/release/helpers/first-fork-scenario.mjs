@@ -61,7 +61,7 @@ export function createFirstForkScenario({
     );
   else repo.commitOutOfScope("docs: upstream non-package tail");
   const tip = repo.gitOut("rev-parse", "HEAD");
-  execFileSync("git", ["clone", "--bare", repo.dir, bare]);
+  execFileSync("git", ["clone", "--bare", repo.dir, bare], { stdio: "pipe" });
   repo.git("tag", "-d", `${FIRST_DIRECTORY}-v0.3.3`);
   repo.git("checkout", "main");
   repo.git(
@@ -147,7 +147,10 @@ export function createFirstForkScenario({
   write("packages/pi-subagents/CHANGELOG.md", "unselected core changelog\n");
   commit("chore: migrate and register actual fork manifest");
   writeFileSync(notes, "### Features\n\n- Reviewed migration to fork core.\n");
-  const git = execFileSync("which", ["git"], { encoding: "utf8" }).trim();
+  const git = execFileSync("which", ["git"], {
+    encoding: "utf8",
+    stdio: "pipe",
+  }).trim();
   const wrapper = path.join(bin, "git");
   writeFileSync(
     wrapper,
@@ -202,7 +205,7 @@ export function createFirstForkScenario({
           "for-each-ref",
           "--format=%(refname) %(objectname)",
         ],
-        { encoding: "utf8" },
+        { encoding: "utf8", stdio: "pipe" },
       ),
       bytes: Object.fromEntries(
         tracked.map((file) => [

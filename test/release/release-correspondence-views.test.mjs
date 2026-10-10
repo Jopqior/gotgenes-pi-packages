@@ -27,7 +27,16 @@ const firstRelease = (directory, version) =>
   `## [${version}](https://github.com/Jopqior/gotgenes-pi-packages/releases/tag/${directory}-v${version}) (2026-09-25)`;
 const releasePath = (directory) => `packages/${directory}/CHANGELOG.md`;
 const gitText = (repo, ...args) =>
-  execFileSync("git", args, { cwd: repo, encoding: "utf8" });
+  execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" });
+
+function errorOf(callback) {
+  try {
+    callback();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("Expected command to fail");
+}
 
 /** @type {ReturnType<typeof createReleaseArtifacts>} */
 let fixture;
@@ -274,13 +283,19 @@ describe("actual current and tagged CHANGELOG corpus", () => {
         packageDirectory: "pi-subagents",
       }),
     ).toThrow(/missing/);
-    expect(() =>
+    const missingChangelog = errorOf(() =>
       gitText(
         realRepo,
         "show",
         "pi-subagents-model-selector-v0.1.0:packages/pi-subagents-model-selector/CHANGELOG.md",
       ),
-    ).toThrow();
+    );
+    expect(missingChangelog.status).toBe(128);
+    expect(missingChangelog.stdout).toBe("");
+    expect(missingChangelog.stderr).toContain("fatal:");
+    expect(missingChangelog.stderr).toContain(
+      "packages/pi-subagents-model-selector/CHANGELOG.md",
+    );
     let matched = 0;
     let matchedFirst = 0;
     const comparedHeadings = [];

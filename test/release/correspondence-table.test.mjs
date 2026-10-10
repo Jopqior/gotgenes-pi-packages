@@ -25,6 +25,15 @@ beforeEach(() => {
 });
 afterEach(() => fixture.dispose());
 
+function errorOf(callback) {
+  try {
+    callback();
+  } catch (error) {
+    return error;
+  }
+  throw new Error("Expected command to fail");
+}
+
 function expectedRow(fork, version, source) {
   return `| ${fork.padEnd(28)} | ${version.padEnd(23)} | ${source.padEnd(117)} |\n`;
 }
@@ -165,8 +174,12 @@ describe("table CLI", () => {
     const run = (mode) =>
       execFileSync(process.execPath, [script, mode, "--repo", repo], {
         encoding: "utf8",
+        stdio: "pipe",
       });
-    expect(() => run("--check")).toThrow();
+    const stale = errorOf(() => run("--check"));
+    expect(stale.status).toBe(1);
+    expect(stale.stdout).toBe("");
+    expect(stale.stderr).toContain("generated correspondence table is stale");
     expect(readFileSync(documentPath, "utf8")).toBe(old);
     run("--write");
     expect(
@@ -180,7 +193,12 @@ describe("table CLI", () => {
     run("--write");
     expect(readFileSync(documentPath, "utf8")).toBe(written);
     writeFileSync(documentPath, `${written}\n${start}\n${end}\n`);
-    expect(() => run("--write")).toThrow();
+    const ambiguous = errorOf(() => run("--write"));
+    expect(ambiguous.status).toBe(1);
+    expect(ambiguous.stdout).toBe("");
+    expect(ambiguous.stderr).toContain(
+      "requires exactly one start and end marker",
+    );
     expect(readFileSync(documentPath, "utf8")).toBe(
       `${written}\n${start}\n${end}\n`,
     );
@@ -222,13 +240,14 @@ describe("committed generated correspondence", () => {
           path.join(realRepo, "scripts/release/correspondence-table.mjs"),
           "--check",
         ],
-        { cwd: realRepo, encoding: "utf8" },
+        { cwd: realRepo, encoding: "utf8", stdio: "pipe" },
       ),
     ).toBe("");
     // Real tagged objects, not a synthetic mapping: every row was resolved by the renderer.
     const tags = execFileSync("git", ["tag", "--list", "pi-subagents-v*"], {
       cwd: realRepo,
       encoding: "utf8",
+      stdio: "pipe",
     })
       .trim()
       .split("\n");

@@ -60,6 +60,7 @@ function gitInFixture(...args) {
   return execFileSync("git", args, {
     cwd: fixtureRepo,
     encoding: "utf8",
+    stdio: "pipe",
     env: gitEnv,
   }).trim();
 }
@@ -70,13 +71,13 @@ function gitInFixture(...args) {
  *
  * @param {string} pkg
  * @param {string} tag
- * @returns {{ status: number, stdout: string, stderr: string }}
+ * @returns {string}
  */
 function nextTag(pkg, tag) {
   const result = execFileSync(
     "bash",
     ["-c", `. '${libShPath}'; next_tag ${pkg} ${tag}`],
-    { cwd: fixtureRepo, encoding: "utf8", env: gitEnv },
+    { cwd: fixtureRepo, encoding: "utf8", stdio: "pipe", env: gitEnv },
   );
   return result;
 }
@@ -161,7 +162,7 @@ beforeEach(() => {
   execFileSync(
     "git",
     ["clone", "--shared", "--no-checkout", "--no-tags", repoRoot, fixtureRepo],
-    { encoding: "utf8", env: gitEnv },
+    { encoding: "utf8", stdio: "pipe", env: gitEnv },
   );
   gitInFixture("config", "user.name", "Test");
   gitInFixture("config", "user.email", "test@example.com");
