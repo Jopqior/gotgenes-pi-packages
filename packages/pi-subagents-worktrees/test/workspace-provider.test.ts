@@ -117,6 +117,7 @@ describe("WorktreeWorkspaceProvider", () => {
     // The branch persists in the base repo.
     const branches = execFileSync("git", ["branch", "--list"], {
       cwd: repoDir,
+      stdio: "pipe",
     }).toString();
     expect(branches).toContain("pi-agent-abc123");
   });

@@ -24,7 +24,10 @@ beforeAll(() => {
     stdio: ["ignore", "pipe", "pipe"],
   });
   packedManifest = JSON.parse(packedRead("package.json"));
-  packedFiles = execFileSync("tar", ["-tzf", tarball], { encoding: "utf8" })
+  packedFiles = execFileSync("tar", ["-tzf", tarball], {
+    encoding: "utf8",
+    stdio: "pipe",
+  })
     .trim()
     .split("\n")
     .sort();
@@ -38,6 +41,7 @@ afterAll(() => {
 function packedRead(file) {
   return execFileSync("tar", ["-xOzf", tarball, `package/${file}`], {
     encoding: "utf8",
+    stdio: "pipe",
   });
 }
 
