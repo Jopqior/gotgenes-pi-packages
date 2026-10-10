@@ -36,3 +36,40 @@ Inventoried complete successful root output, verified actual native output bound
 #### Deferred tidyings
 
 - Shared subprocess/error-wrapper extraction, fixture restructuring and cross-file `errorOf` cleanup were rejected as unnecessary scope expansion, not scheduled follow-up work.
+
+## Stage: Implementation — TDD (2026-10-11T02:15:57+08:00)
+
+### Session summary
+
+Completed three implementation cycles and the plan's verification-only fourth step in three test commits.
+Added callback-local byte capture with unconditional writer restoration, piped the remaining test-owned subprocesses, and captured noisy direct production calls without changing production code.
+The root suite increased from 43 files and 995 tests to 44 files and 1006 tests, a delta of one file and 11 tests.
+
+### Observations
+
+- Startup operation-state inspection found no merge/rebase in progress; `git pull --ff-only` reported the checkout current.
+  Baseline `check`, root `lint`, full `test`, and root `fallow dead-code` all passed before implementation.
+- The helper's seven independent mutations produced the expected reds: missing stdout/stderr capture killed 3/5 tests, missing stdout/stderr restoration killed 5/5, replacing the callback value killed 3, wrapping the thrown value killed 4, and per-chunk UTF-8 decoding killed 1.
+  Tests also retain mutable-buffer ownership, both original writers, original thrown objects/primitives, and real native subprocess status/stdout/stderr.
+- Subprocess-boundary mutations retained functional success while external log checks detected clone, checkout, historical git-cliff/native failure, table failure, and missing-CHANGELOG diagnostics.
+  Direct-call bypass mutations detected decision and CLI-comparison leakage, recorder leakage, and missing-evidence diagnostics; captured-text assertions failed independently where added.
+  Every mutation was restored and rerun green before committing.
+- The only implementation deviation was locale sensitivity in two newly added missing-revision assertions.
+  C-locale focused runs passed, but ordinary `pnpm run test` exposed Git's translated message; the amended direct-call commit retains each specific domain error and requires a nonempty `fatal:` diagnostic line instead of the English translation.
+  Both ordinary and C-locale focused runs then passed, and bypass mutations killed both revised assertions.
+- Final `pnpm run test`, `pnpm run check`, root `pnpm run lint`, and root `pnpm fallow dead-code` passed.
+  Ordinary root, explicit-default, and verbose complete C-locale runs each passed 44 files and 1006 tests in 73.84s, 74.37s, and 74.34s respectively.
+  Complete ANSI-normalized logs contained no unassigned application output, and all three stderr files were empty.
+  The newline-bearing unsupported-remote title was traced to its actual `it.each` input rather than discarded as noise.
+- The positive full-output classifier also rejected a temporary clone-capture removal: its focused test still passed, but `Cloning` and `done.` became two unassigned lines.
+  Restoring the boundary returned that focused log to zero unassigned lines.
+  Temporary raw logs and inspection tooling remain under `/tmp/f0042-*` and are not committed mechanisms.
+- The operator asked whether successful-suite and slow-test lines had disappeared from CI.
+  Vitest's existing agent detection explains the sparse local ordinary output; explicit-default output retains those lines, and the previous fork CI log contains the exact example supplied by the operator.
+  No reporter setting, test command, workflow, silence flag, production file, package file, lockfile, or issue #40 lifecycle artifact changed.
+  Actual CI verification of these new commits remains the next `/ship` stage's responsibility.
+- All files listed in the plan's Module-Level Changes table were changed; raw scenario helpers and intentional outer-captured child forwarding remained untouched.
+  The helper-adoption commit includes the verified Chris Lasher co-author trailer.
+- Pre-completion reviewer: PASS.
+  The fresh-context reviewer independently ran deterministic gates and classified the complete ordinary/default/verbose logs; no WARN findings or follow-up issues were reported.
+  No release or push was performed; the next step is `/ship 42` on `main`.
