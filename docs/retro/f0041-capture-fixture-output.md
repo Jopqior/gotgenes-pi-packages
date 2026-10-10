@@ -95,3 +95,98 @@ No release was dispatched and no worktree teardown was needed.
   Both implementation hashes in the approved close comment were resolved and confirmed ancestors of `main` before publication.
 - This checkpoint records the completed implementation ship; its documentation-only commit still needs the final push and CI verification.
   The next workflow step is `/retro 41` at the root on `main`.
+
+## Stage: Final Retrospective (2026-10-11T01:04:05+08:00)
+
+### Session summary
+
+Reviewed the planning, implementation and ship transcripts, their three subagent transcripts, and the accumulated stage notes.
+The two test-only commits fulfilled #41's original retained-fixture scope, but the operator's later clarification established a broader outcome: successful root tests should emit only `Vitest` results and summary.
+The operator-approved follow-up is [fork #42](https://github.com/Jopqior/gotgenes-pi-packages/issues/42); #41's original body and completed state were restored, and #40 remains unchanged.
+
+### Observations
+
+#### What went well
+
+- Disposable output predicates supplied a genuine red/green signal even though the existing suites passed in both conditions.
+  The implementation probe used the actual helper, reduced outer stderr from 1,253 bytes to zero and compared the complete 2,876-byte return/error serialization byte-for-byte.
+  This established capture without losing failure diagnostics or introducing the permanent tests the operator had declined.
+- The Tidy First assessment explicitly rejected wrappers, shared options and fixture migrations.
+  Both implementation commits (`test(repo): capture retained fixture subprocess output (#41)` and `test(repo): capture archive and worktree query output (#41)`) remained direct option edits.
+  The reviewer independently reran the green probes rather than accepting the dispatcher's conclusions.
+
+#### What caused friction (agent side)
+
+- `missing-context`: the planning briefing explained `execFileSync`, `spawnSync` and internal forwarding before plainly stating the visible limit: this fix would not make the complete root runner quiet.
+  The operator later asked what the mechanism description meant and whether the plan contained it, then challenged the residual noise after ship.
+  Impact: an extra explanation, post-ship diagnosis and a separate broader issue; no implementation rollback was needed.
+  The original issue deliberately excluded doomed fixtures, so this is an outcome-alignment gap, not evidence that the approved call-site edits failed.
+- `premature-convergence`: after reproducing clone and git-cliff leakage, the ship session recommended waiting for #40 before treating remaining output.
+  The deletion list supported those representative sources, not every expected-failure path that #40 would preserve or migrate.
+  Impact: the operator had to restate the desired whole-run outcome, prompting another source-by-source inspection instead of an immediate independent follow-up decision.
+- `instruction-violation` (user-caught): the agent proposed adding a quiet-output acceptance requirement to #40, despite #41's independence and no-fork-sync-plan-change constraint.
+  The operator explicitly rejected changing #40.
+  Impact: another scope clarification and decision gate, but no #40 issue or plan was actually edited.
+- `rabbit-hole`: extracting the root portion of `gh run view --log` took six consecutive `bash` calls before reading the extracted log.
+  The attempts changed tab splitting, root-run selection, ANSI removal and timestamp stripping, including one failed extraction and successful commands with unsuitable slices.
+  Impact: repeated parsing work before the output inventory; raw-log inspection or a bounded `Explore` dispatch should have replaced the loop once it exceeded five calls.
+- `other`: both planning and implementation first tried the nonexistent `.pi/skills/colgrep/SKILL.md` rather than the advertised `packages/pi-colgrep/skills/colgrep/SKILL.md`.
+  Ship also guessed `docs/plans/f0040-simplify-fork-sync.md` after the actual plan path had already been read.
+  Impact: failed reads and corrective path discovery, without code rework.
+
+#### What caused friction (user side)
+
+- The whole-run acceptance target became explicit only during the post-ship discussion: expected failures must also stay out of successful logs, while slow-test results remain legitimate `Vitest` output.
+  An earlier outcome statement could have separated that goal from retained-fixture cleanup before selecting the verification method.
+  The agent should have surfaced the known exclusions rather than requiring the operator to infer them from the plan.
+- The operator approved reopening #41, then explicitly changed direction to a separate issue.
+  Impact: #41 was reopened and edited, then its original body and closed state were restored before #42 was created.
+  This was an authorized preference change, not an unauthorized mutation; future briefings can compare extending a completed issue with preserving its original scope before the first mutation.
+
+### Diagnostic details
+
+#### Model-performance correlation
+
+Type-unfiltered transcript labels show `openai-codex/gpt-6.1-sol` throughout the parent planning, implementation and ship turns.
+The subprocess census `Explore` ran on `zai-coding-cn/glm-5.3-flash`; the Tidy First assessor and pre-completion reviewer actually ran on `openai-codex/gpt-6.1-sol`.
+The census produced concrete paths, and the parent inspected actual targets and regenerated verification; no observed defect can be attributed to the census model.
+The assessor and reviewer performed judgment work, so their model choice was not a demonstrated mismatch.
+The mechanical CI-log loop stayed in the parent; no token-cost or latency comparison was measured, so this retro does not assert a cheaper model would have improved it.
+
+#### Escalation delay and unused tools
+
+The six-call parsing sequence crossed the five-call escalation threshold without a fresh-context dispatch.
+The available `read` tool could have exposed raw log delimiters immediately; a bounded `Explore` task could also have isolated runner output.
+Both `Explore` and `colgrep` were used elsewhere, so the issue was local escalation timing, not general tool neglect.
+Repeated path guessing likewise did not need new tooling: the skill index and a quoted `f0040-*` glob already supplied the correct paths.
+
+#### Feedback-loop gaps
+
+Implementation ran `pnpm run check`, `pnpm run lint`, `pnpm run test` and `pnpm fallow dead-code` before and after the edits, with focused output predicates after each step and full affected suites after step two.
+The reviewer repeated the gates and green probes, and ship verified CI for both the implementation and stage-note heads.
+Verification was incremental, not deferred to the end.
+The gap was the signal's scope: focused output predicates proved retained-call capture, while passing the whole suite did not prove that its complete successful log contained only runner output.
+The broader complete-log criterion now belongs to #42, not a retroactive expansion of #41.
+
+### Proposed adjustment and rejected alternatives
+
+Proposed one short addition to `.pi/skills/clarification-gates/SKILL.md`: partial-fix briefings must name the visible improvement and known unchanged symptoms before offering implementation choices.
+This is a decision-time communication rule, so the admission test routes it to the existing skill rather than `AGENTS.md` or a duplicated prompt instruction.
+The operator selected retrospective notes only; the proposed skill addition was not implemented.
+
+Do not add a second rule for representative evidence: `.pi/skills/reproduction/SKILL.md` already requires reproducing the observed effect and stating limits, while `.pi/skills/delegation/SKILL.md` already rejects unverified universal claims.
+Do not add path-lookup instructions: `AGENTS.md` already advertises exact skill locations and fork-first artifact lookup.
+Do not rewrite `/plan-issue`, relax reviewer warnings, add permanent tests, alter #40 or implement #42 during this retro.
+The temporary-probe choice remains valid for #41's approved scope; the remaining cleanup requires its own plan.
+
+### Next work
+
+This repository-scoped issue has no package-roadmap successor or phase to close.
+The newest local triage, `docs/triage/2026-10-02-backlog.md`, ranks inherited upstream work rather than this fork's follow-up; its issue numbers are not fork recommendations.
+Fork #42 was rechecked as open during this retrospective and explicitly carries the remaining output cleanup.
+Recommend `/plan-issue 42`; keep #40 independent and unchanged.
+
+### Changes made
+
+1. Appended the Final Retrospective stage to `docs/retro/f0041-capture-fixture-output.md`, preserving all prior stage entries and recording cross-session friction, verification strengths, diagnostic lenses and the restored #41 / independent #42 disposition.
+2. Recorded the operator's notes-only decision in this file; no skill, prompt, `AGENTS.md`, code, test, #40 artifact or GitHub state was changed during the retrospective.
