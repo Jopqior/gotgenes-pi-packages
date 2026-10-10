@@ -28,6 +28,7 @@ const scriptPath = path.join(repoRoot, "scripts", "upstream-sync.sh");
 
 export const realGit = execFileSync("which", ["git"], {
   encoding: "utf8",
+  stdio: "pipe",
 }).trim();
 export const githubUpstream = "git@github.com:gotgenes/pi-packages.git";
 export const mergeMessage = "chore: merge upstream/main";

@@ -54,7 +54,7 @@ export function createScratchReleaseRepository(options = {}) {
    * @param {...string} args
    */
   function git(...args) {
-    execFileSync("git", args, { cwd: dir, env: gitEnv });
+    execFileSync("git", args, { cwd: dir, env: gitEnv, stdio: "pipe" });
   }
 
   git("init", "-b", "main");
@@ -72,6 +72,7 @@ export function createScratchReleaseRepository(options = {}) {
       cwd: dir,
       encoding: "utf8",
       env: gitEnv,
+      stdio: "pipe",
     }).trim();
   }
 
@@ -158,7 +159,7 @@ export function createScratchReleaseRepository(options = {}) {
       return execFileSync(
         "bash",
         ["-c", `. '${libShPath}'; cliff_args ${pkg}; bumped_version ${tag}`],
-        { cwd: dir, encoding: "utf8", env: gitEnv },
+        { cwd: dir, encoding: "utf8", env: gitEnv, stdio: "pipe" },
       );
     } catch (error) {
       // Fail loudly rather than skipping: CI installs git-cliff, so a local
@@ -196,6 +197,7 @@ export function createScratchReleaseRepository(options = {}) {
         cwd: dir,
         encoding: "utf8",
         env: gitEnv,
+        stdio: "pipe",
       });
     } catch (error) {
       throw new Error(
@@ -229,7 +231,10 @@ export function createScratchReleaseRepository(options = {}) {
    */
   function addLocalOrigin() {
     const bare = `${dir}-origin.git`;
-    execFileSync("git", ["init", "--bare", bare], { env: gitEnv });
+    execFileSync("git", ["init", "--bare", bare], {
+      env: gitEnv,
+      stdio: "pipe",
+    });
     git("remote", "add", "origin", bare);
     localOriginPath = bare;
     return bare;
@@ -329,6 +334,7 @@ export function createScratchReleaseRepository(options = {}) {
       cwd: dir,
       encoding: "utf8",
       env: gitEnv,
+      stdio: "pipe",
     });
     return listing.trim().split("\n");
   }
