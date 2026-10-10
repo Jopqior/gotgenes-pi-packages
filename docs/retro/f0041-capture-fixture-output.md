@@ -38,3 +38,36 @@ No implementation, synchronization integration, push or publication began.
 
 The assessor rejected process wrappers, shared options, fixture migrations, permanent regression scaffolding and cleanup of fixtures fork issue #40 will delete.
 Existing option objects already support the change directly; no preparatory commit is warranted.
+
+## Stage: Implementation — TDD (2026-10-11T00:20:38+08:00)
+
+### Session summary
+
+Completed both planned output-check red/green cycles and committed them separately as `test(repo): capture retained fixture subprocess output (#41)` and `test(repo): capture archive and worktree query output (#41)`.
+Added ten explicit `stdio: "pipe"` options across the four planned test/fixture files without adding permanent tests or changing production code.
+The full suite passed 9,990 tests before and after implementation, a test-count delta of zero.
+
+### Observations
+
+- Startup operation-state inspection found no merge/rebase in progress, the working tree was clean, and `git pull --ff-only` reported the checkout current.
+  Baseline and final `pnpm run check`, root `pnpm run lint`, `pnpm run test` and root `pnpm fallow dead-code` all passed; lint logs contained no Biome warning markers.
+- Regenerated the disposable release probe instead of reusing planning's builtin-options control.
+  It imported the actual helper in an outer child process with fixed Git dates and locale, exercised all six changed helper paths, caught native Git and wrapped Bash failures, and inspected both unchanged script runners.
+  Outer stderr fell from 1,253 bytes to zero, while the complete 2,876-byte serialized return/error data stayed byte-identical.
+  Native Git failures retained status `128` and captured diagnostics; both script runners retained forwarded stdout, stderr and status `7`.
+- Regenerated separate noisy-success PATH shims that delegated to real `which`, tar and Git commands through existing suites.
+  The suites passed before the edits while their output predicates failed; marker counts fell from 1, 17 and 1 respectively to zero after the edits.
+  These markers are synthetic diagnostics, not claims of naturally noisy tar, path lookup or branch-query success.
+- Focused version/network checks passed 14 tests; the complete root script suite passed 43 files / 995 tests, and worktrees passed 8 files / 74 tests.
+  Packed file-list/content assertions, rescued-branch assertions and generated-wrapper forwarding remained intact.
+  No new tests were authored, and the plan specified no killing mutations for these output-check cycles.
+- The synchronous-call census was repeated after implementation.
+  Fork issue #40 had not landed, so all planned retained paths remained in place; its obsolete policy fixtures were deliberately left untouched and still emit some output in the full root suite.
+  All four planned edit targets changed; the other listed verification inputs stayed unchanged as predicted.
+  There were no plan deviations, lockfile changes, module-layout changes, architecture updates or new follow-up issues.
+- Pre-completion reviewer: WARN, with no blocking findings.
+  The reviewer independently ran all deterministic gates and repeated the green output probes.
+  Reviewer warnings: the automated public-contract decision surface flagged the exported `createScratchReleaseRepository` change because no permanent contract test or external consumer edit was added.
+  Existing consumers and the complete return/error comparison showed no contract break; the warning does not change the operator-approved decision to use disposable verification only.
+- No push, package publication, release dispatch or production synchronization was performed.
+  The next stage is `/ship 41` on `main`.
