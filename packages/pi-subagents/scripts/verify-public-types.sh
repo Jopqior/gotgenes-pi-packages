@@ -66,6 +66,7 @@ cat > "$CONSUMER/probe.ts" <<'TS'
 import {
   getSubagentsService,
   SUBAGENT_EVENTS,
+  type ResumeRefusal,
   type SpawnSelection,
   type SpawnSelectionProvider,
   type SpawnSelectionRegistration,
@@ -96,8 +97,16 @@ const provider: WorkspaceProvider = {
 const phase: TurnBudgetPhase = "warned";
 const budget: TurnBudget = { maxTurns: 4, used: 2, phase };
 const unlimitedBudget: TurnBudget = { used: 1, phase: "within" };
+const resumable: Pick<SubagentRecord, "resumeRefusal"> = {};
+void resumable;
 
 function inspectRecord(record: SubagentRecord): TurnBudget | undefined {
+  const refusal: ResumeRefusal | undefined = record.resumeRefusal;
+  // @ts-expect-error Selection activity remains a private presentation fact.
+  void record.awaitingSelection;
+  // @ts-expect-error Progress timestamps are not part of the public snapshot.
+  void record.lastProgressAt;
+  void refusal;
   const currentBudget: TurnBudget | undefined = record.turnBudget;
   if (currentBudget) {
     const used: number = currentBudget.used;

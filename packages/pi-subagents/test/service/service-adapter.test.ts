@@ -52,11 +52,20 @@ describe("toSubagentRecord", () => {
   it("reports session-released once the retention sweep has freed the session", async () => {
     const agent = createTestSubagent({ sessionReady: true });
     await agent.releaseSession();
-    expect(toSubagentRecord(agent).resumeRefusal).toBe("session-released");
+    expect(toSubagentRecord(agent)).toEqual({
+      id: "agent-1", type: "general-purpose", description: "Test task", status: "completed", isBackground: true,
+      result: "All done.", toolUses: 3, startedAt: 1000, completedAt: 2000,
+      lifetimeUsage: { input: 500, output: 500, cacheWrite: 0 }, compactionCount: 0,
+      resumeRefusal: "session-released",
+    });
   });
 
   it("omits resumeRefusal when a resume would start", () => {
-    expect(toSubagentRecord(createTestSubagent({ sessionReady: true }))).not.toHaveProperty("resumeRefusal");
+    expect(toSubagentRecord(createTestSubagent({ sessionReady: true }))).toEqual({
+      id: "agent-1", type: "general-purpose", description: "Test task", status: "completed", isBackground: true,
+      result: "All done.", toolUses: 3, startedAt: 1000, completedAt: 2000,
+      lifetimeUsage: { input: 500, output: 500, cacheWrite: 0 }, compactionCount: 0,
+    });
   });
 
   it("carries a declared question so a consumer can surface it as answerable", () => {
@@ -128,14 +137,17 @@ describe("toSubagentRecord", () => {
       status: "running",
       completedAt: undefined,
       awaitingSelection: true,
+      lastProgressAt: 1500,
     });
     expect(record.awaitingSelection).toBe(true);
+    expect(record.lastProgressAt).toBe(1500);
     expect(record.status).toBe("running");
 
     const snapshot = toSubagentRecord(record);
 
     expect(snapshot.status).toBe("running");
     expect(snapshot).not.toHaveProperty("awaitingSelection");
+    expect(snapshot).not.toHaveProperty("lastProgressAt");
   });
 
   it("does not drift when the agent keeps accumulating usage", () => {
