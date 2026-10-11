@@ -61,6 +61,10 @@ Load this skill when writing, debugging, or planning tests.
 - Prefer strong assertions that match the **entire** expected value (`toBe`, `toEqual`) over subset matchers (`toContain`, `toMatchObject`, `expect.objectContaining`).
   Weak assertions hide unexpected values and make tests less useful as documentation.
   When a weak assertion is necessary (third-party output, non-deterministic ordering), add a comment explaining why.
+- When asserting native-command diagnostics, retain the specific failure assertion and match locale-independent diagnostic structure.
+  For Git, require a captured nonempty `fatal:` line rather than its English translation.
+  Before committing, run affected tests with the normal test command; C-locale runs supplement that check.
+  When exact wording is the contract, set the locale explicitly in the test.
 - When a test drives the code through a validation/parse step and the invalid-input fallback returns the same value a negative-path test asserts (e.g. a forwarded-response fixture missing a required field and a `denied` expectation both yield `{ approved: false, state: "denied" }`), a broken fixture false-greens the negative test.
   Assert the positive (non-fallback) path against the same fixture builder first — a malformed fixture then fails loudly there — or assert a discriminating field the fallback cannot produce.
 - `toMatchObject` does not assert a key's **absence**: an expected `undefined` value requires the key to be present on the received object, so `toMatchObject({ flag: undefined })` fails when `flag` is missing.

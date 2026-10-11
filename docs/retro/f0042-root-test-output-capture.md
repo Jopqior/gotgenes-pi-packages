@@ -96,3 +96,85 @@ The operator approved the issue-close comment after removing its redundant contr
   Issue #40 remains independent, and issue #41 remains completed under its original scope.
 - No worktree or branch teardown is needed in this trunk-lane ship.
   The next step is `/retro 42` at the root on `main`.
+
+## Stage: Final Retrospective (2026-10-11T12:02:03+08:00)
+
+### Session summary
+
+Reviewed the planning, implementation and Ship transcripts alongside their accumulated stage notes for this repository-scoped issue.
+The three test commits removed application diagnostics without changing production output, reporter configuration or issue #40's scope; actual CI retained successful-suite and slow-test results.
+The main reusable adjustment is to verify native-command diagnostic assertions in the ordinary locale before committing, not only under C-locale output inspection.
+
+### Observations
+
+#### What went well
+
+- Output verification detected a regression that functional tests could not: removing clone capture left the focused test green but produced two unassigned application lines.
+  The complete positive line classification was independently checked by the reviewer and applied to real CI, including the legitimate multiline test-title continuation.
+  This demonstrates why successful exit status alone cannot verify an output-cleanup change.
+- The upstream callback-local capture convention supplied a small reusable design without a production logging interface.
+  The Tidy-First assessment rejected unnecessary preparatory extraction and corrected the assumed forwarding location before the plan landed; the adopted design received its verified co-author trailer in `935eced82`.
+
+#### What caused friction (agent side)
+
+- `missing-context` — new assertions in `test/release/upstream-release.test.mjs` and `test/release/release-correspondence.test.mjs` required Git's English `Needed a single revision` message.
+  Step-three focused verification used `LC_ALL=C LANG=C`, so it passed; the ordinary full suite exposed translated diagnostics only after the implementation commit.
+  Impact: two assertions were rewritten, both locales and bypass mutations were rerun, and the direct-call commit was amended for the fix and its explanatory body before becoming `78294f951`.
+- `missing-context` — the implementation summary reported clean ordinary/default/verbose logs without immediately showing that ordinary local execution selected Vitest's agent reporter while CI retained default-reporter detail.
+  The operator asked first about missing success/slow-test lines, then about CI; the agent inspected compiled Vitest behavior and the previous fork CI log to answer.
+  Impact: two operator clarification turns and six diagnostic tool calls, with no code or reporter rework.
+  The planning notes had already identified agent-reporting behavior, so this was a handoff/presentation gap rather than a new discovery.
+- `scope-drift` — the proposed Ship close comment repeated thanks to `@gotgenes` for a convention already credited in the adopting commit, although that contributor was not this issue's reporter or commenter.
+  Impact: an additional explanation and operator approval turn before removing the sentence; nothing inappropriate was published, and the co-author trailer remained intact.
+- `other` — the temporary CI classifier assumed single spaces in Vitest's banner and rejected the actual padded banner.
+  Impact: one failed classifier invocation, one read of the actual CI test log and one corrected invocation; no application output was discarded to obtain a pass.
+- `instruction-violation` — the implementation reran `pnpm run test` into `/tmp/f0042-final-test.log` after the locale-related failure, overwriting that failed-run log.
+  The loaded `testing` skill already required preserving failed evidence before retrying.
+  Self-identified during this retrospective, not during implementation and not user-caught.
+  Impact: the original full failing log was lost; the transcript and commit body retain the diagnosis, but they are not a replacement for raw failed-run evidence.
+  No duplicate preservation rule is proposed.
+
+#### What caused friction (user side)
+
+- The operator's reporter questions supplied concrete missing lines and led to verification against a real fork CI log rather than an assumption about CI.
+  The opportunity is agent-side: accompany an output-cleanup checkpoint with one retained suite/slow-test example and distinguish local reporter selection from actual CI evidence, avoiding mechanical oversight by the operator.
+- Asking whether upstream had a similar convention provided useful design direction before implementation.
+  If established-convention reuse is a recurring preference, stating it at planning kickoff can move that check earlier; the agent still owns checking available conventions.
+
+### Diagnostic details
+
+- **Model-performance correlation:** inline turn labels attribute the planning, TDD and Ship stages to `openai-codex/gpt-6.1-sol`.
+  The Explore output-boundary audit, Tidy-First assessment and pre-completion reviewer transcripts also show that model, rather than merely its configured default.
+  These dispatches involved call-chain analysis, scope judgment or independent verification; no demonstrated quality mismatch was found, and no cost comparison was measured.
+- **Escalation and tools:** no unresolved same-error sequence exceeding five consecutive tool calls was identified in the locale or CI-banner corrections.
+  Explore and `colgrep` were used for boundary discovery, and a fresh-context reviewer checked acceptance evidence; no actionable unused-tool gap emerged.
+- **Feedback-loop gap:** baseline gates and focused verification ran before and during implementation, and final ordinary/C-locale complete runs plus independent checks followed.
+  Verification was not end-only; the narrow gap was ordinary-locale coverage for newly authored diagnostic assertions before the direct-call commit.
+  Separating deterministic C-locale output inventories from portable assertion verification would have caught the two failures earlier.
+
+### Proposed adjustment
+
+Add one native-command diagnostic bullet to `.pi/skills/testing/SKILL.md` under `## Test assertions`.
+It belongs in the already-loaded testing skill, not `AGENTS.md` or a duplicated TDD-template instruction.
+The admission test supports a narrow addition because the loaded guidance did not prevent C-locale-only focused verification from masking these two new assertions; exact wording remains valid when wording itself is the contract.
+Do not add reporter configuration, a permanent log-classifier framework, a contributor-thanks prohibition or another failed-log preservation rule.
+
+### Next-work context
+
+The plan has no package-phase successor or dependency on #40.
+The newest triage, `docs/triage/2026-10-02-backlog.md`, is inherited upstream context: its rank-one item is `gotgenes/pi-packages#1001`, not a fork work assignment.
+The fork currently has open issues #40 and #26; #40 has an existing plan at `docs/plans/f0040-fork-sync-simplification.md` and is a related but independent implementation candidate, not an issue unblocked by #42.
+
+### Transcript evidence
+
+- Planning: `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-10-10T17-07-56-321Z_01a126c9-1b21-76c6-b5c5-514d677ab993.jsonl`.
+- TDD: `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-10-10T17-35-55-914Z_01a126e2-bc0a-76c6-b5c5-515600cd5fe2.jsonl`.
+- Ship: `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-10-11T03-19-15-089Z_01a128f8-c791-7548-ba34-e7356ffdaff2.jsonl`.
+- Subagent model attribution was checked with `list_subagent_sessions` and type-unfiltered `read_session_file` calls on the three corresponding task transcripts.
+
+### Changes made
+
+1. Appended this cross-stage retrospective to `docs/retro/f0042-root-test-output-capture.md`, preserving all prior stage entries and recording the failed-log preservation violation without duplicating its existing rule.
+2. Added the operator-approved native-command diagnostic guidance to `.pi/skills/testing/SKILL.md` under `## Test assertions`: retain the failure assertion, match locale-independent structure, verify with the normal test command before committing, and explicitly set the test locale when exact wording is the contract.
+3. Revised the proposed wording after the operator asked what locale overrides meant and requested alignment with the existing assertion bullets and `writing-for-agents`.
+   Replaced the detached `Example:` label with an integrated Git example and made the ordinary verification action explicit; rationale remains here rather than becoming additional prompt or `AGENTS.md` prose.
