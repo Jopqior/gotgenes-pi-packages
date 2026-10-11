@@ -1,5 +1,5 @@
 /**
- * Composition-root tests for `piSubagentsModelSelectorExtension(pi)`.
+ * Extension-entry tests for `piSubagentsModelSelectorExtension(pi)`.
  *
  * These run the real factory and pin wiring that unit tests cannot see:
  * registration at initialization, UI attach at session_start, inherited

@@ -50,7 +50,6 @@ If the service is present but lacks `registerSpawnSelectionProvider`, the same c
 
 The selector declares `@jopqior/pi-subagents` as a required peer dependency with a floor of `>=1.0.0`.
 The floor describes the spawn-selection API the selector needs, independently of the core version used for development, so developing against one core version does not move the published range.
-The floor has been verified against the published core releases 1.0.0, 1.0.1, 1.0.2, and 2.0.0, and the maintainer verification command below keeps that verification current.
 The open upper bound is a maintenance policy rather than a guarantee that every future core major works without a selector release.
 
 ### Migrating to the peer dependency
@@ -67,15 +66,10 @@ A core release alone does not.
 
 ### Maintainer verification
 
-`pnpm run verify:core-compatibility` in this package reproduces the packed-compatibility checks behind this policy.
-It packs the real selector, asserts the packed manifest contract, and repacks an isolated workspace copy across a changed sibling core version to show the public peer range is unchanged.
-It installs the selector tarball into disposable consumers with the historical core releases listed above and the selector's legacy host pins.
-A separate candidate row packs the actual local core (including its public declarations), installs both local tarballs with Pi 1.0.0 and TypeBox 1.3.27, and checks the installed core's identity and version against its packed manifest.
-The candidate host pins do not change the historical rows or the selector's published peer range.
-Every positive row type-checks the installed selector source without workspace aliases and loads the core before the selector through the real Pi loader in a fresh process, asserting the service's registration capability and selector lifecycle hooks.
-The matrix retains negative missing-package, missing-service, reversed-order and labeled synthetic incompatible-service rows, plus controls rejecting incorrect diagnostics.
-Loader registration is not an interactive chooser, cancellation or resume smoke test.
-The command needs network access to npmjs.org, builds every fixture in a temporary directory it removes afterwards, and stays out of the Vitest suite.
+Run `pnpm --filter @jopqior/pi-subagents-model-selector run test` and `pnpm --filter @jopqior/pi-subagents-model-selector run check` from the repository root.
+The package tests cover provider registration and lifecycle, missing service capabilities, TUI readiness, selection, cancellation, queueing and form behavior.
+Tests in `test/index.test.ts` run the real extension factory with a fake Pi API and a fake service published through the core accessor; they do not verify installed-package loading or compatibility across core versions.
+CI runs these package tests but does not run a packed-consumer compatibility matrix.
 
 ## Behavior
 
