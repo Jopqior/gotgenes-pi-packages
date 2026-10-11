@@ -158,12 +158,6 @@ This package publishes two public subpath entries, each with a rolled self-conta
 Use `loadLayeredSettings<T>({ agentDir, cwd, filename, sanitize, warnLabel })` from `@jopqior/pi-subagents/settings` to read global + project JSON config with the standard `@gotgenes/pi-*` layering convention.
 See the `## For Extension Authors` section of `README.md` for the full wiring example.
 
-`get_subagent_result` accepts optional `timeout` seconds for a bounded `wait`; omission keeps the unbounded wait and `wait: false` does not wait.
-The bound owns timer/listener cleanup and releases only the current carrier's claim on expiry, without consuming or stopping an unsettled run.
-Its report passes the existing private `awaitingSelection` fact to `describeActivity` and selects chooser-specific expiry advice, withholding model labels in text and metadata until confirmation.
-`SubagentState` owns `lastProgressAt`: initialize at start, reset for start/resume, and stamp every event through `lifecycle/record-observer.ts`; this timestamp stays private.
-The public adapter projects optional `resumeRefusal` from the record's existing getter, not another admission predicate.
-
 What `SubagentRecord` may carry is settled by `docs/decisions/0005-subagent-record-admission-policy.md`, not by a per-field vote: the snapshot admits identity, resolved spawn facts, cumulative metrics, and durable-artifact pointers, and withholds live objects, momentary activity (`activeTools`, `responseText`, `awaitingSelection`, `lastProgressAt`), package-internal bookkeeping, and display snapshots.
 It is produced by this package and read by consumers — never implemented by them — so adding a field is semver-minor while removing or retyping one is semver-major, and the snapshot is by value (copy anything the agent keeps mutating).
 

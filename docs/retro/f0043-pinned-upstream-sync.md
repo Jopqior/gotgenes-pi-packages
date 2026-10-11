@@ -87,3 +87,6 @@ The independent pre-completion review remains pending at this checkpoint; no pus
 - No additional compatibility choice or concrete follow-up arose; fork issue #26 remains outside this synchronization.
   Shipping must use the actual first parent as `RANGE_BASE`, close only verified fork targets, skip upstream-number co-shipped scanning and obtain separate publication approval.
   Start a fresh Pi session before `/ship #43` so tooling and prompts are not stale.
+- Before review, the operator accepted the README's selection-query explanation but rejected duplicating the implementation summary in the package skill.
+  Removed the added five-line summary without inserting another pointer; retained the skill's directory/module-count corrections and its existing public-snapshot paragraph's private `lastProgressAt` example.
+  README behavior documentation and architecture/source ownership remain unchanged.
