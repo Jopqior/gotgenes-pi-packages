@@ -90,3 +90,15 @@ The independent pre-completion review remains pending at this checkpoint; no pus
 - Before review, the operator accepted the README's selection-query explanation but rejected duplicating the implementation summary in the package skill.
   Removed the added five-line summary without inserting another pointer; retained the skill's directory/module-count corrections and its existing public-snapshot paragraph's private `lastProgressAt` example.
   README behavior documentation and architecture/source ownership remain unchanged.
+
+### Pre-completion outcome (2026-10-11T23:04:58+08:00)
+
+Pre-completion reviewer: PASS, with no WARN findings or required fixes.
+The reviewed HEAD is `a9fd2ff8d3671af0951efa7d946a4d63414fea56`; the exact review range is `3a727fabbba301ac11db7f58b4ab0a7c2ae34158..a9fd2ff8d3671af0951efa7d946a4d63414fea56`.
+The reviewer independently regenerated both complete inventories, verified topology, examined conflict resolutions and relevant automatic merges plus every post-merge contribution, and ran root gates, applicable packed compatibility/public-consumer checks, Mermaid rendering and separate core/worktrees source resolution at that HEAD.
+Inventory coverage was distinguished from deep review of fork-contract intersections; unrelated inherited behavior and omitted optional live checks were not promoted into synchronization warnings.
+
+Three test-focused implementation cycles (runnable-fixture repair, pending-selection query behavior and public snapshot/packed-consumer verification) are complete; the final stage-notes commit changes documentation only.
+The operator-approved skill-summary removal is the only additional documentation adjustment after the first implementation handoff.
+Stop before shipping: start a fresh root Pi session and run `/ship #43`, using the actual merge first parent as `RANGE_BASE` and only verified fork close targets.
+Release dispatch or publication still requires separate operator approval; no push, release or closure has occurred.
