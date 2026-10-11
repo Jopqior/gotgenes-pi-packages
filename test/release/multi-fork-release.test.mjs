@@ -12,10 +12,7 @@ import {
   prepareArtifacts,
   validatePublishedArtifacts,
 } from "../../scripts/release/release-artifacts.mjs";
-import {
-  findReleaseSection,
-  readTaggedReleaseSection,
-} from "../../scripts/release/release-correspondence.mjs";
+import { readTaggedReleaseSection } from "../../scripts/release/release-correspondence.mjs";
 import {
   createMultiForkScenario,
   WORKTREES,
@@ -395,49 +392,5 @@ describe("selected correspondence table", () => {
     expect(run("--package", directory, "--write").stderr).toContain(
       "no release package registration",
     );
-  });
-});
-
-describe("strict first release heading", () => {
-  const directory = WORKTREES.directory;
-  const tag = `${directory}-v0.1.0`;
-  const heading = `## [0.1.0](https://github.com/Jopqior/gotgenes-pi-packages/releases/tag/${tag}) (2026-09-25)`;
-  it("reads exact first-tag bytes with CRLF, fences and tagged round trip", () => {
-    const section = `${heading}\r\n\r\nReviewed first notes.  \r\n\r\n`;
-    const text = `# Changelog\r\n\r\n~~~~markdown\r\n${heading}\r\n~~~~\r\n\`\`\`\`markdown\r\n\`\`\`\r\n${heading}\r\n\`\`\`\r\n\`\`\`\`\r\n${section}## [0.0.9] (inherited)\r\n`;
-    expect(findReleaseSection(text, tag, directory)).toBe(section);
-    fixture.repo.writeChangelog(directory, text);
-    fixture.repo.git("add", "-A");
-    fixture.repo.git("commit", "-m", "test: exact first heading bytes");
-    fixture.repo.git("tag", "-f", tag);
-    expect(
-      readTaggedReleaseSection({
-        repo: fixture.repo.dir,
-        tag,
-        packageDirectory: directory,
-      }),
-    ).toBe(section);
-    expect(() =>
-      findReleaseSection(`${heading}\n\n\`\`\`text\n`, tag, directory),
-    ).toThrow(/unclosed/);
-    expect(() =>
-      findReleaseSection(`${heading}\nA\n${heading}\nB\n`, tag, directory),
-    ).toThrow(/ambiguous/);
-    const compare = `## [0.1.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/${directory}-v0.0.0...${tag}) (2026-09-25)`;
-    expect(() =>
-      findReleaseSection(`${heading}\nA\n${compare}\nB\n`, tag, directory),
-    ).toThrow(/ambiguous/);
-  });
-  it.each([
-    heading.replace("Jopqior/gotgenes-pi-packages", "gotgenes/pi-packages"),
-    heading.replace("Jopqior/gotgenes-pi-packages", "other/repo"),
-    heading.replace(tag, "pi-subagents-v0.1.0"),
-    heading.replace(tag, `${directory}-v0.1.1`),
-    heading.replace("[0.1.0]", "[0.1.1]"),
-    "## [0.1.0] (2026-09-25)",
-  ])("rejects nonexact heading %s", (invalid) => {
-    expect(() =>
-      findReleaseSection(`${invalid}\nBody\n`, tag, directory),
-    ).toThrow(/missing/);
   });
 });

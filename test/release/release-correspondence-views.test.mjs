@@ -1,63 +1,25 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   assertExistingRelease,
   assertReleaseProvenance,
 } from "../../scripts/release/release-artifacts.mjs";
 import {
-  findReleaseSection,
   readReleasePackages,
   readTaggedReleaseSection,
   renderUpstreamCorrespondence,
   resolvePublishedCorrespondence,
 } from "../../scripts/release/release-correspondence.mjs";
-import { createReleaseArtifacts } from "./helpers/release-artifacts.mjs";
 
 const realRepo = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../..",
 );
-const comparison = (directory, previous, version) =>
-  `## [${version}](https://github.com/Jopqior/gotgenes-pi-packages/compare/${directory}-v${previous}...${directory}-v${version}) (2026-09-25)`;
-const firstRelease = (directory, version) =>
-  `## [${version}](https://github.com/Jopqior/gotgenes-pi-packages/releases/tag/${directory}-v${version}) (2026-09-25)`;
-const releasePath = (directory) => `packages/${directory}/CHANGELOG.md`;
 const gitText = (repo, ...args) =>
   execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" });
-
-function errorOf(callback) {
-  try {
-    callback();
-  } catch (error) {
-    return error;
-  }
-  throw new Error("Expected command to fail");
-}
-
-/** @type {ReturnType<typeof createReleaseArtifacts>} */
-let fixture;
-beforeEach(() => {
-  fixture = createReleaseArtifacts();
-});
-afterEach(() => fixture.dispose());
-
-function tagChangelog(text, tag = "pi-subagents-v1.0.1") {
-  const file = path.join(fixture.repo.dir, releasePath("pi-subagents"));
-  mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, text);
-  fixture.repo.git("add", ".");
-  fixture.repo.git("commit", "-m", "docs: release notes fixture");
-  fixture.repo.git("tag", "-f", tag);
-  return readTaggedReleaseSection({
-    repo: fixture.repo.dir,
-    tag,
-    packageDirectory: "pi-subagents",
-  });
-}
 
 describe("canonical upstream correspondence block", () => {
   const provenance = {
@@ -117,103 +79,6 @@ describe("canonical upstream correspondence block", () => {
   });
 });
 
-describe("exact tagged CHANGELOG section", () => {
-  describe("first-release tag headings", () => {
-    // Use a version other than 0.1.0: validity comes from the exact tag,
-    // not a conventional first-version number.
-    const heading = firstRelease("pi-subagents", "1.0.1");
-
-    it("selects the exact fork tag heading over same-version inherited notes", () => {
-      const section = `${heading}\n\nFirst fork body.\n\n`;
-      expect(
-        tagChangelog(
-          `${firstRelease("pi-subagents", "9.0.0")}\nLater notes.\n\n` +
-            section +
-            `${heading.replace("Jopqior/gotgenes-pi-packages", "gotgenes/pi-packages")}\nInherited body.\n`,
-        ),
-      ).toBe(section);
-    });
-
-    it.each([
-      ["wrong repository", "Jopqior/gotgenes-pi-packages", "other/repo"],
-      ["wrong URL package", "tag/pi-subagents-", "tag/pi-subagents-worktrees-"],
-      ["wrong URL version", "-v1.0.1)", "-v1.0.10)"],
-      ["wrong heading version", "[1.0.1]", "[1.0.10]"],
-      ["malformed tag", "-v1.0.1)", "-v01.0.1)"],
-      ["noncanonical URL", "https://", "http://"],
-      ["extra URL suffix", "-v1.0.1)", "-v1.0.1/extra)"],
-    ])(
-      "rejects a %s first heading even with a compare link in its body",
-      (_name, from, to) => {
-        expect(() =>
-          tagChangelog(
-            `${heading.replace(from, to)}\n\n${comparison("pi-subagents", "1.0.0", "1.0.1").slice(3)}\n`,
-          ),
-        ).toThrow(/missing.*exact fork section/);
-      },
-    );
-
-    it("rejects duplicate first headings and mixed first/compare matches", () => {
-      for (const duplicate of [
-        heading,
-        comparison("pi-subagents", "1.0.0", "1.0.1"),
-      ]) {
-        expect(() => tagChangelog(`${heading}\nA\n${duplicate}\nB\n`)).toThrow(
-          /ambiguous/,
-        );
-      }
-    });
-  });
-
-  it("selects the fork link, not a matching upstream version or a wrong repository", () => {
-    const heading = comparison("pi-subagents", "1.0.0", "1.0.1");
-    const section = `${heading}\n\n### Fork notes\n\nFork body.\r\n\r\n`;
-    const text =
-      `# Changelog\n\n## [1.0.1](https://github.com/gotgenes/pi-packages/compare/pi-subagents-v1.0.0...pi-subagents-v1.0.1) (2026-09-25)\n\nUpstream body.\n\n` +
-      `## [1.0.1](https://github.com/other/repo/compare/pi-subagents-v1.0.0...pi-subagents-v1.0.1) (2026-09-25)\n\nOther repo.\n\n` +
-      section +
-      "## [0.0.9] (older)\n";
-    expect(tagChangelog(text)).toBe(section);
-  });
-
-  it("preserves CRLF bytes and does not trim the terminal tagged section", () => {
-    const text = `${comparison("pi-subagents", "1.0.0", "1.0.1")}\r\n\r\nbody  \r\n\r\n`;
-    expect(tagChangelog(text)).toBe(text);
-    const followed = `${text}## [0.0.9] (older)\r\n`;
-    expect(tagChangelog(followed)).toBe(text);
-  });
-
-  it("ignores four-backtick and tilde fences, including nested triple-backtick text", () => {
-    const fake = comparison("pi-subagents", "1.0.0", "1.0.1");
-    const real = `${fake}\n\nReal body.\n\n`;
-    const text =
-      `# Changelog\n\n\`\`\`\`markdown\n\`\`\`\n${fake}\n\`\`\`\n\`\`\`\`\n~~~markdown\n${fake}\n~~~\n` +
-      real +
-      `\`\`\`\`text\n## [0.1.0] (not a boundary)\n\`\`\`\`\nStill in section.\n`;
-    expect(tagChangelog(text)).toBe(
-      `${real}\`\`\`\`text\n## [0.1.0] (not a boundary)\n\`\`\`\`\nStill in section.\n`,
-    );
-  });
-
-  it("rejects duplicate matching headings and refuses version-only or malformed headings", () => {
-    const heading = comparison("pi-subagents", "1.0.0", "1.0.1");
-    expect(() => tagChangelog(`${heading}\nA\n${heading}\nB\n`)).toThrow(
-      /ambiguous|multiple/,
-    );
-    expect(() => tagChangelog("## [1.0.1] (2026-09-25)\nBody\n")).toThrow(
-      /missing|section/,
-    );
-    expect(() =>
-      tagChangelog(`${comparison("pi-subagents", "1.0.0", "1.0.10")}\nBody\n`),
-    ).toThrow(/missing|section/);
-    expect(() =>
-      tagChangelog(
-        "## [1.0.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v1.0.0...pi-subagents-v9.0.0) (2026-09-25)\nBody\n",
-      ),
-    ).toThrow(/missing|section/);
-  });
-});
-
 describe("actual current and tagged CHANGELOG corpus", () => {
   it("intentionally rejects immutable historical hardbreak provenance under current validation", () => {
     const tag = "pi-subagents-v5.0.0";
@@ -247,136 +112,48 @@ describe("actual current and tagged CHANGELOG corpus", () => {
     );
   });
 
-  it("replays all tracked CHANGELOGs and registered package tags without an unsafe manual fallback", () => {
+  it("validates published provenance for exact first-tag headings", () => {
     const registry = readReleasePackages(
       path.join(realRepo, "scripts/release/release-packages.json"),
       realRepo,
     );
-    const files = gitText(realRepo, "ls-files", "packages/*/CHANGELOG.md")
-      .trimEnd()
-      .split("\n");
-    expect(files.length).toBeGreaterThanOrEqual(10);
-    const headings = files.flatMap((file) => {
-      const text = gitText(realRepo, "show", `HEAD:${file}`);
-      expect(text.startsWith("# Changelog")).toBe(true);
-      return text.match(/^## .+$/gm) ?? [];
-    });
-    expect(headings.length).toBeGreaterThanOrEqual(581);
-    const forkCompareHeadings = headings.filter((heading) =>
-      heading.includes("github.com/Jopqior/gotgenes-pi-packages/compare/"),
-    );
-    const exceptions = new Set([
-      "pi-subagents-v1.0.0", // Manually authored heading, no comparison link.
-      "pi-subagents-model-selector-v0.1.0", // Tag has no CHANGELOG.
-    ]);
-    const observedExceptions = new Set();
-    const manualFirst = gitText(
-      realRepo,
-      "show",
-      "pi-subagents-v1.0.0:packages/pi-subagents/CHANGELOG.md",
-    );
-    expect(manualFirst).toMatch(/^## \[1\.0\.0\] \(\d{4}-\d{2}-\d{2}\)$/m);
-    expect(() =>
-      readTaggedReleaseSection({
-        repo: realRepo,
-        tag: "pi-subagents-v1.0.0",
-        packageDirectory: "pi-subagents",
-      }),
-    ).toThrow(/missing/);
-    const missingChangelog = errorOf(() =>
-      gitText(
-        realRepo,
-        "show",
-        "pi-subagents-model-selector-v0.1.0:packages/pi-subagents-model-selector/CHANGELOG.md",
-      ),
-    );
-    expect(missingChangelog.status).toBe(128);
-    expect(missingChangelog.stdout).toBe("");
-    expect(missingChangelog.stderr).toContain("fatal:");
-    expect(missingChangelog.stderr).toContain(
-      "packages/pi-subagents-model-selector/CHANGELOG.md",
-    );
-    let matched = 0;
-    let matchedFirst = 0;
-    const comparedHeadings = [];
     for (const entry of registry.packages) {
       const tags = gitText(realRepo, "tag", "--list", `${entry.directory}-v*`)
         .trimEnd()
         .split("\n")
         .filter(Boolean);
-      const current = gitText(
-        realRepo,
-        "show",
-        `HEAD:${releasePath(entry.directory)}`,
-      );
       for (const tag of tags) {
-        if (exceptions.has(tag)) {
-          observedExceptions.add(tag);
+        // Scanner failures stay in release-section.test.mjs, not provenance replay.
+        if (
+          tag === "pi-subagents-v1.0.0" ||
+          tag === "pi-subagents-model-selector-v0.1.0"
+        )
           continue;
-        }
-        const raw = gitText(
-          realRepo,
-          "show",
-          `${tag}:${releasePath(entry.directory)}`,
-        );
         const section = readTaggedReleaseSection({
           repo: realRepo,
           tag,
           packageDirectory: entry.directory,
         });
-        expect(raw.includes(section)).toBe(true);
-        const currentSection = findReleaseSection(
-          current,
-          tag,
-          entry.directory,
+        if (!section.split(/\r?\n/, 1)[0].includes("/releases/tag/")) continue;
+        expect(entry.kind).toBe("fork");
+        const state = JSON.parse(
+          gitText(
+            realRepo,
+            "show",
+            `${tag}:scripts/release/${entry.directory}/sync-state.json`,
+          ),
         );
-        expect(current.includes(currentSection)).toBe(true);
-        expect(
-          currentSection.startsWith(
-            `## [${tag.slice(`${entry.directory}-v`.length)}](`,
-          ),
-        ).toBe(true);
-        expect(
-          section.startsWith(
-            `## [${tag.slice(`${entry.directory}-v`.length)}](`,
-          ),
-        ).toBe(true);
-        const heading = section.split(/\r?\n/, 1)[0];
-        expect(currentSection.split(/\r?\n/, 1)[0]).toBe(heading);
-        if (heading.includes("/releases/tag/")) {
-          // The strict section reader already checks repository, package,
-          // version and URL. A first-tag link also needs published evidence,
-          // not a hardcoded version or another manual corpus exception.
-          expect(entry.kind).toBe("fork");
-          const state = JSON.parse(
-            gitText(
-              realRepo,
-              "show",
-              `${tag}:scripts/release/${entry.directory}/sync-state.json`,
-            ),
-          );
-          expect(state.releases[0].forkTag).toBe(tag);
-          const provenance = resolvePublishedCorrespondence({
-            repo: realRepo,
-            tag,
-            registry,
-            state,
-          });
-          expect(() =>
-            assertReleaseProvenance(section, provenance),
-          ).not.toThrow();
-          matchedFirst++;
-        } else {
-          // Inspect the heading, not a compare URL mentioned in the body.
-          expect(heading.includes("/compare/")).toBe(true);
-          comparedHeadings.push(heading);
-        }
-        matched++;
+        expect(state.releases[0].forkTag).toBe(tag);
+        const provenance = resolvePublishedCorrespondence({
+          repo: realRepo,
+          tag,
+          registry,
+          state,
+        });
+        expect(() =>
+          assertReleaseProvenance(section, provenance),
+        ).not.toThrow();
       }
     }
-    expect(observedExceptions).toEqual(exceptions);
-    expect(matched).toBeGreaterThanOrEqual(11);
-    expect(forkCompareHeadings).toHaveLength(matched - matchedFirst);
-    expect(forkCompareHeadings.toSorted()).toEqual(comparedHeadings.toSorted());
   });
 });
