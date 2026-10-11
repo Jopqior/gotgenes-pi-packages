@@ -164,6 +164,7 @@ export class GetResultTool {
 			model: record.awaitingSelection ? undefined : modelLabel(record.model),
 			resumedWhileWaiting: collected.superseded !== undefined,
 			waitExpiredAfter: collected.waitExpiredAfter,
+			awaitingSelection: record.awaitingSelection,
 			progress: outcome.status === "running" ? progressOf(record) : undefined,
 		};
 	}
@@ -322,7 +323,7 @@ function waitNote(args: GetResultParams): string {
  */
 function progressOf(record: Subagent): AgentReport["progress"] {
 	return {
-		activity: describeActivity(record.activeTools, record.responseText),
+		activity: describeActivity(record.activeTools, record.responseText, record.awaitingSelection),
 		turns: record.turnBudget?.used,
 		sinceLastProgress: formatMs(Date.now() - record.lastProgressAt),
 	};

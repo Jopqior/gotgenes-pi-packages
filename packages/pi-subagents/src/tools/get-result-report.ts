@@ -59,6 +59,8 @@ export interface AgentReport {
 	 * wait returned, so the agent is running again.
 	 */
 	resumedWhileWaiting?: boolean;
+	/** The active run is waiting for model/thinking selection, not child execution. */
+	awaitingSelection?: boolean;
 	/** The bound, in seconds, of a wait that ended at it with the agent still running. */
 	waitExpiredAfter?: number;
 	/** What a running agent is doing and when it last moved; absent for any other status. */
@@ -109,7 +111,7 @@ export function formatAgentReport(report: AgentReport): string {
 			"call get_subagent_result for that run's outcome.";
 	}
 	if (report.waitExpiredAfter !== undefined) {
-		output += renderWaitExpired(report.waitExpiredAfter);
+		output += renderWaitExpired(report.waitExpiredAfter, report.awaitingSelection);
 	}
 	if (report.conversation) {
 		output += `\n\n--- Agent Conversation ---\n${report.conversation}`;
@@ -125,11 +127,13 @@ export function formatAgentReport(report: AgentReport): string {
  * unchanged progress is the wrong next move: a model that reads bash's timeout
  * as a kill would otherwise assume the agent stopped, or poll it forever.
  */
-function renderWaitExpired(seconds: number): string {
+function renderWaitExpired(seconds: number, awaitingSelection = false): string {
+	const guidance = awaitingSelection
+		? "Complete the model/thinking selection to let the agent start executing; only this wait ended."
+		: "If its progress has not changed since your last check, waiting again will not unstick it: " +
+			"read its transcript, steer it with steer_subagent, or tell the user it appears stuck.";
 	return (
-		`\n\nThis wait ended after its ${seconds}s timeout. The agent was not stopped and is still running.\n` +
-		"If its progress has not changed since your last check, waiting again will not unstick it: " +
-		"read its transcript, steer it with steer_subagent, or tell the user it appears stuck."
+		`\n\nThis wait ended after its ${seconds}s timeout. The agent was not stopped and is still running.\n` + guidance
 	);
 }
 

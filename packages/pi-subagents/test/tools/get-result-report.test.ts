@@ -297,6 +297,19 @@ describe("formatAgentReport", () => {
 		});
 	});
 
+	it.each([true, false, undefined])("selects expiry advice for awaitingSelection=%s", (awaitingSelection) => {
+		const text = formatAgentReport(makeReport({ status: "running", result: undefined, waitExpiredAfter: 1, awaitingSelection }));
+		expect(text).toContain("This wait ended after its 1s timeout");
+		if (awaitingSelection) {
+			expect(text).toContain("Complete the model/thinking selection");
+			expect(text).not.toContain("steer_subagent");
+			expect(text).not.toContain("stuck");
+		} else {
+			expect(text).toContain("steer_subagent");
+			expect(text).not.toContain("Complete the model/thinking selection");
+		}
+	});
+
 	describe("an agent resumed while the call waited", () => {
 		it("closes the outcome by saying the agent is running again, before the transcript pointer", () => {
 			const text = formatAgentReport(
