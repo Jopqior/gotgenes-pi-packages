@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-worktrees-v0.1.0...pi-subagents-worktrees-v0.1.1) (2026-10-11)
+
+
+### Documentation
+
+* refresh fork package release and synchronization guidance ([#40](https://github.com/Jopqior/gotgenes-pi-packages/issues/40)) ([486583b](https://github.com/Jopqior/gotgenes-pi-packages/commit/486583b6a2084094d6b9d16c4ca0d1cd747bd935))
+
+<!-- upstream-correspondence:start -->
+### Upstream correspondence
+
+Direct upstream package: `@gotgenes/pi-subagents-worktrees`
+
+Contained stable upstream release: `0.3.3`
+
+Stable release source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/62924b0a8389eed41c4da93b0bf0ea89e0b5c794/packages/pi-subagents-worktrees)
+
+Incorporated source: [fixed incorporated upstream commit](https://github.com/gotgenes/pi-packages/blob/8d373ceab20c5236b08d8d6c032fd515b9fa8dc4/packages/pi-subagents-worktrees)
+
+This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
+<!-- upstream-correspondence:end -->
+
 ## [0.1.0](https://github.com/Jopqior/gotgenes-pi-packages/releases/tag/pi-subagents-worktrees-v0.1.0) (2026-10-06)
 
 ### Fork identity and compatibility
