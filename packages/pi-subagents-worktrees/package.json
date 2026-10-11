@@ -55,8 +55,7 @@
     "check": "tsc --noEmit",
     "lint": "biome check . && eslint .",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "verify:core-compatibility": "node scripts/verify-core-compatibility.mjs"
+    "test:watch": "vitest"
   },
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": ">=0.75.0",

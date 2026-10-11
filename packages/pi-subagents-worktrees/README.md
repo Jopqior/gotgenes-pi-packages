@@ -139,6 +139,11 @@ The git plumbing bracketing a child run, not losing the child's work when cleanu
 **Where adjacent requests belong.**
 Whether a child gets an isolated workspace at all, the seam that asks, and a child's system prompt or working-directory claim → [@jopqior/pi-subagents](https://www.npmjs.com/package/@jopqior/pi-subagents).
 
+## Maintainer: verification
+
+Run `pnpm --filter @jopqior/pi-subagents-worktrees run test` and `pnpm --filter @jopqior/pi-subagents-worktrees run check` from the repository root.
+The package tests cover configuration, provider lifecycle, Git worktree cleanup and recovery; CI does not run a packed-consumer compatibility matrix.
+
 ## Maintainer: first fork publication
 
 Follow the [first fork release handoff](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/fork-sync/release-source-guide.md#first-fork-release-handoff) when bootstrapping a fork identity.

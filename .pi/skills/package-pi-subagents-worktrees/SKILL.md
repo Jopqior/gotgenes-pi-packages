@@ -24,10 +24,8 @@ Preserve configuration precedence, opt-in behavior, shutdown unregistering and r
 
 ## Verification boundary
 
-Run `pnpm -C packages/pi-subagents-worktrees run verify:core-compatibility` after changing the core dependency or consumed contracts.
-This explicit network-dependent packed-consumer check uses real fork-core services, installed declarations and Git workspaces for the published floor, published development core and packed local candidate, plus missing-module/inactive-service/load-order controls.
-It validates registration, configured preparation, clean/dirty disposal and shutdown unregistering, not live child execution, resume scheduling or interactive TUI behavior.
-Offline root contract/validator tests check package wiring and the verifier's discriminating assertions; package unit tests remain responsible for detailed recovery cases.
+Follow the [maintainer verification instructions](../../../packages/pi-subagents-worktrees/README.md#maintainer-verification) for package tests and typechecking.
+CI retains package behavior tests but does not run a packed-consumer compatibility matrix.
 
 ## Upstream assumptions
 
@@ -44,4 +42,4 @@ Paths are relative to the Pi checkout.
 | `ctx.ui.select`/`confirm`/`notify` are usable in a command handler                                          | `packages/coding-agent/src/core/extensions/types.ts` (`registerCommand`, `ExtensionCommandContext`)                                                                                           | Behavioral-silent in RPC and print modes                                                                         |
 
 The sibling `@jopqior/pi-subagents` contract (`getSubagentsService`, `registerWorkspaceProvider`, `dispose` on every outcome) is a first-party seam; `pi-subagents`' own tests own its implementation.
-`test/index.test.ts` mocks Pi down to `getAgentDir` and does not detect upstream drift; the packed compatibility command exercises the real installed loader and service boundary, not every host lifecycle assumption above.
+`test/index.test.ts` mocks Pi down to `getAgentDir` and the fork core's service accessor; it does not verify real installed loader/service compatibility or detect upstream drift.
