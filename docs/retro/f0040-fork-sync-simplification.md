@@ -111,3 +111,117 @@ The local checkout fast-forwarded to the release commit; no worktree existed to 
 - The plan-anchor range also contained issues #41 and #42, but each already had its own completed ship and curated close summary.
   No additional issue or PR close target was identified, and this repository-scoped issue completes no package roadmap phase.
 - The next step is `/retro 40` at the root on `main`; no new implementation or workflow-policy change was folded into release recovery.
+
+## Stage: Final Retrospective (2026-10-11T12:35:58Z)
+
+### Session summary
+
+Reviewed the planning, intervening plan clarification, implementation and ship/recovery transcripts alongside their stage notes.
+The simplification shipped with ordinary version prediction, ledger-free source preflight and exact tagged-note reuse; the partial npm publication was recovered without another preparation or duplicate core publication.
+The operator chose to persist observations only; the two proposed skill adjustments were not implemented, and no runtime, release-workflow or historical artifact changed.
+
+### Observations
+
+#### What went well
+
+- Tidy First found that old fixtures derived their purported upstream branch from fork HEAD, and identified the executable registry import inside `.pi/prompts/ship.md` that ordinary script-import analysis omitted.
+  Isolating exact section-byte contracts in `be03475d0` preserved an independent oracle while obsolete provenance machinery was removed.
+- The partial-release recovery checked the GitHub CLI endpoint, actual workflow graph, pinned pnpm publish implementation and tagged checkout before asking for retry approval.
+  Release run `38135949915`, attempt 2, reused the original preparation, skipped published core and completed worktrees plus both GitHub Releases.
+  The recovery disproved an overly broad warning without adding a recovery mechanism.
+
+#### What caused friction (agent side)
+
+- `missing-context`: the first source-worker implementation did not match the plan's narrow interface or package-tail semantics; the long plan required continuation reads beyond the tool's truncation boundary.
+  Impact: the first implementation and its green/mutation evidence were discarded, and the worker rebuilt the implementation and fixtures before `d1768c4fb`.
+- `premature-convergence`: the first historical `git-cliff` probe left later fork tags visible when evaluating an earlier preparation commit.
+  Impact: misleading historical predictions were discarded and remeasured in disposable checkouts with future tags removed; no incorrect measurement shipped.
+- `missing-context`: the plan's general same-step consumer rule conflicted with the specific placement of `workflow-contract` migration after deletion of its dependencies.
+  Impact: revalidation required `2f09896d9` (`docs: clarify test migration and output capture in plan (#40)`) before implementation, preventing a broken intermediate step.
+- `instruction-violation` (self-identified during parent review): the source worker used scripted killing mutations despite `/tdd-plan` requiring `Edit`.
+  Impact: the corrected implementation still needed another mutation-verification pass, comprising 16 precise mutations and fresh focused/root checks; the scripted results were not accepted as final evidence.
+- `other`: temporary fixed-version mutations in `scripts/release/lib.sh` were not announced before editing production code.
+  Impact: the operator asked why the implementation depended on fixed versions; the agent rechecked the restored file and explained the transient edits, adding an avoidable clarification but no implementation rework.
+- `premature-convergence`: release recovery initially treated a repeated core publish attempt as unsafe before checking the filtered `pnpm` route, while `.pi/skills/releasing/SKILL.md` used ambiguous prerequisite/dependent-job wording.
+  Impact: recovery needed a corrected briefing and explicit retry approval; inspection showed that the selected publish retry reused successful preparation and skipped registry-existing versions.
+  No unsafe retry was executed.
+- `instruction-violation` (user-caught): after the approved plan clarification passed checks, the agent stopped without committing despite the existing meaningful-checkpoint rule.
+  Impact: the operator supplied an extra commit reminder; `2f09896d9` then landed with no further content change.
+
+#### What caused friction (user side)
+
+- The operator's fixed-version question was reasonable given an unexplained production-file diff; announcing mutation intent would remove the need for mechanical oversight.
+  Source ambiguity can be settled more cheaply by restating the approved fail-closed constraint before presenting alternative mechanisms.
+- Worktrees' Trusted Publisher expiry was information available only through the operator's npm settings.
+  Sharing known credential/configuration changes before dispatch could avoid a failed attempt, but the transcript does not establish that the expiry was known beforehand.
+  The operator repaired only that package's configuration and left recovery authorization separate.
+
+### Diagnostic details
+
+#### Model-performance correlation
+
+Attribution comes from type-unfiltered parent and child transcripts, not agent definitions or current environment variables.
+The initial scope discussion ran on `openai-codex/gpt-6-astra`; the reviewed planning, clarification, implementation and ship turns ran on `openai-codex/gpt-6.1-sol`.
+The child transcripts show the same `openai-codex/gpt-6.1-sol` model for every dispatched task below, including resumed source work.
+
+| Dispatch                               | Task                                                                   | Observed model             |
+| -------------------------------------- | ---------------------------------------------------------------------- | -------------------------- |
+| Initial general-purpose investigation  | Existing synchronization/release tests and boundaries                  | `openai-codex/gpt-6.1-sol` |
+| Planning general-purpose exploration   | Live consumers and historical constraints                              | `openai-codex/gpt-6.1-sol` |
+| Planning general-purpose exploration   | Scenario dispositions and fixture suitability                          | `openai-codex/gpt-6.1-sol` |
+| `tidy-first-assessor`                  | Change-scoped preparatory refactoring                                  | `openai-codex/gpt-6.1-sol` |
+| Plan-revalidation `Explore`            | Step 5/6 ordering and intervening output-capture changes               | `openai-codex/gpt-6.1-sol` |
+| Step 2 general-purpose worker, resumed | Source resolution, approved refusal boundary and mutation verification | `openai-codex/gpt-6.1-sol` |
+| Step 3 general-purpose worker          | Exact section-contract extraction                                      | `openai-codex/gpt-6.1-sol` |
+| Step 4 general-purpose worker          | Registry/metadata and scanner migration                                | `openai-codex/gpt-6.1-sol` |
+| Step 5 general-purpose worker          | Coordinated release-consumer cutover                                   | `openai-codex/gpt-6.1-sol` |
+| Step 6 general-purpose worker          | Namespace migration and retained safety tests                          | `openai-codex/gpt-6.1-sol` |
+| `pre-completion-reviewer`              | Independent gates, acceptance and evidence review                      | `openai-codex/gpt-6.1-sol` |
+
+The source-interface and mutation-method failures occurred with the same model that performed the successful independent review.
+This evidence supports tighter context use and earlier contract checks, not a model downgrade/upgrade rule; it contains no comparative cost or quality measurement.
+
+#### Context and feedback loops
+
+The source worker had `read` continuation available; its eventual bounded reread and parent inspection corrected the interface before commit.
+An additional exploration agent would not replace reading the approved contract.
+Focused/root gates ran during implementation, with full checks at the baseline, coordinated cutover and final handoff, followed by the reviewer's independent rerun.
+The main feedback gap was communicating transient mutations, not deferring verification until the end.
+No repeated-error rabbit hole requiring a more-than-five-call escalation was identified; implementation and intentional mutation runs are not failed-approach retries.
+
+#### Release-retry evidence
+
+GitHub CLI `2.100.0` routes `--job` to the selected-job REST endpoint and `--failed` to the failed-jobs endpoint.
+The [GitHub REST contract](https://docs.github.com/en/rest/actions/workflow-runs#re-run-a-job) names the selected/failed jobs and their dependent jobs, not successful prerequisites.
+The actual `.github/workflows/release.yml` graph is `prepare` then `publish` then `github-release`; attempt 2 retained the first preparation timestamps and ran publish plus GitHub Release creation.
+A partial-publication retry must additionally establish the checked-out tag identity and installed publisher's existing-version behavior; the ship session verified `pnpm` version `11.25.0` and no `--force`.
+That observation is not a permanent promise about every future publisher version.
+
+### Proposed adjustments
+
+The operator selected notes-only persistence at the retrospective gate.
+Both proposals below remain observations, not approved changes or newly filed follow-up issues.
+
+1. Replace the ambiguous retry-scope sentence in `.pi/skills/releasing/SKILL.md` with explicit downstream-job wording and require checking existing-version behavior for partial publication.
+   Keep explicit approval, exact-run/ref inspection and refusal of uncertain recovery unchanged.
+2. Add a brief pre-edit mutation announcement rule beside mutation guidance in `.pi/skills/testing/SKILL.md`.
+   Do not duplicate backup, restoration or `Edit` requirements already owned by `/tdd-plan`.
+
+### Considered but not proposed
+
+- No additional global long-read, consumer-ordering, automatic-commit or mutation-method rule: continuation is already in the tool contract, and the other requirements already exist in `testing`, `git-workflow` and `/tdd-plan` guidance.
+- No retry workflow, global publisher skip wrapper or mandatory registry polling: the verified existing route recovered this release, and successful releases need no registry investigation.
+- No new output-capture rule: #41/#42 already landed the relevant tests and testing guidance, and the plan clarification preserved those boundaries without retaining obsolete scenarios.
+- No `AGENTS.md` addition or new skill: both actionable adjustments have an existing topic owner and fail the startup-context admission test.
+
+### Next work
+
+This repository-scoped issue has no package roadmap successor or phase-close action.
+The newest triage, `docs/triage/2026-10-02-backlog.md`, is inherited upstream context and ranks no fork candidate.
+The fork's only open issue is #26, confirmed with GitHub: `feat(pi-subagents-model-selector): choose Tool, Agent, or Custom configuration before spawn`.
+Recommend `/plan-issue #26` as the existing fork backlog item, not as a ranked triage successor; its stated #25 prerequisite has already closed.
+
+### Changes made
+
+1. Appended this cross-session retrospective, diagnostic evidence, proposal disposition and next-work recommendation to `docs/retro/f0040-fork-sync-simplification.md`, preserving all prior stage entries.
+2. Honored the operator's notes-only decision: no changes to `AGENTS.md`, prompts, skills, package code, workflow or `CHANGELOG.md`, and no follow-up issue filed.
