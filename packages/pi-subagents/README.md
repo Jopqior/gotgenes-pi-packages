@@ -27,9 +27,7 @@ These claims describe source provenance, not behavioral equivalence; earlier npm
 
 Media retained from the gotgenes project:
 
-<img width="600" alt="pi-subagents screenshot" src="https://github.com/gotgenes/pi-subagents/raw/main/media/screenshot.png" />
-
-<https://github.com/user-attachments/assets/8685261b-9338-4fea-8dfe-1c590d5df543>
+![Six background Explore subagents run four at a time with two queued; completion notices arrive one by one, then /subagents:sessions opens a finished agent's transcript](https://raw.githubusercontent.com/Jopqior/gotgenes-pi-packages/main/packages/pi-subagents/docs/assets/demo.webp)
 
 ## Features
 
@@ -88,6 +86,8 @@ Without a provider, it returns immediately, including when queued.
 ## UI
 
 The extension renders a persistent widget above the editor showing active background agents (foreground runs are rendered inline by the `subagent` tool's progress stream):
+
+![The agents widget: four running Explore agents, each with its model, turn count, tool uses, tokens and context use, and current activity, above a line reading 2 queued](https://raw.githubusercontent.com/Jopqior/gotgenes-pi-packages/main/packages/pi-subagents/docs/assets/widget.png)
 
 ```text
 ● Agents
@@ -168,6 +168,11 @@ Check status and retrieve results from a background agent.
 | `agent_id` | string  | yes      | Agent ID to check             |
 | `wait`     | boolean | no       | Wait for completion           |
 | `verbose`  | boolean | no       | Include full conversation log |
+| `timeout`  | number  | no       | Seconds to bound a `wait`     |
+
+Without `timeout`, a wait lasts until the agent finishes.
+With one, the wait ends at the bound and returns the current report; the agent is not stopped, and its outcome is still delivered when it finishes.
+A report on a running agent names what it is doing, the turns it has used, and how long since it last made progress, so a parent can tell a stalled agent from a long one.
 
 The result renders as a compact three-line summary — status, stats, description, and a one-line preview.
 Press `Ctrl+O` to expand it to the full report, bounded so a long result cannot fill the terminal; the expanded view names the transcript path when it withholds anything.
@@ -432,7 +437,11 @@ Resume does not call the provider.
 Both return `SubagentRecord`, a by-value snapshot: nothing in it changes after you receive it, and writing to it cannot reach the agent.
 Poll again for fresh data.
 
-The snapshot carries identity (`id`, `type`, `description`), lifecycle status (`status`, `startedAt`, `completedAt`, `result`, `error`), the resolved spawn fact `isBackground`, the current run's `turnBudget`, cumulative metrics (`toolUses`, `compactionCount`, `lifetimeUsage`), and `outputFile` — the path to the agent's session JSONL, which you can read with Pi's own `parseSessionEntries`.
+The snapshot carries identity (`id`, `type`, `description`), lifecycle status (`status`, `startedAt`, `completedAt`, `result`, `error`, `pendingQuestion`), the resolved spawn fact `isBackground`, the current run's `turnBudget`, cumulative metrics (`toolUses`, `compactionCount`, `lifetimeUsage`), and `outputFile` — the path to the agent's session JSONL, which you can read with Pi's own `parseSessionEntries`.
+
+It also carries `resumeRefusal`: absent when `resume` would start a run, otherwise the reason it would refuse with (the [`resume` contract](#resume-contract) lists them).
+Render a Resume affordance from it without calling `resume` first.
+`still-running` clears when the run settles, and a queued agent's `no-session` clears once it starts; the other reasons are final.
 
 It deliberately withholds momentary activity (the tools running right now, the partial response text, whether the run is awaiting a human model/thinking selection) and this package's internal bookkeeping.
 A pulled snapshot of momentary state would be stale on arrival; [decision 0005](docs/decisions/0005-subagent-record-admission-policy.md) records the full policy and what would reopen it.
@@ -455,6 +464,8 @@ A resume that could not start resolves to `{ kind: "refused", reason }` instead,
 | `no-session`         | The agent never had a session to continue                       |
 | `session-released`   | Its session was released after the retention window             |
 | `workspace-disposed` | Its isolated workspace is gone, so a resume cannot re-enter it  |
+
+Every record's `resumeRefusal` field predicts this answer before the call, minus `unknown-agent`, which no record can carry.
 
 A resumed run that _fails_ is still `{ kind: "resumed" }`; the snapshot carries `status: "error"` and the message.
 Refused means nothing started.

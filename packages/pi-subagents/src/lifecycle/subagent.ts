@@ -12,6 +12,7 @@ import { debugLog } from "#src/debug";
 import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent-session";
 import type { InitialSelection, SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
+import { subscribeSubagentObserver } from "#src/lifecycle/record-observer";
 import { RunListeners } from "#src/lifecycle/run-listeners";
 import { isSelectionCancellation } from "#src/lifecycle/spawn-selection";
 import type { SubagentSession, TurnLoopResult } from "#src/lifecycle/subagent-session";
@@ -20,7 +21,6 @@ import { type TurnBudget, wrappedUpAtTurnLimit } from "#src/lifecycle/turn-limit
 import type { LifetimeUsage } from "#src/lifecycle/usage";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import { WorkspaceBracket } from "#src/lifecycle/workspace-bracket";
-import { subscribeSubagentObserver } from "#src/observation/record-observer";
 import type { RunConfig } from "#src/runtime";
 import type { ValidatedSpawnSelection } from "#src/session/selection-catalogue";
 import type { CompactionInfo, ParentSessionInfo, SessionMessage, SubagentType, ThinkingLevel } from "#src/types";
@@ -180,6 +180,7 @@ export class Subagent {
 	get awaitingSelection(): boolean { return this.selection.awaitingSelection; }
 	/** The pair spawn selection chose, if a provider has resolved one. */
 	get selectedPair(): ValidatedSpawnSelection | undefined { return this.selection.selectedPair; }
+	get lastProgressAt(): number { return this.state.lastProgressAt; }
 	isActive(): boolean { return this.state.isActive(); }
 	isTerminalError(): boolean { return this.state.isTerminalError(); }
 	isRunning(): boolean { return this.state.isRunning(); }

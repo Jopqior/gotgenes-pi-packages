@@ -9,6 +9,7 @@ import { createResolvedSpawnConfig } from "#test/helpers/make-spawn-config";
 import { createTestSubagent } from "#test/helpers/make-subagent";
 import { createMockSession, createSubagentSessionStub, toSubagentSession } from "#test/helpers/mock-session";
 import { STUB_SNAPSHOT } from "#test/helpers/stub-ctx";
+import { textOf } from "#test/helpers/text-of";
 
 function makeConfig(overrides: Parameters<typeof createResolvedSpawnConfig>[0] = {}) {
   return createResolvedSpawnConfig({
@@ -88,7 +89,7 @@ describe("renderBackgroundLaunch", () => {
       outputFile: "/sessions/agent-7.jsonl",
     });
 
-    expect(result.content[0].text).toBe(
+    expect(textOf(result)).toBe(
       "Agent resumed in background.\n" +
         "Agent ID: agent-7\n" +
         "Type: Explore\n" +
@@ -117,7 +118,7 @@ describe("renderBackgroundLaunch", () => {
       detailBase,
     });
 
-    expect(result.content[0].text).toBe(
+    expect(textOf(result)).toBe(
       "Agent resumed in background.\n" +
         "Agent ID: agent-7\n" +
         "Type: Explore\n" +
@@ -195,21 +196,21 @@ describe("spawnBackground", () => {
         config: makeConfig({ description: "my task" }),
       }),
     );
-    expect(result.content[0].text).toContain("agent-1");
-    expect(result.content[0].text).toContain("my task");
+    expect(textOf(result)).toContain("agent-1");
+    expect(textOf(result)).toContain("my task");
   });
 
   it("mentions 'queued' in result when record status is queued", async () => {
     const deps = makeDepsWithOutcome({ kind: "not-required" }, createTestSubagent({ status: "queued" }));
     const result = await spawnBackground(deps.manager, makeParams({ settings: { maxConcurrent: 4 } }));
-    expect(result.content[0].text).toContain("queued");
-    expect(result.content[0].text).toContain("max 4 concurrent");
+    expect(textOf(result)).toContain("queued");
+    expect(textOf(result)).toContain("max 4 concurrent");
   });
 
   it("mentions 'started' in result when record is running", async () => {
     const { manager } = createToolDeps();
     const result = await spawnBackground(manager, makeParams());
-    expect(result.content[0].text).toContain("started");
+    expect(textOf(result)).toContain("started");
   });
 
   it("renders the confirmed pair when selection completed, without pending-selection wording", async () => {
@@ -291,7 +292,7 @@ describe("spawnBackground", () => {
     record.subagentSession = toSubagentSession(createSubagentSessionStub(createMockSession(), "/sessions/bg.jsonl"));
     deps.manager.getRecord = vi.fn().mockReturnValue(record);
     const result = await spawnBackground(deps.manager, makeParams());
-    expect(result.content[0].text).toContain("/sessions/bg.jsonl");
+    expect(textOf(result)).toContain("/sessions/bg.jsonl");
   });
 
   it("leads the result with the spawn's notes", async () => {
@@ -300,7 +301,7 @@ describe("spawnBackground", () => {
       manager,
       makeParams({ config: makeConfig({ fellBack: true, rawType: "unknown-type" }) }),
     );
-    expect(result.content[0].text).toMatch(
+    expect(textOf(result)).toMatch(
       /^Note: Unknown agent type "unknown-type" — using general-purpose\.\n\nAgent (started|queued) in background\./,
     );
   });
@@ -308,14 +309,76 @@ describe("spawnBackground", () => {
   it("leads the result with the launch message when there are no notes", async () => {
     const { manager } = createToolDeps();
     const result = await spawnBackground(manager, makeParams());
-    expect(result.content[0].text).toMatch(/^Agent (started|queued) in background\./);
+    expect(textOf(result)).toMatch(/^Agent (started|queued) in background\./);
+  });
+
+  describe("launch message", () => {
+    it("renders the started launch with its output file", async () => {
+      const record = createTestSubagent({ status: "running" });
+      record.subagentSession = toSubagentSession(createSubagentSessionStub(createMockSession(), "/sessions/bg.jsonl"));
+      const deps = createToolDeps({
+        manager: { ...createToolDeps().manager, spawn: vi.fn().mockReturnValue("bg-3"), getRecord: vi.fn().mockReturnValue(record) },
+      });
+
+      const result = await spawnBackground(deps.manager, makeParams());
+
+      expect(textOf(result)).toBe(
+        "Agent started in background.\n" +
+          "Agent ID: bg-3\n" +
+          "Type: General-purpose\n" +
+          "Description: bg task\n" +
+          "Output file: /sessions/bg.jsonl\n" +
+          "\nYou will be notified when this agent completes.\n" +
+          "Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n" +
+          "Do not duplicate this agent's work.",
+      );
+      expect(result.details).toEqual({
+        displayName: "General-purpose",
+        description: "bg task",
+        subagentType: "general-purpose",
+        modelName: undefined,
+        tags: undefined,
+        toolUses: 0,
+        tokens: "",
+        durationMs: 0,
+        status: "background",
+        agentId: "bg-3",
+      });
+    });
+
+    it("renders the queued launch with its queue position", async () => {
+      const deps = createToolDeps({
+        manager: {
+          ...createToolDeps().manager,
+          spawn: vi.fn().mockReturnValue("bg-2"),
+          getRecord: vi.fn().mockReturnValue(createTestSubagent({ status: "queued" })),
+        },
+      });
+
+      const result = await spawnBackground(deps.manager, makeParams({ settings: { maxConcurrent: 4 } }));
+
+      expect(textOf(result)).toBe(
+        "Agent queued in background.\n" +
+          "Agent ID: bg-2\n" +
+          "Type: General-purpose\n" +
+          "Description: bg task\n" +
+          "Position: queued (max 4 concurrent)\n" +
+          "\nYou will be notified when this agent completes.\n" +
+          "Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n" +
+          "Do not duplicate this agent's work.",
+      );
+    });
   });
 
   it("returns error text when manager.spawn throws", async () => {
-    const deps = createToolDeps();
-    deps.manager.spawn = vi.fn().mockImplementation(() => { throw new Error("spawn failed"); });
-    deps.manager.getRecord = vi.fn();
+    const deps = createToolDeps({
+      manager: {
+        ...createToolDeps().manager,
+        spawn: vi.fn().mockImplementation(() => { throw new Error("spawn failed"); }),
+        getRecord: vi.fn(),
+      },
+    });
     const result = await spawnBackground(deps.manager, makeParams());
-    expect(result.content[0].text).toContain("spawn failed");
+    expect(textOf(result)).toContain("spawn failed");
   });
 });

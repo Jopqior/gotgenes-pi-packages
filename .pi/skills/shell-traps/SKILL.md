@@ -12,11 +12,13 @@ The shell facts every session needs (the `bash` tool runs GNU bash on this machi
 
 ## Command flags and state
 
+Quote a glob pattern meant for a command rather than the shell — `--include='*.ts'`, `find . -name '*.ts'`.
+Unquoted, bash expands it against the cwd first and silently substitutes any matched filename; with no match it passes the pattern through, so the bug surfaces only in a directory that happens to hold a match.
 `rg -r` is `--replace`, not `--recursive`; `rg` recurses by default, so drop the `-r`.
+Search the tree with `rg` or `git grep`, not `grep -r .` — `grep` ignores `.gitignore` and walks `.rumdl_cache/`, whose one-line JSON entries overflow the 50KB output limit.
 Each `bash` call runs in a fresh shell — a variable set in one call is unset in the next.
 Chain producer and consumer in one call, or re-derive the value.
 Pass file tool paths repo-relative (`packages/<pkg>/src/x.ts`), not hand-built absolute ones — a mistyped absolute path trips the `external_directory` gate instead of failing fast.
-The zsh `echo` decodes backslash escapes (`\u2014` prints an em-dash; `bash` and `dash` print it literally), so it misreports a file's literal escape text; print bytes with `print -r --`, `printf '%s\n'`, or `sed -n`.
 
 ## Bodies with backticks
 

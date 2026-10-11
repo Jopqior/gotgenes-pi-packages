@@ -100,6 +100,7 @@ For **each** step in the plan's "TDD Order", in order:
    For repository tests, run `pnpm exec vitest run <test-path>` from the root; for package tests, run only the affected test file: `pnpm -C packages/<pkg> exec vitest run <test-path>` and confirm failures.
    Run unpiped or redirect to a log while retaining the command's status; `tail` or `grep` pipelines replace Vitest's status with the filter's.
    Plain `pnpm vitest run` fails at the repo root in this workspace.
+   Run Red in its own tool call, before the implementing `Edit`/`Write` — calls in one batch run concurrently, so a batched Red run can see green.
    When the step pins a literal pattern (regex, glob, format string), derive your own input set — the plan's examples are a floor, not the case list.
    Run the pattern over the values the repo already produces in bulk (`git tag --list`, `gh pr list`) before committing.
    When the step quotes a string the code under test **produces** (a rendered sentence, an error message), copy it from the producer or an existing assertion — a plan transcribes it from memory and drops an article.
@@ -119,6 +120,7 @@ For **each** step in the plan's "TDD Order", in order:
 
    Save the green file first (`cp <file> /tmp/green.ts`) and restore from that copy; `git checkout -- <file>` reverts to HEAD, discarding the step's own uncommitted green edit.
    Append that `cp` to the Green step's verification command (`vitest run …; cp <file> /tmp/green.ts`), never beside the mutating `Edit`: calls in one batch run concurrently, so the copy can capture the mutation.
+   The restoring `cp /tmp/green.ts <file>` gets its own call too, before the next mutation's `Edit`.
    Re-run before committing; never commit with a mutation in the tree.
    Apply the mutation with `Edit`, and confirm the file changed before reading the suite — a scripted multi-line substitution that matches nothing reads exactly like a mutation that killed nothing, and one that matches every sibling site reddens tests the mutation was never meant to touch.
    Prefer changing a compared literal over restructuring control flow: a mutation that crashes, or that the linter rejects, produces reds that are not discrimination signals.

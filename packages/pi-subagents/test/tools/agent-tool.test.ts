@@ -12,6 +12,7 @@ import {
 	mockResumeStartRefusal,
 } from "#test/helpers/make-deps";
 import { createRunnableTestSubagent, createTestSubagent } from "#test/helpers/make-subagent";
+import { textOf } from "#test/helpers/text-of";
 
 function makeCtx(overrides: Record<string, unknown> = {}) {
 	return {
@@ -124,7 +125,7 @@ describe("AgentTool — resume path", () => {
 				subagent_type: "general-purpose",
 				resume: "nonexistent",
 			});
-			expect(result.content[0].text).toBe(
+			expect(textOf(result)).toBe(
 				'Agent not found: "nonexistent". Records are cleared at session start/switch, so it ' +
 					"may be from a previous session.",
 			);
@@ -139,7 +140,7 @@ describe("AgentTool — resume path", () => {
 				subagent_type: "general-purpose",
 				resume: "agent-1",
 			});
-			expect(result.content[0].text).toBe('Agent "agent-1" has no active session to resume.');
+			expect(textOf(result)).toBe('Agent "agent-1" has no active session to resume.');
 		});
 
 		it("points a released-agent resume at get_subagent_result instead of resuming", async () => {
@@ -151,7 +152,7 @@ describe("AgentTool — resume path", () => {
 				subagent_type: "general-purpose",
 				resume: "agent-1",
 			});
-			expect(result.content[0].text).toBe(
+			expect(textOf(result)).toBe(
 				'Agent "agent-1" had its session released after its retention window; resume is ' +
 					"unavailable, but its result is still retrievable via get_subagent_result.",
 			);
@@ -168,7 +169,7 @@ describe("AgentTool — resume path", () => {
 				resume: "agent-1",
 			});
 
-			expect(result.content[0].text).toBe(
+			expect(textOf(result)).toBe(
 				'Agent "agent-1" is still running; wait for it to finish before resuming. ' +
 					"Use steer_subagent to send it a message while it runs.",
 			);
@@ -185,7 +186,7 @@ describe("AgentTool — resume path", () => {
 				resume: "agent-1",
 			});
 
-			expect(result.content[0].text).toBe(
+			expect(textOf(result)).toBe(
 				'Agent "agent-1" ran in an isolated workspace that no longer exists; resume is ' +
 					"unavailable because the agent would re-enter a directory that has been removed. " +
 					"Spawn a new agent instead — the agent's result records where any work was saved.",
@@ -209,7 +210,7 @@ describe("AgentTool — resume path", () => {
 			});
 
 			expect(deps.manager.resume).toHaveBeenCalledOnce();
-			expect(result.content[0].text).toContain("Resumed output.");
+			expect(textOf(result)).toContain("Resumed output.");
 		});
 
 		it("returns result text on successful resume", async () => {
@@ -221,7 +222,7 @@ describe("AgentTool — resume path", () => {
 				subagent_type: "general-purpose",
 				resume: "agent-1",
 			});
-			expect(result.content[0].text).toContain("Resumed output.");
+			expect(textOf(result)).toContain("Resumed output.");
 		});
 
 		it("surfaces a follow-up question from a resumed child as answerable", async () => {
@@ -240,9 +241,9 @@ describe("AgentTool — resume path", () => {
 				resume: "agent-1",
 			});
 
-			expect(result.content[0].text).toContain("This agent is waiting on an answer:");
-			expect(result.content[0].text).toContain("And the fallback?");
-			expect(result.content[0].text).toContain('resume: "agent-9"');
+			expect(textOf(result)).toContain("This agent is waiting on an answer:");
+			expect(textOf(result)).toContain("And the fallback?");
+			expect(textOf(result)).toContain('resume: "agent-9"');
 		});
 
 		it("reports a resumed child's question without a resume call once its session is gone", async () => {
@@ -262,11 +263,11 @@ describe("AgentTool — resume path", () => {
 				resume: "agent-1",
 			});
 
-			expect(result.content[0].text).toContain("And the fallback?");
-			expect(result.content[0].text).toContain(
+			expect(textOf(result)).toContain("And the fallback?");
+			expect(textOf(result)).toContain(
 				"its session was released after its retention window",
 			);
-			expect(result.content[0].text).not.toContain("resume:");
+			expect(textOf(result)).not.toContain("resume:");
 		});
 
 		it("reports the updates a resumed child sent while the parent was blocked", async () => {
@@ -280,8 +281,8 @@ describe("AgentTool — resume path", () => {
 				resume: "agent-1",
 			});
 
-			expect(result.content[0].text).toContain("Updates this agent sent while it worked:");
-			expect(result.content[0].text).toContain("The bug is in the retry wrapper.");
+			expect(textOf(result)).toContain("Updates this agent sent while it worked:");
+			expect(textOf(result)).toContain("The bug is in the retry wrapper.");
 		});
 
 		it("names where a teardown saved the work of a resumed child", async () => {
@@ -300,7 +301,7 @@ describe("AgentTool — resume path", () => {
 				resume: "agent-1",
 			});
 
-			expect(result.content[0].text).toContain("Changes saved to branch `pi-agent-9`.");
+			expect(textOf(result)).toContain("Changes saved to branch `pi-agent-9`.");
 		});
 
 		it("names an abort on the resume return, which previously reported nothing", async () => {
@@ -314,8 +315,8 @@ describe("AgentTool — resume path", () => {
 				resume: "agent-1",
 			});
 
-			expect(result.content[0].text).toContain("aborted \u2014 turn limit reached, output may be incomplete");
-			expect(result.content[0].text).toContain("Half of it");
+			expect(textOf(result)).toContain("aborted \u2014 turn limit reached, output may be incomplete");
+			expect(textOf(result)).toContain("Half of it");
 		});
 
 		it("claims the outcome as it resumes, so the resume is never announced", async () => {
@@ -349,7 +350,7 @@ describe("AgentTool — resume path", () => {
 				resume: "agent-1",
 			});
 
-			expect(result.content[0].text).toContain("resume exploded");
+			expect(textOf(result)).toContain("resume exploded");
 		});
 
 		it("marks the resumed record consumed (resume-return delivery edge)", async () => {
@@ -373,7 +374,7 @@ describe("AgentTool — resume path", () => {
 				subagent_type: "general-purpose",
 				resume: "agent-1",
 			});
-			expect(result.content[0].text).toContain("Agent ID: agent-1");
+			expect(textOf(result)).toContain("Agent ID: agent-1");
 		});
 	});
 
@@ -402,7 +403,7 @@ describe("AgentTool — resume path", () => {
 
 			const result = await execute(deps, backgroundResume);
 
-			expect(result.content[0].text).toBe(
+			expect(textOf(result)).toBe(
 				"Agent resumed in background.\n" +
 					"Agent ID: agent-1\n" +
 					"Type: Agent\n" +
@@ -434,7 +435,7 @@ describe("AgentTool — resume path", () => {
 				const expected = await execute(foreground, { ...backgroundResume, run_in_background: undefined });
 				const result = await execute(background, backgroundResume);
 
-				expect(result.content[0].text).toBe(expected.content[0].text);
+				expect(textOf(result)).toBe(textOf(expected));
 			},
 		);
 
@@ -487,7 +488,7 @@ describe("AgentTool — model resolution error", () => {
 			},
 		);
 		// User-specified model that doesn't resolve → error message
-		expect(result.content[0].text).toContain("nonexistent-model-xyz");
+		expect(textOf(result)).toContain("nonexistent-model-xyz");
 	});
 });
 
@@ -502,7 +503,7 @@ describe("AgentTool — background execution", () => {
 			subagent_type: "general-purpose",
 			run_in_background: true,
 		});
-		const text = result.content[0].text;
+		const text = textOf(result);
 		expect(text).toContain("background");
 		expect(text).toContain("agent-1");
 		expect(text).toContain("bg task");
@@ -521,7 +522,7 @@ describe("AgentTool — background execution", () => {
 			run_in_background: true,
 		});
 		// Background spawn succeeds — no emitEvent dep required
-		expect(result.content[0].text).toContain("background");
+		expect(textOf(result)).toContain("background");
 	});
 
 	it("passes parentSession.toolCallId to manager.spawn", async () => {
@@ -604,7 +605,7 @@ describe("AgentTool — foreground execution", () => {
 			description: "fg task",
 			subagent_type: "general-purpose",
 		});
-		const text = result.content[0].text;
+		const text = textOf(result);
 		expect(text).toContain("Agent completed");
 		expect(text).toContain("Task complete.");
 	});
@@ -619,8 +620,8 @@ describe("AgentTool — foreground execution", () => {
 			description: "fg task",
 			subagent_type: "general-purpose",
 		});
-		expect(result.content[0].text).toContain("Agent failed");
-		expect(result.content[0].text).toContain("Out of context");
+		expect(textOf(result)).toContain("Agent failed");
+		expect(textOf(result)).toContain("Out of context");
 	});
 
 	it("returns error when spawnAndWait throws", async () => {
@@ -631,7 +632,7 @@ describe("AgentTool — foreground execution", () => {
 			description: "fg task",
 			subagent_type: "general-purpose",
 		});
-		expect(result.content[0].text).toContain("spawn failure");
+		expect(textOf(result)).toContain("spawn failure");
 	});
 
 	it("names the agent ID in the foreground result text", async () => {
@@ -644,6 +645,6 @@ describe("AgentTool — foreground execution", () => {
 			description: "fg task",
 			subagent_type: "general-purpose",
 		});
-		expect(result.content[0].text).toContain("Agent ID: agent-1");
+		expect(textOf(result)).toContain("Agent ID: agent-1");
 	});
 });
