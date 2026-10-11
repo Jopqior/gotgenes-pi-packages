@@ -19,10 +19,11 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 
 ## Release provenance
 
-For each new fork release, the shipped [CHANGELOG](./CHANGELOG.md) records that release's verified direct upstream package, incorporated version, and fixed source commit.
-The same tagged CHANGELOG section supplies the [fork's GitHub Release notes](https://github.com/Jopqior/gotgenes-pi-packages/releases); see the [version correspondence guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream/pi-subagents-release-correspondence.md) for the generated historical table and evidence procedure.
-An incorporated upstream baseline documents source provenance, not behavioral equivalence with upstream.
-Earlier published npm artifacts remain unchanged: adding historical correspondence to repository evidence or GitHub Release notes does not insert it into those tarballs or re-attest their original build history.
+For each new fork release, the shipped [CHANGELOG](./CHANGELOG.md) records the verified direct upstream package, highest contained stable release, and fixed links to both the stable release commit and actual incorporated commit.
+Scoped upstream changes after that stable release are labeled as unreleased changes to this package.
+The same exact tagged section supplies the [fork's GitHub Release notes](https://github.com/Jopqior/gotgenes-pi-packages/releases); see the [release source guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/fork-sync/release-source-guide.md) for source reconstruction and offline tagged validation.
+Source provenance does not choose a release level: fork versions use ordinary path-scoped Conventional Commits.
+These claims describe source provenance, not behavioral equivalence; earlier npm artifacts, tagged CHANGELOGs and GitHub Releases remain unchanged.
 
 Media retained from the gotgenes project:
 
@@ -566,7 +567,7 @@ This extension is a minimal, composable core: it owns agent spawning, execution,
 
 The direct upstream is [`@gotgenes/pi-subagents`](https://github.com/gotgenes/pi-packages/tree/main/packages/pi-subagents), maintained by [Chris Lasher](https://github.com/gotgenes).
 This fork retains its minimal-core architecture and adds the selection support described [above](#per-spawn-model-and-thinking-selection).
-For integration, invoke this repository's no-argument [`/upstream-sync` entry point](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/.pi/prompts/upstream-sync.md) from the repository root; it only finds or creates a fixed-target synchronization issue and stops.
+For integration, invoke this repository's no-argument [`/fork-sync` entry point](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/.pi/prompts/fork-sync.md) from the repository root in a fresh Pi session; it only finds or creates a fixed-target synchronization issue and stops.
 Continue in separate standard stages with `/plan-issue`, `/tdd-plan` or `/build-plan`, independent review, `/ship`, and `/retro` on the root checkout's `main`.
 The issue's plan owns compatibility choices and verification; integration preserves a genuine two-parent upstream merge, and publication requires separate approval.
 

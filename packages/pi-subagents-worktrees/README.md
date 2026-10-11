@@ -141,27 +141,27 @@ Whether a child gets an isolated workspace at all, the seam that asks, and a chi
 
 ## Maintainer: first fork publication
 
-Follow the [first fork release handoff](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream/fork-release-policy.md#first-fork-release-handoff).
-The operator explicitly selected `0.1.0` for bootstrap; it is not a guessed next version or the inherited upstream version.
-Migration, registration and candidate review do not authorize publication, tags or GitHub Releases.
-Ordinary release preparation refuses an untagged fork; do not dispatch `release.yml` for bootstrap.
+Follow the [first fork release handoff](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/fork-sync/release-source-guide.md#first-fork-release-handoff) when bootstrapping a fork identity.
+The first version is an explicit operator choice, not an inferred upstream version.
+Registration and source review do not authorize publication, tags or GitHub Releases.
+Ordinary preparation refuses an untagged package; there is no first-release generator or application bundle.
+Later releases use ordinary path-scoped Conventional Commits and separately approved guarded dispatch, not this manual bootstrap procedure.
 
-1. Commit migration and compatibility checks on clean primary `main`, then use `node scripts/release/prepare-first-fork-release.mjs --help` from the repository root for its six required inputs.
-   The generator has no apply, publish or dispatch mode; it queries upstream tags without fetching or changing refs and writes only to a fresh external directory whose parent exists.
-   Review the external candidate's `sourceHead`, incorporated evidence, complete diff and exact four `applicationFiles` with the operator.
-   Obtain artifact-application approval, recheck clean `main`, `sourceHead === HEAD` and unchanged reviewed bytes, then apply and commit exactly those files together; retain `first-fork-release.json` externally.
-   If the source or candidate changes, regenerate or stop for review.
+1. On clean primary `main`, inspect the registered source using the resolver/renderer example in the guide and review package contents, manifest identity/version and the manually prepared CHANGELOG section with the operator.
+   The new source block identifies the contained stable release and actual incorporated commit separately, including any scoped unreleased package changes.
+   Review the complete artifact diff before committing; source inspection does not apply artifacts or select a fork version.
 2. Obtain separate explicit approvals for the `@jopqior/pi-subagents-worktrees` identity and public npmjs.org destination, the exact tagged artifacts, and tagging/GitHub Release effects.
-   Tag the approved artifact commit as `pi-subagents-worktrees-v0.1.0` only after approval and check out that exact commit for publication.
+   Tag only the approved artifact commit and check out that exact commit for publication.
 3. Before any npm or GitHub effect, preflight the complete approved tagged set with the artifact validator.
-   Its external output directory must already exist:
+   Set `APPROVED_TAG` to the reviewed exact tag and `RELEASE_NOTES_DIR` to an existing external output directory:
 
    ```bash
-   node scripts/release/release-artifacts.mjs published "$PWD" <existing-temp-dir> pi-subagents-worktrees-v0.1.0
+   node scripts/release/release-artifacts.mjs published "$PWD" "$RELEASE_NOTES_DIR" "$APPROVED_TAG"
    ```
 
-   This checks the tag against the checkout and exact tagged package/CHANGELOG bytes and writes the tagged notes externally; it does not publish.
-4. After successful preflight and publication approval, the operator runs this manual bootstrap command from the tagged checkout in their terminal:
+   This validates the new tagged source block offline, checks the tag against the checkout and exact package/CHANGELOG bytes, and writes the tagged notes externally; it does not publish.
+   Historical source blocks remain unchanged and are not accepted through a compatibility parser.
+4. After successful preflight and publication approval, the operator runs the manual first-publication command from the tagged checkout in their terminal:
 
    ```bash
    pnpm --filter @jopqior/pi-subagents-worktrees publish --access public --no-git-checks --registry=https://registry.npmjs.org/
@@ -173,12 +173,8 @@ Ordinary release preparation refuses an untagged fork; do not dispatch `release.
 6. Only after successful first publication, configure the package's npmjs.org [GitHub Actions Trusted Publisher](https://docs.npmjs.com/trusted-publishers/): owner `Jopqior`, repository `gotgenes-pi-packages`, workflow filename `release.yml`, and no environment unless the actual workflow gains one.
    The current publish job uses GitHub-hosted `ubuntu-latest` and `id-token: write`, with no environment; permit direct publishing for this workflow.
    Saving the dashboard configuration does not verify publishing; do not use `whoami` as proof of OIDC permission.
-7. Only after confirmed approved publication, add a fully disabled `npm:@jopqior/pi-subagents-worktrees` source object to the repository's `.pi/settings.json` with `extensions`, `skills`, `prompts` and `themes` all set to `[]`.
-   Retain the local core-first load order and the upstream worktrees suppression entry.
-   Until then, leave the unpublished fork npm source absent.
-   Subsequent releases use separately approved ordinary guarded dispatch after Trusted Publisher setup.
 
-If any approval is withheld, stop at an explicit unpublished handoff without tagging, publishing or dispatching.
+If any approval is withheld, stop without tagging, publishing or dispatching.
 
 ## License
 
