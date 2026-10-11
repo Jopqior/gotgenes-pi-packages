@@ -173,6 +173,10 @@ Check status and retrieve results from a background agent.
 Without `timeout`, a wait lasts until the agent finishes.
 With one, the wait ends at the bound and returns the current report; the agent is not stopped, and its outcome is still delivered when it finishes.
 A report on a running agent names what it is doing, the turns it has used, and how long since it last made progress, so a parent can tell a stalled agent from a long one.
+With `wait: false`, `timeout` does not start a wait.
+While a spawn-selection provider is awaiting a choice, progress says `Awaiting model/thinking selection` and both text and metadata withhold model labels.
+A wait that expires then asks for model/thinking selection to be completed, without stopping the chooser or recommending steering a child that has not started.
+After confirmation, ordinary execution progress and timeout advice apply.
 
 The result renders as a compact three-line summary — status, stats, description, and a one-line preview.
 Press `Ctrl+O` to expand it to the full report, bounded so a long result cannot fill the terminal; the expanded view names the transcript path when it withholds anything.
@@ -387,6 +391,8 @@ See `src/service/service.ts` for the full `SubagentsService` interface, the `Wor
 `spawn` returns the new agent's id synchronously — it never waits for admission, selection, or the run.
 The background `subagent` tool adds its own selection wait; that internal wait is not a service method or a public snapshot field.
 Use `getRecord(id)` to poll, `steer` to send a message, and the `subagents:completed` event to learn when it finished.
+The by-value public snapshot includes optional `resumeRefusal`, the record's current reason a resume would be refused; it is absent when a resume would start.
+Selection activity and progress timestamps remain private.
 
 The agent type is canonicalized, so `"explore"` and `"Explore"` reach the same agent.
 An unrecognized type falls back to `general-purpose` rather than throwing, matching the `subagent` tool's behavior.

@@ -62,7 +62,8 @@ The reimplement-don't-merge contribution pattern, applied across eight closed pu
 
 ## Domain model
 
-The extension is organized around six domains, each responsible for one aspect of managing agents.
+The extension is organized around seven domains, each responsible for one aspect of managing agents.
+The diagram below shows the six execution/presentation domains; the service boundary is described separately.
 
 ```mermaid
 flowchart TB
@@ -450,7 +451,7 @@ src/
 │
 ├── service/                        cross-extension API boundary
 │   ├── service.ts                  SubagentsService interface (spawn, query, abort, steer, resume, workspace seam) + Symbol.for() accessors, including spawn-selection registration
-│   └── service-adapter.ts          SubagentsServiceAdapter class wrapping SubagentManager; maps live records to by-value snapshots at the boundary
+│   └── service-adapter.ts          SubagentsServiceAdapter class wrapping SubagentManager; maps live records to by-value snapshots at the boundary, projecting optional resumeRefusal from the record's getter while withholding selection activity and progress timestamps
 │
 ├── tools/                          LLM-facing tool implementations
 │   ├── agent-tool.ts               subagent tool definition, validation, dispatch
@@ -458,13 +459,14 @@ src/
 │   ├── spawn-config.ts             pure config resolution and one ordinary presentation producer; bound detailFor suppresses pending model/thinking, then projects observed record values (live, released, confirmed, proposal) while preserving captured non-model facts
 │   ├── foreground-runner.ts        foreground execution loop; passes private pending activity to the shared formatter and requests pending/selected details at existing stream/final sites
 │   ├── background-spawner.ts       background spawn setup; awaits initial selection through the manager, reports confirmed/cancelled/failed startup without waiting for child completion; shares rendering-only launch reports with background resume
-│   ├── get-result-tool.ts          get_subagent_result tool; pending selection withholds model labels and a superseded wait carries the waited run's outcome
-│   ├── get-result-report.ts        pure get_subagent_result report formatter
+│   ├── get-result-tool.ts          get_subagent_result tool; bounded waits release only their carrier claim on expiry without stopping a run, report pending selection privately and withhold model labels, and carry the waited run's outcome across supersession
+│   ├── get-result-report.ts        pure get_subagent_result report formatter; pending-selection expiry asks for a choice instead of recommending child steering
 │   ├── get-result-renderer.ts      pure get_subagent_result line assembly for the collapsed and expanded TUI views
 │   ├── steer-tool.ts               steer_subagent tool
 │   └── helpers.ts                  shared tool utilities
 │
 ├── ui/                             user-facing presentation
+│   ├── notification-renderer.ts    completion/update/workspace message renderers; imports notification DTOs type-only
 │   ├── agent-widget.ts             above-editor live status widget; maps private pending-selection activity onto the renderer
 │   ├── widget-renderer.ts          pure rendering for widget; passes the private pending fact to the shared activity formatter
 │   ├── display.ts                  pure formatters and shared detail types; pending-first activity precedence, ordinary mode labels, and invocation-tag construction
@@ -815,18 +817,18 @@ Structural metrics corroborate code review; they do not measure upstream integra
 
 ### Health metrics
 
-| Metric                     | Value                                                                   |
-| -------------------------- | ----------------------------------------------------------------------- |
-| Health score               | 78/100 (B)                                                              |
-| Total LOC                  | 12,292 (73 files)                                                       |
-| Dead code                  | 0 files, 0 exports                                                      |
-| Maintainability index      | 90.9 (good)                                                             |
-| Avg cyclomatic complexity  | 1.3                                                                     |
-| P90 cyclomatic complexity  | 2                                                                       |
-| Production duplication     | 0 lines                                                                 |
-| Test duplication           | retired (fallow 3.2.0 excludes test files; see Phase 20 Step 9 history) |
-| Fallow refactoring targets | No target section emitted                                               |
-| Core tests                 | 2,023 tests across 87 files                                             |
+| Metric                     | Value                                        |
+| -------------------------- | -------------------------------------------- |
+| Health score               | 77.5/100 (B)                                 |
+| Total LOC                  | 13,652 (77 files)                            |
+| Dead code                  | 0 files, 0 exports                           |
+| Maintainability index      | 90.7 (good)                                  |
+| Avg cyclomatic complexity  | 1.3                                          |
+| P90 cyclomatic complexity  | 2                                            |
+| Production duplication     | 13 lines in one production-only clone group  |
+| Test duplication           | Included in package-wide duplication results |
+| Fallow refactoring targets | No findings in health output                 |
+| Core tests                 | 2,323 tests across 95 files                  |
 
 Recompute source file count with `find packages/pi-subagents/src -name '*.ts' | wc -l` and LOC with `find packages/pi-subagents/src -name '*.ts' -exec wc -l {} +` from the repository root.
 Source totals count `src/` only; fallow's package-wide LOC includes other files.
@@ -840,32 +842,34 @@ The 10+-field dependency bags flagged in prior phases (`ResolvedSpawnConfig`, `A
 
 ### Complexity hotspots
 
-Fallow reports 13 functions above configured thresholds, which include unit size as well as complexity.
+Fallow reports 18 functions above configured thresholds, which include unit size as well as complexity.
 Its large-function list includes nested test-suite callbacks, not just individual test bodies.
-The test helper `subagent-manager.test.ts`'s `createManager` has cyclomatic complexity 21; `createTestSubagent` has 19.
 CRAP values in this run are statically estimated, not coverage-backed findings.
 
 ### Churn hotspots
 
 Files with highest commit frequency × complexity:
 
-| Score | File                            | Commits | Trend          |
-| ----- | ------------------------------- | ------- | -------------- |
-| 47.1  | `lifecycle/subagent.ts`         | 61      | ─ stable       |
-| 41.9  | `index.ts`                      | 128     | ▼ cooling      |
-| 20.5  | `tools/foreground-runner.ts`    | 39      | ▼ cooling      |
-| 18.2  | `tools/agent-tool.ts`           | 79      | ▼ cooling      |
-| 17.2  | `service/service-adapter.ts`    | 26      | ▼ cooling      |
-| 16.7  | `lifecycle/subagent-manager.ts` | 29      | ▲ accelerating |
+| Score | File                       | Commits | Trend        |
+| ----- | -------------------------- | ------- | ------------ |
+| 62.8  | `lifecycle/subagent.ts`    | 75      | accelerating |
+| 45.2  | `index.ts`                 | 131     | cooling      |
+| 25.8  | `tools/get-result-tool.ts` | 48      | stable       |
+| 22.1  | `ui/agent-widget.ts`       | 39      | cooling      |
+| 21.3  | `tools/agent-tool.ts`      | 83      | cooling      |
+| 21.1  | `ui/display.ts`            | 24      | accelerating |
 
 These are the highest-ranked production files in the six-month churn window.
-The record is stable while the manager is accelerating; the inherited all-cooling-or-stable premise does not describe this fork.
+The record and manager are accelerating in this fork; upstream's historical all-cooling-or-stable premise does not describe this checkout.
 
 ### Production duplication
 
 Production duplication is 13 lines in one clone group: `SubagentSession.runTurnLoop` and `resumeTurnLoop` (`lifecycle/subagent-session.ts`), the session layer's half of the initial-or-resume fork [#1050] collapses.
 
 ## Improvement roadmap — Phase 23: Runs as first-class
+
+This is inherited upstream roadmap context, not a fork execution or completion mandate.
+Its issue links target `gotgenes/pi-packages`; this synchronization preserves the recorded history without marking fork issue #43 as an upstream roadmap step.
 
 ### Findings (planned 2026-10-09)
 
