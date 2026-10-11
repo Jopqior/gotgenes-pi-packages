@@ -102,3 +102,23 @@ Three test-focused implementation cycles (runnable-fixture repair, pending-selec
 The operator-approved skill-summary removal is the only additional documentation adjustment after the first implementation handoff.
 Stop before shipping: start a fresh root Pi session and run `/ship #43`, using the actual merge first parent as `RANGE_BASE` and only verified fork close targets.
 Release dispatch or publication still requires separate operator approval; no push, release or closure has occurred.
+
+## Stage: Ship (2026-10-11T23:18:57+08:00)
+
+### Session summary
+
+Shipped from the root checkout on `main` through the trunk lane, preserving the genuine two-parent integration.
+Root lint and dead-code gates passed before push; CI run [38150063747](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/38150063747) passed on the implementation handoff.
+Closed fork issue #43 with the operator-approved summary.
+The operator approved publication of only `@jopqior/pi-subagents` to npmjs.org; release run [38150603793](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/38150603793) succeeded.
+Verified release commit `046210feb4c7f98f76bb5126da8a06f818cca7a0`, tag `pi-subagents-v6.1.0`, registered manifest identity/version and the matching GitHub Release before pulling the release commit.
+
+### Observations
+
+- Used actual merge first parent `3a727fabbba301ac11db7f58b4ab0a7c2ae34158` as `RANGE_BASE` and skipped incoming upstream-number co-shipped scanning.
+  No additional explicit fork close target was recorded.
+- Registered changed release selection contained only core; permission-system and permission-model-judge changed but are unregistered and not publication-eligible.
+  Worktrees was not changed and was not dispatched.
+- The operator explicitly chose delivery under existing validation without optional live TUI/model checks or GitHub Mermaid preview, and approved that disclosure in the close comment.
+- There was no feature worktree or branch to tear down and no fork roadmap phase to close.
+  Next stage: `/retro 43` at the root on `main`.
