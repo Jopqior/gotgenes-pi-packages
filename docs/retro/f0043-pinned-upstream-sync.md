@@ -122,3 +122,79 @@ Verified release commit `046210feb4c7f98f76bb5126da8a06f818cca7a0`, tag `pi-suba
 - The operator explicitly chose delivery under existing validation without optional live TUI/model checks or GitHub Mermaid preview, and approved that disclosure in the close comment.
 - There was no feature worktree or branch to tear down and no fork roadmap phase to close.
   Next stage: `/retro 43` at the root on `main`.
+
+## Stage: Final Retrospective (2026-10-11T15:30:54Z)
+
+### Session summary
+
+Reviewed the planning, implementation and shipping transcripts together with their accumulated stage notes.
+The pinned integration preserved fork contracts, passed independent review and shipped the separately approved `@jopqior/pi-subagents` release; this retrospective concerns workflow friction rather than further integration or publication.
+
+### Observations
+
+#### What went well
+
+- Incoming tests exposed a real fork fixture mismatch before adaptation: `stalledAgent()` needed `createRunnableTestSubagent`, not a weakened passive owner.
+  The additive `packages/pi-subagents/test/tools/selection-query.test.ts` then exercised the deferred chooser through query expiry and subsequent confirmation, distinguishing human selection from a stalled child.
+- Synchronization-specific review scope worked in the independent review: actual merge-first-parent inputs, independently regenerated incoming/integration inventories, automatic merge inspection and post-merge contributions replaced a misleading tag-derived range.
+  The reviewer returned PASS without promoting omitted optional live checks into warnings; source claims remained separate for core and worktrees.
+
+#### What caused friction (agent side)
+
+- `wrong-abstraction`: the planning summary did not clearly distinguish retained upstream tests, fork fixture adaptation and the additional packed-consumer check.
+  The operator asked why steps 2 and 4 were needed; inspection of the incoming adapter tests confirmed that another full snapshot suite was unnecessary.
+  Impact: an additional explanation and diff inspection, without plan or production-code rework.
+- `instruction-violation` (user-caught): implementation added a five-line mechanism summary to `.pi/skills/package-pi-subagents/SKILL.md` despite existing architecture/source ownership and the admission test against redundant guidance.
+  The operator accepted the README behavior explanation but questioned the skill addition; the agent initially suggested compression before agreeing to delete it without another pointer.
+  Impact: the follow-up commit `docs: remove duplicate implementation summary from package skill` removed the redundant prose, and the final review used the updated HEAD.
+- `other` (worker startup failure with delayed observation): three implementation workers failed before tool use with JSON parse errors while merge-conflicted manifests were present.
+  The parent collected their results only after the operator called attention to the failures, then completed conflict resolution inline.
+  Impact: three failed dispatches and manual reassignment, with no worker file changes; the successful final independent reviewer was still required.
+  Manifest conflict and launch failure were correlated, not a diagnosed causal mechanism.
+- `instruction-violation` (self-identified during this retrospective): shipping offered a run-or-skip decision for optional live TUI/model checks and GitHub Mermaid preview without naming an unresolved adaptation uncertainty.
+  The agent followed `.pi/prompts/ship.md`'s unconditional missing-check instruction despite the already-loaded synchronization guide explicitly excluding this waiver gate.
+  Impact: an unnecessary question within the delivery gate and a follow-up explanation of optional checks; no additional checks ran, and publication approval remained separate and valid.
+- `missing-context`: planning, implementation and the permission scout each first tried the nonexistent `.pi/skills/colgrep/SKILL.md` instead of the registered `packages/pi-colgrep/skills/colgrep/SKILL.md`.
+  Impact: three failed reads followed by corrected reads, with no artifact rework.
+
+#### What caused friction (user side)
+
+- The operator had to supply mechanical oversight for failed workers and redundant skill prose, although both were observable to the agent.
+  A useful agent-side response is to check worker startup results and existing documentation ownership before asking the operator to supervise them.
+- Questions about upstream classification and retained versus additional tests revealed assumptions the initial planning explanations had not made explicit.
+  Presenting the upstream baseline and the fork-only delta together would let the operator spend attention on compatibility decisions rather than decoding the plan.
+  No evidence indicates that withheld operator context caused these problems.
+
+### Diagnostic details
+
+- Model attribution comes from type-unfiltered parent and child transcripts, not agent definitions or the session's current model.
+  Planning, implementation and shipping assistant turns ran on `openai-codex/gpt-6.1-sol`.
+  The core compatibility exploration, permission compatibility exploration, Tidy-First assessment and final pre-completion review also ran on `openai-codex/gpt-6.1-sol` according to their child turns.
+  These were judgment-heavy tasks; no observed model-quality mismatch justifies changing model policy.
+  The three failed workers produced no tool work and have no child transcript in the implementation session's task directory, so no executed-model attribution is inferred for them.
+- Feedback was incremental, not end-only: implementation ran root baseline gates before merge, focused imported tests before fixture repair, selection-query Red/Green checks, killing mutations with saved-green restoration, packed public-type checks and final root gates.
+  The independent reviewer reran its own gates and packed compatibility checks; no feedback-loop policy change is proposed.
+- For the repeated skill-path failures, the available skill registry already supplied the correct path; another Explore dispatch or a new path-discovery mechanism was unnecessary.
+  No observed rabbit-hole warrants a greater-than-five-call escalation finding.
+
+### Proposal disposition
+
+Proposed replacing the unconditional missing-check decision in `.pi/prompts/ship.md` with a synchronization-specific route to `docs/fork-sync/synchronization-guide.md#validation-and-escalation`, retaining the ordinary manual-check decision for other work.
+The guide already owns the trigger and escalation policy; the proposed template edit would route synchronization checks to that owner rather than duplicate the policy.
+After requesting the exact replacement, the operator declined it and chose to leave the template unchanged.
+No follow-up issue or implementation task is implied by that decision.
+No additional skill-summary ban, startup diagnosis rule or global breaking-classification override was proposed: existing ownership/admission rules cover the first, worker root cause is unconfirmed, and the classification choice was explicitly issue-specific.
+
+### Evidence and continuity
+
+- Planning transcript: `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-10-11T13-42-22-007Z_01a12b33-4237-706d-844b-d054079c5d01.jsonl`.
+- Implementation transcript: `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-10-11T14-11-50-087Z_01a12b4e-3cc7-706d-844b-d0635734822d.jsonl`.
+- Shipping transcript: `/home/whh/.pi/agent/sessions/--home-whh-projects-gotgenes-pi-packages--/2026-10-11T15-06-13-410Z_01a12b80-0822-7356-86f8-7113b78c66cb.jsonl`.
+- This repository-scoped synchronization has no fork roadmap successor or phase-close obligation.
+  The newest repository triage, `docs/triage/2026-10-02-backlog.md`, ranks inherited upstream work rather than the fork tracker; its ranks and severities must not be attached to fork issue numbers.
+  The fork tracker currently has one open issue, [#26](https://github.com/Jopqior/gotgenes-pi-packages/issues/26), covering configuration-source selection across core and selector; it is an available next planning task, not a ranked synchronization successor.
+
+### Changes made
+
+1. Appended this cross-session retrospective to `docs/retro/f0043-pinned-upstream-sync.md`, preserving all prior stage entries and recording observations, transcript/model attribution, verification timing and next-task context.
+2. Recorded the operator's rejection of the proposed `.pi/prompts/ship.md` replacement; no template, skill, `AGENTS.md`, code or release artifact was changed in this retrospective.
