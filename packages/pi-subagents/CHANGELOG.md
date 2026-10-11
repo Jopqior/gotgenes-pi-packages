@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.1.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v6.0.1...pi-subagents-v6.1.0) (2026-10-11)
+
+
+### Features
+
+* **pi-subagents:** report a running agent's activity, turns, and last progress in get_subagent_result ([a4756fe](https://github.com/Jopqior/gotgenes-pi-packages/commit/a4756fed85c07db81eb91498786308e6e8307478)), closes [#947](https://github.com/Jopqior/gotgenes-pi-packages/issues/947)
+* **pi-subagents:** let get_subagent_result bound its wait with a timeout ([8ba9112](https://github.com/Jopqior/gotgenes-pi-packages/commit/8ba9112f1996b495476c2ae82d24b3a526fd88f1)), closes [#947](https://github.com/Jopqior/gotgenes-pi-packages/issues/947)
+* **pi-subagents:** report on each agent record why a resume would be refused ([b942f96](https://github.com/Jopqior/gotgenes-pi-packages/commit/b942f96309a8c36e25b3abe8258b6c18fbb10e7f)), closes [#912](https://github.com/Jopqior/gotgenes-pi-packages/issues/912)
+
+### Bug Fixes
+
+* **pi-subagents:** report pending model selection in result queries ([2459976](https://github.com/Jopqior/gotgenes-pi-packages/commit/245997610315c1b9d9f9579e23f08017dd8281ff))
+
+### Documentation
+
+* **pi-subagents:** replace upstream README media with a recorded demo ([8e889d0](https://github.com/Jopqior/gotgenes-pi-packages/commit/8e889d0431e569e29b2ae3269fee0e9246e19f46))
+* **pi-subagents:** document get_subagent_result's timeout and progress line ([a640452](https://github.com/Jopqior/gotgenes-pi-packages/commit/a6404525a55254254202264276be565b62caeefe)), closes [#947](https://github.com/Jopqior/gotgenes-pi-packages/issues/947)
+* **pi-subagents:** admit resumeRefusal to SubagentRecord under decision 0005 ([0b772d8](https://github.com/Jopqior/gotgenes-pi-packages/commit/0b772d8763741d8e6c147c4d9aa7d2b208f2331e)), closes [#912](https://github.com/Jopqior/gotgenes-pi-packages/issues/912)
+* reconcile pinned upstream changes with fork contracts ([#43](https://github.com/Jopqior/gotgenes-pi-packages/issues/43)) ([73d3882](https://github.com/Jopqior/gotgenes-pi-packages/commit/73d3882506dc137b25feffe32dd1bbca4c975e83))
+
+### Miscellaneous Chores
+
+* merge upstream/main ([cb5c478](https://github.com/Jopqior/gotgenes-pi-packages/commit/cb5c478447a05dc9de463d1d3bf59fe6e46e7c27))
+
+<!-- upstream-correspondence:start -->
+### Upstream correspondence
+
+Direct upstream package: `@gotgenes/pi-subagents`
+
+Contained stable upstream release: `23.4.0`
+
+Stable release source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/63476ff869efd8ea339040f496fa734048b89e70/packages/pi-subagents)
+
+Incorporated source: [fixed incorporated upstream commit](https://github.com/gotgenes/pi-packages/blob/1810feed6ab2a83fa74f3b242095e0cc03773570/packages/pi-subagents)
+
+Includes unreleased changes to this package.
+
+This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
+<!-- upstream-correspondence:end -->
+
 ## [6.0.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v6.0.0...pi-subagents-v6.0.1) (2026-10-11)
 
 
