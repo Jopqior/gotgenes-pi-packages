@@ -84,7 +84,7 @@ The complete selected set passes identity, source and heading checks before trac
 Downstream jobs validate tag-at-HEAD, manifest identity/version, clean package paths and critical byte equality, then validate new source claims offline without upstream reselection.
 Existing Releases are never overwritten; a conflicting managed block blocks all new creations.
 Older sections and published artifacts remain immutable; no ledger, generated table, historical backfill or candidate generator remains.
-Read the [release source guide](../../../docs/upstream/fork-release-policy.md) for reconstruction, failure timing and the manual first-publication handoff.
+Read the [release source guide](../../../docs/fork-sync/release-source-guide.md) for reconstruction, failure timing and the manual first-publication handoff.
 Source checks, registration and integration never authorize release dispatch or publication.
 
 ## A package's first release
@@ -95,7 +95,7 @@ Before first publication, obtain explicit separate operator approval of its npm 
 Registration is a required release gate, not publication authorization.
 The generic `next-version.sh` refuses an untagged package rather than inventing its first version, and npm Trusted Publishing cannot create a package that does not yet exist.
 For an approved original package, the operator publishes the first version manually with `pnpm --filter <approved-npm-name> publish --access public --no-git-checks --registry=https://registry.npmjs.org/` (without `--provenance`), tags it `<pkg>-v<version>`, then configures the npmjs.org Trusted Publisher for this fork's `release.yml` workflow.
-For a new fork, read the [manual first-publication handoff](../../../docs/upstream/fork-release-policy.md#first-fork-release-handoff), inspect the exported resolver/renderer output and review the manually prepared tagged section and package contents before publication.
+For a new fork, read the [manual first-publication handoff](../../../docs/fork-sync/release-source-guide.md#first-fork-release-handoff), inspect the exported resolver/renderer output and review the manually prepared tagged section and package contents before publication.
 No first-version inference or candidate/application bundle is provided.
 Never dispatch ordinary preparation for an untagged first release.
 First npm publication is manual without `--provenance`, after exact tagged-artifact preflight and explicit separate npm scope/destination approval; source inspection and registration never grant that approval.

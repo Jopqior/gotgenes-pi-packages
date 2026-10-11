@@ -107,7 +107,7 @@ ensure_upstream_remote() {
 
 refuse_merge() {
   printf 'error: %s\n' "$1" >&2
-  printf 'run ./scripts/upstream-sync.sh --fetch to fetch and print ahead/behind without merging\n' >&2
+  printf 'run ./scripts/fork-sync/sync.sh --fetch to fetch and print ahead/behind without merging\n' >&2
   exit 1
 }
 
@@ -196,7 +196,7 @@ if [[ "$merge" -eq 1 ]]; then
   [[ "$target" == "$expected_upstream" ]] \
     || refuse_merge "approved upstream OID must identify that exact commit"
   git rev-parse --verify --quiet 'upstream/main^{commit}' >/dev/null \
-    || refuse_merge "upstream/main is not available locally; run ./scripts/upstream-sync.sh --fetch"
+    || refuse_merge "upstream/main is not available locally; run ./scripts/fork-sync/sync.sh --fetch"
   if git merge-base --is-ancestor "$target" upstream/main; then
     :
   else

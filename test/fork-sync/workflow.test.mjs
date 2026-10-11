@@ -28,21 +28,77 @@ const shell = (command, options = {}) =>
     ...options,
   });
 
+function repositorySnapshot(cwd = process.cwd()) {
+  const git = (...args) =>
+    execFileSync("git", ["--no-optional-locks", ...args], {
+      cwd,
+      encoding: "utf8",
+      stdio: "pipe",
+    });
+  return {
+    head: git("rev-parse", "HEAD"),
+    refs: git("show-ref"),
+    index: git("ls-files", "--stage"),
+    status: git("status", "--porcelain=v1"),
+    config: git("config", "--local", "--list"),
+    registry: read(path.join(cwd, "scripts/release/release-packages.json")),
+  };
+}
+
 describe("live synchronization resources and workflow wiring", () => {
-  it("keeps the current entry resources resolvable until the namespace cutover", () => {
+  it("resolves the new entry resources, linked guides and actual module imports without aliases", () => {
+    const resources = [
+      "scripts/fork-sync/sync.sh",
+      "scripts/fork-sync/issue.mjs",
+      ".pi/prompts/fork-sync.md",
+      "docs/fork-sync/synchronization-guide.md",
+      "docs/fork-sync/release-source-guide.md",
+    ];
+    for (const file of resources) expect(existsSync(file), file).toBe(true);
     for (const file of [
       "scripts/upstream-sync.sh",
-      "scripts/fork-sync/issue.mjs",
-      "docs/upstream/synchronization-guide.md",
-      "docs/upstream/fork-release-policy.md",
+      ".pi/prompts/upstream-sync.md",
+      "docs/upstream",
+      "test/upstream-sync",
     ])
-      expect(existsSync(file), file).toBe(true);
-    const text = prompt("upstream-sync");
-    expect(text).toContain("scripts/fork-sync/issue.mjs");
-    expect(text).toContain("](../../docs/upstream/synchronization-guide.md)");
-    expect(read("AGENTS.md")).toContain(
-      "](docs/upstream/synchronization-guide.md)",
-    );
+      expect(existsSync(file), file).toBe(false);
+
+    for (const file of [
+      ...resources.filter((file) => file.endsWith(".md")),
+      "AGENTS.md",
+      "README.md",
+      ".pi/skills/releasing/SKILL.md",
+    ]) {
+      const text = read(file);
+      for (const [, reference] of text.matchAll(/\]\(([^)]+)\)/g)) {
+        const local = reference.startsWith(
+          "https://github.com/Jopqior/gotgenes-pi-packages/blob/main/",
+        )
+          ? reference.split("/blob/main/")[1]
+          : /^[a-z]+:/.test(reference)
+            ? null
+            : path.join(path.dirname(file), reference);
+        if (local)
+          expect(existsSync(local.split("#")[0]), `${file}: ${reference}`).toBe(
+            true,
+          );
+      }
+      for (const [reference] of text.matchAll(/scripts\/[\w/.-]+\.(?:mjs|sh)/g))
+        expect(existsSync(reference), `${file}: ${reference}`).toBe(true);
+    }
+    for (const file of [
+      "scripts/fork-sync/issue.mjs",
+      "scripts/fork-sync/source.mjs",
+      "scripts/release/release-metadata.mjs",
+    ]) {
+      for (const [, reference] of read(file).matchAll(
+        /from\s+["'](\.[^"']+)["']/g,
+      ))
+        expect(
+          existsSync(path.resolve(path.dirname(file), reference)),
+          `${file}: ${reference}`,
+        ).toBe(true);
+    }
   });
   for (const name of ["tdd-plan", "build-plan"]) {
     it(`executes the ${name} operation guard before startup synchronization`, () => {
@@ -70,6 +126,7 @@ describe("live synchronization resources and workflow wiring", () => {
     });
   }
   it("executes the ship candidate import read-only at HEAD", () => {
+    const before = repositorySnapshot();
     const result = shell(fence(prompt("ship"), "release-candidates"), {
       env: { ...process.env, RANGE_BASE: "HEAD" },
     });
@@ -78,6 +135,7 @@ describe("live synchronization resources and workflow wiring", () => {
       registered: [],
       unregistered: [],
     });
+    expect(repositorySnapshot()).toEqual(before);
   });
   it("includes incoming/follow-up registered changes and reports unregistered paths", () => {
     const registry = JSON.parse(read("scripts/release/release-packages.json"));
@@ -127,6 +185,7 @@ describe("live synchronization resources and workflow wiring", () => {
       );
       git("add", "packages");
       git("commit", "-m", "test: follow-up");
+      const before = repositorySnapshot(dir);
       const result = shell(fence(prompt("ship"), "release-candidates"), {
         cwd: dir,
         env: { ...process.env, RANGE_BASE: base },
@@ -136,6 +195,7 @@ describe("live synchronization resources and workflow wiring", () => {
         registered: [registry.packages[0], registry.packages[1]],
         unregistered: ["incoming-unregistered"],
       });
+      expect(repositorySnapshot(dir)).toEqual(before);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

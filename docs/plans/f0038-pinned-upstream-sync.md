@@ -21,7 +21,7 @@ Do not copy upstream versions into either fork manifest, predict an unreleased f
 Integrate the issue's exact upstream commit into this fork while retaining its selector and worktrees contracts.
 The target changes public turn-budget shapes, execution limits, resume, persisted transcript navigation, widget rendering, permission behavior, and host requirements.
 Textual conflict resolution alone cannot preserve the fork: several selection, service, lifecycle, and presentation intersections merge automatically.
-The [synchronization guide](../upstream/synchronization-guide.md) governs review depth, validation, finding disposition, and merge topology throughout the standard stages.
+The [synchronization guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/17e5ae5fea819fbd094bb5d576427111b82e9e19/docs/upstream/synchronization-guide.md) governs review depth, validation, finding disposition, and merge topology throughout the standard stages.
 
 ## Goals
 

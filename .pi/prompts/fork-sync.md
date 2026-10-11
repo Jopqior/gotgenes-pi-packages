@@ -26,7 +26,7 @@ A residual request after a closed match requires a separate operator decision, n
 
 Only with no match, use the file tool to write an English issue body to a temporary file.
 Include the exact line `Upstream target: gotgenes/pi-packages@<full SHA>` and `https://github.com/gotgenes/pi-packages/commit/<full SHA>`.
-Include the [synchronization guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream/synchronization-guide.md) in the issue body.
+Include the [synchronization guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/fork-sync/synchronization-guide.md) in the issue body.
 State that the guide governs synchronization review, validation and finding disposition throughout the ordinary stages.
 Require root checkout/main landing with a genuine two-parent merge, never a feature-worktree rebase or squash.
 Acceptance criteria: follow the guide's scope through `/plan-issue`, `/tdd-plan` or `/build-plan`, independent review, `/ship` and `/retro` in separate standard stages.
@@ -43,5 +43,5 @@ Concurrent independent creators can still race this non-atomic recheck; report t
 Print the URL, state if reused, and `/plan-issue <number>` for the next session (for multiple matches, report them without choosing one).
 End this session; do not automatically invoke planning.
 No conflict analysis, upstream fetch, sync script execution, implementation, push, or release belongs to this entry point.
-The issue, ordinary plan/retro, and Git carry future handoffs; read the [synchronization guide](../../docs/upstream/synchronization-guide.md) before integration work.
-Source reconstruction and ordinary version derivation belong to the [release source guide](../../docs/upstream/fork-release-policy.md); publication authorization remains separate.
+The issue, ordinary plan/retro, and Git carry future handoffs; read the [synchronization guide](../../docs/fork-sync/synchronization-guide.md) before integration work.
+Source reconstruction and ordinary version derivation belong to the [release source guide](../../docs/fork-sync/release-source-guide.md); publication authorization remains separate.

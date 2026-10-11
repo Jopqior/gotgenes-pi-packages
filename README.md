@@ -2,7 +2,7 @@
 
 A personal fork of [gotgenes/pi-packages](https://github.com/gotgenes/pi-packages), containing [Pi](https://github.com/earendil-works/pi) extensions with mixed npm identities.
 The maintained subagents core, model selector and worktrees companion use `@jopqior/*`; other packages retain their upstream `@gotgenes/*` identities.
-Retained upstream identities do not authorize fork publication; see each manifest and the [release source guide](docs/upstream/fork-release-policy.md).
+Retained upstream identities do not authorize fork publication; see each manifest and the [release source guide](docs/fork-sync/release-source-guide.md).
 Some packages (like pi-permission-system) are designed for broad use; others scratch a personal itch and are shared in case they help others.
 
 ## Packages
@@ -121,11 +121,11 @@ An equivalent command for [Diffview.nvim](https://github.com/sindrets/diffview.n
 
 ### Upstream sync
 
-From a fresh Pi session at the repo root, invoke the no-argument [upstream-sync entry point](.pi/prompts/upstream-sync.md) to find or create a fixed-target fork issue, then stop.
-The [synchronization guide](docs/upstream/synchronization-guide.md) owns integration constraints and lifecycle exceptions.
-The [release source guide](docs/upstream/fork-release-policy.md) separates ordinary path-scoped versioning from verified upstream source display.
+From a fresh Pi session at the repo root, invoke the no-argument [fork-sync entry point](.pi/prompts/fork-sync.md) to find or create a fixed-target fork issue, then stop.
+The [synchronization guide](docs/fork-sync/synchronization-guide.md) owns integration constraints and lifecycle exceptions.
+The [release source guide](docs/fork-sync/release-source-guide.md) separates ordinary path-scoped versioning from verified upstream source display.
 Preparation resolves source in temporary repositories before tracked writes; publication and GitHub notes reuse the exact tagged sections offline.
-For an untagged package, follow the [manual first-publication handoff](docs/upstream/fork-release-policy.md#first-fork-release-handoff) with separate approval of its npm identity and destination.
+For an untagged package, follow the [manual first-publication handoff](docs/fork-sync/release-source-guide.md#first-fork-release-handoff) with separate approval of its npm identity and destination.
 Core and worktrees retain their separate registered `@jopqior/*` identities; registration and integration never authorize publication.
 
 ### Agentic development workflow

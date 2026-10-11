@@ -1,4 +1,4 @@
-// Instance-owned local-upstream network for the upstream-sync tests: a
+// Instance-owned local-upstream network for the fork-sync tests: a
 // scratch directory holding a git wrapper on PATH (which rewrites `fetch`/
 // `ls-remote` to the local bare upstream and records every invocation), the
 // `remotes/` bare repositories `materializeNetwork` builds, and the process
@@ -24,7 +24,7 @@ const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
 );
-const scriptPath = path.join(repoRoot, "scripts", "upstream-sync.sh");
+const scriptPath = path.join(repoRoot, "scripts/fork-sync/sync.sh");
 
 export const realGit = execFileSync("which", ["git"], {
   encoding: "utf8",
@@ -33,7 +33,7 @@ export const realGit = execFileSync("which", ["git"], {
 export const githubUpstream = "git@github.com:gotgenes/pi-packages.git";
 export const mergeMessage = "chore: merge upstream/main";
 export const refuseHint =
-  "run ./scripts/upstream-sync.sh --fetch to fetch and print ahead/behind without merging";
+  "run ./scripts/fork-sync/sync.sh --fetch to fetch and print ahead/behind without merging";
 
 const gitWrapperSource = () =>
   [
@@ -70,6 +70,8 @@ const gitWrapperSource = () =>
     '  process.stderr.write("simulated ancestry inspection failure\\n");',
     "  process.exit(128);",
     "}",
+    // Record forbidden external effects without ever performing them.
+    'if (args[0] === "push") process.exit(0);',
     'const result = spawnSync(realGit, rewrite(args), { stdio: "inherit" });',
     "const code = result.status === null ? 1 : result.status;",
     "if (",
@@ -132,6 +134,7 @@ export function createUpstreamNetwork() {
       cwd,
       encoding: "utf8",
       env: baseGitEnv,
+      stdio: "pipe",
     });
     if ((result.status ?? 1) !== 0 && !options.allowFail) {
       throw new Error(
@@ -447,7 +450,6 @@ export function createUpstreamNetwork() {
   return {
     scratch,
     git,
-    configureRepo,
     revParse,
     prepareFetchedUpstream,
     parentsOf,
@@ -457,7 +459,6 @@ export function createUpstreamNetwork() {
     readGitStateFile,
     advanceUpstream,
     writeFiles,
-    commit,
     runScript,
     recordedInvocations,
     recordedFetches,

@@ -17,7 +17,7 @@ This section takes precedence over inherited repository-target, roadmap, and rel
 - Never import upstream tags into this fork's tag namespace.
   `git fetch --tags`, `git fetch --all --tags`, and a flagless `git fetch upstream` are forbidden; they override `remote.upstream.tagOpt`.
 - Before performing or resuming actual upstream synchronization (including a pinned-target issue), load its constraints.
-  Read the [synchronization guide](docs/upstream/synchronization-guide.md) before relevant Git operations, including startup fetch/pull.
+  Read the [synchronization guide](docs/fork-sync/synchronization-guide.md) before relevant Git operations, including startup fetch/pull.
   Its prerequisites take precedence over a template's startup pull; when synchronization context becomes available, load it before subsequent relevant Git operations.
   Editing synchronization tooling or documentation is not itself integration work.
 - Treat inherited upstream issue numbers, roadmap priorities, and release procedures as upstream context, not automatic obligations for this fork.

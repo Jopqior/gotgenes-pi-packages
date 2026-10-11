@@ -1,8 +1,8 @@
 # Upstream synchronization constraints
 
 These are exceptions to the [standard issue lifecycle](../../AGENTS.md#working-an-issue), not a separate workflow.
-The no-argument [upstream-sync entry point](../../.pi/prompts/upstream-sync.md) only finds or creates an exact-target fork issue and stops.
-The [release source guide](fork-release-policy.md) owns ordinary versioning, source reconstruction and publication restrictions.
+The no-argument [fork-sync entry point](../../.pi/prompts/fork-sync.md) only finds or creates an exact-target fork issue and stops.
+The [release source guide](release-source-guide.md) owns ordinary versioning, source reconstruction and publication restrictions.
 
 ## Prerequisites before Git operations
 
@@ -27,9 +27,9 @@ A clean completed checkpoint uses ordinary fast-forward-only startup; divergence
 Keep the issue's exact full `Upstream target: gotgenes/pi-packages@<full SHA>` in the ordinary plan's Design Overview; a newer discovered tip does not substitute for it.
 Plan against the incoming common-base-to-target diff, incoming package changes, fork identities/contracts, immutable changelogs, validation, and release-evidence feasibility.
 Agree compatibility choices in the ordinary plan; return materially new choices to the operator before affected edits and record them in the ordinary artifacts.
-Use `./scripts/upstream-sync.sh --fetch` for explicit safe inspection inputs; if the remote is missing, agree `--upstream-protocol ssh|https` with the operator, and inspect mismatched URLs rather than silently rewriting them.
+Use `./scripts/fork-sync/sync.sh --fetch` for explicit safe inspection inputs; if the remote is missing, agree `--upstream-protocol ssh|https` with the operator, and inspect mismatched URLs rather than silently rewriting them.
 Fetch reports the repository target OID and ahead/behind; it does not select packages or query release tags.
-Merge only the locally present approved target with `./scripts/upstream-sync.sh --merge --expected-upstream <full SHA>`.
+Merge only the locally present approved target with `./scripts/fork-sync/sync.sh --merge --expected-upstream <full SHA>`.
 Merge does not implicitly refresh `upstream/main`; missing inputs need explicit fetch and inspection.
 Source preflight requires unambiguous incorporated ancestry and stable release evidence; an unreleased package tail is displayed, not rejected or used to change the approved target.
 Preserve fork history and immutable changelogs; never import upstream tags into the fork's tag namespace.
