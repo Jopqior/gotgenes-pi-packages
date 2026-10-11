@@ -86,3 +86,28 @@ The final full suite passed 9,625 tests versus the 10,001-test implementation ba
 - All implementation steps are complete; no concrete out-of-scope follow-up was filed.
   Local commits are unpushed, and no GitHub mutation, release dispatch or publication occurred.
   Next is `/ship 40` on `main`; use a fresh Pi session before the first actual `/fork-sync` invocation because prompt registration is stale in this process.
+
+## Stage: Ship (2026-10-11T11:47:30Z)
+
+### Session summary
+
+Shipped through the trunk lane after a fast-forward-only pull and passing root lint/dead-code gates.
+Implementation CI passed in run `38135532263`; the operator approved the exact close comment and publication of both registered fork packages to npmjs.org, and issue #40 was closed.
+Release run `38135949915` prepared `cc3eb353256a7f4bf2d9fac85cf8cca71cd463bd`, with parent `3cb2baf286c68378c139f6795a59495a29390710`, and ultimately completed successfully on attempt 2.
+Both package tags and GitHub Releases were verified: `@jopqior/pi-subagents` at `6.0.1` and `@jopqior/pi-subagents-worktrees` at `0.1.1`.
+The local checkout fast-forwarded to the release commit; no worktree existed to remove.
+
+### Observations
+
+- The first publish attempt successfully published core, then worktrees failed its OIDC token exchange and registry PUT with HTTP 404.
+  Both Git tags already existed, while both GitHub Releases were absent; the initial immediate npm query missed core, but a later registry query confirmed `6.0.1`.
+  The operator found worktrees' Trusted Publisher marked Expired and deleted/recreated that configuration.
+- No full workflow re-dispatch or prepare retry occurred.
+  Recovery was separately approved after inspecting GitHub CLI `2.100.0`'s rerun endpoint, GitHub's selected-job/dependent-job contract, the pinned pnpm `11.25.0` implementation, and the original publish checkout at the exact tagged release commit.
+  The filtered pnpm publish route skips registry-existing versions without `--force`; the production script supplies no such flag.
+- Rerunning only publish job `114459796220` retained the successful prepare result and ran publish plus downstream github-release.
+  Attempt 2's logs show core skipped as already published, worktrees `0.1.1` published, and both GitHub Releases created from the original release commit.
+  The earlier blanket warning against failed-job retry was too broad; the actual job scope, pinned publish semantics and tagged checkout determine whether recovery is safe.
+- The plan-anchor range also contained issues #41 and #42, but each already had its own completed ship and curated close summary.
+  No additional issue or PR close target was identified, and this repository-scoped issue completes no package roadmap phase.
+- The next step is `/retro 40` at the root on `main`; no new implementation or workflow-policy change was folded into release recovery.
