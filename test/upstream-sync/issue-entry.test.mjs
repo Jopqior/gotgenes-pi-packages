@@ -10,7 +10,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-const prompt = readFileSync(".pi/prompts/upstream-sync.md", "utf8");
+const entry = path.resolve("scripts/fork-sync/issue.mjs");
 const target = "a".repeat(40);
 const targetLine = `Upstream target: gotgenes/pi-packages@${target}`;
 const url = (number) =>
@@ -29,7 +29,7 @@ afterEach(() => {
 });
 
 // The fake transport returns REST pages, not pre-filtered matches: the actual
-// prompt's matcher decides exact lines, PRs, null bodies and line endings.
+// entry's matcher decides exact lines, PRs, null bodies and line endings.
 function runEntry(scenario = {}, mode = "lookup") {
   const directory = mkdtempSync(path.join(os.tmpdir(), "sync-entry-"));
   directories.push(directory);
@@ -73,9 +73,7 @@ if (args[0] === 'repo') {
 `,
   );
   chmodSync(fake, 0o755);
-  const match = /<!-- issue-entry -->\n+```bash\n([\s\S]*?)\n```/.exec(prompt);
-  expect(match, "actual executable issue-entry fence").not.toBeNull();
-  const result = spawnSync("bash", ["-c", match[1]], {
+  const result = spawnSync(process.execPath, [entry], {
     cwd: directory,
     encoding: "utf8",
     env: {
@@ -90,7 +88,12 @@ if (args[0] === 'repo') {
       CREATED_BODY: path.join(directory, "created.md"),
     },
   });
-  const calls = readFileSync(log, "utf8").trim().split("\n").map(JSON.parse);
+  let calls = [];
+  try {
+    calls = readFileSync(log, "utf8").trim().split("\n").map(JSON.parse);
+  } catch (error) {
+    if (error.code !== "ENOENT") throw error;
+  }
   return {
     ...result,
     calls,
@@ -104,6 +107,12 @@ if (args[0] === 'repo') {
 const lookup = (pages) => runEntry({ responses: [{ pages }] });
 
 describe("upstream synchronization issue entry", () => {
+  it("rejects an invalid entry mode before any mutation", () => {
+    const result = runEntry({}, "retry");
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("Unknown entry mode");
+    expect(result.creates).toEqual([]);
+  });
   describe("exact target lookup", () => {
     it.each(["open", "closed"])(
       "returns an exact %s match without mutation",
@@ -238,6 +247,20 @@ describe("upstream synchronization issue entry", () => {
       ]);
       expect(result.calls.at(-1)[0]).toBe("api");
     });
+    it.each([{ createFailure: true }, { createdUrl: "ambiguous response" }])(
+      "stops after successful empty recovery without retrying %j",
+      (scenario) => {
+        const result = runEntry(
+          { ...scenario, responses: [{ pages: [[]] }, { pages: [[]] }] },
+          "create",
+        );
+        expect(result.status).not.toBe(0);
+        expect(result.creates).toHaveLength(1);
+        expect(JSON.parse(result.stdout).matches).toEqual([]);
+        expect(result.calls.at(-1)[0]).toBe("api");
+        expect(result.stdout).not.toContain("/plan-issue");
+      },
+    );
     it("stops when recovery lookup also fails", () => {
       const result = runEntry(
         {

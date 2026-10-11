@@ -14,7 +14,7 @@ Before returning a single reused or newly created issue, call `set_session_name`
 
 ## 1. Query the target and all fork issues
 
-Run the executable fence below with `ENTRY_MODE=lookup`.
+Run `ENTRY_MODE=lookup node scripts/fork-sync/issue.mjs`.
 It verifies CLI identity, queries upstream once, validates the full lowercase SHA, and compares an exact body line across all states and pages, excluding PRs and normalizing CRLF.
 Only successful complete pagination can establish no match; a failed query stops creation.
 Retain the returned `target` as the fixed target for this issue, even if upstream advances later.
@@ -32,63 +32,11 @@ Require root checkout/main landing with a genuine two-parent merge, never a feat
 Acceptance criteria: follow the guide's scope through `/plan-issue`, `/tdd-plan` or `/build-plan`, independent review, `/ship` and `/retro` in separate standard stages.
 Materially new compatibility choices return to the operator before affected edits; publication remains separately approved for registered fork identities.
 
-Run the same fence with `ENTRY_MODE=create`, `TARGET` set to the previously returned full SHA, and `ISSUE_BODY_FILE` set to that file path, as quoted environment values rather than interpolated shell source.
+Run `ENTRY_MODE=create TARGET="<pinned SHA>" ISSUE_BODY_FILE="<body path>" node scripts/fork-sync/issue.mjs`, passing the previously returned full SHA and temporary file path as quoted environment data rather than interpolated shell source.
 The final all-state paginated recheck immediately precedes the create command; if a match appeared, return it and stop.
 Creation is explicitly targeted to the fork with `scope:repo`; resolve the issue number only from the returned fork URL.
 An ambiguous create result triggers a read-only lookup and stop; never automatically repeat the mutation, even if no match is returned.
 Concurrent independent creators can still race this non-atomic recheck; report that limitation rather than adding a locking mechanism.
-
-<!-- issue-entry -->
-
-```bash
-set -euo pipefail
-REPOSITORY=$(gh repo view --json nameWithOwner --jq .nameWithOwner)
-[[ "$REPOSITORY" == Jopqior/gotgenes-pi-packages ]] || { printf 'Unexpected GitHub repository\n' >&2; exit 1; }
-if [[ "${ENTRY_MODE:-lookup}" == lookup ]]; then
-  TARGET=$(gh api repos/gotgenes/pi-packages/commits/main --jq .sha)
-elif [[ "${ENTRY_MODE:-}" != create ]]; then
-  printf 'Unknown entry mode\n' >&2
-  exit 1
-fi
-[[ "${TARGET:-}" =~ ^[0-9a-f]{40}$ ]] || { printf 'Invalid upstream target\n' >&2; exit 1; }
-export TARGET
-lookup_target() {
-  local pages
-  pages=$(gh api --paginate --slurp 'repos/Jopqior/gotgenes-pi-packages/issues?state=all&per_page=100') || return 1
-  printf '%s' "$pages" | node --input-type=module -e '
-    let input = "";
-    for await (const chunk of process.stdin) input += chunk;
-    const pages = JSON.parse(input);
-    if (!Array.isArray(pages) || !pages.every(Array.isArray)) throw new Error("Incomplete issue pages");
-    const line = `Upstream target: gotgenes/pi-packages@${process.env.TARGET}`;
-    const matches = pages.flat().filter(issue => issue.pull_request == null &&
-      (issue.body ?? "").split("\n").map(value => value.replace(/\r$/, "")).includes(line))
-      .map(({number, state, html_url}) => ({number, state, html_url}));
-    console.log(JSON.stringify({target: process.env.TARGET, matches}));
-  '
-}
-RESULT=$(lookup_target) || { printf 'Issue lookup failed; stop\n' >&2; exit 1; }
-COUNT=$(printf '%s' "$RESULT" | node --input-type=module -e 'let s=""; for await (const c of process.stdin) s+=c; console.log(JSON.parse(s).matches.length)')
-if [[ "$ENTRY_MODE" == lookup || "$COUNT" != 0 ]]; then
-  printf '%s\n' "$RESULT"
-  exit 0
-fi
-export ISSUE_BODY_FILE
-node --input-type=module -e '
-  import {readFileSync} from "node:fs";
-  const lines = readFileSync(process.env.ISSUE_BODY_FILE, "utf8").split("\n").map(s => s.replace(/\r$/, ""));
-  if (!lines.includes(`Upstream target: gotgenes/pi-packages@${process.env.TARGET}`)) throw new Error("Issue body target mismatch");
-'
-if CREATED=$(gh issue create --repo Jopqior/gotgenes-pi-packages --label scope:repo --title "Sync gotgenes/pi-packages@$TARGET" --body-file "$ISSUE_BODY_FILE"); then
-  if [[ "$CREATED" =~ ^https://github\.com/Jopqior/gotgenes-pi-packages/issues/([1-9][0-9]*)$ ]]; then
-    printf '%s\n/plan-issue %s\n' "$CREATED" "${BASH_REMATCH[1]}"
-    exit 0
-  fi
-fi
-printf 'Ambiguous create result; inspect lookup before any separately approved retry\n' >&2
-lookup_target || { printf 'Recovery lookup failed; stop\n' >&2; exit 1; }
-exit 1
-```
 
 ## 3. Return the issue and stop
 
