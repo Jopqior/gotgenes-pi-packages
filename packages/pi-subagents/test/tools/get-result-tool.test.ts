@@ -527,7 +527,7 @@ describe("GetResultTool — bounded wait", () => {
 		const sessionStub = createSubagentSessionStub();
 		const run = Promise.withResolvers<TurnLoopResult>();
 		sessionStub.runTurnLoop.mockReturnValue(run.promise);
-		const record = createTestSubagent({
+		const record = createRunnableTestSubagent({
 			status: "running",
 			completedAt: undefined,
 			execution: makeStubExecution({
