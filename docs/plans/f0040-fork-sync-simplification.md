@@ -345,6 +345,7 @@ No runtime package manifest, lockfile, settings, `src/`, architecture module tre
 - Preserve the generic `test/release/helpers/git-repository.mjs` capabilities needed by retained callers.
   Delete `test/release/git-repository.test.mjs`'s fixture-self assertions; actual script-copy completeness is exercised by retained entry-point and preparation processes instead.
 - Replace `workflow-contract.test.mjs` with a small `test/fork-sync/workflow.test.mjs` for valid live resources and executable `/ship` registry behavior, not policy sentence equality.
+  Step 5 removes its obsolete imports, state/table scenarios and old policy assertions alongside the deleted modules; step 6 moves the retained resource/wiring cases and updates them for the new namespace.
 - Update `test/worktrees/package-contract.test.mjs`'s exact registry assertion in the schema-switch commit.
 - Delete the old policy/state/CLI/migration/history/recorder/table/backfill/first-candidate suites after salvaging the exact retained scenarios below.
   Delete their old `fork-sync-scenario`, `multi-fork-scenario`, `release-artifacts` and `first-fork-scenario` helpers and dedicated JSON fixtures once their importing consumers migrate.
@@ -418,6 +419,11 @@ New lower-level modules coexist briefly with old consumers; no compatibility re-
 During the coordinated switch, every importer/copy-list/test of a removed export is migrated or deleted in the same commit.
 No intermediate commit is a release/publication authorization.
 
+Preserve the existing test-output capture boundaries when retaining or replacing scenarios.
+Use explicit pipe capture for test-owned subprocesses and the existing synchronous `captureOutput` helper where direct production calls emit diagnostics.
+Keep relevant return-value, exception and diagnostic assertions; do not preserve obsolete scenarios merely to retain their capture code.
+Verify each affected suite and the root script suite with the normal test command, checking for uncaptured application output as well as test failures.
+
 1. **Extract executable issue entry without changing the current command.**
    Red: change the existing process harness to invoke `scripts/fork-sync/issue.mjs` directly, retaining the exact lookup/create/recovery cases above; add invalid mode and successful-empty recovery cases.
    Green: move the actual fence behavior into JavaScript, then make the still-named `upstream-sync.md` prompt call it using quoted environment data and its unchanged English drafting/stop responsibilities.
@@ -459,6 +465,7 @@ No intermediate commit is a release/publication authorization.
    Remove decision fields from temporary specs, state/table projections/writes and redundant GitHub-notes git-cliff installation.
    Narrow the current sync script to fetch/merge and remove record/package-report parsing and recovery messages, with its process tests updated in this commit.
    Delete obsolete policy/state/recorder/config/table/backfill/first-generator code, scenarios and dedicated fixtures; remove every importing old consumer rather than leaving dormant compatibility code.
+   In `test/upstream-sync/workflow-contract.test.mjs`, remove the deleted-module imports, state/table scenarios and old policy/generator assertions in this commit; keep retained resource and executable `/ship` checks green at the existing paths until step 6.
    Update current release guidance and live claims immediately, still at existing guide paths until step 6 moves them.
    Verify: root script suite, `pnpm run check`, `pnpm run lint`, `pnpm run test`, and `pnpm --silent fallow dead-code`; re-run real git-cliff planning samples against the actual implementation rather than reusing probe results.
    Killing mutations: route a fork through the old contribution policy or source-derived bump (ordinary-policy cases); remove the explicit prediction range (excluded-tag/old-break cases); delete the source-resolution call at its new preflight site (new fork-source case); start manifest writes before the whole preflight (late-failure snapshot); splice raw undecorated or freshly rendered text (prepared/tagged equality); normalize the old suffix (history bytes); emit core provenance for worktrees (own identity/source); query upstream again during published validation (offline transport case); skip clean/byte checks (dirty/index-suppressed cases); publish before validating the full tagged set (effect log); overwrite an existing Release or ignore a conflicting block (rerun/conflict cases).
@@ -467,7 +474,8 @@ No intermediate commit is a release/publication authorization.
 
 6. **Cut over the live namespace and consolidate retained synchronization scenarios.**
    Red: point sync CLI tests at `scripts/fork-sync/sync.sh`, and add structural checks for the new prompt/guides/imports and absence of the old executable entry points.
-   Move only retained scenario groups to fetch/merge/safety/workflow tests; remove recorder-only wrapper controls and all prose-exact policy assertions.
+   Move only retained scenario groups to fetch/merge/safety/workflow tests; remove recorder-only wrapper controls.
+   Move the workflow resource and executable `/ship` checks retained in step 5 to `test/fork-sync/workflow.test.mjs`, updating links, imports and entry-point checks for the new namespace; obsolete policy assertions were already removed in step 5.
    Green: move the narrowed script and prompt, finalize both current guides under `docs/fork-sync/`, remove old tables/directory leftovers, and update root current links and anchor references.
    Keep this breaking commit outside `packages/`; the packaged README refresh is its own `docs:` cycle in step 7.
    Preserve genuine upstream names and the pinned issue target line; use a fresh Pi session for the first `/fork-sync` invocation rather than relying on in-process prompt registration.
