@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   findReleaseSection,
   readTaggedReleaseSection,
-} from "../../scripts/release/release-correspondence.mjs";
+} from "../../scripts/release/release-metadata.mjs";
 import { captureOutput } from "../helpers/capture-output.mjs";
 import { createScratchReleaseRepository } from "./helpers/git-repository.mjs";
 
