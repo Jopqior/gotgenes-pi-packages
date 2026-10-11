@@ -44,3 +44,45 @@ The plan sequences new source and metadata modules alongside the old consumers, 
 
 The assessor rejected rebuilding old ledger fixtures, extracting obsolete decision/recorder/table helpers, compatibility wrappers, a larger script-copy framework, mechanical line-count splitting and generic tag-selection-loop cleanup.
 None is an implementation task or an approved follow-up issue; the plan removes obsolete responsibilities instead.
+
+## Stage: Implementation — TDD (2026-10-11T11:12:13Z)
+
+### Session summary
+
+Completed the implementation sequence: six code/characterization cycles, the separate packaged-documentation verification step, and the independent quality gate.
+Fork releases now use ordinary bounded path-scoped version prediction, temporary-repository source preflight, exact tagged source notes and the simplified `fork-sync` entry points; obsolete policy, ledgers, recorder, tables, backfill and candidate tooling are removed.
+The final full suite passed 9,625 tests versus the 10,001-test implementation baseline, with root scripts changing from 44 files / 1,006 tests to 26 files / 630 tests; the reduction follows removal and consolidation of obsolete scenarios.
+
+### Observations
+
+- Startup found no unresolved Git operation or tracked changes, and the required fast-forward-only pull reported the checkout current.
+  The final `pnpm run test`, `pnpm run check`, root `pnpm run lint` and root `pnpm fallow dead-code` passed.
+  No package runtime source, manifest, lockfile, settings or `CHANGELOG.md` changed.
+- The operator chose direct refusal when a newer merge's origin cannot be proved from fresh upstream history or fork-side ancestry.
+  The source resolver does not use cached `upstream/main` as auxiliary evidence or fallback.
+  Normal provable fork features remain excluded from source selection; ambiguity is a stop rather than a stale-source guess.
+- An early source-worker implementation was discarded after bounded re-reading exposed a mismatch with the approved interface and tail semantics.
+  Its green and mutation logs are invalid evidence and were not committed.
+  The corrected narrow interface, temporary bare/shared/no-tag acquisition, positive package-tail display and offline validation were re-tested before committing.
+  Read this plan in bounded chunks: a single full-file tool read truncates before its end.
+- Killing mutations were restored from saved green copies and re-run before commits.
+  A deleted-CLI/missing-module mutation was rejected as a semantic version-policy pin; output-only source-version overrides instead demonstrated wrong predictions separately for each fork.
+  The operator briefly mistook these temporary literal overrides for final dependencies, so announce transient mutation intent before changing production files.
+  The final `lib.sh` contains neither override.
+- Real-history source round trips used existing fork/upstream objects with controlled local bare tag catalogs, not a fresh remote-tag census.
+  Ordinary git-cliff samples were replayed at the plan's actual historical preparation commits, removing future tags only in disposable clones.
+  The explicit latest-tag lower bound remains load-bearing; no live integration or tag import occurred.
+- New-section composition removes git-cliff's leading prefix and owns its boundary bytes once.
+  Process tests compare the complete prepared section with its tagged reuse and preserve the old CRLF suffix exactly, including the missing-CHANGELOG route.
+  One process-heavy multi-job publication test required a local 15-second timeout under concurrent package/root execution; no global timeout or runtime default changed.
+- Cold Markdown validation after moving the guide exposed one historical relative link in `f0038-pinned-upstream-sync.md`.
+  It now points to that plan's original planning-commit guide without changing the historical constraint text or adding an alias.
+  A current core architecture paragraph still named the old prompt; it received a separate `docs:` commit after the two-README commit, without changing module structure or roadmap status.
+- The module table's `create-github-releases.sh` required no direct edit: its existing shared artifact-validator call and whole-set remote preflight now consume the new validation route.
+  The packaged README changes remain separate from both breaking root-tooling commits.
+- Pre-completion reviewer: PASS, with no required fixes or WARN findings.
+  The fresh-context reviewer reran deterministic gates, derived its own safety inputs, exercised independent scratch and real-object probes, and checked source lifecycle, own-package tails, section-byte reuse, selected-set failure boundaries, imports and current documentation.
+  It also observed the unchanged whole-workspace parity utility refusing inherited untagged packages; the documented no-first-tag refusal remains intentional, and registered-fork predictions were exercised separately.
+- All implementation steps are complete; no concrete out-of-scope follow-up was filed.
+  Local commits are unpushed, and no GitHub mutation, release dispatch or publication occurred.
+  Next is `/ship 40` on `main`; use a fresh Pi session before the first actual `/fork-sync` invocation because prompt registration is stale in this process.
