@@ -49,9 +49,9 @@ Successful workflow execution plus verified release commit, tags and GitHub Rele
 Query npm only to investigate a publication failure or when the operator requests it; successful releases require no registry polling or pending-visibility handoff.
 
 Versions and changelogs come from [git-cliff](https://git-cliff.org) reading local git, with no network in the derivation.
-The maintained core and worktrees fork release levels additionally use each package's verified correspondence (below).
-Preparation commits a decorated CHANGELOG section; the GitHub Release body comes from that exact tagged section, not a second render.
-Each selected fork's generated table is committed with its own release evidence and checked against its own state by `node scripts/release/correspondence-table.mjs --check --package <directory>` (core remains the default).
+Every package, including core and worktrees, uses the same ordinary path-scoped version policy with the latest-tag lower bound.
+Preparation independently resolves source for forks in temporary repositories before tracked writes and commits one decorated section.
+Downstream publication validates its tagged source claims offline; GitHub notes reuse the exact tagged section bytes, not a second render.
 See `docs/decisions/0002-git-cliff-release-automation.md` for why, and for the accepted residual (there is no release-PR review gate).
 
 ## What cuts a release
@@ -73,38 +73,32 @@ Tarball scope and release scope are different lists — check the one you mean.
 Commits that only touch excluded paths do not trigger releases, and neither do files outside the package tree.
 A package's own `CHANGELOG.md` is excluded too, so a release commit never re-enters the next changelog.
 
-## Fork release levels
+## Fork source notes
 
-`pi-subagents` and `pi-subagents-worktrees` use independent verified upstream correspondence, not the integration merge's Conventional Commit type, to derive their next tags.
-Each uses `scripts/release/<directory>/sync-state.json`: the SemVer distance between its own incorporated upstream releases, combined with git-cliff's view of fork-owned commits and each recorded merge's separately reviewed fork contribution.
-The common `next-version.sh <directory>` contract remains offline and prints `<pkg>-v<version>` or nothing after a verified first release; supported routing does not waive registration or the first-tag gate.
+Core and worktrees each declare their own direct upstream identity in the schema-3 release registry.
+Source resolution selects incorporated ancestry and the highest contained stable upstream release independently of the predicted version.
+The managed block links both the stable release commit and actual incorporated commit; scoped unreleased package changes are labeled, not rejected.
+An original package has no source block and makes no upstream query during preparation.
 
-Evidence failures are strict errors, not "nothing to release": a nonzero exit means record the missing sync or fix the state, never that the package is quiet.
-There is no override flag.
-Reviewed release evidence must be committed before dispatching a fork release.
-Publication approval remains separate and names the registered package identities and destination.
-
-A blocked fork in a multi-package dispatch fails the whole run before any write.
-`prepare-release.sh` appends each selected fork's correspondence to its own state, decorates its CHANGELOG section with a fixed upstream source link and a provenance-not-equivalence statement, and regenerates only its marked table in `docs/upstream/<directory>-release-correspondence.md`.
-Selecting both forks is supported after bootstrap; publishing only siblings leaves unselected fork state, view and package artifacts untouched.
-Ordinary tagged-window changelogs still list upstream entries in full; the policy filters commits only to compute the level.
-A first fork release instead uses the reviewed bounded summary and preserves inherited sections under the handoff below.
-Existing npm tarballs and historical CHANGELOG entries are immutable; core-only historical GitHub Release backfill follows the separate preview/approval procedure in `docs/upstream/fork-release-policy.md`.
-Read the [fork release policy](../../../docs/upstream/fork-release-policy.md) for the mapping rule, blocking cases, and recording procedure; explicit dispatch itself is unchanged.
+The complete selected set passes identity, source and heading checks before tracked writes; later-package failure leaves every selected package untouched.
+Downstream jobs validate tag-at-HEAD, manifest identity/version, clean package paths and critical byte equality, then validate new source claims offline without upstream reselection.
+Existing Releases are never overwritten; a conflicting managed block blocks all new creations.
+Older sections and published artifacts remain immutable; no ledger, generated table, historical backfill or candidate generator remains.
+Read the [release source guide](../../../docs/upstream/fork-release-policy.md) for reconstruction, failure timing and the manual first-publication handoff.
+Source checks, registration and integration never authorize release dispatch or publication.
 
 ## A package's first release
 
 A brand-new package's **first** release is a manual, operator-chosen step.
-Register its real directory and npm name in `scripts/release/release-packages.json` with the reviewed `original` or `fork` provenance; a fork additionally needs a supported verified evidence route.
+Register its real directory and npm name in `scripts/release/release-packages.json` with the reviewed `original` or `fork` provenance; a fork additionally declares its reviewed direct upstream identity, repository and package directory.
 Before first publication, obtain explicit separate operator approval of its npm scope/destination.
 Registration is a required release gate, not publication authorization.
 The generic `next-version.sh` refuses an untagged package rather than inventing its first version, and npm Trusted Publishing cannot create a package that does not yet exist.
 For an approved original package, the operator publishes the first version manually with `pnpm --filter <approved-npm-name> publish --access public --no-git-checks --registry=https://registry.npmjs.org/` (without `--provenance`), tags it `<pkg>-v<version>`, then configures the npmjs.org Trusted Publisher for this fork's `release.yml` workflow.
-For a supported new fork, use the artifact-only first-release generator under the [first fork release handoff](../../../docs/upstream/fork-release-policy.md#first-fork-release-handoff); read that owner before generation, application, tagging or first publication.
-For worktrees, issue #37 owns migration/registration and compatibility checks; its selected `0.1.0` is an operator choice, not a predicted bump.
-Review the bounded summary, verified direct upstream source, external candidate's `sourceHead` freshness and exact `applicationFiles` before separately applying and committing them.
+For a new fork, read the [manual first-publication handoff](../../../docs/upstream/fork-release-policy.md#first-fork-release-handoff), inspect the exported resolver/renderer output and review the manually prepared tagged section and package contents before publication.
+No first-version inference or candidate/application bundle is provided.
 Never dispatch ordinary preparation for an untagged first release.
-First npm publication is manual without `--provenance`, after exact tagged-artifact preflight and explicit separate npm scope/destination approval; generator success and registration never grant that approval.
+First npm publication is manual without `--provenance`, after exact tagged-artifact preflight and explicit separate npm scope/destination approval; source inspection and registration never grant that approval.
 Configure Trusted Publishing only after that approved first publication, then use ordinary guarded dispatch for later releases.
 An OTP-required publish (`ERR_PNPM_OTP_NON_INTERACTIVE`) needs the operator's interactive terminal.
 
@@ -128,8 +122,8 @@ When adding a new package, wire it into all of:
 
 Generic release prediction and the issue auto-labeler derive their package list from the workspace: `scripts/release/lib.sh` and `scripts/issue-package-labels.sh` enumerate `packages/*/package.json`.
 A new package needs no edit to those discovery scripts, but the automated preparation and publication entry points reject it until its actual directory and npm identity are explicitly registered in `scripts/release/release-packages.json` as `fork` or `original`.
-Only the fixed `fork-sync` routes for `pi-subagents` and `pi-subagents-worktrees` are supported; any other fork needs its own verified route before registration can make it releasable.
-Worktrees support is not actual migration or registration: while its manifest still names `@gotgenes/pi-subagents-worktrees`, it must not be registered or published as the eventual fork identity.
+Fork registration uses the generic upstream source resolver, not package-specific version policy or configuration.
+Validate registered npm identities against actual manifests; discovering a workspace never grants publication eligibility.
 Registration never approves a new npm scope or publication destination.
 
 ## Docs-in-distribution convention

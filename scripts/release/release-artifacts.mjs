@@ -1,223 +1,148 @@
 #!/usr/bin/env node
+// Preflight the complete selection; downstream jobs reuse tagged claims offline.
 import { execFileSync } from "node:child_process";
-// Build the complete release artifact set before any tracked write or external
-// effect. Downstream jobs consume the tagged commit, not a moving branch tip.
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
-  renderCorrespondenceTable,
-  updateCorrespondenceDocument,
-} from "./correspondence-table.mjs";
-import {
-  readForkSyncState,
-  validateForkSyncState,
-} from "./fork-sync/state.mjs";
-import { ForkSyncError } from "./fork-sync/values.mjs";
-import { requireForkSyncTarget } from "./fork-sync-targets.mjs";
+  renderUpstreamSource,
+  resolveUpstreamSource,
+  validateUpstreamSource,
+} from "../fork-sync/source.mjs";
 import {
   findReleaseSection,
   readReleasePackages,
   readTaggedReleaseSection,
-  renderUpstreamCorrespondence,
   requireReleasePackage,
-  resolvePendingCorrespondence,
-  resolvePublishedCorrespondence,
-} from "./release-correspondence.mjs";
+  requireTaggedReleasePackage,
+} from "./release-metadata.mjs";
+
+const start = "<!-- upstream-correspondence:start -->";
+const end = "<!-- upstream-correspondence:end -->";
 
 /** @param {string} repo @param {string} out @param {string} specFile */
 export function prepareArtifacts(repo, out, specFile) {
   const spec = JSON.parse(readFileSync(specFile, "utf8"));
   if (!Array.isArray(spec) || spec.length === 0)
-    throw new ForkSyncError("release selection must not be empty");
+    throw new Error("release selection must not be empty");
   const registry = registryAt(repo);
-  const projections = new Map();
-  for (const [index, item] of spec.entries()) {
-    const provenance = resolvePendingCorrespondence({
-      repo,
-      tag: item.tag,
-      registry,
-      decision: item.decision,
+  const head = git(repo, ["rev-parse", "HEAD"]).trim();
+  const seen = new Set();
+  const prepared = spec.map((item) => {
+    const registration = requireReleasePackage(registry, item.directory);
+    if (
+      !new RegExp(
+        `^${item.directory}-v(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)\\.(?:0|[1-9]\\d*)$`,
+      ).test(item.tag)
+    )
+      throw new Error(`package/tag mismatch: ${item.tag}`);
+    if (seen.has(item.directory))
+      throw new Error(`duplicate release for ${item.directory}`);
+    seen.add(item.directory);
+    const raw = readFileSync(item.section, "utf8");
+    if (raw.includes(start) || raw.includes(end))
+      throw new Error("raw section contains upstream correspondence markers");
+    const rawSection = findReleaseSection(raw, item.tag, item.directory);
+    const source =
+      registration.kind === "fork"
+        ? resolveUpstreamSource({
+            repo,
+            at: head,
+            upstream: registration.upstream,
+          })
+        : null;
+    const block = renderUpstreamSource({
+      source,
+      upstream: registration.kind === "fork" ? registration.upstream : null,
     });
-    if (item.directory !== item.tag.slice(0, item.tag.lastIndexOf("-v")))
-      throw new ForkSyncError(`package/tag mismatch: ${item.tag}`);
-    const section = readFileSync(item.section, "utf8");
-    // This format is intentionally limited to sections emitted by this repo's
-    // git-cliff configuration; a drifted renderer must not publish a guess.
+    // Compose the complete canonical section, including its boundary newline,
+    // once. Insertion must not trim these bytes or append another separator.
+    const section = `${rawSection.trimEnd()}${block ? `\n\n${block}` : ""}\n\n`;
     findReleaseSection(section, item.tag, item.directory);
-    const block = renderUpstreamCorrespondence(provenance);
-    const decorated = `${section.trimEnd()}${block ? `\n\n${block}` : ""}\n`;
-    assertReleaseProvenance(decorated, provenance);
-    writeFileSync(path.join(out, `section-${index}`), decorated);
-    const changelogFile = path.join(
-      repo,
-      "packages",
-      item.directory,
-      "CHANGELOG.md",
-    );
-    if (!existsSync(changelogFile)) {
+    let header;
+    if (
+      !existsSync(path.join(repo, "packages", item.directory, "CHANGELOG.md"))
+    ) {
       const generated = readFileSync(item.generated, "utf8");
-      const firstHeading = generated.indexOf("## ");
+      const exact = findReleaseSection(generated, item.tag, item.directory);
+      const firstHeading = generated.indexOf(exact);
       if (
         firstHeading < 0 ||
-        !findReleaseSection(generated, item.tag, item.directory).startsWith(
-          section.slice(0, section.indexOf("\n")),
-        )
-      ) {
-        throw new ForkSyncError(
+        exact.split("\n")[0] !== rawSection.split("\n")[0]
+      )
+        throw new Error(
           `generated first CHANGELOG has a different release heading ${item.tag}`,
         );
-      }
-      writeFileSync(
-        path.join(out, `header-${index}`),
-        generated.slice(0, firstHeading),
-      );
+      header = generated.slice(0, firstHeading);
     }
-    if (provenance.kind === "fork") {
-      const target = requireForkSyncTarget(item.directory);
-      if (projections.has(item.directory))
-        throw new ForkSyncError(
-          `duplicate pending fork release for ${item.directory}`,
-        );
-      const projected = structuredClone(stateAt(repo, target));
-      projections.set(item.directory, {
-        target,
-        projected,
-        pending: { tag: item.tag, decision: item.decision },
-      });
-      projected.releases.push({
-        forkTag: item.tag,
-        upstream: item.decision.upstream,
-        upstreamTip: item.decision.upstreamTip,
-      });
-    }
+    return { section, header };
+  });
+  for (const [index, item] of prepared.entries()) {
+    writeFileSync(path.join(out, `section-${index}`), item.section);
+    if (item.header !== undefined)
+      writeFileSync(path.join(out, `header-${index}`), item.header);
   }
-  const artifacts = [];
-  for (const { target, projected, pending } of projections.values()) {
-    validateForkSyncState(projected, target.directory);
-    const document = readFileSync(
-      path.join(repo, target.correspondencePath),
-      "utf8",
-    );
-    const table = renderCorrespondenceTable({
-      repo,
-      registry,
-      state: projected,
-      directory: target.directory,
-      pending,
-    });
-    const stateFile = `state-${target.directory}.json`;
-    const correspondenceFile = `correspondence-${target.directory}.md`;
-    writeFileSync(
-      path.join(out, stateFile),
-      `${JSON.stringify(projected, null, 2)}\n`,
-    );
-    writeFileSync(
-      path.join(out, correspondenceFile),
-      updateCorrespondenceDocument(document, table),
-    );
-    artifacts.push({ ...target, stateFile, correspondenceFile });
-  }
-  writeFileSync(
-    path.join(out, "fork-artifacts.json"),
-    `${JSON.stringify(artifacts, null, 2)}\n`,
-  );
 }
 
 /** @param {string} repo @param {string} out @param {string[]} tags */
 export function validatePublishedArtifacts(repo, out, tags) {
   const registry = registryAt(repo);
-  const states = new Map();
-  for (const [index, tag] of tags.entries()) {
-    const peeled = execFileSync(
-      "git",
-      ["rev-parse", "--verify", `${tag}^{commit}`],
-      { cwd: repo, encoding: "utf8" },
-    ).trim();
-    const head = execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd: repo,
-      encoding: "utf8",
-    }).trim();
-    if (peeled !== head)
-      throw new ForkSyncError(
+  const head = git(repo, ["rev-parse", "HEAD"]).trim();
+  const notes = tags.map((tag) => {
+    if (git(repo, ["rev-parse", "--verify", `${tag}^{commit}`]).trim() !== head)
+      throw new Error(
         `release tag ${tag} is not at the checked-out release commit`,
       );
-    const directory = tag.slice(0, tag.lastIndexOf("-v"));
-    const registration = requireReleasePackage(registry, directory);
-    if (registration.kind === "fork" && !states.has(directory))
-      states.set(directory, stateAt(repo, requireForkSyncTarget(directory)));
-    const provenance = resolvePublishedCorrespondence({
-      repo,
-      tag,
-      registry,
-      state: states.get(directory) ?? { releases: [] },
-    });
+    const registration = requireTaggedReleasePackage({ repo, tag, registry });
     const section = readTaggedReleaseSection({
       repo,
       tag,
-      packageDirectory: directory,
+      packageDirectory: registration.directory,
     });
-    assertReleaseProvenance(section, provenance);
-    // pnpm publish --no-git-checks packs the checkout, not the tagged tree.
-    // A dirty package could publish different bits after the tag validates.
-    assertTaggedPublishCheckout(repo, tag, directory);
+    if (registration.kind === "fork")
+      validateUpstreamSource({
+        repo,
+        at: head,
+        upstream: registration.upstream,
+        text: section,
+      });
+    else if (section.includes(start) || section.includes(end))
+      throw new Error("original package has upstream correspondence markers");
+    assertTaggedPublishCheckout(repo, tag, registration.directory);
+    return section;
+  });
+  for (const [index, section] of notes.entries())
     writeFileSync(path.join(out, `notes-${index}`), section);
-  }
 }
 
 function assertTaggedPublishCheckout(repo, tag, directory) {
   const packagePath = `packages/${directory}`;
-  const changes = execFileSync(
-    "git",
-    ["status", "--porcelain=v1", "--untracked-files=all", "--", packagePath],
-    { cwd: repo, encoding: "utf8" },
-  );
-  if (changes) {
-    throw new ForkSyncError(
+  const changes = git(repo, [
+    "status",
+    "--porcelain=v1",
+    "--untracked-files=all",
+    "--",
+    packagePath,
+  ]);
+  if (changes)
+    throw new Error(
       `working package ${packagePath} differs from validated tag ${tag}: ${changes.trimEnd()}`,
     );
-  }
-  // Check critical published claims by bytes even if Git index flags suppress
-  // a working-tree status entry (e.g. assume-unchanged).
+  // Git status can hide assume-unchanged claims; compare critical raw bytes too.
   for (const file of ["package.json", "CHANGELOG.md"]) {
     const relative = `${packagePath}/${file}`;
     const tagged = execFileSync("git", ["show", `${tag}:${relative}`], {
       cwd: repo,
+      stdio: "pipe",
     });
-    const working = readFileSync(path.join(repo, relative));
-    if (!working.equals(tagged)) {
-      throw new ForkSyncError(
-        `working ${relative} differs from validated tag ${tag}`,
-      );
-    }
+    if (!readFileSync(path.join(repo, relative)).equals(tagged))
+      throw new Error(`working ${relative} differs from validated tag ${tag}`);
   }
-}
-
-/** @param {string} section @param {ReturnType<typeof resolvePublishedCorrespondence>} provenance */
-export function assertReleaseProvenance(section, provenance) {
-  const start = "<!-- upstream-correspondence:start -->";
-  const end = "<!-- upstream-correspondence:end -->";
-  const starts = section.split(start).length - 1;
-  const ends = section.split(end).length - 1;
-  if (provenance.kind === "original") {
-    if (starts !== 0 || ends !== 0)
-      throw new ForkSyncError(
-        "original package has upstream correspondence markers",
-      );
-    return;
-  }
-  const block = renderUpstreamCorrespondence(provenance);
-  if (starts !== 1 || ends !== 1 || !section.includes(block))
-    throw new ForkSyncError(
-      "tagged CHANGELOG has missing or conflicting managed upstream correspondence",
-    );
 }
 
 /** @param {string} existing @param {string} expected */
 export function assertExistingRelease(existing, expected) {
-  const start = "<!-- upstream-correspondence:start -->";
-  const end = "<!-- upstream-correspondence:end -->";
   const count = (needle) => existing.split(needle).length - 1;
-  if (count(start) === 0 && count(end) === 0) return; // legacy Release, never overwritten here
+  if (count(start) === 0 && count(end) === 0) return; // legacy Release, never overwritten
   const sectionStart = expected.indexOf(start);
   if (
     sectionStart < 0 ||
@@ -229,11 +154,10 @@ export function assertExistingRelease(existing, expected) {
         expected.indexOf(end, sectionStart) + end.length,
       ),
     )
-  ) {
-    throw new ForkSyncError(
+  )
+    throw new Error(
       "existing Release has conflicting managed upstream correspondence",
     );
-  }
 }
 
 function registryAt(repo) {
@@ -242,10 +166,13 @@ function registryAt(repo) {
     repo,
   );
 }
-function stateAt(repo, target) {
-  return readForkSyncState(path.join(repo, target.statePath), target.directory);
+function git(repo, args) {
+  return execFileSync("git", args, {
+    cwd: repo,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
 }
-
 function main(args) {
   if (args.length === 1 && args[0] === "--help") {
     process.stdout.write(
@@ -262,12 +189,8 @@ function main(args) {
       readFileSync(rest[0], "utf8"),
       readFileSync(rest[1], "utf8"),
     );
-  else
-    throw new ForkSyncError(
-      "invalid release-artifacts invocation (see --help)",
-    );
+  else throw new Error("invalid release-artifacts invocation (see --help)");
 }
-
 if (
   process.argv[1] &&
   path.resolve(process.argv[1]) === new URL(import.meta.url).pathname

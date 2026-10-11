@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "packages": [
     {
       "directory": "pi-subagents",
@@ -9,8 +9,7 @@
         "name": "@gotgenes/pi-subagents",
         "repository": "gotgenes/pi-packages",
         "directory": "packages/pi-subagents"
-      },
-      "evidence": "fork-sync"
+      }
     },
     {
       "directory": "pi-subagents-model-selector",
@@ -25,8 +24,7 @@
         "name": "@gotgenes/pi-subagents-worktrees",
         "repository": "gotgenes/pi-packages",
         "directory": "packages/pi-subagents-worktrees"
-      },
-      "evidence": "fork-sync"
+      }
     }
   ]
 }

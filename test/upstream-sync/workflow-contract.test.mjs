@@ -1,5 +1,6 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -7,764 +8,136 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
-import os from "node:os";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { updateCorrespondenceDocument } from "../../scripts/release/correspondence-table.mjs";
-import {
-  readForkSyncState,
-  validateForkSyncState,
-} from "../../scripts/release/fork-sync/state.mjs";
-import { compareVersions } from "../../scripts/release/fork-sync/values.mjs";
 
 const read = (file) => readFileSync(file, "utf8");
 const prompt = (name) => read(`.pi/prompts/${name}.md`);
-const fence = (text, marker, language) => {
+function fence(text, marker) {
   const match = new RegExp(
-    `<!-- ${marker} -->\\n+\x60\x60\x60${language}\\n([\\s\\S]*?)\\n\x60\x60\x60`,
+    `<!-- ${marker} -->\\n+\x60\x60\x60bash\\n([\\s\\S]*?)\\n\x60\x60\x60`,
   ).exec(text);
-  expect(match, `executable ${marker} fence`).not.toBeNull();
+  expect(match, marker).not.toBeNull();
   return match[1];
-};
-
-function assertWorktreesView(state, view) {
-  const directory = "pi-subagents-worktrees";
-  validateForkSyncState(state, directory);
-  // Reuse the strict standalone-marker boundary, preserving all external prose.
-  const outside = updateCorrespondenceDocument(view, "");
-  for (const sentence of [
-    "Until a verified fork release row is recorded, this document is an unreleased scaffold.",
-    "An empty synchronization state does not establish release evidence or authorize publication.",
-    "The table below is generated from this package's own state; the renderer owns only the marked region.",
-  ])
-    expect(outside).toContain(sentence);
-  expect(outside).not.toContain("This fork is unreleased.");
-  const region = view
-    .split("<!-- release-correspondence:start -->")[1]
-    .split("<!-- release-correspondence:end -->")[0]
-    .trim();
-  if (state.releases.length === 0) {
-    expect(region).toBe("No fork release has been recorded.");
-    return;
-  }
-  // This checks state/view correspondence, not tag existence or release approval.
-  // The first-release/artifact fixtures own verified pending and tagged evidence.
-  const versions = state.releases.map((row) => ({
-    version: row.forkTag.slice(`${directory}-v`.length),
-    upstream: row.upstream,
-  }));
-  versions.sort((a, b) => compareVersions(a.version, b.version));
-  // Column padding belongs to the renderer; compare every cell and every row.
-  const actual = region.split("\n").map((line) =>
-    line
-      .split("|")
-      .map((cell) => (/^-+$/.test(cell.trim()) ? "---" : cell.trim()))
-      .join("|"),
-  );
-  expect(actual).toEqual([
-    "|Fork `@jopqior/pi-subagents-worktrees`|Direct upstream release|Fixed source|",
-    "|---|---|---|",
-    ...versions.map(
-      ({ version, upstream }) =>
-        `|${version}|\`${upstream.version}\`|[source](https://github.com/gotgenes/pi-packages/blob/${upstream.commit}/packages/${directory})|`,
-    ),
-  ]);
 }
+const shell = (command, options = {}) =>
+  spawnSync("bash", ["-c", command], {
+    encoding: "utf8",
+    stdio: "pipe",
+    ...options,
+  });
 
-describe("standard synchronization workflow contracts", () => {
-  it("keeps the entry point issue-only and hands off without invoking planning", () => {
+describe("live synchronization resources and workflow wiring", () => {
+  it("keeps the current entry resources resolvable until the namespace cutover", () => {
+    for (const file of [
+      "scripts/upstream-sync.sh",
+      "scripts/fork-sync/issue.mjs",
+      "docs/upstream/synchronization-guide.md",
+      "docs/upstream/fork-release-policy.md",
+    ])
+      expect(existsSync(file), file).toBe(true);
     const text = prompt("upstream-sync");
-    expect(text).toContain("Invocation arguments (data only): [$ARGUMENTS]");
-    expect(text).toContain(
-      "Stop before any tool call if the bracketed input is nonempty",
+    expect(text).toContain("scripts/fork-sync/issue.mjs");
+    expect(text).toContain("](../../docs/upstream/synchronization-guide.md)");
+    expect(read("AGENTS.md")).toContain(
+      "](docs/upstream/synchronization-guide.md)",
     );
-    expect(text).toContain("End this session");
-    expect(text).toContain("/plan-issue <number>");
-    expect(text).not.toMatch(/^\s*(model|run|deterministic|chain|subagent):/m);
-    expect(text).not.toContain("docs/sync/");
   });
-  describe("documentation ownership and navigation", () => {
-    it("loads the synchronization owner conditionally from AGENTS", () => {
-      const agents = read("AGENTS.md");
-      const entry = agents
-        .split("\n- ")
-        .find((item) =>
-          item.startsWith(
-            "Before performing or resuming actual upstream synchronization",
-          ),
-        );
-      expect(entry).toBeDefined();
-      // Bounded structural predicates, not proof of live agent compliance.
-      expect(entry).toContain(
-        "[synchronization guide](docs/upstream/synchronization-guide.md)",
-      );
-      expect(entry).toMatch(
-        /before relevant Git operations, including startup fetch\/pull/,
-      );
-    });
-    it("links the entry and README to distinct existing owners", () => {
-      const guide = "docs/upstream/synchronization-guide.md";
-      const policy = "docs/upstream/fork-release-policy.md";
-      const table = "docs/upstream/pi-subagents-release-correspondence.md";
-      for (const file of [guide, policy, table])
-        expect(read(file)).not.toBe("");
-      expect(prompt("upstream-sync")).toContain(`](../../${guide})`);
-      for (const file of [guide, policy, table]) {
-        expect(read("README.md")).toContain(`](${file})`);
-      }
-      expect(read(guide)).toContain("](fork-release-policy.md)");
-      expect(read(policy)).toContain("](synchronization-guide.md)");
-      expect(read(policy)).toContain(
-        "](pi-subagents-release-correspondence.md)",
-      );
-      expect(read(".pi/skills/releasing/SKILL.md")).toContain(
-        "](../../../docs/upstream/fork-release-policy.md)",
-      );
-    });
-    it("keeps sync-only branches out of ordinary prompts and package guidance", () => {
-      for (const file of [
-        ...["plan-issue", "tdd-plan", "build-plan", "ship"].map(
-          (name) => `.pi/prompts/${name}.md`,
-        ),
-        ".pi/skills/package-pi-subagents/SKILL.md",
-      ]) {
-        // Match synchronization-only anchors, not legitimate upstream dependency research.
-        expect(read(file), file).not.toMatch(
-          /pinned upstream-target|Pinned upstream-target|Upstream target: gotgenes\/pi-packages@|record-fork-sync|remerge-diff|verified merge's first parent|incoming-history co-shipped scan/,
-        );
-      }
-    });
-    it("leaves integration procedures to the guide and recorder semantics to policy", () => {
-      for (const file of [
-        "docs/upstream/fork-release-policy.md",
-        ".pi/skills/releasing/SKILL.md",
-      ]) {
-        expect(read(file), file).not.toMatch(
-          /--merge --expected-upstream|--upstream-protocol|implementation retro|standard plan\/implementation\/review\/ship\/retro lifecycle/,
-        );
-      }
-      expect(read(".pi/skills/releasing/SKILL.md")).not.toContain(
-        "./scripts/upstream-sync.sh --record-fork-sync",
-      );
-      expect(prompt("plan-issue")).toContain("scope:repo");
-      for (const name of ["tdd-plan", "build-plan"]) {
-        expect(prompt(name)).toContain("root test commands");
-      }
-      expect(prompt("ship")).toContain("git push origin main");
-      expect(prompt("ship")).toContain("--repo Jopqior/gotgenes-pi-packages");
-      expect(prompt("ship")).not.toContain(
-        "prepare` failing means nothing was tagged",
-      );
-    });
-  });
-  describe("worktrees fork release handoff instructions", () => {
-    // Bounded owner/section predicates pin instructions, not agent compliance.
-    const policy = () => read("docs/upstream/fork-release-policy.md");
-    const first = () =>
-      policy().split("## First fork release handoff")[1]?.split("## ")[0];
-
-    it("navigates to the independent worktrees view from each owner", () => {
-      const view = "pi-subagents-worktrees-release-correspondence.md";
-      expect(read("README.md")).toContain(`](docs/upstream/${view})`);
-      for (const owner of [
-        "synchronization-guide.md",
-        "fork-release-policy.md",
-      ])
-        expect(read(`docs/upstream/${owner}`)).toContain(`](${view})`);
-    });
-    it("preserves worktrees identity, fork-core loading and workspace behavior in intersection review", () => {
-      const text = read("docs/upstream/synchronization-guide.md")
-        .split("## Review scope")[1]
-        ?.split("## ")[0];
-      for (const instruction of [
-        "Preserve the eventual `@jopqior/pi-subagents-worktrees` identity and fork repository metadata",
-        "published `@jopqior/pi-subagents` imports and dependency",
-        "core-first initialization",
-        "shared workspace-provider service contract",
-        "`subagents-worktrees.json` and `worktreeAgents`",
-        "workspace preparation/disposal, rescue and recovery behavior",
-      ])
-        expect(text).toContain(instruction);
-    });
-    it("selects independent recorder review and evidence without package-selecting a merge", () => {
-      const recording = policy()
-        .split("## Recording a completed sync")[1]
-        ?.split("## ")[0];
-      expect(recording).toContain("--package pi-subagents-worktrees");
-      expect(recording).toContain(
-        "classify and record each package independently with its own explicit level and rationale",
-      );
-      const authority = policy()
-        .split("## Evidence authority and validity")[1]
-        ?.split("## ")[0];
-      expect(authority).toContain(
-        "scripts/release/pi-subagents-worktrees/sync-state.json",
-      );
-      expect(authority).toContain(
-        "only that selected package's state and view",
-      );
-      const guide = read("docs/upstream/synchronization-guide.md")
-        .split("## Fixed target and compatibility")[1]
-        ?.split("## ")[0];
-      expect(guide).toContain(
-        "./scripts/upstream-sync.sh --fetch --package pi-subagents-worktrees",
-      );
-      expect(guide).toContain("Never pass `--package` with `--merge`");
-    });
-    it("separates bounded generation from freshness-checked application", () => {
-      for (const instruction of [
-        "node scripts/release/prepare-first-fork-release.mjs",
-        "--version 0.1.0",
-        "operator-selected first version",
-        "bounded UTF-8 summary",
-        "direct upstream npm identity/version",
-        "empty package-scope upstream tail",
-        "first-fork-release.json",
-        "`sourceHead` still equals the current HEAD before copying",
-        "`applicationFiles`",
-        "not a persistent ledger",
-      ])
-        expect(first()).toContain(instruction);
-    });
-    it("requires explicit separate first-publication approval and forbids untagged dispatch", () => {
-      const text = first();
-      expect(text).toContain(
-        "Obtain explicit separate operator approval of the npm scope and release destination before first publication",
-      );
-      expect(text).toContain(
-        "Do not dispatch ordinary release preparation for an untagged first release",
-      );
-      expect(text).toContain("manual first npm publish without `--provenance`");
-      expect(text).toContain("release-artifacts.mjs published");
-    });
-    it("routes the release skill to both supported evidence paths and the guarded first handoff", () => {
-      const skill = read(".pi/skills/releasing/SKILL.md");
-      expect(
-        skill.split("## Fork release levels")[1]?.split("## ")[0],
-      ).toContain("`pi-subagents` and `pi-subagents-worktrees`");
-      const firstRelease = skill
-        .split("## A package's first release")[1]
-        ?.split("## ")[0];
-      expect(firstRelease).toContain("artifact-only first-release generator");
-      expect(firstRelease).toContain("#first-fork-release-handoff");
-      expect(firstRelease).toContain(
-        "Never dispatch ordinary preparation for an untagged first release",
-      );
-    });
-    describe("state-aware worktrees correspondence view", () => {
-      const start = "<!-- release-correspondence:start -->";
-      const end = "<!-- release-correspondence:end -->";
-      const preface =
-        "# Worktrees fork release correspondence\n\n" +
-        "Until a verified fork release row is recorded, this document is an unreleased scaffold.\n" +
-        "An empty synchronization state does not establish release evidence or authorize publication.\n" +
-        "The table below is generated from this package's own state; the renderer owns only the marked region.\n\n";
-      const empty = { schemaVersion: 2, releases: [], syncs: [] };
-      const projected = {
-        ...empty,
-        releases: [
-          {
-            forkTag: "pi-subagents-worktrees-v0.1.0",
-            upstream: { version: "0.3.3", commit: "a".repeat(40) },
-            upstreamTip: "b".repeat(40),
-          },
-        ],
-      };
-      const table =
-        "| Fork `@jopqior/pi-subagents-worktrees` | Direct upstream release | Fixed source |\n" +
-        "| --- | --- | --- |\n" +
-        `| 0.1.0 | \`0.3.3\` | [source](https://github.com/gotgenes/pi-packages/blob/${"a".repeat(40)}/packages/pi-subagents-worktrees) |`;
-      const emptyView = `${preface}${start}\n\nNo fork release has been recorded.\n\n${end}\n`;
-      const projectedView = `${preface}${start}\n\n${table}\n\n${end}\n`;
-
-      it("matches the real view against authoritative worktrees state", () => {
-        assertWorktreesView(
-          readForkSyncState(
-            "scripts/release/pi-subagents-worktrees/sync-state.json",
-            "pi-subagents-worktrees",
-          ),
-          read(
-            "docs/upstream/pi-subagents-worktrees-release-correspondence.md",
-          ),
-        );
-      });
-      describe("empty and first-row projection", () => {
-        it("accepts the empty scaffold", () => {
-          assertWorktreesView(empty, emptyView);
-        });
-        it("accepts the first projected row without resolving a fork tag", () => {
-          assertWorktreesView(projected, projectedView);
-        });
-        it("rejects the empty placeholder for populated state", () => {
-          expect(() => assertWorktreesView(projected, emptyView)).toThrow();
-        });
-        it("rejects a projected table for empty state", () => {
-          expect(() => assertWorktreesView(empty, projectedView)).toThrow();
-        });
-      });
-      describe("view and state disagreement", () => {
-        it.each([
-          ["fork version", "| 0.1.0 |", "| 0.1.1 |"],
-          ["upstream version", "`0.3.3`", "`0.3.4`"],
-          ["source commit", "a".repeat(40), "c".repeat(40)],
-          ["floating source", "a".repeat(40), "main"],
-          [
-            "npm identity",
-            "@jopqior/pi-subagents-worktrees",
-            "@gotgenes/pi-subagents-worktrees",
-          ],
-          ["missing row", table.split("\n")[2], ""],
-          [
-            "duplicate row",
-            table.split("\n")[2],
-            `${table.split("\n")[2]}\n${table.split("\n")[2]}`,
-          ],
-        ])("rejects altered %s", (_label, from, to) => {
-          expect(() =>
-            assertWorktreesView(projected, projectedView.replace(from, to)),
-          ).toThrow();
-        });
-      });
-      describe("exact standalone managed-marker pair", () => {
-        it.each([
-          ["missing start", emptyView.replace(start, "")],
-          ["missing end", emptyView.replace(end, "")],
-          ["duplicate start", `${emptyView}${start}\n`],
-          ["duplicate end", `${emptyView}${end}\n`],
-          ["second pair", `${emptyView}${start}\n${end}\n`],
-          [
-            "reversed markers",
-            `${preface}${end}\n\nNo fork release has been recorded.\n\n${start}\n`,
-          ],
-          ["inline start prefix", emptyView.replace(start, `prefix ${start}`)],
-          ["inline start suffix", emptyView.replace(start, `${start} suffix`)],
-          ["inline end prefix", emptyView.replace(end, `prefix ${end}`)],
-          ["inline end suffix", emptyView.replace(end, `${end} suffix`)],
-        ])("rejects %s", (_label, view) => {
-          expect(() => assertWorktreesView(empty, view)).toThrow(
-            /marker|region/,
-          );
-        });
-      });
-      describe("external prose", () => {
-        it.each([
-          [
-            "missing conditional scaffold claim",
-            emptyView.replace(
-              "Until a verified fork release row is recorded",
-              "This fork",
-            ),
-          ],
-          [
-            "unconditional suffix claim",
-            `${emptyView}\nThis fork is unreleased.\n`,
-          ],
-          [
-            "missing evidence boundary",
-            emptyView.replace(
-              "An empty synchronization state does not establish release evidence or authorize publication.\n",
-              "",
-            ),
-          ],
-          [
-            "missing region ownership",
-            emptyView.replace(
-              "The table below is generated from this package's own state; the renderer owns only the marked region.\n",
-              "",
-            ),
-          ],
-        ])("rejects %s", (_label, view) => {
-          expect(() => assertWorktreesView(empty, view)).toThrow();
-        });
-      });
-    });
-  });
-  describe("selector-focused synchronization scope", () => {
-    // These bounded text predicates detect missing instructions, not live agent
-    // compliance or semantic completeness. Subset matches permit unrelated prose.
-    const guide = () => read("docs/upstream/synchronization-guide.md");
-
-    describe("issue drafting ownership", () => {
-      const drafting = () =>
-        prompt("upstream-sync")
-          .split("## 2. Draft and recheck before creating")[1]
-          ?.split("<!-- issue-entry -->")[0];
-
-      it("requires the absolute fork guide link in drafting, not only final navigation", () => {
-        expect(drafting()).toContain(
-          "[synchronization guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/upstream/synchronization-guide.md)",
-        );
-      });
-      it("assigns review, validation and finding disposition to the guide in drafting", () => {
-        const text = drafting();
-        expect(text).toContain(
-          "the guide governs synchronization review, validation and finding disposition throughout the ordinary stages",
-        );
-        expect(text).toContain("Acceptance criteria: follow the guide's scope");
-      });
-    });
-
-    describe("review responsibilities", () => {
-      it("distinguishes complete incoming inventory from targeted deep review", () => {
-        const text = guide().split("## Review scope")[1]?.split("## ")[0];
-        expect(text).toBeDefined();
-        expect(text).toContain(
-          "complete common-base-to-pinned-target inventory",
-        );
-        expect(text).toContain(
-          "selected deep-review paths/contracts and reasons",
-        );
-        expect(text).toContain("not independent audit assignments");
-        expect(text).not.toContain("comprehensive incoming audit is required");
-        expect(guide()).not.toContain("a full review mandate");
-      });
-      it("includes automatically merged intersections beyond package paths", () => {
-        const text = guide().split("## Review scope")[1]?.split("## ")[0];
-        expect(text).toContain(
-          "automatically merged fork customizations with no conflict markers",
-        );
-        expect(text).toContain(
-          "core/service, lifecycle, presentation and loading contracts",
-        );
-        expect(text).toContain("package-path filtering alone is insufficient");
-        expect(text).toContain(
-          "actual conflict resolutions, the remerge diff, sync-authored adaptations and every post-merge contribution",
-        );
-      });
-      it("keeps normal implementation and independent review without a separate comprehensive audit", () => {
-        const text = guide()
-          .split("## Completed integration and review handoff")[1]
-          ?.split("## ")[0];
-        expect(text).toContain("normal local review of adaptations");
-        expect(text).toContain(
-          "fork-contribution classification needed by the recorder",
-        );
-        expect(text).toContain(
-          "No separate comprehensive pre-review integration/evidence audit is required",
-        );
-        expect(text).toContain("ordinary independent pre-completion review");
-        expect(text).toContain(
-          "Normal follow-up review after an in-scope correction remains possible",
-        );
-        expect(text).not.toContain(
-          "A separate comprehensive pre-review integration/evidence audit is required",
-        );
-      });
-      it("requires the independent report to distinguish range, scope, results and disposition", () => {
-        const text = guide()
-          .split("## Completed integration and review handoff")[1]
-          ?.split("## ")[0];
-        expect(text).toContain(
-          "pinned target/common base, changed-file inventory and identified intersections",
-        );
-        expect(text).toContain(
-          "generic deterministic gates and applicable checklist remain intact",
-        );
-        expect(text).toContain(
-          "actual range, inventory versus deep-review scope, relevant results and finding disposition",
-        );
-        expect(text).toContain("without repeating a comprehensive audit");
-      });
-    });
-
-    describe("validation and disposition", () => {
-      it("retains completed-integration root gates and selector regressions", () => {
-        expect(guide()).toContain(
-          "Run root `pnpm run check`, `pnpm run lint`, `pnpm run test`, and `pnpm fallow dead-code` on the completed integration.",
-        );
-        expect(guide()).toContain(
-          "Existing selector regression suites remain part of the root test run",
-        );
-      });
-      it("conditions packed checks on relevant contract changes across the completed synchronization", () => {
-        const text = guide()
-          .split("## Validation and escalation")[1]
-          ?.split("## ")[0];
-        expect(text).toContain(
-          "When changes in the completed synchronization, including incoming changes, sync-authored fork adaptations and post-merge contributions, affect host versions, extension loading, package exports/public types or the core/selector service boundary, run existing packed local-core/selector compatibility and applicable public-consumer checks.",
-        );
-        expect(text).toContain("Preserve historical compatibility rows");
-        expect(text).toContain("actual candidate is tested");
-        expect(text).toContain(
-          "When those contracts do not change, do not require unrelated packed or cross-extension acceptance work",
-        );
-      });
-      it("does not turn omitted optional human or live checks into waiver gates", () => {
-        const text = guide()
-          .split("## Validation and escalation")[1]
-          ?.split("## ")[0];
-        expect(text).toContain(
-          "Human Pi/TUI interaction, live model/judge calls and temporary cross-extension end-to-end harnesses are not default requirements",
-        );
-        expect(text).toContain(
-          "Their omission is neither a missing check nor a warning requiring ship-time waiver",
-        );
-        expect(text).not.toContain(
-          "Their omission requires a ship-time waiver",
-        );
-      });
-      it("requires a concrete gap and operator agreement before extra verification", () => {
-        const text = guide()
-          .split("## Validation and escalation")[1]
-          ?.split("## ")[0];
-        expect(text).toContain(
-          "installation/check failure, broken selector or worktrees behavior, or a named fork-adaptation uncertainty that existing automated tests cannot answer",
-        );
-        expect(text).toContain(
-          "observable uncertainty, the existing evidence and its limit, and the smallest proposed extra verification",
-        );
-        expect(text).toContain(
-          "obtain operator agreement before adding or executing it",
-        );
-      });
-      it("does not infer unrelated repair authority from a failed gate", () => {
-        const text = guide()
-          .split("## Validation and escalation")[1]
-          ?.split("## ")[0];
-        expect(text).toContain(
-          "A failure stops the affected completion path but never implicitly authorizes unrelated upstream repairs, weaker release evidence or a substituted target",
-        );
-      });
-      it("disposes findings by provenance and fork relevance rather than severity alone", () => {
-        const text = guide()
-          .split("## Finding disposition")[1]
-          ?.split("## ")[0];
-        expect(text).toContain(
-          "provenance and relevance, not severity labels alone",
-        );
-        expect(text).toMatch(
-          /Regression introduced by conflict resolution or fork adaptation\s*\| Correct in scope/,
-        );
-        expect(text).toMatch(
-          /Inherited upstream behavior breaks selector or worktrees compatibility\s*\| In-scope compatibility decision/,
-        );
-        expect(text).toMatch(
-          /Confirmed inherited defect unrelated to fork preservation, with required checks passing\s*\| Outside sync scope; no automatic repair, reproduction, new issue or unresolved ship warning/,
-        );
-        expect(text).toMatch(
-          /Required install\/check fails, including inherited failure\s*\| Stop and report the failed gate and provenance; operator decides the next action, without implied repair authorization/,
-        );
-        expect(text).toMatch(
-          /Specific adaptation uncertainty remains after existing automated checks\s*\| Request the smallest justified verification before executing it/,
-        );
-        expect(text).toMatch(
-          /Optional human\/live check not run and no concrete gap identified\s*\| Not required; no waiver gate/,
-        );
-        expect(text).toContain(
-          "compare the relevant implementation with the pinned target",
-        );
-        expect(text).toContain(
-          "Unknown provenance is not proof of inheritance",
-        );
-        expect(text).toContain(
-          "apply this guide's agreed scope explicitly rather than automatically requiring repair or waiver",
-        );
-      });
-    });
-
-    describe("retained safety", () => {
-      it("uses the actual merge first parent instead of tag or plan defaults", () => {
-        expect(guide()).toContain(
-          "Resolve the actual merge's first parent as the independent review base and review through HEAD",
-        );
-        expect(guide()).toContain(
-          "explicitly supersede the reviewer's default tag/plan-derived range",
-        );
-        expect(guide()).toContain(
-          "For release candidates and the closing summary use the actual merge's first parent through HEAD",
-        );
-        expect(guide()).toContain("pass that resolved OID as `RANGE_BASE`");
-      });
-      it("requires genuine pinned two-parent topology", () => {
-        expect(guide()).toContain(
-          "Complete a genuine two-parent merge before final validation; its second parent must equal the pinned target.",
-        );
-        expect(guide()).toContain(
-          "Feature-worktree rebase, squash, or fast-forward landing cannot replace this merge.",
-        );
-      });
-      it("requires recorder-owned committed reviewed evidence before independent review", () => {
-        expect(guide()).toContain(
-          "Commit reviewed integration changes, invoke the policy-owned recorder, then commit reviewed evidence before final independent review.",
-        );
-        expect(guide()).toContain("Missing or ambiguous facts stop shipping");
-      });
-      it("leaves evidence validity and publication restrictions to release policy", () => {
-        expect(guide()).toContain(
-          "The [fork release policy](fork-release-policy.md) owns evidence validity, recorder semantics, version derivation, and publication restrictions",
-        );
-      });
-      it("protects fork history and the tag namespace", () => {
-        expect(guide()).toContain(
-          "Preserve fork history and immutable changelogs; never import upstream tags into the fork's tag namespace",
-        );
-      });
-      it("separates registration and integration approval from publication", () => {
-        expect(guide()).toContain(
-          "Push and any separately approved publication remain fork-targeted; registration and integration approval do not authorize publication.",
-        );
-      });
-    });
-  });
-  describe.each(["tdd-plan", "build-plan"])("%s", (name) => {
-    it("guards operation state before startup synchronization", () => {
+  for (const name of ["tdd-plan", "build-plan"]) {
+    it(`executes the ${name} operation guard before startup synchronization`, () => {
       const text = prompt(name);
       expect(text.indexOf("<!-- operation-state -->")).toBeLessThan(
         text.indexOf("git pull --ff-only"),
       );
-      expect(text).toContain(
-        "recover against the issue plan and actual Git state",
-      );
-      const command = fence(text, "operation-state", "bash");
-      const directory = mkdtempSync(path.join(os.tmpdir(), "workflow-state-"));
+      const dir = mkdtempSync(path.join(tmpdir(), "workflow-state-"));
       try {
-        expect(
-          spawnSync("git", ["init", directory], { encoding: "utf8" }).status,
-        ).toBe(0);
-        expect(
-          spawnSync("bash", ["-c", command], { cwd: directory }).status,
-        ).toBe(0);
-        for (const operation of [
-          "MERGE_HEAD",
-          "rebase-merge",
-          "rebase-apply",
-        ]) {
-          const marker = path.join(directory, ".git", operation);
-          if (operation === "MERGE_HEAD") writeFileSync(marker, "a".repeat(40));
+        execFileSync("git", ["init", dir], { stdio: "pipe" });
+        const command = fence(text, "operation-state");
+        expect(shell(command, { cwd: dir }).status).toBe(0);
+        for (const state of ["MERGE_HEAD", "rebase-merge", "rebase-apply"]) {
+          const marker = path.join(dir, ".git", state);
+          if (state === "MERGE_HEAD") writeFileSync(marker, "a".repeat(40));
           else mkdirSync(marker);
-          const result = spawnSync("bash", ["-c", command], {
-            cwd: directory,
-            encoding: "utf8",
-          });
+          const result = shell(command, { cwd: dir });
           expect(result.status).not.toBe(0);
           expect(result.stderr).toContain("issue plan and actual Git state");
           rmSync(marker, { recursive: true });
         }
       } finally {
-        rmSync(directory, { recursive: true, force: true });
+        rmSync(dir, { recursive: true, force: true });
       }
     });
-  });
-  it("derives registered candidates once with a read-only executable command", () => {
-    const text = prompt("ship");
-    expect(text).toContain("Reuse this candidate list");
-    expect(text).toContain("not publication-eligible");
-    expect(text).toContain(
-      "nonzero is an error, empty stdout with exit zero is no release",
-    );
-    const command = fence(text, "release-candidates", "bash");
-    const result = spawnSync("bash", ["-c", command], {
+  }
+  it("executes the ship candidate import read-only at HEAD", () => {
+    const result = shell(fence(prompt("ship"), "release-candidates"), {
       env: { ...process.env, RANGE_BASE: "HEAD" },
-      encoding: "utf8",
     });
-    expect(result.status).toBe(0);
+    expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toEqual({
       registered: [],
       unregistered: [],
     });
   });
-  it("includes incoming and follow-up registered changes while reporting unregistered packages", () => {
-    const command = fence(prompt("ship"), "release-candidates", "bash");
+  it("includes incoming/follow-up registered changes and reports unregistered paths", () => {
     const registry = JSON.parse(read("scripts/release/release-packages.json"));
-    const directory = mkdtempSync(
-      path.join(os.tmpdir(), "workflow-candidates-"),
-    );
+    const dir = mkdtempSync(path.join(tmpdir(), "workflow-candidates-"));
     const git = (...args) =>
       execFileSync(
         "git",
         [
           "-c",
-          "user.name=Workflow Test",
+          "user.name=Workflow",
           "-c",
           "user.email=workflow@example.invalid",
           "-c",
           "core.hooksPath=/dev/null",
           ...args,
         ],
-        { cwd: directory, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+        { cwd: dir, encoding: "utf8", stdio: "pipe" },
       ).trim();
     try {
       git("init");
-      symlinkSync(
-        path.resolve("scripts"),
-        path.join(directory, "scripts"),
-        "dir",
-      );
+      symlinkSync(path.resolve("scripts"), path.join(dir, "scripts"), "dir");
       for (const entry of registry.packages) {
-        const packagePath = path.join(directory, "packages", entry.directory);
-        mkdirSync(packagePath, { recursive: true });
+        const pkg = path.join(dir, "packages", entry.directory);
+        mkdirSync(pkg, { recursive: true });
         writeFileSync(
-          path.join(packagePath, "package.json"),
+          path.join(pkg, "package.json"),
           JSON.stringify({ name: entry.name }),
         );
       }
       git("add", "packages");
-      git("commit", "-m", "test: initial inputs");
+      git("commit", "-m", "test: baseline");
       const base = git("rev-parse", "HEAD");
-      mkdirSync(path.join(directory, "packages", "incoming-unregistered"));
-      writeFileSync(
-        path.join(directory, "packages", "incoming-unregistered", "README.md"),
-        "incoming\n",
-      );
-      writeFileSync(
-        path.join(
-          directory,
-          "packages",
-          registry.packages[0].directory,
-          "README.md",
-        ),
-        "incoming\n",
-      );
+      mkdirSync(path.join(dir, "packages", "incoming-unregistered"));
+      for (const directory of [
+        registry.packages[0].directory,
+        "incoming-unregistered",
+      ])
+        writeFileSync(
+          path.join(dir, "packages", directory, "README.md"),
+          "incoming\n",
+        );
       git("add", "packages");
-      git("commit", "-m", "test: incoming paths");
+      git("commit", "-m", "test: incoming");
       writeFileSync(
-        path.join(
-          directory,
-          "packages",
-          registry.packages[1].directory,
-          "README.md",
-        ),
+        path.join(dir, "packages", registry.packages[1].directory, "README.md"),
         "follow-up\n",
       );
       git("add", "packages");
-      git("commit", "-m", "test: follow-up paths");
-      const result = spawnSync("bash", ["-c", command], {
-        cwd: directory,
+      git("commit", "-m", "test: follow-up");
+      const result = shell(fence(prompt("ship"), "release-candidates"), {
+        cwd: dir,
         env: { ...process.env, RANGE_BASE: base },
-        encoding: "utf8",
       });
-      expect(result.status).toBe(0);
+      expect(result.status, result.stderr).toBe(0);
       expect(JSON.parse(result.stdout)).toEqual({
         registered: [registry.packages[0], registry.packages[1]],
         unregistered: ["incoming-unregistered"],
       });
     } finally {
-      rmSync(directory, { recursive: true, force: true });
+      rmSync(dir, { recursive: true, force: true });
     }
-  });
-  it("retires active record loaders while keeping release policy navigation", () => {
-    for (const file of [
-      "AGENTS.md",
-      "README.md",
-      ".pi/skills/releasing/SKILL.md",
-      ".pi/skills/package-pi-subagents/SKILL.md",
-      "docs/upstream/fork-release-policy.md",
-      ...["upstream-sync", "plan-issue", "tdd-plan", "build-plan", "ship"].map(
-        (name) => `.pi/prompts/${name}.md`,
-      ),
-    ]) {
-      const text = read(file);
-      expect(text, file).not.toContain("docs/sync/");
-      expect(text, file).not.toContain("sole active sync policy");
-    }
-    expect(read("docs/upstream/fork-release-policy.md")).toContain(
-      "online release lookup",
-    );
-  });
-  it("retains the historical review as a resolved Git-addressed link", () => {
-    const text = read("docs/plans/f0028-sync-approval-policy.md");
-    expect(text).toMatch(
-      /historical rule-review handoff\]\(https:\/\/github.com\/Jopqior\/gotgenes-pi-packages\/blob\/[a-f0-9]{40}\/docs\/sync\/reviews\/f0028-sync-approval-policy.md\)/,
-    );
   });
 });

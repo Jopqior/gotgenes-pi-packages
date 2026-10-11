@@ -83,10 +83,8 @@ insert_release_section() {
   fi
 
   head -n "$((line - 1))" "$file" > "$tmp"
-  # Drop the section's leading blank lines and guarantee exactly one trailing
-  # blank, so the spacing matches the entries already in the file.
-  sed '/./,$!d' "$section" >> "$tmp"
-  printf '\n' >> "$tmp"
+  # The preflight owns all section bytes, including the separator newline.
+  cat "$section" >> "$tmp"
   tail -n +"$line" "$file" >> "$tmp"
 
   mv "$tmp" "$file"
@@ -99,7 +97,7 @@ insert_release_section() {
 pkgs=()
 tags=()
 
-# Temporary rendering and projected artifacts must never dirty the checkout
+# Temporary rendering and source preflight must never dirty the checkout
 # when any member of the selected set fails validation.
 artifacts=$(mktemp -d)
 trap 'rm -rf "$artifacts"' EXIT
@@ -121,27 +119,8 @@ for pkg in ${PACKAGES//,/ }; do
     exit 1
   fi
 
-  fork_decision=null
-  target=$(node scripts/release/fork-sync-targets.mjs "$pkg")
-  if [ "$target" != "null" ]; then
-    # Resolve and validate the fork correspondence here, in the preflight, so
-    # a blocked fork fails before any sibling manifest, changelog, tag, or
-    # state write. The decision must agree with the tag the shared entry
-    # predicted: prediction and preparation consume one policy, and two
-    # answers from it cannot both be right.
-    cliff_args "$pkg"
-    if ! fork_decision=$(node "$(fork_sync_cli)" --repo "$PWD" --package "$pkg" --current "$(latest_tag "$pkg")" --json -- "${CLIFF_ARGS[@]}"); then
-      exit 1
-    fi
-    fork_next=$(printf '%s\n' "$fork_decision" | jq -r '.nextTag // ""')
-    if [ "$fork_next" != "$tag" ]; then
-      echo "Error: fork release decision '${fork_next}' disagrees with the predicted tag '${tag}'." >&2
-      exit 1
-    fi
-  fi
-
   # Render every section before the first manifest changes. The Node boundary
-  # validates its exact heading, decorates it, and projects state and docs.
+  # validates identity/headings and adds independently resolved source text.
   cliff_args "$pkg"
   index=${#pkgs[@]}
   section="$artifacts/raw-$index"
@@ -152,8 +131,8 @@ for pkg in ${PACKAGES//,/ }; do
   fi
   spec_tmp="$artifacts/spec-next.json"
   jq --arg directory "$pkg" --arg tag "$tag" --arg section "$section" \
-    --arg generated "$generated" --argjson decision "$fork_decision" \
-    '. += [{directory:$directory, tag:$tag, section:$section, generated:$generated, decision:$decision}]' \
+    --arg generated "$generated" \
+    '. += [{directory:$directory, tag:$tag, section:$section, generated:$generated}]' \
     "$artifacts/spec.json" > "$spec_tmp"
   mv "$spec_tmp" "$artifacts/spec.json"
 
@@ -200,17 +179,6 @@ while [ "$i" -lt ${#pkgs[@]} ]; do
   insert_release_section "packages/$pkg/CHANGELOG.md" "$artifacts/section-$i" "$artifacts/header-$i"
 
   git add "packages/$pkg/package.json" "packages/$pkg/CHANGELOG.md"
-
-  artifact=$(jq -c --arg directory "$pkg" '.[] | select(.directory == $directory)' "$artifacts/fork-artifacts.json")
-  if [ -n "$artifact" ]; then
-    state_path=$(printf '%s\n' "$artifact" | jq -r '.statePath')
-    correspondence_path=$(printf '%s\n' "$artifact" | jq -r '.correspondencePath')
-    state_file=$(printf '%s\n' "$artifact" | jq -r '.stateFile')
-    correspondence_file=$(printf '%s\n' "$artifact" | jq -r '.correspondenceFile')
-    cp "$artifacts/$state_file" "$state_path"
-    cp "$artifacts/$correspondence_file" "$correspondence_path"
-    git add "$state_path" "$correspondence_path"
-  fi
 
   subjects+=("$pkg $version")
   i=$((i + 1))

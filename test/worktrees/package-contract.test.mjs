@@ -190,7 +190,7 @@ describe("worktrees fork package contract", () => {
   it("registers the actual manifest as a direct upstream fork without changing sibling registrations", () => {
     const registry = JSON.parse(read("scripts/release/release-packages.json"));
     expect(registry).toEqual({
-      schemaVersion: 2,
+      schemaVersion: 3,
       packages: [
         {
           directory: "pi-subagents",
@@ -201,7 +201,6 @@ describe("worktrees fork package contract", () => {
             repository: "gotgenes/pi-packages",
             directory: "packages/pi-subagents",
           },
-          evidence: "fork-sync",
         },
         {
           directory: "pi-subagents-model-selector",
@@ -217,7 +216,6 @@ describe("worktrees fork package contract", () => {
             repository: "gotgenes/pi-packages",
             directory: packageDirectory,
           },
-          evidence: "fork-sync",
         },
       ],
     });

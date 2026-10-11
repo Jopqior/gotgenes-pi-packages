@@ -179,7 +179,7 @@ set -euo pipefail
 export RANGE_BASE
 node --input-type=module -e '
   import {execFileSync} from "node:child_process";
-  import {readReleasePackages} from "./scripts/release/release-correspondence.mjs";
+  import {readReleasePackages} from "./scripts/release/release-metadata.mjs";
   const registry = readReleasePackages("scripts/release/release-packages.json", process.cwd());
   const paths = execFileSync("git", ["diff", "--name-only", `${process.env.RANGE_BASE}..HEAD`], {encoding: "utf8"}).trim().split("\n");
   const changed = [...new Set(paths.flatMap(p => /^packages\/([^/]+)\//.exec(p)?.slice(1) ?? []))].sort();

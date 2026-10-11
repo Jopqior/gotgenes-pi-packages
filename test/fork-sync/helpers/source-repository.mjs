@@ -13,20 +13,23 @@ import path from "node:path";
 export const sourceUrl = "https://github.com/gotgenes/pi-packages.git";
 
 // Independent upstream worktree and fork clone: upstream never descends from a fork commit.
-export function createSourceRepository() {
+export function createSourceRepository(
+  upstreamPackage = {
+    repository: "gotgenes/pi-packages",
+    directory: "packages/alternate",
+    name: "@upstream/alternate",
+  },
+) {
   const dir = mkdtempSync(path.join(tmpdir(), "fork-source-test-"));
   const upstream = path.join(dir, "upstream");
   const bare = path.join(dir, "upstream.git");
   const fork = path.join(dir, "fork");
-  const upstreamPackage = {
-    repository: "gotgenes/pi-packages",
-    directory: "packages/alternate",
-    name: "@upstream/alternate",
-  };
+  const packageDirectory = upstreamPackage.directory.slice("packages/".length);
   function git(cwd, ...args) {
     const result = spawnSync("git", args, {
       cwd,
       encoding: "utf8",
+      stdio: "pipe",
       env: { ...process.env, LC_ALL: "C", GIT_TERMINAL_PROMPT: "0" },
     });
     if (result.error || result.status !== 0)
@@ -55,10 +58,10 @@ export function createSourceRepository() {
   git(upstream, "config", "user.email", "source@example.invalid");
   const baseline = commit(
     upstream,
-    "packages/alternate/package.json",
+    `${upstreamPackage.directory}/package.json`,
     manifest("1.0.0"),
   );
-  git(upstream, "tag", "alternate-v1.0.0");
+  git(upstream, "tag", `${packageDirectory}-v1.0.0`);
   git(dir, "init", "--bare", "--initial-branch=main", bare);
   git(upstream, "remote", "add", "local", bare);
   function publish() {
@@ -95,14 +98,14 @@ export function createSourceRepository() {
   function release(version, options = {}) {
     const oid = commit(
       upstream,
-      "packages/alternate/package.json",
+      `${upstreamPackage.directory}/package.json`,
       manifest(version, options.name),
     );
     git(
       upstream,
       "tag",
       ...(options.annotated ? ["-a", "-m", "release"] : []),
-      `alternate-v${options.tagVersion ?? version}`,
+      `${packageDirectory}-v${options.tagVersion ?? version}`,
     );
     return oid;
   }

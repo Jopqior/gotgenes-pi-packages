@@ -2,7 +2,7 @@
 
 A personal fork of [gotgenes/pi-packages](https://github.com/gotgenes/pi-packages), containing [Pi](https://github.com/earendil-works/pi) extensions with mixed npm identities.
 The maintained subagents core, model selector and worktrees companion use `@jopqior/*`; other packages retain their upstream `@gotgenes/*` identities.
-Retained upstream identities do not authorize fork publication; see each manifest and the [fork release policy](docs/upstream/fork-release-policy.md).
+Retained upstream identities do not authorize fork publication; see each manifest and the [release source guide](docs/upstream/fork-release-policy.md).
 Some packages (like pi-permission-system) are designed for broad use; others scratch a personal itch and are shared in case they help others.
 
 ## Packages
@@ -39,7 +39,7 @@ pi install npm:@jopqior/pi-subagents-worktrees
 pi install npm:@gotgenes/pi-autoformat
 ```
 
-The worktrees npm command applies only after its approved first publication; the table's fork badge does not establish publication status.
+The table records package identities, not publication permission; release dispatch and publication still require separate operator approval.
 See the [worktrees README](packages/pi-subagents-worktrees/README.md#install) for the required core floor, load order and distinct import-loading versus uninitialized-service failures.
 Switching from an upstream npm companion requires explicitly removing the old source; fork identities are not automatic upgrades.
 Commands default to personal settings; add `--local` for project settings, subject to project trust.
@@ -123,11 +123,10 @@ An equivalent command for [Diffview.nvim](https://github.com/sindrets/diffview.n
 
 From a fresh Pi session at the repo root, invoke the no-argument [upstream-sync entry point](.pi/prompts/upstream-sync.md) to find or create a fixed-target fork issue, then stop.
 The [synchronization guide](docs/upstream/synchronization-guide.md) owns integration constraints and lifecycle exceptions.
-The [fork release policy](docs/upstream/fork-release-policy.md) owns independent evidence and version policy for the maintained core and worktrees forks.
-The generated [core correspondence view](docs/upstream/pi-subagents-release-correspondence.md) and [worktrees correspondence view](docs/upstream/pi-subagents-worktrees-release-correspondence.md) track separate release windows; the worktrees scaffold is not publication evidence.
-For untagged worktrees, follow the [first fork release handoff](docs/upstream/fork-release-policy.md#first-fork-release-handoff): artifact-only generation, reviewed application and separately approved manual first publication precede ordinary dispatch.
-Worktrees is registered under `@jopqior/pi-subagents-worktrees`; registration does not establish a first published anchor or approve publication.
-[Issue #37](https://github.com/Jopqior/gotgenes-pi-packages/issues/37) owns the guarded first-artifact and publication handoff.
+The [release source guide](docs/upstream/fork-release-policy.md) separates ordinary path-scoped versioning from verified upstream source display.
+Preparation resolves source in temporary repositories before tracked writes; publication and GitHub notes reuse the exact tagged sections offline.
+For an untagged package, follow the [manual first-publication handoff](docs/upstream/fork-release-policy.md#first-fork-release-handoff) with separate approval of its npm identity and destination.
+Core and worktrees retain their separate registered `@jopqior/*` identities; registration and integration never authorize publication.
 
 ### Agentic development workflow
 

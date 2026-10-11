@@ -109,50 +109,11 @@ bumped_version() { # <tag>
   git-cliff "${CLIFF_ARGS[@]}" --bumped-version "$(git rev-parse "$1")..HEAD" 2>/dev/null
 }
 
-# Print the absolute path of the fork release policy CLI, resolved next to
-# this file so a scratch repository's own script layout cannot shadow the
-# implementation a caller intended. Both the prediction entry and release
-# preparation resolve it here, so there is one spelling of the path.
-fork_sync_cli() {
-  local dir
-  dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  printf '%s/fork-sync.mjs\n' "$dir"
-}
-
-# Print the next release tag for package $1 given its current release tag $2,
-# or the current tag itself when nothing is releasable. This is the single
-# decision entry for tag prediction: every caller that asks "what would this
-# package release?" — next-version.sh, verify-cliff-parity.sh — goes through
-# here, so package-specific policy has one home instead of a per-script
-# sequence to keep in step.
-#
-# Supported fork packages derive their tags from verified upstream
-# correspondence instead of the repository-wide commit classification: its
-# history advances through upstream merges whose messages describe upstream
-# releases, not the independent fork version. The policy lives in
-# scripts/release/fork-sync.mjs; it receives the scoping arguments verbatim
-# (the same CLIFF_ARGS array this entry built) so there is exactly one
-# representation of the package's path scope.
-#
-# A nonzero status means the question could not be answered — missing or
-# inconsistent evidence — and callers must not treat it as "nothing to
-# release".
+# Ordinary path-scoped prediction for every package. A nonzero status is a
+# derivation error, never the successful current-tag/no-release result.
 next_tag() { # <package> <current-tag>
   cliff_args "$1"
-  local target
-  target=$(node "$(dirname "$(fork_sync_cli)")/fork-sync-targets.mjs" "$1") || return 1
-  if [ "$target" != "null" ]; then
-    local fork_next
-    if ! fork_next=$(node "$(fork_sync_cli)" --repo "$PWD" --package "$1" --current "$2" -- "${CLIFF_ARGS[@]}"); then
-      return 1
-    fi
-    # The fork CLI prints nothing when no level was decided; normalize to the
-    # bumped_version contract so callers see the current tag, never an empty
-    # string that reads as a derivation failure.
-    printf '%s\n' "${fork_next:-$2}"
-  else
-    bumped_version "$2"
-  fi
+  bumped_version "$2"
 }
 
 # Print the version recorded in package $1's package.json.

@@ -50,48 +50,6 @@ describe("bumped_version", () => {
   });
 });
 
-describe("bumped_version across an upstream merge boundary", () => {
-  it("prints the tagged version when nothing lands after a merge-spanning out-of-scope tag", () => {
-    repo.mergedUpstreamHistory();
-    repo.git("tag", "demo-v1.0.0");
-
-    expect(repo.bumpedVersion("demo-v1.0.0")).toBe("demo-v1.0.0\n");
-  });
-
-  it("bumps patch for a fork fix when an old upstream break was merged before the tag", () => {
-    repo.mergedUpstreamHistory();
-    repo.git("tag", "demo-v1.0.0");
-    repo.commitInScope("fix(demo): fresh fork fix", "packages/demo/new.txt");
-
-    expect(repo.bumpedVersion("demo-v1.0.0")).toBe("demo-v1.0.1\n");
-  });
-
-  it("bumps major for a genuinely new upstream breaking commit merged after the tag", () => {
-    repo.mergedUpstreamHistory();
-    repo.git("tag", "demo-v1.0.0");
-    repo.commitInScope("fix(demo): fresh fork fix", "packages/demo/new.txt");
-    const upstreamTip = repo.mergeNewUpstream(
-      "feat(demo)!: new upstream break",
-      "packages/demo/newer.txt",
-    );
-
-    // A real second parent, not a rebased fast-forward: the newly merged
-    // upstream change must arrive as merge ancestry for this class to mean
-    // "merged after the tag".
-    expect(repo.gitOut("rev-parse", "HEAD^2")).toBe(upstreamTip);
-
-    expect(repo.bumpedVersion("demo-v1.0.0")).toBe("demo-v2.0.0\n");
-  });
-
-  it("bounds the same merged-history walk at an annotated tag", () => {
-    repo.mergedUpstreamHistory();
-    repo.git("tag", "-a", "demo-v1.0.0", "-m", "demo v1.0.0");
-    repo.commitInScope("fix(demo): fresh fork fix", "packages/demo/new.txt");
-
-    expect(repo.bumpedVersion("demo-v1.0.0")).toBe("demo-v1.0.1\n");
-  });
-});
-
 describe("entry-point parity", () => {
   // `next-version.sh` and `verify-cliff-parity.sh` must answer "what would
   // this package release?" through the same decision entry, so the two
@@ -103,10 +61,6 @@ describe("entry-point parity", () => {
       "lib.sh",
       "next-version.sh",
       "verify-cliff-parity.sh",
-      "fork-sync-targets.mjs",
-      "fork-sync/values.mjs",
-      "pi-subagents/config.mjs",
-      "pi-subagents-worktrees/config.mjs",
     );
     repo.writeManifest("demo", "1.0.0");
     repo.commitInScope("feat(demo)!: initial scope", "packages/demo/a.txt");
@@ -158,12 +112,12 @@ describe("entry-point parity", () => {
       const prediction = spawnSync(
         "bash",
         [path.join(repo.dir, "scripts", "release", "next-version.sh"), "demo"],
-        { cwd: repo.dir, encoding: "utf8", env: stubEnv },
+        { cwd: repo.dir, encoding: "utf8", env: stubEnv, stdio: "pipe" },
       );
       const parity = spawnSync(
         "bash",
         [path.join(repo.dir, "scripts", "release", "verify-cliff-parity.sh")],
-        { cwd: repo.dir, encoding: "utf8", env: stubEnv },
+        { cwd: repo.dir, encoding: "utf8", env: stubEnv, stdio: "pipe" },
       );
 
       expect(prediction.status).not.toBe(0);
@@ -174,52 +128,5 @@ describe("entry-point parity", () => {
     } finally {
       rmSync(failingBin, { recursive: true, force: true });
     }
-  });
-});
-
-describe("release rendering across an upstream merge boundary", () => {
-  // Both scripts render after next-version.sh has derived the tag, which for
-  // this fixture is demo-v2.0.0: the breaking upstream merge dominates the
-  // fork fix. The rendered section embeds commit SHAs and a release date, so
-  // the assertions match stable substrings rather than the whole output.
-  it("renders only post-tag changes in the prepare-release unreleased section", () => {
-    repo.mergedUpstreamHistory();
-    repo.git("tag", "demo-v1.0.0");
-    repo.commitInScope("fix(demo): fresh fork fix", "packages/demo/new.txt");
-    repo.mergeNewUpstream(
-      "feat(demo)!: new upstream break",
-      "packages/demo/newer.txt",
-    );
-
-    const section = repo.renderReleaseSection(
-      "--tag",
-      "demo-v2.0.0",
-      "--unreleased",
-      "--strip",
-      "header",
-    );
-
-    expect(section).toContain("compare/demo-v1.0.0...demo-v2.0.0");
-    expect(section).toContain("new upstream break");
-    expect(section).toContain("fresh fork fix");
-    expect(section).not.toContain("old upstream break");
-  });
-
-  it("renders the tag at HEAD in the create-github-releases latest section", () => {
-    repo.mergedUpstreamHistory();
-    repo.git("tag", "demo-v1.0.0");
-    repo.commitInScope("fix(demo): fresh fork fix", "packages/demo/new.txt");
-    repo.mergeNewUpstream(
-      "feat(demo)!: new upstream break",
-      "packages/demo/newer.txt",
-    );
-    repo.git("tag", "-a", "demo-v2.0.0", "-m", "Release demo-v2.0.0");
-
-    const section = repo.renderReleaseSection("--latest", "--strip", "header");
-
-    expect(section).toContain("compare/demo-v1.0.0...demo-v2.0.0");
-    expect(section).toContain("new upstream break");
-    expect(section).toContain("fresh fork fix");
-    expect(section).not.toContain("old upstream break");
   });
 });

@@ -31,8 +31,8 @@ fi
 
 artifacts=$(mktemp -d)
 trap 'rm -rf "$artifacts"' EXIT
-# The full tagged set passes the identity, exact-record and CHANGELOG checks
-# before the first registry call; no tag namespace refresh is permitted here.
+# The full tagged set passes identity, source-block and exact-section checks
+# before the first registry call; no source reselection or tag refresh occurs.
 node scripts/release/release-artifacts.mjs published "$PWD" "$artifacts" "${tags[@]}"
 i=0
 while [ "$i" -lt ${#tags[@]} ]; do

@@ -35,7 +35,7 @@ export const mergeMessage = "chore: merge upstream/main";
 export const refuseHint =
   "run ./scripts/upstream-sync.sh --fetch to fetch and print ahead/behind without merging";
 
-const gitWrapperSource = (recordQueryPattern) =>
+const gitWrapperSource = () =>
   [
     "#!/usr/bin/env node",
     '"use strict";',
@@ -74,9 +74,7 @@ const gitWrapperSource = (recordQueryPattern) =>
     "const code = result.status === null ? 1 : result.status;",
     "if (",
     "  code === 0 &&",
-    '  (process.env.UPSTREAM_SYNC_TEST_TAG_TRIGGER === "record"',
-    `    ? args[0] === "ls-remote" && args[1] === "--tags" && args[2] === "upstream" && args[3] === ${JSON.stringify(recordQueryPattern)}`,
-    '    : args[0] === "fetch") &&',
+    '  args[0] === "fetch" &&',
     "  process.env.UPSTREAM_SYNC_TEST_INJECT_TAG",
     ") {",
     "  const tag = process.env.UPSTREAM_SYNC_TEST_INJECT_TAG;",
@@ -90,10 +88,6 @@ const gitWrapperSource = (recordQueryPattern) =>
     "}",
     'if (args[0] === "fetch" && process.env.UPSTREAM_SYNC_TEST_FAIL_FETCH_AFTER_TAG) {',
     '  process.stderr.write("simulated fetch failure after tag write\\n");',
-    "  process.exit(1);",
-    "}",
-    'if (args[0] === "ls-remote" && process.env.UPSTREAM_SYNC_TEST_FAIL_RELEASE_QUERY_AFTER_TAG) {',
-    '  process.stderr.write("simulated release query failure after tag write\\n");',
     "  process.exit(1);",
     "}",
     "process.exit(code);",
@@ -118,14 +112,13 @@ export const baseGitEnv = {
  * log, and the `remotes/`/`build/` directories `materializeNetwork` and the
  * advance helpers populate.
  *
- * @param {string} [recordQueryPattern] exact ls-remote pattern triggering record tag drift
  * @returns {UpstreamNetwork}
  */
-export function createUpstreamNetwork(recordQueryPattern = "pi-subagents-v*") {
+export function createUpstreamNetwork() {
   const scratch = mkdtempSync(path.join(tmpdir(), "upstream-sync-"));
   mkdirSync(path.join(scratch, "bin"), { recursive: true });
   const wrapperPath = path.join(scratch, "bin", "git");
-  writeFileSync(wrapperPath, gitWrapperSource(recordQueryPattern));
+  writeFileSync(wrapperPath, gitWrapperSource());
   chmodSync(wrapperPath, 0o755);
   writeFileSync(path.join(scratch, "git-args.jsonl"), "");
 
@@ -265,46 +258,6 @@ export function createUpstreamNetwork(recordQueryPattern = "pi-subagents-v*") {
   }
 
   /**
-   * Advance upstream main through named steps, tagging release commits along
-   * the way. Each step commits its files; a step with a `tag` also cuts the
-   * named upstream release tag (annotated or lightweight) at that commit.
-   *
-   * @param {string} upstreamBare
-   * @param {{ message: string, files: Record<string, string>, tag?: { name: string, annotated?: boolean } }[]} steps
-   * @returns {string[]} the commit OIDs of each step
-   */
-  function advanceUpstreamReleases(upstreamBare, steps) {
-    const dir = path.join(scratch, "build", "upstream-releases");
-    if (existsSync(dir)) {
-      rmSync(dir, { recursive: true, force: true });
-    }
-    git(scratch, ["clone", upstreamBare, dir]);
-    configureRepo(dir);
-    const oids = [];
-    for (const step of steps) {
-      commit(dir, step.message, step.files);
-      const oid = revParse(dir, "HEAD");
-      oids.push(oid);
-      if (step.tag) {
-        if (step.tag.annotated) {
-          git(dir, [
-            "tag",
-            "-a",
-            step.tag.name,
-            "-m",
-            `release ${step.tag.name}`,
-          ]);
-        } else {
-          git(dir, ["tag", step.tag.name]);
-        }
-      }
-    }
-    git(dir, ["push", "origin", "main"]);
-    git(dir, ["push", "--tags", "origin"]);
-    return oids;
-  }
-
-  /**
    * @param {string} cwd
    * @param {Record<string, string>} files
    */
@@ -336,6 +289,7 @@ export function createUpstreamNetwork(recordQueryPattern = "pi-subagents-v*") {
     const result = spawnSync("bash", [scriptPath, ...args], {
       cwd,
       encoding: "utf8",
+      stdio: "pipe",
       env: {
         ...baseGitEnv,
         PATH: `${path.join(scratch, "bin")}${path.delimiter}${process.env.PATH}`,
@@ -381,7 +335,7 @@ export function createUpstreamNetwork(recordQueryPattern = "pi-subagents-v*") {
   }
 
   /**
-   * @param {"divergent" | "conflict" | "already-integrated" | "empty-upstream" | "fork-sync" | "fast-forward" | "unrelated"} topology
+   * @param {"divergent" | "conflict" | "already-integrated" | "empty-upstream" | "fast-forward" | "unrelated"} topology
    */
   function materializeNetwork(topology) {
     const upstreamBare = path.join(
@@ -445,42 +399,6 @@ export function createUpstreamNetwork(recordQueryPattern = "pi-subagents-v*") {
         "fork-only.txt": "from fork\n",
       });
       git(seed, ["push", "origin-bare", "main"]);
-    } else if (topology === "fork-sync") {
-      git(seed, ["checkout", "-B", "upstream-line"]);
-      commit(seed, "feat(pi-subagents): upstream release 21.7.0", {
-        "packages/pi-subagents/package.json": `${JSON.stringify(
-          { name: "@gotgenes/pi-subagents", version: "21.7.0" },
-          null,
-          2,
-        )}\n`,
-        "packages/pi-subagents/src/core.ts": "export const core = 1;\n",
-      });
-      git(seed, ["tag", "-a", "pi-subagents-v21.7.0", "-m", "upstream 21.7.0"]);
-      git(seed, ["push", "upstream-bare", "HEAD:main"]);
-      git(seed, ["push", "--tags", "upstream-bare"]);
-      const releaseOid = revParse(seed, "pi-subagents-v21.7.0^{}");
-      git(seed, ["checkout", "main"]);
-      commit(seed, "feat: fork-only change", {
-        "fork-only.txt": "from fork\n",
-        "scripts/release/pi-subagents/sync-state.json": `${JSON.stringify(
-          {
-            schemaVersion: 2,
-            releases: [
-              {
-                forkTag: "pi-subagents-v1.0.0",
-                upstream: { version: "21.7.0", commit: releaseOid },
-                upstreamTip: releaseOid,
-              },
-            ],
-            syncs: [],
-          },
-          null,
-          2,
-        )}\n`,
-      });
-      git(seed, ["tag", "pi-subagents-v1.0.0"]);
-      git(seed, ["push", "origin-bare", "main"]);
-      git(seed, ["push", "origin-bare", "refs/tags/pi-subagents-v1.0.0"]);
     } else {
       git(seed, ["checkout", "-B", "upstream-line"]);
       if (topology === "empty-upstream") {
@@ -538,7 +456,6 @@ export function createUpstreamNetwork(recordQueryPattern = "pi-subagents-v*") {
     snapshotDir,
     readGitStateFile,
     advanceUpstream,
-    advanceUpstreamReleases,
     writeFiles,
     commit,
     runScript,

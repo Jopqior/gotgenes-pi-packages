@@ -10,63 +10,24 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repoRoot = path.resolve(
+const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
 );
-const libShPath = path.join(repoRoot, "scripts", "release", "lib.sh");
-const cliffTomlPath = path.join(repoRoot, "cliff.toml");
-const defaultReleaseScriptsDir = path.join(repoRoot, "scripts", "release");
+const libShPath = path.join(root, "scripts/release/lib.sh");
 const gitEnv = {
   ...process.env,
   GIT_CONFIG_GLOBAL: "/dev/null",
   GIT_CONFIG_SYSTEM: "/dev/null",
 };
 
-/**
- * Create an instance-owned scratch Git repository for release-script tests.
- *
- * The repository starts with the repository's real `cliff.toml` copied in and
- * git identity configured, so tests only add commits and tags. The fixture
- * owns its own process invocation helpers; there is no shared global
- * repository, so tests in one file cannot observe another file's history.
- *
- * `pkg` parameterizes the package the cliff-scoping helpers address; the
- * fixture itself does not require `packages/<pkg>/` to exist until a test
- * commits into it.
- *
- * @param {{ pkg?: string, releaseScriptSourceDir?: string }} [options]
- * @returns {ReleaseRepositoryFixture}
- */
-export function createScratchReleaseRepository(options = {}) {
-  const pkg = options.pkg ?? "demo";
-  const releaseScriptSourceDir =
-    options.releaseScriptSourceDir ?? defaultReleaseScriptsDir;
+// Generic local history for metadata/scanner and ordinary prediction tests.
+export function createScratchReleaseRepository() {
   const dir = mkdtempSync(path.join(tmpdir(), "release-repo-"));
-  copyFileSync(cliffTomlPath, path.join(dir, "cliff.toml"));
-
-  /** @type {string | null} path of the bare `origin` created by `addLocalOrigin` */
-  let localOriginPath = null;
-
-  /**
-   * Run a git command inside the scratch repo.
-   *
-   * @param {...string} args
-   */
+  copyFileSync(path.join(root, "cliff.toml"), path.join(dir, "cliff.toml"));
   function git(...args) {
     execFileSync("git", args, { cwd: dir, env: gitEnv, stdio: "pipe" });
   }
-
-  git("init", "-b", "main");
-  git("config", "user.name", "Test");
-  git("config", "user.email", "test@example.com");
-
-  /**
-   * Run a git command inside the scratch repo and return its stripped stdout.
-   *
-   * @param {...string} args
-   * @returns {string}
-   */
   function gitOut(...args) {
     return execFileSync("git", args, {
       cwd: dir,
@@ -75,237 +36,56 @@ export function createScratchReleaseRepository(options = {}) {
       stdio: "pipe",
     }).trim();
   }
-
-  /**
-   * Create an in-scope commit touching the given file.
-   *
-   * @param {string} message a Conventional Commits subject
-   * @param {string} file the file to create, relative to the scratch repo
-   */
+  git("init", "-b", "main");
+  git("config", "user.name", "Test");
+  git("config", "user.email", "test@example.com");
+  function write(relative, content) {
+    const file = path.join(dir, relative);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, content);
+  }
   function commitInScope(message, file) {
-    const filePath = path.join(dir, file);
-    mkdirSync(path.dirname(filePath), { recursive: true });
-    writeFileSync(filePath, `${message}\n`);
+    write(file, `${message}\n`);
     git("add", ".");
     git("commit", "-m", message);
   }
-
-  /**
-   * Create an out-of-scope commit the packages' path filters never match.
-   *
-   * @param {string} message a Conventional Commits subject
-   */
   function commitOutOfScope(message) {
-    commitInScope(message, path.join("docs", "retro", "note.md"));
+    commitInScope(message, "docs/retro/note.md");
   }
-
-  /**
-   * Build the merged-history fixture shared by the merge-boundary tests: a
-   * root config commit, a fork commit, an upstream branch whose breaking
-   * change predates the release, a real two-parent merge of that branch, and
-   * an out-of-scope release marker commit ready to be tagged by the caller.
-   *
-   * This is the restored-repository shape: upstream changes arrive through
-   * real merges, and a release tag can sit on a commit whose changes are
-   * outside the package's path scope (the natural end of a docs-only
-   * publish).
-   */
-  function mergedUpstreamHistory() {
-    commitInScope("build: fixture config", "cliff-config-marker.txt");
-    commitInScope(`fix(${pkg}): initial fork work`, `packages/${pkg}/fork.txt`);
-    git("checkout", "-b", "upstream-side");
-    commitInScope(
-      `feat(${pkg})!: old upstream break`,
-      `packages/${pkg}/old.txt`,
-    );
-    git("checkout", "main");
-    git("merge", "--no-ff", "-m", "chore: merge upstream", "upstream-side");
-    commitOutOfScope("docs: release marker");
-  }
-
-  /**
-   * Commit `message` on a new upstream branch and merge it into main with a
-   * real two-parent merge, returning the merged upstream tip's commit OID.
-   *
-   * @param {string} message a Conventional Commits subject
-   * @param {string} file the file to create, relative to the scratch repo
-   * @returns {string} the merged upstream tip's commit OID
-   */
-  function mergeNewUpstream(message, file) {
-    git("checkout", "-b", "upstream-new");
-    commitInScope(message, file);
-    const tip = gitOut("rev-parse", "HEAD");
-    git("checkout", "main");
-    git(
-      "merge",
-      "--no-ff",
-      "-m",
-      "chore: merge upstream again",
-      "upstream-new",
-    );
-    return tip;
-  }
-
-  /**
-   * Spawn a bash that sources the real `lib.sh`, scopes `cliff_args` to the
-   * fixture's package, and prints `bumped_version`'s output. The scratch repo
-   * is the cwd, so `cliff_args`' relative path globs resolve against it.
-   *
-   * @param {string} tag the package's latest release tag
-   * @returns {string} stdout of the helper
-   */
   function bumpedVersion(tag) {
     try {
       return execFileSync(
         "bash",
-        ["-c", `. '${libShPath}'; cliff_args ${pkg}; bumped_version ${tag}`],
+        ["-c", `. '${libShPath}'; cliff_args demo; bumped_version ${tag}`],
         { cwd: dir, encoding: "utf8", env: gitEnv, stdio: "pipe" },
       );
     } catch (error) {
-      // Fail loudly rather than skipping: CI installs git-cliff, so a local
-      // failure here means this checkout cannot run the release scripts' own
-      // derivation and must not report green without the pin.
       throw new Error(
         `bumped_version failed — is git-cliff installed and on PATH?\n${error.message}\nstdout: ${error.stdout}\nstderr: ${error.stderr}`,
       );
     }
   }
-
-  /**
-   * Spawn a bash that sources the real `lib.sh`, scopes `cliff_args` to the
-   * fixture's package, and runs a git-cliff rendering invocation with the
-   * flags a release script passes. `prepare-release.sh` renders the section
-   * it splices into a changelog with `--tag <tag> --unreleased --strip
-   * header`. Generic git-cliff tests may still supply `--latest`, but
-   * GitHub Release creation reads the tagged CHANGELOG instead of rendering
-   * independently.
-   *
-   * @param {...string} flags the literal flags the release script passes
-   * @returns {string} stdout of git-cliff
-   */
-  function renderReleaseSection(...flags) {
-    const invocation =
-      ". '" +
-      libShPath +
-      "'; cliff_args " +
-      pkg +
-      // biome-ignore lint/suspicious/noTemplateCurlyInString: "${CLIFF_ARGS[@]}" is bash array expansion inside the command handed to `bash -c`, not a JS template placeholder — lib.sh owns the array.
-      '; git-cliff "${CLIFF_ARGS[@]}" ' +
-      flags.join(" ");
-    try {
-      return execFileSync("bash", ["-c", invocation], {
-        cwd: dir,
-        encoding: "utf8",
-        env: gitEnv,
-        stdio: "pipe",
-      });
-    } catch (error) {
-      throw new Error(
-        `git-cliff rendering failed — is git-cliff installed and on PATH?\n${error.message}\nstdout: ${error.stdout}\nstderr: ${error.stderr}`,
-      );
-    }
-  }
-
-  /**
-   * Copy release scripts from the real tree (or an optional fixture source)
-   * into the scratch repo. The scripts `cd` to their own repository root, so
-   * the copies operate on fixture history rather than the real checkout.
-   *
-   * @param {...string} names file names under scripts/release/
-   */
   function copyReleaseScripts(...names) {
-    mkdirSync(path.join(dir, "scripts", "release"), { recursive: true });
     for (const name of names) {
-      const destination = path.join(dir, "scripts", "release", name);
+      const destination = path.join(dir, "scripts/release", name);
       mkdirSync(path.dirname(destination), { recursive: true });
-      copyFileSync(path.join(releaseScriptSourceDir, name), destination);
+      copyFileSync(path.join(root, "scripts/release", name), destination);
     }
   }
-
-  /**
-   * Point `origin` at a disposable bare repository beside the scratch repo,
-   * so scripts that push (prepare-release.sh) exercise a real push against a
-   * real remote-ref store without any network or real remote receiving it.
-   *
-   * @returns {string} path of the bare origin
-   */
-  function addLocalOrigin() {
-    const bare = `${dir}-origin.git`;
-    execFileSync("git", ["init", "--bare", bare], {
-      env: gitEnv,
-      stdio: "pipe",
-    });
-    git("remote", "add", "origin", bare);
-    localOriginPath = bare;
-    return bare;
-  }
-
-  /**
-   * Write a package changelog with the given body, so splice-based release
-   * scripts find a pre-existing file shaped like production's instead of
-   * generating a first-release changelog from scratch.
-   *
-   * @param {string} name package directory name
-   * @param {string} content changelog body
-   */
   function writeChangelog(name, content) {
-    const changelogPath = path.join(dir, "packages", name, "CHANGELOG.md");
-    mkdirSync(path.dirname(changelogPath), { recursive: true });
-    writeFileSync(changelogPath, content);
+    write(`packages/${name}/CHANGELOG.md`, content);
   }
-
-  /**
-   * Write a minimal package manifest so `require_package` and the parity
-   * tag-versus-manifest check accept the fixture package.
-   *
-   * @param {string} name package directory name
-   * @param {string} version manifest version
-   */
   function writeManifest(name, version) {
-    const manifestPath = path.join(dir, "packages", name, "package.json");
-    mkdirSync(path.dirname(manifestPath), { recursive: true });
-    writeFileSync(
-      manifestPath,
+    write(
+      `packages/${name}/package.json`,
       `${JSON.stringify({ name: `@fixture/${name}`, version }, null, 2)}\n`,
     );
   }
-
-  /**
-   * Run a script from the scratch repo's own copy as a real process, with
-   * extra environment variables layered over the fixture's git environment —
-   * the way the release workflow supplies PACKAGES and CI to
-   * prepare-release.sh.
-   *
-   * @param {Record<string, string>} extraEnv
-   * @param {string} name file name under scripts/release/
-   * @param {...string} args script arguments
-   * @returns {{ status: number, stdout: string, stderr: string }}
-   */
-  function runReleaseScriptEnv(extraEnv, name, ...args) {
-    const result = spawnSync(
-      "bash",
-      [path.join(dir, "scripts", "release", name), ...args],
-      { cwd: dir, encoding: "utf8", env: { ...gitEnv, ...extraEnv } },
-    );
-    return {
-      status: result.status ?? 1,
-      stdout: result.stdout,
-      stderr: result.stderr,
-    };
-  }
-
-  /**
-   * Run a script from the scratch repo's own copy as a real process.
-   *
-   * @param {string} name file name under scripts/release/
-   * @param {...string} args script arguments
-   * @returns {{ status: number, stdout: string, stderr: string }}
-   */
   function runReleaseScript(name, ...args) {
     const result = spawnSync(
       "bash",
-      [path.join(dir, "scripts", "release", name), ...args],
-      { cwd: dir, encoding: "utf8", env: gitEnv },
+      [path.join(dir, "scripts/release", name), ...args],
+      { cwd: dir, encoding: "utf8", env: gitEnv, stdio: "pipe" },
     );
     return {
       status: result.status ?? 1,
@@ -313,59 +93,19 @@ export function createScratchReleaseRepository(options = {}) {
       stderr: result.stderr,
     };
   }
-
-  /**
-   * The `cliff_args` scoping arguments lib.sh computes for a package, as an
-   * argv array. Sourcing the real lib.sh keeps tests in step with the
-   * scripts' own scoping instead of duplicating the argument list.
-   *
-   * @param {string} name package directory name
-   * @returns {string[]}
-   */
-  function cliffArgs(name) {
-    const command =
-      ". '" +
-      libShPath +
-      "'; cliff_args " +
-      name +
-      // biome-ignore lint/suspicious/noTemplateCurlyInString: "${CLIFF_ARGS[@]}" is bash array expansion inside the command handed to `bash -c`, not a JS template placeholder — lib.sh owns the array.
-      '; printf "%s\\n" "${CLIFF_ARGS[@]}"';
-    const listing = execFileSync("bash", ["-c", command], {
-      cwd: dir,
-      encoding: "utf8",
-      env: gitEnv,
-      stdio: "pipe",
-    });
-    return listing.trim().split("\n");
-  }
-
   return {
     dir,
-    pkg,
     git,
     gitOut,
     commitInScope,
     commitOutOfScope,
-    mergedUpstreamHistory,
-    mergeNewUpstream,
     bumpedVersion,
-    renderReleaseSection,
     copyReleaseScripts,
-    addLocalOrigin,
     writeManifest,
     writeChangelog,
     runReleaseScript,
-    runReleaseScriptEnv,
-    cliffArgs,
     dispose() {
       rmSync(dir, { recursive: true, force: true });
-      if (localOriginPath !== null) {
-        rmSync(localOriginPath, { recursive: true, force: true });
-      }
     },
   };
 }
-
-/**
- * @typedef {ReturnType<typeof createScratchReleaseRepository>} ReleaseRepositoryFixture
- */

@@ -2,7 +2,7 @@
 
 These are exceptions to the [standard issue lifecycle](../../AGENTS.md#working-an-issue), not a separate workflow.
 The no-argument [upstream-sync entry point](../../.pi/prompts/upstream-sync.md) only finds or creates an exact-target fork issue and stops.
-The [fork release policy](fork-release-policy.md) owns evidence validity, recorder semantics, version derivation, and publication restrictions; the [core correspondence view](pi-subagents-release-correspondence.md) and [worktrees correspondence view](pi-subagents-worktrees-release-correspondence.md) are independently machine-owned.
+The [release source guide](fork-release-policy.md) owns ordinary versioning, source reconstruction and publication restrictions.
 
 ## Prerequisites before Git operations
 
@@ -28,12 +28,10 @@ Keep the issue's exact full `Upstream target: gotgenes/pi-packages@<full SHA>` i
 Plan against the incoming common-base-to-target diff, incoming package changes, fork identities/contracts, immutable changelogs, validation, and release-evidence feasibility.
 Agree compatibility choices in the ordinary plan; return materially new choices to the operator before affected edits and record them in the ordinary artifacts.
 Use `./scripts/upstream-sync.sh --fetch` for explicit safe inspection inputs; if the remote is missing, agree `--upstream-protocol ssh|https` with the operator, and inspect mismatched URLs rather than silently rewriting them.
-Use `./scripts/upstream-sync.sh --fetch --package pi-subagents-worktrees` to select worktrees release-status inspection; omitting `--package` retains the core default.
-Package selection affects record/status only, not the repository-wide fetch or integration.
-Never pass `--package` with `--merge`; the merge remains repository-level and pinned.
+Fetch reports the repository target OID and ahead/behind; it does not select packages or query release tags.
 Merge only the locally present approved target with `./scripts/upstream-sync.sh --merge --expected-upstream <full SHA>`.
 Merge does not implicitly refresh `upstream/main`; missing inputs need explicit fetch and inspection.
-Unreleased upstream package work rejected by the recorder is a blocker, not permission to move the target or weaken release policy.
+Source preflight requires unambiguous incorporated ancestry and stable release evidence; an unreleased package tail is displayed, not rejected or used to change the approved target.
 Preserve fork history and immutable changelogs; never import upstream tags into the fork's tag namespace.
 
 ## Information acquisition
@@ -84,13 +82,13 @@ Inspect only the surrounding unchanged/upstream code necessary to judge those ch
 
 Complete a genuine two-parent merge before final validation; its second parent must equal the pinned target.
 Feature-worktree rebase, squash, or fast-forward landing cannot replace this merge.
-The implementer performs normal local review of adaptations, required validation and the fork-contribution classification needed by the recorder under the unchanged release policy.
+The implementer performs normal local review of adaptations, required validation and source feasibility under the release source guide.
 Use `git show --remerge-diff <merge>` for resolution review within the scope above.
 No separate comprehensive pre-review integration/evidence audit is required; this does not remove the obligation to understand and justify evidence.
-Commit reviewed integration changes, invoke the policy-owned recorder, then commit reviewed evidence before final independent review.
-After both forks have release anchors, classify and record each affected package separately under the policy; never reuse one fork's level/rationale or state/view for the other.
-Before the first worktrees release, use the policy's first-release evidence handoff rather than manufacture a published anchor to unblock recording.
-In the ordinary retro record the target, actual merge OID, reviewed fork contribution, evidence commit, checks/reviewer result, and next action.
+Commit reviewed integration changes before final independent review; no separate recorder or synchronization ledger remains.
+Review source feasibility separately for each affected fork; never reuse one package's source claim for the other.
+An untagged fork requires the guide's separately approved manual first-publication handoff, not a manufactured published anchor.
+In the ordinary retro record the target, actual merge OID, reviewed adaptations, source checks, checks/reviewer result and next action.
 
 Every actual synchronization plan must include a final numbered reviewer-handoff step requiring the executing session to resolve the actual merge, its first parent, pinned target/common base and reviewed HEAD before dispatch.
 Planning records how to resolve future integration refs, not invented or frozen OIDs.
@@ -151,8 +149,8 @@ If a reviewer reports an out-of-scope inherited warning, apply this guide's agre
 
 ## Shipping exceptions
 
-Before shipping, verify merge and evidence commit reachability from HEAD, exactly two merge parents with the planned second parent, committed reviewed evidence, clean completed state, and completed independent review.
-Missing or ambiguous facts stop shipping; shipping does not manufacture a merge or evidence.
+Before shipping, verify merge reachability from HEAD, exactly two merge parents with the planned second parent, committed reviewed adaptations, source feasibility, clean completed state and completed independent review.
+Missing or ambiguous facts stop shipping; shipping does not manufacture a merge or source claim.
 Apply the review scope, validation triggers and finding disposition above: required gate failures stop shipping, but unrelated inherited defects with passing required checks and omitted optional checks do not become repair or waiver gates.
 For release candidates and the closing summary use the actual merge's first parent through HEAD, including follow-ups, overriding generic plan-parent/tag anchors; pass that resolved OID as `RANGE_BASE` to the existing candidate command.
 Close only the fork synchronization issue plus explicit fork plan/retro close targets verified against the fork tracker.

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
 # Explicitly fetch gotgenes/pi-packages without importing tags, merge a
-# locally fetched pinned commit, or record reviewed fork sync evidence.
+# locally fetched pinned commit.
 # No arguments show help without effects. This script never pushes.
-# Merge is offline; recording queries remote release tags but never fetches main.
+# Merge is offline.
 #
 # tagOpt=--no-tags is the default when a fetch names neither --tags nor
 # --no-tags. git fetch --tags and git fetch --all --tags still override it, so
@@ -17,42 +17,26 @@ die() {
 }
 
 usage() {
-  printf 'Usage: %s [--upstream-protocol <ssh|https>] [--fetch [--package <directory>] | --merge --expected-upstream <full OID> | --record-fork-sync <merge> [--package <directory>] --fork-level <level> --rationale <text>]\n' "$(basename "$0")" >&2
+  printf 'Usage: %s [--upstream-protocol <ssh|https>] [--fetch | --merge --expected-upstream <full OID>]\n' "$(basename "$0")" >&2
   printf '  (no flag), --help      show help without effects\n' >&2
-  printf '  --fetch                ensure remote, fetch --no-tags, print ahead/behind and release status\n' >&2
+  printf '  --fetch                ensure remote, fetch --no-tags, print target OID and ahead/behind\n' >&2
   printf '  --upstream-protocol <ssh|https>  choose transport for a missing upstream remote\n' >&2
   printf '  --merge                merge a locally fetched divergent commit, without network or push\n' >&2
   printf '  --expected-upstream <full OID>  required exact local commit target with --merge\n' >&2
-  printf '  --record-fork-sync <merge>\n' >&2
-  printf '                        after a completed merge, append its reviewed fork sync\n' >&2
-  printf '                        evidence to the selected package state\n' >&2
-  printf '                        (--fork-level and --rationale supply its separate review)\n' >&2
-  printf '  --package <directory>  select record/fetch status only; defaults to pi-subagents\n' >&2
-  printf '                        pi-subagents-worktrees is also supported; never with --merge\n' >&2
   exit "${1:-1}"
 }
 
 [ $# -gt 0 ] || usage 0
 fetch=0
 merge=0
-record_merge=""
-fork_level=""
-rationale=""
 upstream_protocol=""
 expected_upstream=""
-package_directory=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --upstream-protocol)
       [ $# -ge 2 ] && [ -z "$upstream_protocol" ] || usage 1
       case "$2" in ssh | https) ;; *) usage 1 ;; esac
       upstream_protocol=$2
-      shift 2
-      ;;
-    --package)
-      [ $# -ge 2 ] && [ -n "$2" ] && [ -z "$package_directory" ] || usage 1
-      [[ "$2" != -* ]] || usage 1
-      package_directory=$2
       shift 2
       ;;
     --fetch)
@@ -71,58 +55,15 @@ while [ $# -gt 0 ]; do
       expected_upstream=$2
       shift 2
       ;;
-    --record-fork-sync)
-      [ $# -ge 2 ] && [ -n "$2" ] && [ -z "$record_merge" ] || usage 1
-      [[ "$2" != --* ]] || usage 1
-      record_merge=$2
-      shift 2
-      ;;
-    --fork-level)
-      [ $# -ge 2 ] && [ -z "$fork_level" ] || usage 1
-      case "$2" in none | patch | minor | major) ;; *) usage 1 ;; esac
-      fork_level=$2
-      shift 2
-      ;;
-    --rationale)
-      [ $# -ge 2 ] && [ -n "$2" ] && [ -z "$rationale" ] || usage 1
-      [[ "$2" != --* ]] || usage 1
-      rationale=$2
-      shift 2
-      ;;
     -h | --help) usage 0 ;;
     *) usage 1 ;;
   esac
 done
 
-record=0
-[[ -z "$record_merge" ]] || record=1
-[[ $((fetch + merge + record)) -eq 1 ]] || usage 1
+[[ $((fetch + merge)) -eq 1 ]] || usage 1
 [[ "$merge" -eq 0 || -n "$expected_upstream" ]] || usage 1
-[[ "$merge" -eq 0 || -z "$package_directory" ]] || usage 1
-if [[ "$record" -eq 1 ]]; then
-  missing_review=0
-  if [[ -z "$fork_level" ]]; then
-    printf 'error: --fork-level is required (see --help)\n' >&2
-    missing_review=1
-  fi
-  if [[ -z "${rationale//[[:space:]]/}" ]]; then
-    printf 'error: --rationale is required (see --help)\n' >&2
-    missing_review=1
-  fi
-  [[ "$missing_review" -eq 0 ]] || exit 1
-fi
-if [[ -z "$record_merge" && ( -n "$fork_level" || -n "$rationale" ) ]]; then
-  usage 1
-fi
 if [[ -n "$expected_upstream" && "$merge" -eq 0 ]]; then
   usage 1
-fi
-
-script_dir="$(cd "$(dirname "$0")" && pwd)"
-if [[ "$merge" -eq 0 ]]; then
-  target="$(node "$script_dir/release/fork-sync-targets.mjs" "${package_directory:-pi-subagents}")" || exit 1
-  [[ "$target" != "null" ]] || die "unsupported fork sync package ${package_directory}"
-  package_directory="$(node -e 'process.stdout.write(JSON.parse(process.argv[1]).directory)' "$target")"
 fi
 
 repo_root="$(git rev-parse --show-toplevel)" || die "not inside a git repository"
@@ -185,7 +126,7 @@ check_merge_preconditions() {
 
   # In-progress states are diagnosed before cleanliness: a conflicted merge
   # always dirties the tree, and "a merge is already in progress" is the
-  # actionable diagnosis for both --merge and --record-fork-sync.
+  # actionable diagnosis for --merge.
   git_dir="$(git rev-parse --git-dir)"
   [[ ! -e "${git_dir}/MERGE_HEAD" ]] || refuse_merge "a merge is already in progress"
   [[ ! -d "${git_dir}/rebase-merge" && ! -d "${git_dir}/rebase-apply" ]] \
@@ -196,29 +137,7 @@ check_merge_preconditions() {
   fi
 }
 
-print_newest_upstream_package_tag() {
-  local listing newest peeled
-  listing="$(git ls-remote --tags upstream "${package_directory}-v*")"
-  newest="$(
-    printf '%s\n' "$listing" \
-      | awk '{ print $2 }' \
-      | sed 's#^refs/tags/##' \
-      | sed 's#\^{}$##' \
-      | sort -u -V \
-      | tail -1
-  )"
-  if [[ -z "$newest" ]]; then
-    printf 'newest upstream %s tag: (none)\n' "$package_directory"
-    return
-  fi
-  peeled="$(printf '%s\n' "$listing" | awk -v t="refs/tags/${newest}^{}" '$2 == t { print $1; exit }')"
-  if [[ -z "$peeled" ]]; then
-    peeled="$(printf '%s\n' "$listing" | awk -v t="refs/tags/${newest}" '$2 == t { print $1; exit }')"
-  fi
-  printf 'newest upstream %s tag: %s (%s)\n' "$package_directory" "$newest" "$peeled"
-}
-
-if [[ "$merge" -eq 1 || -n "$record_merge" ]]; then
+if [[ "$merge" -eq 1 ]]; then
   check_merge_preconditions
 fi
 
@@ -250,7 +169,6 @@ check_tags_unchanged() {
       }
     ' "$tags_before" "$tags_after" | LC_ALL=C sort >&2
     printf 'stop for operator approval before any tag recovery; no tags were restored or deleted by this script\n' >&2
-    printf 'inspect any state update before committing; no evidence was committed or rolled back by this script\n' >&2
     exit 1
   fi
 }
@@ -267,7 +185,7 @@ if [[ "$fetch" -eq 1 ]]; then
 
   read -r ahead behind <<<"$(git rev-list --left-right --count HEAD...upstream/main)"
   printf 'ahead/behind (HEAD...upstream/main): %s/%s\n' "$ahead" "$behind"
-  print_newest_upstream_package_tag
+  printf 'upstream target: %s\n' "$(git rev-parse upstream/main)"
 
   exit 0
 fi
@@ -315,8 +233,7 @@ if [[ "$merge" -eq 1 ]]; then
     unmerged="$(git ls-files -u)" || die "cannot inspect unmerged entries after merge failure"
     if [[ -n "$unmerged" ]]; then
       printf 'error: merge conflicts remain; recover against the issue implementation plan and retro\n' >&2
-      printf 'after resolving and git merge --continue, record the sync evidence:\n' >&2
-      printf '  %s --record-fork-sync <merge> [--package <directory>] --fork-level <none|patch|minor|major> --rationale <text>\n' "$0" >&2
+      printf 'after resolving and git merge --continue, verify both parents and continue the implementation plan/review handoff\n' >&2
     else
       printf 'error: merge failed without unmerged entries; inspect Git output and state before recovery\n' >&2
     fi
@@ -324,23 +241,7 @@ if [[ "$merge" -eq 1 ]]; then
   fi
   read -r first_parent second_parent extra_parents <<<"$(git show -s --format=%P HEAD)"
   [[ "$first_parent" == "$fork_head" && "$second_parent" == "$target" && -z "$extra_parents" ]] \
-    || die "merge result does not have the expected two-parent topology; inspect HEAD before recording"
-  printf 'merge complete; record its reviewed fork sync evidence before the next release:\n'
-  printf '  %s --record-fork-sync %s [--package <directory>] --fork-level <none|patch|minor|major> --rationale <text>\n' "$0" "$(git rev-parse HEAD)"
-  printf 'review and record each affected fork package separately; package selection does not change the merge\n'
+    || die "merge result does not have the expected two-parent topology; inspect HEAD before review"
+  printf 'merge complete: %s; continue the implementation plan and independent review handoff\n' "$(git rev-parse HEAD)"
   exit 0
 fi
-
-# Resolve the recorder next to this script so a scratch checkout cannot
-# shadow it. Its remote release query is surrounded by tag preservation checks.
-record_args=(--repo "$repo_root" --merge "$record_merge" --package "$package_directory")
-if [ -n "$fork_level" ]; then
-  record_args+=(--fork-level "$fork_level")
-fi
-if [ -n "$rationale" ]; then
-  record_args+=(--rationale "$rationale")
-fi
-record_status=0
-node "$script_dir/release/record-fork-sync.mjs" "${record_args[@]}" || record_status=$?
-check_tags_unchanged recording
-exit "$record_status"

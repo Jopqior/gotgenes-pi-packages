@@ -44,4 +44,4 @@ Print the URL, state if reused, and `/plan-issue <number>` for the next session 
 End this session; do not automatically invoke planning.
 No conflict analysis, upstream fetch, sync script execution, implementation, push, or release belongs to this entry point.
 The issue, ordinary plan/retro, and Git carry future handoffs; read the [synchronization guide](../../docs/upstream/synchronization-guide.md) before integration work.
-Release evidence and version derivation belong to the [fork release policy](../../docs/upstream/fork-release-policy.md); publication authorization remains separate.
+Source reconstruction and ordinary version derivation belong to the [release source guide](../../docs/upstream/fork-release-policy.md); publication authorization remains separate.
