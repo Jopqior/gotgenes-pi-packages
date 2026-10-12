@@ -11,6 +11,7 @@ import {
 
 let net;
 let materializeNetwork;
+let materializeLocalHistory;
 let runScript;
 let git;
 let revParse;
@@ -24,6 +25,7 @@ beforeEach(() => {
   net = createUpstreamNetwork();
   ({
     materializeNetwork,
+    materializeLocalHistory,
     runScript,
     git,
     revParse,
@@ -40,9 +42,9 @@ afterEach(() => net.dispose());
 describe("fork-sync merge", () => {
   describe("--merge", () => {
     it("creates a two-parent merge with first-parent fork content", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
+      const { work, target: upstreamMain } =
+        materializeLocalHistory("divergent");
       const before = revParse(work, "HEAD");
-      const upstreamMain = net.prepareFetchedUpstream(work, upstreamBare);
 
       const result = runScript(work, [
         "--merge",
@@ -53,6 +55,16 @@ describe("fork-sync merge", () => {
       expect(result.status).toBe(0);
       const parents = parentsOf(work);
       expect(parents).toEqual([before, upstreamMain]);
+      expect(
+        recordedInvocations().filter(({ args }) => args[0] === "merge"),
+      ).toEqual([
+        { args: ["merge", "--no-ff", "-m", mergeMessage, upstreamMain] },
+      ]);
+      expect(
+        recordedInvocations().filter(({ args }) =>
+          ["fetch", "ls-remote", "push"].includes(args[0]),
+        ),
+      ).toEqual([]);
       expect(git(work, ["log", "-1", "--format=%s"]).stdout.trim()).toBe(
         mergeMessage,
       );
@@ -72,8 +84,7 @@ describe("fork-sync merge", () => {
     });
 
     it("is a no-op when upstream is already integrated", () => {
-      const { work, upstreamBare } = materializeNetwork("already-integrated");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
+      const { work, target } = materializeLocalHistory("already-integrated");
       const before = revParse(work, "HEAD");
 
       const result = runScript(work, [
@@ -96,9 +107,8 @@ describe("fork-sync merge", () => {
     });
 
     it("refuses a fast-forward-only integration without changing HEAD", () => {
-      const { work, upstreamBare } = materializeNetwork("fast-forward");
+      const { work, target } = materializeLocalHistory("fast-forward");
       const before = revParse(work, "HEAD");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
       expect(
         git(work, ["merge-base", "--is-ancestor", before, target]).status,
       ).toBe(0);
@@ -121,8 +131,7 @@ describe("fork-sync merge", () => {
     });
 
     it("refuses unrelated histories before invoking merge", () => {
-      const { work, upstreamBare } = materializeNetwork("unrelated");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
+      const { work, target } = materializeLocalHistory("unrelated");
       const before = revParse(work, "HEAD");
       expect(
         git(work, ["merge-base", before, target], { allowFail: true }).status,
@@ -146,8 +155,7 @@ describe("fork-sync merge", () => {
     });
 
     it("refuses ancestry inspection errors without attempting a merge", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
+      const { work, target } = materializeLocalHistory("divergent");
       const before = revParse(work, "HEAD");
 
       const result = runScript(
@@ -167,8 +175,7 @@ describe("fork-sync merge", () => {
     });
 
     it("reports a non-conflict merge failure without suggesting conflict resolution", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
+      const { work, target } = materializeLocalHistory("divergent");
       const before = revParse(work, "HEAD");
       const result = runScript(
         work,
@@ -186,8 +193,7 @@ describe("fork-sync merge", () => {
     });
 
     it("leaves MERGE_HEAD so git merge --continue can finish a conflict", () => {
-      const { work, upstreamBare } = materializeNetwork("conflict");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
+      const { work, target } = materializeLocalHistory("conflict");
       const before = revParse(work, "HEAD");
 
       const result = runScript(work, [
@@ -231,10 +237,9 @@ describe("fork-sync merge", () => {
 
   describe("inspected upstream input", () => {
     it("merges the approved ancestor after an explicit newer fetch under a custom refspec", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const stale = revParse(upstreamBare, "refs/heads/main");
-      git(work, ["fetch", "--no-tags", upstreamBare, "main"]);
-      expect(revParse(work, "FETCH_HEAD")).toBe(stale);
+      const { work, upstreamBare } = materializeNetwork();
+      expect(runScript(work, ["--fetch"]).status).toBe(0);
+      const stale = revParse(work, "upstream/main");
       const actual = advanceUpstream(upstreamBare, "feat: a newer main", {
         "new-upstream.txt": "new upstream content\n",
       });
@@ -246,9 +251,10 @@ describe("fork-sync merge", () => {
         "remote.upstream.fetch",
         "+refs/heads/main:refs/remotes/other/main",
       ]);
-      git(work, ["update-ref", "refs/remotes/upstream/main", stale]);
       expect(stale).not.toBe(actual);
-      expect(net.prepareFetchedUpstream(work, upstreamBare)).toBe(actual);
+      expect(runScript(work, ["--fetch"]).status).toBe(0);
+      expect(revParse(work, "upstream/main")).toBe(actual);
+      const beforeMerge = recordedInvocations().length;
 
       const result = runScript(work, ["--merge", "--expected-upstream", stale]);
 
@@ -261,34 +267,16 @@ describe("fork-sync merge", () => {
       );
       expect(existsSync(path.join(work, "new-upstream.txt"))).toBe(false);
       expect(
-        recordedInvocations().filter(({ args }) =>
-          ["fetch", "ls-remote"].includes(args[0]),
-        ),
+        recordedInvocations()
+          .slice(beforeMerge)
+          .filter(({ args }) =>
+            ["fetch", "ls-remote", "push"].includes(args[0]),
+          ),
       ).toEqual([]);
     });
 
-    it("merges the unchanged, explicitly inspected target by its resolved OID", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
-      expect(target).toBe(revParse(upstreamBare, "refs/heads/main"));
-
-      const result = runScript(work, [
-        "--merge",
-        "--expected-upstream",
-        target,
-      ]);
-
-      expect(result.status).toBe(0);
-      expect(parentsOf(work)[1]).toBe(target);
-      expect(
-        recordedInvocations()
-          .map(({ args }) => args)
-          .filter((args) => args[0] === "merge"),
-      ).toEqual([["merge", "--no-ff", "-m", mergeMessage, target]]);
-    });
-
     it("does not discover or integrate a newer remote tip during merge", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
+      const { work, upstreamBare } = materializeNetwork();
       expect(runScript(work, ["--fetch"]).status).toBe(0);
       const inspected = revParse(work, "upstream/main");
       const before = revParse(work, "HEAD");

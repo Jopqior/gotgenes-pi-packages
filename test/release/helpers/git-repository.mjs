@@ -21,24 +21,34 @@ const gitEnv = {
   GIT_CONFIG_SYSTEM: "/dev/null",
 };
 
-// Generic local history for metadata/scanner and ordinary prediction tests.
-export function createScratchReleaseRepository() {
+// Tag readers need only a local repository, not release configuration.
+export function createTaggedReleaseRepository() {
   const dir = mkdtempSync(path.join(tmpdir(), "release-repo-"));
-  copyFileSync(path.join(root, "cliff.toml"), path.join(dir, "cliff.toml"));
   function git(...args) {
-    execFileSync("git", args, { cwd: dir, env: gitEnv, stdio: "pipe" });
-  }
-  function gitOut(...args) {
     return execFileSync("git", args, {
       cwd: dir,
       encoding: "utf8",
       env: gitEnv,
       stdio: "pipe",
-    }).trim();
+    });
   }
   git("init", "-b", "main");
   git("config", "user.name", "Test");
   git("config", "user.email", "test@example.com");
+  return {
+    dir,
+    git,
+    dispose() {
+      rmSync(dir, { recursive: true, force: true });
+    },
+  };
+}
+
+// Version prediction also consumes the real git-cliff configuration.
+export function createScratchReleaseRepository() {
+  const repo = createTaggedReleaseRepository();
+  const { dir, git } = repo;
+  copyFileSync(path.join(root, "cliff.toml"), path.join(dir, "cliff.toml"));
   function write(relative, content) {
     const file = path.join(dir, relative);
     mkdirSync(path.dirname(file), { recursive: true });
@@ -72,9 +82,6 @@ export function createScratchReleaseRepository() {
       copyFileSync(path.join(root, "scripts/release", name), destination);
     }
   }
-  function writeChangelog(name, content) {
-    write(`packages/${name}/CHANGELOG.md`, content);
-  }
   function writeManifest(name, version) {
     write(
       `packages/${name}/package.json`,
@@ -94,18 +101,12 @@ export function createScratchReleaseRepository() {
     };
   }
   return {
-    dir,
-    git,
-    gitOut,
+    ...repo,
     commitInScope,
     commitOutOfScope,
     bumpedVersion,
     copyReleaseScripts,
     writeManifest,
-    writeChangelog,
     runReleaseScript,
-    dispose() {
-      rmSync(dir, { recursive: true, force: true });
-    },
   };
 }

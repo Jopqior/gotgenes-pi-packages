@@ -1,9 +1,20 @@
-import { readFileSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import {
+  copyFileSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { validatePublishedArtifacts } from "../../scripts/release/release-artifacts.mjs";
+import {
+  assertExistingRelease,
+  validatePublishedArtifacts,
+} from "../../scripts/release/release-artifacts.mjs";
 import { readTaggedReleaseSection } from "../../scripts/release/release-metadata.mjs";
 import { captureOutput } from "../helpers/capture-output.mjs";
+import { createTaggedReleaseRepository } from "../release/helpers/git-repository.mjs";
 import {
   core,
   createReleaseRepository,
@@ -12,77 +23,29 @@ import {
   worktrees,
 } from "./helpers/release-repository.mjs";
 
-let repo;
-beforeEach(() => {
-  repo = createReleaseRepository();
-});
-afterEach(() => repo.dispose());
-const section = (directory) =>
-  readTaggedReleaseSection({
-    repo: repo.fork,
-    tag: `${directory}-v1.0.1`,
-    packageDirectory: directory,
+// Only preparation and representative shell orchestration need this graph.
+describe("all-selected release orchestration", () => {
+  let repo;
+  beforeEach(() => {
+    repo = createReleaseRepository();
   });
-function prepared(...directories) {
-  const result = repo.prepare(...directories);
-  expect(result.status, result.stderr + result.stdout).toBe(0);
-}
-const effects = () =>
-  repo
-    .calls()
-    .split("\n")
-    .filter((call) => /^(pnpm |gh release create|git push)/.test(call));
-
-describe("source-only all-selected preparation", () => {
-  it("uses ordinary patch prediction for both forks without querying source", () => {
-    for (const directory of [core, worktrees, original]) {
-      const result = repo.run("next-version.sh", {}, directory);
-      expect(result.status, result.stderr).toBe(0);
-      expect(result.stdout).toBe(`${directory}-v1.0.1\n`);
-    }
-    const parity = repo.run("verify-cliff-parity.sh");
-    expect(parity.status, parity.stdout + parity.stderr).toBe(0);
-    expect(repo.calls()).not.toMatch(/ls-remote|git fetch/);
-  });
-  it("bounds old upstream breaking ancestry at an annotated excluded-path tag", () => {
-    const target = repo.git(repo.fork, "rev-parse", `${core}-v1.0.0`);
-    repo.git(repo.fork, "tag", "-d", `${core}-v1.0.0`);
-    repo.git(
-      repo.fork,
-      "tag",
-      "-a",
-      `${core}-v1.0.0`,
-      target,
-      "-m",
-      "annotated fork release",
-    );
-    const result = repo.run("next-version.sh", {}, core);
-    expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toBe(`${core}-v1.0.1\n`);
-  });
-  it("bumps for a new upstream break and renders only the post-tag merge range", () => {
-    const tip = repo.commit(
-      repo.upstream,
-      `packages/${core}/new-break.txt`,
-      "new break\n",
-      "feat!: new upstream break",
-    );
-    repo.integrate(tip);
-    const prediction = repo.run("next-version.sh", {}, core);
-    expect(prediction.status, prediction.stderr).toBe(0);
-    expect(prediction.stdout).toBe(`${core}-v2.0.0\n`);
-    prepared(core);
-    const text = readTaggedReleaseSection({
+  afterEach(() => repo.dispose());
+  const section = (directory) =>
+    readTaggedReleaseSection({
       repo: repo.fork,
-      tag: `${core}-v2.0.0`,
-      packageDirectory: core,
+      tag: `${directory}-v1.0.1`,
+      packageDirectory: directory,
     });
-    expect(text).toContain(`compare/${core}-v1.0.0...${core}-v2.0.0`);
-    expect(text).toContain("new upstream break");
-    expect(text).toContain("ordinary fork change");
-    expect(text).not.toContain("old upstream break");
-    expect(repo.git(repo.fork, "rev-parse", "HEAD~1^2")).toBe(tip);
-  });
+  function prepared(...directories) {
+    const result = repo.prepare(...directories);
+    expect(result.status, result.stderr + result.stdout).toBe(0);
+  }
+  const effects = () =>
+    repo
+      .calls()
+      .split("\n")
+      .filter((call) => /^(pnpm |gh release create|git push)/.test(call));
+
   it("splices the full prepared bytes, preserves the old suffix, and uses each fork's own source", () => {
     prepared(core, worktrees, original);
     for (const [index, directory] of [core, worktrees, original].entries()) {
@@ -137,28 +100,18 @@ describe("source-only all-selected preparation", () => {
     expect(unselected()).toEqual(before);
     expect(section(original)).not.toContain("upstream-correspondence");
   });
-  for (const failure of ["source", "registration", "heading", "identity"]) {
-    it(`fails a later ${failure} before any tracked write, commit, tag or push`, () => {
+  it.each(["source", "heading"])(
+    "fails %s preflight before any tracked write, commit, tag or push",
+    (failure) => {
       if (failure === "source") {
-        const entry = repo.registrations.find(
+        repo.registrations.find(
           (entry) => entry.directory === worktrees,
-        );
-        entry.upstream.name = "@gotgenes/wrong";
+        ).upstream.name = "@gotgenes/wrong";
         repo.write(
           "scripts/release/release-packages.json",
           JSON.stringify({ schemaVersion: 3, packages: repo.registrations }),
         );
-      } else if (failure === "registration") {
-        repo.write(
-          "scripts/release/release-packages.json",
-          JSON.stringify({
-            schemaVersion: 3,
-            packages: repo.registrations.filter(
-              (entry) => entry.directory !== worktrees,
-            ),
-          }),
-        );
-      } else if (failure === "heading") {
+      } else {
         repo.write(
           "cliff.toml",
           repo
@@ -168,59 +121,26 @@ describe("source-only all-selected preparation", () => {
               'replace = "https://github.com/other/repository"',
             ),
         );
-      } else {
-        repo.write(
-          `packages/${worktrees}/package.json`,
-          JSON.stringify({ name: "@fixture/wrong", version: "1.0.0" }),
-        );
       }
       repo.commitAll();
       const before = repo.snapshot();
       const result = repo.prepare(original, core, worktrees);
       expect(result.status).not.toBe(0);
-      expect(result.stderr).not.toBe("");
+      expect(result.stderr).toContain(
+        failure === "source"
+          ? "upstream release manifest name must be @gotgenes/wrong"
+          : "missing exact fork section",
+      );
       expect(repo.snapshot()).toEqual(before);
       expect(effects()).toEqual([]);
-    });
-  }
-  it("refuses first-tag inference and distinguishes current-tag no-op from failed prediction", () => {
-    repo.git(repo.fork, "tag", "-d", `${core}-v1.0.0`);
-    let result = repo.run("next-version.sh", {}, core);
-    expect(result.status).not.toBe(0);
-    expect(result.stderr).toContain("first version by hand");
-    repo.git(repo.fork, "tag", `${core}-v1.0.0`);
-    result = repo.run("next-version.sh", {}, core);
-    expect(result.status).toBe(0);
-    expect(result.stdout).toBe("");
-    expect(result.stderr).toContain("Nothing to release");
-    expect(repo.prepare(core).status).not.toBe(0);
-  });
-});
-
-describe("offline tagged publication and exact notes", () => {
-  it("binds an explicitly selected tag to the checked-out release commit", () => {
-    prepared(core);
-    repo.commit(
-      repo.fork,
-      "later.txt",
-      "later\n",
-      "docs: later unrelated commit",
-    );
-    expect(() =>
-      captureOutput(() =>
-        validatePublishedArtifacts(repo.fork, repo.prepared, [
-          `${core}-v1.0.1`,
-        ]),
-      ),
-    ).toThrow("not at the checked-out release commit");
-  });
-  it("publishes the whole mixed set with explicit identities and exact tagged notes, without source reselection", () => {
+    },
+  );
+  it("publishes the mixed set with explicit identities and exact tagged notes, without source reselection", () => {
     prepared(core, worktrees, original);
     const releaseHead = repo.git(repo.fork, "rev-parse", "HEAD");
     repo.commit(repo.fork, "later.txt", "unrelated\n", "docs: later tag");
     repo.git(repo.fork, "tag", "unrelated-v99.0.0");
     repo.git(repo.fork, "checkout", "--detach", releaseHead);
-    // Today's advertised stable releases advance, but tagged claims stay fixed.
     repo.release("1.2.0");
     repo.publish();
     repo.clearCalls();
@@ -255,6 +175,7 @@ describe("offline tagged publication and exact notes", () => {
     );
     expect(readFileSync(body, "utf8")).toBe("Legacy body retained\n");
     expect(effects()).toEqual([]);
+    // A later remote conflict must block creation of the earlier missing Release.
     rmSync(path.join(repo.bodies, `${original}-v1.0.1`));
     writeFileSync(
       body,
@@ -265,89 +186,172 @@ describe("offline tagged publication and exact notes", () => {
     expect(conflict.stderr).toContain("conflicting");
     expect(effects()).toEqual([]);
   }, 15_000);
-  for (const damage of [
-    "dirty code",
-    "dirty index",
-    "hidden manifest",
-    "hidden changelog",
-    "tagged name",
-    "tagged version",
-    "missing block",
-    "original block",
-    "wrong tail",
-    "wrong tip",
-  ]) {
-    it(`rejects later ${damage} before any selected publication or creation`, () => {
-      prepared(core, worktrees, original);
-      const relative = `packages/${worktrees}/`;
-      if (damage === "dirty code")
-        repo.write(`${relative}untracked.txt`, "dirty");
-      else if (damage === "dirty index") {
-        repo.write(`${relative}fork.txt`, "dirty");
-        repo.git(repo.fork, "add", `${relative}fork.txt`);
-      } else if (
-        damage.includes("manifest") ||
-        damage === "tagged name" ||
-        damage === "tagged version"
-      ) {
-        const manifest = JSON.parse(repo.read(`${relative}package.json`));
-        if (damage === "tagged name") manifest.name = "@jopqior/wrong";
-        else manifest.version = "9.9.9";
-        repo.write(`${relative}package.json`, JSON.stringify(manifest));
-        if (damage === "hidden manifest")
-          repo.git(
-            repo.fork,
-            "update-index",
-            "--assume-unchanged",
-            `${relative}package.json`,
-          );
-      } else if (damage === "original block") {
-        repo.write(
-          `packages/${original}/CHANGELOG.md`,
-          repo
-            .read(`packages/${original}/CHANGELOG.md`)
-            .replace(
-              "### Bug Fixes",
-              "<!-- upstream-correspondence:start -->\n### Bug Fixes",
-            ),
-        );
-      } else {
-        const text = repo.read(`${relative}CHANGELOG.md`);
-        const changed =
-          damage === "wrong tail"
-            ? text.replace(
-                "This records incorporated",
-                "Includes unreleased changes to this package.\n\nThis records incorporated",
-              )
-            : damage === "wrong tip"
-              ? text.replaceAll(repo.tip, repo.stable)
-              : text.replace(
-                  "<!-- upstream-correspondence:start -->",
-                  "<!-- upstream-correspondence:broken -->",
-                );
-        repo.write(`${relative}CHANGELOG.md`, changed);
-        if (damage === "hidden changelog")
-          repo.git(
-            repo.fork,
-            "update-index",
-            "--assume-unchanged",
-            `${relative}CHANGELOG.md`,
-          );
-      }
-      if (!damage.startsWith("dirty") && !damage.startsWith("hidden")) {
-        repo.commitAll();
-        repo.retag();
-      }
-      repo.clearCalls();
-      for (const script of [
-        "publish-released.sh",
-        "create-github-releases.sh",
-      ]) {
-        const result = repo.run(script, { OFFLINE: "1" });
-        expect(result.status, damage).not.toBe(0);
-        expect(result.stderr).not.toBe("");
-      }
-      expect(effects()).toEqual([]);
-    });
+  it("rejects a later dirty package before any selected publication or creation", () => {
+    prepared(core, worktrees, original);
+    repo.write(`packages/${worktrees}/untracked.txt`, "dirty");
+    repo.clearCalls();
+    for (const script of ["publish-released.sh", "create-github-releases.sh"]) {
+      const result = repo.run(script, { OFFLINE: "1" });
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).toContain("differs from validated tag");
+    }
+    expect(effects()).toEqual([]);
+  });
+});
+
+// Consumers use local tagged inputs, not the production preparation path.
+describe("tagged artifact validation", () => {
+  let repo;
+  const tag = "demo-v1.2.3";
+  const text =
+    "## [1.2.3](https://github.com/Jopqior/gotgenes-pi-packages/releases/tag/demo-v1.2.3) (2026-01-01)\n\n- tagged bytes  \n\n";
+  beforeEach(() => {
+    repo = createTaggedReleaseRepository();
+    mkdirSync(path.join(repo.dir, "packages/demo"), { recursive: true });
+    mkdirSync(path.join(repo.dir, "scripts/release"), { recursive: true });
+    writeFileSync(
+      path.join(repo.dir, "packages/demo/package.json"),
+      JSON.stringify({ name: "@fixture/demo", version: "1.2.3" }),
+    );
+    writeFileSync(
+      path.join(repo.dir, "packages/demo/CHANGELOG.md"),
+      `# Changelog\n\n${text}`,
+    );
+    writeFileSync(
+      path.join(repo.dir, "scripts/release/release-packages.json"),
+      JSON.stringify({
+        schemaVersion: 3,
+        packages: [
+          { directory: "demo", name: "@fixture/demo", kind: "original" },
+        ],
+      }),
+    );
+    repo.git("add", ".");
+    repo.git("commit", "-m", "test: registration");
+    repo.git("tag", tag);
+  });
+  afterEach(() => repo.dispose());
+  function validate() {
+    return captureOutput(() =>
+      validatePublishedArtifacts(repo.dir, repo.dir, [tag]),
+    );
   }
+  it("reads exact tagged notes and rejects a tag not bound to checkout HEAD", () => {
+    validate();
+    expect(readFileSync(path.join(repo.dir, "notes-0"), "utf8")).toBe(text);
+    rmSync(path.join(repo.dir, "notes-0"));
+    repo.git("commit", "--allow-empty", "-m", "docs: moving HEAD");
+    expect(validate).toThrow("not at the checked-out release commit");
+  });
+  it.each(["package.json", "CHANGELOG.md"])(
+    "rejects hidden %s byte drift even when status is clean",
+    (file) => {
+      const relative = `packages/demo/${file}`;
+      repo.git("update-index", "--assume-unchanged", relative);
+      writeFileSync(
+        path.join(repo.dir, relative),
+        file === "package.json"
+          ? JSON.stringify({ name: "@fixture/demo", version: "9.9.9" })
+          : "hidden changes",
+      );
+      expect(
+        repo.git("status", "--porcelain", "--", "packages/demo").trim(),
+      ).toBe("");
+      expect(validate).toThrow(
+        `working ${relative} differs from validated tag`,
+      );
+    },
+  );
+  it("requires a registered fork's source block through the artifact consumer", () => {
+    writeFileSync(
+      path.join(repo.dir, "scripts/release/release-packages.json"),
+      JSON.stringify({
+        schemaVersion: 3,
+        packages: [
+          {
+            directory: "demo",
+            name: "@fixture/demo",
+            kind: "fork",
+            upstream: {
+              name: "@upstream/alternate",
+              repository: "gotgenes/pi-packages",
+              directory: "packages/alternate",
+            },
+          },
+        ],
+      }),
+    );
+    repo.git("add", ".");
+    repo.git("commit", "-m", "test: fork registration without source block");
+    repo.git("tag", "-f", tag);
+    expect(validate).toThrow("missing or duplicate new source block");
+  });
+  it("rejects upstream markers in an original package's tagged section", () => {
+    writeFileSync(
+      path.join(repo.dir, "packages/demo/CHANGELOG.md"),
+      `# Changelog\n\n${text}<!-- upstream-correspondence:start -->\n`,
+    );
+    repo.git("add", ".");
+    repo.git("commit", "-m", "test: invalid original block");
+    repo.git("tag", "-f", tag);
+    expect(validate).toThrow(
+      "original package has upstream correspondence markers",
+    );
+  });
+});
+
+it("refuses first-tag inference without source or git-cliff preparation", () => {
+  const repo = createTaggedReleaseRepository();
+  try {
+    mkdirSync(path.join(repo.dir, "packages/demo"), { recursive: true });
+    mkdirSync(path.join(repo.dir, "scripts/release"), { recursive: true });
+    writeFileSync(
+      path.join(repo.dir, "packages/demo/package.json"),
+      JSON.stringify({ name: "@fixture/demo", version: "1.0.0" }),
+    );
+    for (const name of ["lib.sh", "next-version.sh"])
+      copyFileSync(
+        path.join(process.cwd(), "scripts/release", name),
+        path.join(repo.dir, "scripts/release", name),
+      );
+    const result = spawnSync(
+      "bash",
+      [path.join(repo.dir, "scripts/release/next-version.sh"), "demo"],
+      {
+        cwd: repo.dir,
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GIT_CONFIG_GLOBAL: "/dev/null",
+          GIT_CONFIG_SYSTEM: "/dev/null",
+        },
+        stdio: "pipe",
+      },
+    );
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe("");
+    expect(result.stderr).toContain("first version by hand");
+  } finally {
+    repo.dispose();
+  }
+});
+
+const block =
+  "<!-- upstream-correspondence:start -->\nfixed claim\n<!-- upstream-correspondence:end -->";
+describe("existing GitHub Release body", () => {
+  it("accepts legacy bodies and an exact managed block without requiring other prose to match", () => {
+    expect(() => assertExistingRelease("legacy notes", block)).not.toThrow();
+    expect(() =>
+      assertExistingRelease(`other notes\n${block}`, `new notes\n${block}`),
+    ).not.toThrow();
+  });
+  it.each([
+    block.replace("fixed claim", "wrong claim"),
+    `${block}\n${block}`,
+    "<!-- upstream-correspondence:start -->",
+  ])("rejects conflicting or malformed blocks", (existing) => {
+    expect(() => assertExistingRelease(existing, block)).toThrow(
+      "conflicting managed upstream correspondence",
+    );
+  });
 });

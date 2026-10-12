@@ -1,46 +1,50 @@
-import { spawnSync } from "node:child_process";
-import { chmodSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
-  baseGitEnv,
   createUpstreamNetwork,
   githubUpstream,
-  realGit,
   refuseHint,
 } from "./helpers/upstream-network.mjs";
 
 let net;
+let createRepository;
+let materializeLocalHistory;
 let materializeNetwork;
 let runScript;
 let git;
 let revParse;
-let parentsOf;
 let gitDir;
 let indexTree;
 let snapshotDir;
-let readGitStateFile;
-let writeFiles;
-let recordedFetches;
 let recordedInvocations;
 beforeEach(() => {
   net = createUpstreamNetwork();
   ({
+    createRepository,
+    materializeLocalHistory,
     materializeNetwork,
     runScript,
     git,
     revParse,
-    parentsOf,
     gitDir,
     indexTree,
     snapshotDir,
-    readGitStateFile,
-    writeFiles,
-    recordedFetches,
     recordedInvocations,
   } = net);
 });
 afterEach(() => net.dispose());
+
+const expectNoSetupOrEffects = () => {
+  expect(
+    recordedInvocations().filter(
+      ({ args }) =>
+        ["config", "remote", "fetch", "merge", "ls-remote", "push"].includes(
+          args[0],
+        ) && !(args[0] === "remote" && args[1] === "get-url"),
+    ),
+  ).toEqual([]);
+};
 
 describe("fork-sync safety", () => {
   describe("transport and preflight", () => {
@@ -56,12 +60,17 @@ describe("fork-sync safety", () => {
         `https://github.com/${repository}.git`,
       ]) {
         it(`preserves supported ${remote} URL ${url}`, () => {
-          const { work, upstreamBare } = materializeNetwork("divergent");
-          const target = net.prepareFetchedUpstream(work, upstreamBare);
+          const { work } = createRepository();
+          const target = revParse(work, "HEAD");
+          git(work, ["update-ref", "refs/remotes/upstream/main", target]);
           git(work, ["remote", "set-url", remote, url]);
-          expect(
-            runScript(work, ["--merge", "--expected-upstream", target]).status,
-          ).toBe(0);
+          const result = runScript(work, [
+            "--merge",
+            "--expected-upstream",
+            target,
+          ]);
+          expect(result.status).toBe(0);
+          expect(result.stdout).toContain("upstream already contained in HEAD");
           expect(git(work, ["remote", "get-url", remote]).stdout.trim()).toBe(
             url,
           );
@@ -87,8 +96,8 @@ describe("fork-sync safety", () => {
           : "git@github.com:Jopqior/gotgenes-pi-packages.git",
       ]) {
         it(`rejects unsupported ${remote} URL ${url} before writes`, () => {
-          const { work, upstreamBare } = materializeNetwork("divergent");
-          const target = net.prepareFetchedUpstream(work, upstreamBare);
+          const { work } = createRepository();
+          const target = revParse(work, "HEAD");
           git(work, ["remote", "set-url", remote, url]);
           const result = runScript(work, [
             "--merge",
@@ -101,10 +110,7 @@ describe("fork-sync safety", () => {
               ? `origin is not Jopqior/gotgenes-pi-packages (got ${url})`
               : `unsupported upstream remote URL: ${url}`,
           );
-          expect(recordedFetches()).toEqual([]);
-          expect(
-            recordedInvocations().filter(({ args }) => args[0] === "config"),
-          ).toEqual([]);
+          expectNoSetupOrEffects();
           expect(git(work, ["remote", "get-url", remote]).stdout.trim()).toBe(
             url,
           );
@@ -115,7 +121,7 @@ describe("fork-sync safety", () => {
     it.each(["ssh", "https"])(
       "creates a missing upstream only with explicit %s",
       (protocol) => {
-        const { work } = materializeNetwork("divergent");
+        const { work } = materializeNetwork();
         git(work, ["remote", "remove", "upstream"]);
         expect(
           runScript(work, ["--fetch", "--upstream-protocol", protocol]).status,
@@ -131,10 +137,10 @@ describe("fork-sync safety", () => {
     it.each(["ssh", "https"])(
       "merges after an explicit %s choice for a missing upstream",
       (protocol) => {
-        const { work, upstreamBare } = materializeNetwork("divergent");
-        const target = net.prepareFetchedUpstream(work, upstreamBare);
+        const { work, target } = materializeLocalHistory("divergent");
+        const before = revParse(work, "HEAD");
         git(work, ["remote", "remove", "upstream"]);
-        net.prepareFetchedUpstream(work, upstreamBare);
+        git(work, ["update-ref", "refs/remotes/upstream/main", target]);
         expect(
           runScript(work, [
             "--merge",
@@ -149,15 +155,16 @@ describe("fork-sync safety", () => {
             ? githubUpstream
             : "https://github.com/gotgenes/pi-packages.git",
         );
-        expect(parentsOf(work)).toHaveLength(2);
+        expect(net.parentsOf(work)).toEqual([before, target]);
+        expect(net.recordedFetches()).toEqual([]);
       },
     );
 
     it.each(["--fetch", "--merge"])(
       "does not choose a protocol for a missing upstream: %s",
       (mode) => {
-        const { work, upstreamBare } = materializeNetwork("divergent");
-        const target = net.prepareFetchedUpstream(work, upstreamBare);
+        const { work } = createRepository();
+        const target = revParse(work, "HEAD");
         git(work, ["remote", "remove", "upstream"]);
         const result = runScript(work, [
           mode,
@@ -167,18 +174,13 @@ describe("fork-sync safety", () => {
         expect(result.stderr).toContain(
           "missing upstream remote; choose --upstream-protocol",
         );
-        expect(recordedFetches()).toEqual([]);
-        expect(
-          recordedInvocations().filter(
-            ({ args: call }) => call[0] === "config",
-          ),
-        ).toEqual([]);
+        expectNoSetupOrEffects();
         expect(git(work, ["remote"]).stdout.trim()).toBe("origin");
       },
     );
 
     it("refuses a protocol conflicting with the existing URL without rewriting it", () => {
-      const { work } = materializeNetwork("divergent");
+      const { work } = createRepository();
       const result = runScript(work, [
         "--fetch",
         "--upstream-protocol",
@@ -191,10 +193,7 @@ describe("fork-sync safety", () => {
       expect(git(work, ["remote", "get-url", "upstream"]).stdout.trim()).toBe(
         githubUpstream,
       );
-      expect(recordedFetches()).toEqual([]);
-      expect(
-        recordedInvocations().filter(({ args }) => args[0] === "config"),
-      ).toEqual([]);
+      expectNoSetupOrEffects();
     });
 
     it.each([
@@ -205,7 +204,6 @@ describe("fork-sync safety", () => {
       ["--expected-upstream", "f".repeat(40)],
       ["--merge", "--expected-upstream", "f".repeat(39)],
       ["--merge", "--expected-upstream", "f".repeat(41)],
-      ["--merge", "--expected-upstream", "f".repeat(64)],
       ["--merge", "--expected-upstream", "z".repeat(40)],
       [
         "--merge",
@@ -214,317 +212,188 @@ describe("fork-sync safety", () => {
         "--expected-upstream",
         "f".repeat(40),
       ],
-    ])("rejects invalid options before writes: %j", (...args) => {
-      const { work } = materializeNetwork("divergent");
-      expect(runScript(work, args).status).toBe(1);
-      expect(recordedFetches()).toEqual([]);
+    ])(
+      "rejects invalid options without locating a repository: %j",
+      (...args) => {
+        const result = runScript(net.scratch, args);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain("Usage:");
+        expect(recordedInvocations()).toEqual([]);
+      },
+    );
+
+    it("checks the OID width against the local object format before setup", () => {
+      const { work } = createRepository();
       expect(
-        recordedInvocations().filter(({ args: call }) => call[0] === "config"),
-      ).toEqual([]);
+        git(work, ["rev-parse", "--show-object-format"]).stdout.trim(),
+      ).toBe("sha1");
+      const result = runScript(work, [
+        "--merge",
+        "--expected-upstream",
+        "f".repeat(64),
+      ]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("Usage:");
+      expect(recordedInvocations().map(({ args }) => args)).toEqual([
+        ["rev-parse", "--show-toplevel"],
+        ["rev-parse", "--show-object-format"],
+      ]);
     });
 
-    for (const args of [["--merge"]]) {
-      it(`checks local preconditions before setup and fetch in ${args[0]}`, () => {
-        const { work, upstreamBare } = materializeNetwork("divergent");
-        const target = net.prepareFetchedUpstream(work, upstreamBare);
-        git(work, ["remote", "remove", "upstream"]);
-        writeFiles(work, { "unrelated.txt": "dirty\n" });
-        const result = runScript(work, [
-          ...args,
-          ...(args[0] === "--merge" ? ["--expected-upstream", target] : []),
-          "--upstream-protocol",
-          "ssh",
-        ]);
-        expect(result.status).toBe(1);
-        expect(result.stderr).toContain(
-          "index or tracked worktree is not clean",
-        );
-        expect(recordedFetches()).toEqual([]);
-        expect(git(work, ["remote"]).stdout.trim()).toBe("origin");
-        expect(
-          recordedInvocations().filter(
-            ({ args: call }) => call[0] === "config",
-          ),
-        ).toEqual([]);
-      });
-    }
+    it("checks cleanliness before adding a missing upstream", () => {
+      const { work } = createRepository();
+      const target = revParse(work, "HEAD");
+      git(work, ["remote", "remove", "upstream"]);
+      writeFileSync(path.join(work, "unrelated.txt"), "dirty\n");
+      const result = runScript(work, [
+        "--merge",
+        "--expected-upstream",
+        target,
+        "--upstream-protocol",
+        "ssh",
+      ]);
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("index or tracked worktree is not clean");
+      expect(git(work, ["remote"]).stdout.trim()).toBe("origin");
+      expectNoSetupOrEffects();
+    });
   });
 
   describe("guards", () => {
-    const expectNoNetworkWrites = () => {
-      expect(recordedFetches()).toEqual([]);
-      expect(
-        recordedInvocations().filter(({ args }) => args[0] === "config"),
-      ).toEqual([]);
-    };
-
     it("refuses a non-main branch without merging", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
+      const { work } = createRepository();
+      const target = revParse(work, "HEAD");
       git(work, ["checkout", "-b", "feature"]);
-      const before = revParse(work, "HEAD");
-
       const result = runScript(work, [
         "--merge",
         "--expected-upstream",
         target,
       ]);
-
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(
         "error: current branch is feature, not main",
       );
-      expectNoNetworkWrites();
       expect(result.stderr).toContain(refuseHint);
-      expect(revParse(work, "HEAD")).toBe(before);
+      expectNoSetupOrEffects();
+      expect(revParse(work, "HEAD")).toBe(target);
       expect(git(work, ["branch", "--show-current"]).stdout.trim()).toBe(
         "feature",
       );
-      expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
-      expect(parentsOf(work)).toHaveLength(1);
     });
 
-    it("refuses a non-fork origin without merging", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
-      git(work, [
-        "remote",
-        "set-url",
-        "origin",
-        "https://github.com/example/not-the-fork.git",
-      ]);
-      const before = revParse(work, "HEAD");
+    it.each([false, true])(
+      "refuses tracked dirt (staged=%s) without changing it",
+      (staged) => {
+        const { work } = createRepository();
+        const target = revParse(work, "HEAD");
+        writeFileSync(path.join(work, "unrelated.txt"), "dirty\n");
+        if (staged) git(work, ["add", "unrelated.txt"]);
+        const beforeIndex = indexTree(work);
+        const beforeStatus = git(work, ["status", "--porcelain=v1"]).stdout;
+        const result = runScript(work, [
+          "--merge",
+          "--expected-upstream",
+          target,
+        ]);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          "error: index or tracked worktree is not clean",
+        );
+        expect(result.stderr).toContain(refuseHint);
+        expectNoSetupOrEffects();
+        expect(revParse(work, "HEAD")).toBe(target);
+        expect(indexTree(work)).toBe(beforeIndex);
+        expect(git(work, ["status", "--porcelain=v1"]).stdout).toBe(
+          beforeStatus,
+        );
+        expect(readFileSync(path.join(work, "unrelated.txt"), "utf8")).toBe(
+          "dirty\n",
+        );
+      },
+    );
 
+    it("diagnoses MERGE_HEAD before cleanliness without mutating merge state", () => {
+      const { work } = createRepository();
+      const target = revParse(work, "HEAD");
+      const state = { MERGE_HEAD: `${target}\n`, MERGE_MODE: "no-ff" };
+      net.writeFiles(gitDir(work), state);
+      writeFileSync(path.join(work, "shared.txt"), "dirty\n");
+      const beforeIndex = indexTree(work);
       const result = runScript(work, [
         "--merge",
         "--expected-upstream",
         target,
       ]);
-
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain(
-        "error: origin is not Jopqior/gotgenes-pi-packages (got https://github.com/example/not-the-fork.git)",
-      );
-      expectNoNetworkWrites();
-      expect(result.stderr).toContain(refuseHint);
-      expect(revParse(work, "HEAD")).toBe(before);
-      expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
-      expect(parentsOf(work)).toHaveLength(1);
-    });
-
-    it("refuses an unrelated dirty worktree that git merge would otherwise accept", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
-      writeFileSync(path.join(work, "unrelated.txt"), "dirty worktree\n");
-      const before = revParse(work, "HEAD");
-
-      const result = runScript(work, [
-        "--merge",
-        "--expected-upstream",
-        target,
-      ]);
-
-      expectNoNetworkWrites();
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain(
-        "error: index or tracked worktree is not clean",
-      );
-      expect(result.stderr).toContain(refuseHint);
-      expect(revParse(work, "HEAD")).toBe(before);
-      expect(parentsOf(work)).toHaveLength(1);
-      expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
-      expect(readFileSync(path.join(work, "unrelated.txt"), "utf8")).toBe(
-        "dirty worktree\n",
-      );
-      expect(git(work, ["diff", "--", "unrelated.txt"]).stdout).toContain(
-        "dirty worktree",
-      );
-    });
-
-    it("refuses an unrelated dirty index with the script diagnostic", () => {
-      // Measured on git 2.53.0: merge itself also refuses every staged
-      // unrelated-path variant probed. This pin is the script-owned
-      // diagnostic plus unchanged HEAD/index, not Git accepting the merge.
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
-      writeFileSync(path.join(work, "unrelated.txt"), "dirty index\n");
-      git(work, ["add", "unrelated.txt"]);
-      const before = revParse(work, "HEAD");
-      const cachedBefore = git(work, ["diff", "--cached"]).stdout;
-
-      const result = runScript(work, [
-        "--merge",
-        "--expected-upstream",
-        target,
-      ]);
-
-      expectNoNetworkWrites();
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain(
-        "error: index or tracked worktree is not clean",
-      );
-      expect(result.stderr).toContain(refuseHint);
-      expect(revParse(work, "HEAD")).toBe(before);
-      expect(parentsOf(work)).toHaveLength(1);
-      expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
-      expect(git(work, ["diff", "--cached"]).stdout).toBe(cachedBefore);
-      expect(git(work, ["diff", "--cached", "--name-only"]).stdout.trim()).toBe(
-        "unrelated.txt",
-      );
-    });
-
-    it("refuses an in-progress merge without mutating MERGE_HEAD", () => {
-      const { work, upstreamBare } = materializeNetwork("empty-upstream");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
-      git(work, [
-        "merge",
-        "--no-commit",
-        "--no-ff",
-        "-m",
-        "wip",
-        "upstream/main",
-      ]);
-      const before = {
-        head: revParse(work, "HEAD"),
-        indexTree: indexTree(work),
-        mergeHead: readGitStateFile(work, "MERGE_HEAD"),
-        mergeMode: readGitStateFile(work, "MERGE_MODE"),
-      };
-
-      const beforeInvocations = recordedInvocations().length;
-      const result = runScript(work, [
-        "--merge",
-        "--expected-upstream",
-        target,
-      ]);
-
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("error: a merge is already in progress");
-      expect(
-        recordedInvocations()
-          .slice(beforeInvocations)
-          .filter(({ args }) => ["config", "fetch"].includes(args[0])),
-      ).toEqual([]);
       expect(result.stderr).toContain(refuseHint);
-      expect(revParse(work, "HEAD")).toBe(before.head);
-      expect(indexTree(work)).toBe(before.indexTree);
-      expect(readGitStateFile(work, "MERGE_HEAD")).toBe(before.mergeHead);
-      expect(readGitStateFile(work, "MERGE_MODE")).toBe(before.mergeMode);
-      expect(parentsOf(work)).toHaveLength(1);
+      expectNoSetupOrEffects();
+      expect(revParse(work, "HEAD")).toBe(target);
+      expect(indexTree(work)).toBe(beforeIndex);
+      for (const [file, contents] of Object.entries(state)) {
+        expect(net.readGitStateFile(work, file)).toBe(contents);
+      }
+      expect(readFileSync(path.join(work, "shared.txt"), "utf8")).toBe(
+        "dirty\n",
+      );
     });
 
-    it("refuses an in-progress rebase without clearing rebase-apply", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
-      writeFiles(work, { "am.txt": "v1\n" });
-      git(work, ["add", "am.txt"]);
-      git(work, ["commit", "-m", "test: am base"]);
-      const patch = git(work, ["format-patch", "-1", "--stdout"]).stdout;
-      const patchPath = path.join(net.scratch, "am.patch");
-      writeFileSync(patchPath, patch);
-      git(work, ["reset", "--hard", "HEAD~1"]);
-      writeFiles(work, { "am.txt": "v3\n" });
-      git(work, ["add", "am.txt"]);
-      git(work, ["commit", "-m", "test: am blocker"]);
-      const am = spawnSync(realGit, ["am", patchPath], {
-        cwd: work,
-        encoding: "utf8",
-        env: baseGitEnv,
-      });
-      expect(am.status).not.toBe(0);
-      expect(existsSync(path.join(gitDir(work), "rebase-apply"))).toBe(true);
-      expect(git(work, ["branch", "--show-current"]).stdout.trim()).toBe(
-        "main",
-      );
-      expect(git(work, ["diff", "--quiet"], { allowFail: true }).status).toBe(
-        0,
-      );
-      expect(
-        git(work, ["diff", "--cached", "--quiet"], { allowFail: true }).status,
-      ).toBe(0);
-      const before = {
-        head: revParse(work, "HEAD"),
-        indexTree: indexTree(work),
-        rebaseApply: snapshotDir(path.join(gitDir(work), "rebase-apply")),
-      };
+    it.each(["rebase-apply", "rebase-merge"])(
+      "refuses an in-progress %s without clearing state",
+      (marker) => {
+        const { work } = createRepository();
+        const target = revParse(work, "HEAD");
+        const stateDir = path.join(gitDir(work), marker);
+        mkdirSync(stateDir);
+        writeFileSync(path.join(stateDir, "head-name"), "refs/heads/main\n");
+        writeFileSync(path.join(stateDir, "orig-head"), `${target}\n`);
+        const beforeState = snapshotDir(stateDir);
+        const beforeIndex = indexTree(work);
+        const result = runScript(work, [
+          "--merge",
+          "--expected-upstream",
+          target,
+        ]);
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain(
+          "error: a rebase is already in progress",
+        );
+        expect(result.stderr).toContain(refuseHint);
+        expectNoSetupOrEffects();
+        expect(revParse(work, "HEAD")).toBe(target);
+        expect(indexTree(work)).toBe(beforeIndex);
+        expect(snapshotDir(stateDir)).toEqual(beforeState);
+        expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
+      },
+    );
 
-      const result = runScript(work, [
+    it("refuses a linked worktree on main before setup", () => {
+      const { work } = createRepository();
+      const target = revParse(work, "HEAD");
+      git(work, ["checkout", "-b", "primary-parked"]);
+      const linked = path.join(net.scratch, "linked");
+      git(work, ["worktree", "add", linked, "main"]);
+      const result = runScript(linked, [
         "--merge",
         "--expected-upstream",
         target,
       ]);
-
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain("error: a rebase is already in progress");
-      expect(result.stderr).toContain(refuseHint);
-      expect(revParse(work, "HEAD")).toBe(before.head);
-      expect(indexTree(work)).toBe(before.indexTree);
-      expect(snapshotDir(path.join(gitDir(work), "rebase-apply"))).toEqual(
-        before.rebaseApply,
+      expect(result.stderr).toContain(
+        "upstream integration requires the primary checkout, not a linked worktree",
       );
-      expectNoNetworkWrites();
-      expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
-      expect(parentsOf(work)).toHaveLength(1);
-    });
-
-    it("refuses an in-progress rebase-merge without clearing rebase-merge", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
-      const editor = path.join(net.scratch, "rebase-editor.sh");
-      writeFileSync(editor, "#!/bin/sh\nprintf 'break\\n' > \"$1\"\n");
-      chmodSync(editor, 0o755);
-      spawnSync(realGit, ["rebase", "-i", "HEAD~1"], {
-        cwd: work,
-        encoding: "utf8",
-        env: {
-          ...baseGitEnv,
-          GIT_SEQUENCE_EDITOR: editor,
-          GIT_EDITOR: "true",
-        },
-      });
-      expect(existsSync(path.join(gitDir(work), "rebase-merge"))).toBe(true);
-      git(work, ["update-ref", "refs/heads/main", "HEAD"]);
-      git(work, ["symbolic-ref", "HEAD", "refs/heads/main"]);
-      expect(git(work, ["branch", "--show-current"]).stdout.trim()).toBe(
-        "main",
-      );
-      expect(git(work, ["diff", "--quiet"], { allowFail: true }).status).toBe(
-        0,
-      );
-      expect(
-        git(work, ["diff", "--cached", "--quiet"], { allowFail: true }).status,
-      ).toBe(0);
-      const before = {
-        head: revParse(work, "HEAD"),
-        indexTree: indexTree(work),
-        parents: parentsOf(work),
-        rebaseMerge: snapshotDir(path.join(gitDir(work), "rebase-merge")),
-      };
-
-      const result = runScript(work, [
-        "--merge",
-        "--expected-upstream",
-        target,
-      ]);
-
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain("error: a rebase is already in progress");
-      expect(result.stderr).toContain(refuseHint);
-      expect(revParse(work, "HEAD")).toBe(before.head);
-      expect(indexTree(work)).toBe(before.indexTree);
-      expect(parentsOf(work)).toEqual(before.parents);
-      expect(snapshotDir(path.join(gitDir(work), "rebase-merge"))).toEqual(
-        before.rebaseMerge,
-      );
-      expectNoNetworkWrites();
-      expect(existsSync(path.join(gitDir(work), "MERGE_HEAD"))).toBe(false);
+      expect(revParse(linked, "HEAD")).toBe(target);
+      expectNoSetupOrEffects();
     });
   });
 
   describe("local pinned input", () => {
     it("refuses a missing local commit rather than fetching it", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = revParse(upstreamBare, "refs/heads/main");
+      const { work } = createRepository();
+      const target = "f".repeat(40);
+      expect(
+        git(work, ["cat-file", "-e", target], { allowFail: true }).status,
+      ).not.toBe(0);
       const result = runScript(work, [
         "--merge",
         "--expected-upstream",
@@ -535,13 +404,12 @@ describe("fork-sync safety", () => {
         `approved upstream commit ${target} is not available locally`,
       );
       expect(result.stderr).toContain("--fetch");
-      expect(recordedFetches()).toEqual([]);
+      expect(net.recordedFetches()).toEqual([]);
     });
 
     it("refuses a missing tracking ref without refreshing it", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
-      git(work, ["update-ref", "-d", "refs/remotes/upstream/main"]);
+      const { work } = createRepository();
+      const target = revParse(work, "HEAD");
       const result = runScript(work, [
         "--merge",
         "--expected-upstream",
@@ -551,12 +419,11 @@ describe("fork-sync safety", () => {
       expect(result.stderr).toContain(
         "upstream/main is not available locally; run ./scripts/fork-sync/sync.sh --fetch",
       );
-      expect(recordedFetches()).toEqual([]);
+      expect(net.recordedFetches()).toEqual([]);
     });
 
     it("refuses a local target outside fetched upstream history", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      net.prepareFetchedUpstream(work, upstreamBare);
+      const { work } = materializeLocalHistory("divergent");
       const target = revParse(work, "HEAD");
       const result = runScript(work, [
         "--merge",
@@ -578,8 +445,7 @@ describe("fork-sync safety", () => {
     });
 
     it("refuses a full object OID that is not a commit", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      net.prepareFetchedUpstream(work, upstreamBare);
+      const { work } = createRepository();
       const target = revParse(work, "HEAD^{tree}");
       const result = runScript(work, [
         "--merge",
@@ -590,18 +456,18 @@ describe("fork-sync safety", () => {
       expect(result.stderr).toContain(
         `approved upstream commit ${target} is not available locally`,
       );
-      expect(recordedFetches()).toEqual([]);
+      expect(net.recordedFetches()).toEqual([]);
     });
 
     it("keeps merge offline and local tags byte-identical", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
+      const { work, target } = materializeLocalHistory("divergent");
       git(work, ["tag", "protected"]);
-      const tags = git(work, [
+      const tagArgs = [
         "for-each-ref",
         "--format=%(refname) %(objectname)",
         "refs/tags",
-      ]).stdout;
+      ];
+      const tags = git(work, tagArgs).stdout;
       const result = runScript(work, [
         "--merge",
         "--expected-upstream",
@@ -613,35 +479,9 @@ describe("fork-sync safety", () => {
           ["fetch", "ls-remote", "push"].includes(args[0]),
         ),
       ).toEqual([]);
-      expect(
-        git(work, [
-          "for-each-ref",
-          "--format=%(refname) %(objectname)",
-          "refs/tags",
-        ]).stdout,
-      ).toBe(tags);
+      expect(git(work, tagArgs).stdout).toBe(tags);
       expect(result.stdout).not.toContain("ahead/behind");
       expect(result.stdout).not.toContain("newest upstream");
-    });
-
-    it.each(["--merge"])("refuses a linked worktree on main in %s", (mode) => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
-      const target = net.prepareFetchedUpstream(work, upstreamBare);
-      git(work, ["checkout", "-b", "primary-parked"]);
-      const linked = path.join(net.scratch, "linked");
-      git(work, ["worktree", "add", linked, "main"]);
-      const before = revParse(linked, "HEAD");
-      const result = runScript(linked, [mode, "--expected-upstream", target]);
-      expect(result.status).toBe(1);
-      expect(result.stderr).toContain(
-        "upstream integration requires the primary checkout, not a linked worktree",
-      );
-      expect(revParse(linked, "HEAD")).toBe(before);
-      expect(
-        recordedInvocations().filter(({ args }) =>
-          ["config", "fetch", "merge", "ls-remote"].includes(args[0]),
-        ),
-      ).toEqual([]);
     });
   });
 });

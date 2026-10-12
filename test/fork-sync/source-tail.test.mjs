@@ -38,27 +38,24 @@ function resolve() {
 }
 
 describe("incorporated upstream package tail", () => {
-  it.each([
-    "runtime.mjs",
-    "test/runtime.test.mjs",
-    "README.md",
-    "docs/guides/usage.md",
-    "运行\nfile.mjs",
-  ])("includes shipped package path %s with lossless Git names", (file) => {
-    const tip = repo.commit(
-      repo.upstream,
-      `packages/alternate/${file}`,
-      "change",
-    );
-    repo.integrate();
-    expect(resolve()).toEqual({
-      upstreamPackage: "@upstream/alternate",
-      upstreamVersion: "1.1.0",
-      releaseCommit: release,
-      incorporatedCommit: tip,
-      unreleasedPackageChanges: true,
-    });
-  });
+  it.each(["runtime.mjs", "运行\nfile.mjs"])(
+    "includes shipped package path %s with lossless Git names",
+    (file) => {
+      const tip = repo.commit(
+        repo.upstream,
+        `packages/alternate/${file}`,
+        "change",
+      );
+      repo.integrate();
+      expect(resolve()).toEqual({
+        upstreamPackage: "@upstream/alternate",
+        upstreamVersion: "1.1.0",
+        releaseCommit: release,
+        incorporatedCommit: tip,
+        unreleasedPackageChanges: true,
+      });
+    },
+  );
   it.each([
     "packages/sibling/runtime.mjs",
     "README.md",

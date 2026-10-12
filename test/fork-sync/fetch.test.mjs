@@ -32,13 +32,10 @@ describe("fork-sync fetch", () => {
     it.each([[], ["--help"], ["-h"]])(
       "shows help without effects: %j",
       (...args) => {
-        const { work } = materializeNetwork("divergent");
-        const before = git(work, ["config", "--local", "--list"]).stdout;
-        const result = runScript(work, args);
+        const result = runScript(net.scratch, args);
         expect(result.status).toBe(0);
         expect(result.stderr).toContain("--fetch");
         expect(recordedInvocations()).toEqual([]);
-        expect(git(work, ["config", "--local", "--list"]).stdout).toBe(before);
       },
     );
 
@@ -49,23 +46,23 @@ describe("fork-sync fetch", () => {
       ["--fetch", "--expected-upstream", "f".repeat(40)],
       ["--upstream-protocol", "ssh"],
     ])("rejects missing or conflicting modes before effects: %j", (...args) => {
-      const { work } = materializeNetwork("divergent");
-      const result = runScript(work, args);
+      const result = runScript(net.scratch, args);
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("Usage:");
-      expect(
-        recordedInvocations().filter(({ args: call }) =>
-          ["config", "fetch", "merge", "ls-remote"].includes(call[0]),
-        ),
-      ).toEqual([]);
+      expect(recordedInvocations()).toEqual([]);
     });
   });
 
   describe("status", () => {
     it("fetches repository status without a package tag query", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
+      const { work, upstreamBare } = materializeNetwork();
 
       const headBefore = revParse(work, "HEAD");
+      const upstreamTarget = revParse(upstreamBare, "main");
+      expect(
+        git(work, ["cat-file", "-e", upstreamTarget], { allowFail: true })
+          .status,
+      ).not.toBe(0);
       const tagsBefore = git(work, [
         "for-each-ref",
         "--sort=refname",
@@ -85,9 +82,8 @@ describe("fork-sync fetch", () => {
       expect(
         git(work, ["config", "--get", "remote.upstream.pushurl"]).stdout.trim(),
       ).toBe("DISABLE");
-      expect(result.stdout).toContain(
-        `upstream target: ${revParse(upstreamBare, "main")}`,
-      );
+      expect(result.stdout).toContain(`upstream target: ${upstreamTarget}`);
+      expect(revParse(work, "upstream/main^{commit}")).toBe(upstreamTarget);
       expect(recordedFetches()).toEqual([
         [
           "fetch",
@@ -108,7 +104,7 @@ describe("fork-sync fetch", () => {
     });
 
     it("refreshes upstream/main even when remote.fetch maps main elsewhere", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
+      const { work, upstreamBare } = materializeNetwork();
       const actual = revParse(upstreamBare, "refs/heads/main");
       const stale = revParse(work, "HEAD~1");
       git(work, [
@@ -134,7 +130,7 @@ describe("fork-sync fetch", () => {
 
   describe("fetch protections", () => {
     it("refuses when the local tag set changes during fetch", () => {
-      const { work } = materializeNetwork("divergent");
+      const { work } = materializeNetwork();
       const before = revParse(work, "HEAD");
       const tagsBefore = git(work, ["tag"]).stdout;
 
@@ -163,7 +159,7 @@ describe("fork-sync fetch", () => {
     it.each([{ args: ["--fetch"] }])(
       "refuses same-name tag retargeting in mode $args",
       ({ args }) => {
-        const { work } = materializeNetwork("divergent");
+        const { work } = materializeNetwork();
         git(work, ["tag", "protected", "HEAD"]);
         const before = revParse(work, "HEAD");
         const tagBefore = revParse(work, "refs/tags/protected");
@@ -186,7 +182,7 @@ describe("fork-sync fetch", () => {
     it.each([{ args: ["--fetch"] }])(
       "refuses tag deletion in mode $args",
       ({ args }) => {
-        const { work } = materializeNetwork("divergent");
+        const { work } = materializeNetwork();
         git(work, ["tag", "protected", "HEAD"]);
         const before = revParse(work, "HEAD");
         const result = runScript(work, args, {
@@ -213,7 +209,7 @@ describe("fork-sync fetch", () => {
     ])(
       "reports $action tag drift even if fetch fails after changing refs",
       ({ action, diagnostic }) => {
-        const { work } = materializeNetwork("divergent");
+        const { work } = materializeNetwork();
         const before = revParse(work, "HEAD");
         const tag = "protected-on-failed-fetch";
         if (action !== "add") git(work, ["tag", tag, "HEAD"]);
@@ -247,7 +243,7 @@ describe("fork-sync fetch", () => {
     );
 
     it("reports failed fetch without drift and leaves HEAD and tag objects unchanged", () => {
-      const { work } = materializeNetwork("divergent");
+      const { work } = materializeNetwork();
       git(work, ["tag", "protected"]);
       const before = revParse(work, "HEAD");
       const tags = git(work, [
@@ -276,7 +272,7 @@ describe("fork-sync fetch", () => {
     });
 
     it("does not import colliding upstream tag names", () => {
-      const { work, upstreamBare } = materializeNetwork("divergent");
+      const { work, upstreamBare } = materializeNetwork();
       const forkOid = revParse(work, "HEAD");
       const upstreamV1 = revParse(
         upstreamBare,

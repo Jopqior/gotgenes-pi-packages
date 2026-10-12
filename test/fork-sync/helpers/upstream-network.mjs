@@ -1,9 +1,6 @@
-// Instance-owned local-upstream network for the fork-sync tests: a
-// scratch directory holding a git wrapper on PATH (which rewrites `fetch`/
-// `ls-remote` to the local bare upstream and records every invocation), the
-// `remotes/` bare repositories `materializeNetwork` builds, and the process
-// helpers tests drive the script with. One instance per test, so no test can
-// observe another's remotes or invocation log.
+// Instance-owned scratch directory and invocation recorder for sync.sh.
+// Local merge tests use only a working repository; fetch tests additionally
+// create a bare upstream and redirect its transport. Origin is metadata only.
 
 import { execFileSync, spawnSync } from "node:child_process";
 import {
@@ -110,9 +107,8 @@ export const baseGitEnv = {
 };
 
 /**
- * Create the scratch network: the `bin/git` wrapper, an empty invocation
- * log, and the `remotes/`/`build/` directories `materializeNetwork` and the
- * advance helpers populate.
+ * Create the script runner and empty invocation log without a repository.
+ * Tests opt into local repository state or an upstream transport as needed.
  *
  * @returns {UpstreamNetwork}
  */
@@ -160,23 +156,6 @@ export function createUpstreamNetwork() {
    */
   function revParse(cwd, rev) {
     return git(cwd, ["rev-parse", rev]).stdout.trim();
-  }
-
-  /**
-   * Fetch main into the canonical tracking ref using isolated local transport.
-   *
-   * @param {string} work
-   * @param {string} upstreamBare
-   * @returns {string}
-   */
-  function prepareFetchedUpstream(work, upstreamBare) {
-    git(work, [
-      "fetch",
-      "--no-tags",
-      upstreamBare,
-      "+refs/heads/main:refs/remotes/upstream/main",
-    ]);
-    return revParse(work, "upstream/main^{commit}");
   }
 
   /**
@@ -337,121 +316,95 @@ export function createUpstreamNetwork() {
       .filter((args) => args[0] === "fetch");
   }
 
+  function createRepository() {
+    const work = path.join(scratch, "work");
+    mkdirSync(work);
+    git(work, ["init", "-b", "main"]);
+    configureRepo(work);
+    commit(work, "chore: shared base", {
+      "shared.txt": "base\n",
+      "unrelated.txt": "keep\n",
+    });
+    git(work, [
+      "remote",
+      "add",
+      "origin",
+      "git@github.com:Jopqior/gotgenes-pi-packages.git",
+    ]);
+    git(work, ["remote", "add", "upstream", githubUpstream]);
+    return { work };
+  }
+
   /**
-   * @param {"divergent" | "conflict" | "already-integrated" | "empty-upstream" | "fast-forward" | "unrelated"} topology
+   * Build only the local graph consumed by offline merge.
+   * @param {"divergent" | "conflict" | "already-integrated" | "fast-forward" | "unrelated"} topology
    */
-  function materializeNetwork(topology) {
+  function materializeLocalHistory(topology) {
+    const { work } = createRepository();
+    if (topology === "already-integrated") {
+      commit(work, "feat: upstream advance", {
+        "upstream-only.txt": "from upstream\n",
+      });
+      git(work, ["update-ref", "refs/remotes/upstream/main", "HEAD"]);
+    } else {
+      git(work, [
+        "checkout",
+        topology === "unrelated" ? "--orphan" : "-b",
+        "upstream-line",
+      ]);
+      if (topology === "unrelated") {
+        git(work, ["rm", "-rf", "."]);
+        commit(work, "feat: independent upstream root", {
+          "independent.txt": "unrelated history\n",
+        });
+      } else {
+        commit(work, "feat: upstream-only change", {
+          ...(topology === "conflict"
+            ? { "shared.txt": "upstream side\n" }
+            : {}),
+          "upstream-only.txt": "from upstream\n",
+        });
+      }
+      git(work, ["update-ref", "refs/remotes/upstream/main", "HEAD"]);
+      git(work, ["checkout", "main"]);
+      git(work, ["branch", "-D", "upstream-line"]);
+    }
+    if (topology !== "fast-forward" && topology !== "unrelated") {
+      commit(work, "feat: fork-only change", {
+        ...(topology === "conflict" ? { "shared.txt": "fork side\n" } : {}),
+        "fork-only.txt": "from fork\n",
+      });
+    }
+    return { work, target: revParse(work, "upstream/main") };
+  }
+
+  // Fetch needs a real upstream transport, never an origin server.
+  function materializeNetwork() {
+    const { work } = createRepository();
     const upstreamBare = path.join(
       scratch,
       "remotes",
       "gotgenes",
       "pi-packages.git",
     );
-    const originBare = path.join(
-      scratch,
-      "remotes",
-      "Jopqior",
-      "gotgenes-pi-packages.git",
-    );
-    const seed = path.join(scratch, "build", "seed");
-    const work = path.join(scratch, "work");
-
     mkdirSync(upstreamBare, { recursive: true });
-    mkdirSync(originBare, { recursive: true });
-    mkdirSync(seed, { recursive: true });
     git(upstreamBare, ["init", "--bare", "-b", "main"]);
-    git(originBare, ["init", "--bare", "-b", "main"]);
-
-    git(seed, ["init", "-b", "main"]);
-    configureRepo(seed);
-    commit(seed, "chore: shared base", {
-      "README.md": "base\n",
-      "shared.txt": "base\n",
-      "unrelated.txt": "keep\n",
+    git(work, ["push", upstreamBare, "main"]);
+    advanceUpstream(upstreamBare, "feat: upstream-only change", {
+      "upstream-only.txt": "from upstream\n",
     });
-    git(seed, ["remote", "add", "upstream-bare", upstreamBare]);
-    git(seed, ["remote", "add", "origin-bare", originBare]);
-    git(seed, ["push", "upstream-bare", "main"]);
-    git(seed, ["push", "origin-bare", "main"]);
-
-    if (topology === "unrelated") {
-      const independent = path.join(scratch, "build", "independent");
-      mkdirSync(independent, { recursive: true });
-      git(independent, ["init", "-b", "main"]);
-      configureRepo(independent);
-      commit(independent, "feat: independent upstream root", {
-        "independent.txt": "unrelated history\n",
-      });
-      git(independent, ["remote", "add", "upstream-bare", upstreamBare]);
-      git(independent, ["push", "--force", "upstream-bare", "main"]);
-    } else if (topology === "fast-forward") {
-      commit(seed, "feat: upstream-only change", {
-        "upstream-only.txt": "from upstream\n",
-      });
-      git(seed, ["push", "upstream-bare", "main"]);
-    } else if (topology === "already-integrated") {
-      git(seed, ["checkout", "-B", "main"]);
-      commit(seed, "feat: upstream advance", {
-        "upstream-only.txt": "from upstream\n",
-      });
-      git(seed, ["tag", "pi-subagents-v1.0.0"]);
-      git(seed, ["tag", "pi-subagents-v21.7.0"]);
-      git(seed, ["push", "upstream-bare", "main"]);
-      git(seed, ["push", "--tags", "upstream-bare"]);
-      commit(seed, "feat: fork-only change", {
-        "fork-only.txt": "from fork\n",
-      });
-      git(seed, ["push", "origin-bare", "main"]);
-    } else {
-      git(seed, ["checkout", "-B", "upstream-line"]);
-      if (topology === "empty-upstream") {
-        git(seed, ["commit", "--allow-empty", "-m", "chore: empty upstream"]);
-      } else if (topology === "conflict") {
-        commit(seed, "feat: upstream shared edit", {
-          "shared.txt": "upstream side\n",
-          "upstream-only.txt": "from upstream\n",
-        });
-      } else {
-        commit(seed, "feat: upstream-only change", {
-          "upstream-only.txt": "from upstream\n",
-        });
-      }
-      git(seed, ["tag", "pi-subagents-v1.0.0"]);
-      git(seed, ["tag", "pi-subagents-v21.7.0"]);
-      git(seed, ["push", "upstream-bare", "HEAD:main"]);
-      git(seed, ["push", "--tags", "upstream-bare"]);
-
-      git(seed, ["checkout", "main"]);
-      if (topology === "conflict") {
-        commit(seed, "feat: fork shared edit", {
-          "shared.txt": "fork side\n",
-          "fork-only.txt": "from fork\n",
-        });
-      } else {
-        commit(seed, "feat: fork-only change", {
-          "fork-only.txt": "from fork\n",
-        });
-      }
-      git(seed, ["push", "origin-bare", "main"]);
-    }
-
-    git(scratch, ["clone", originBare, work]);
-    configureRepo(work);
-    git(work, [
-      "remote",
-      "set-url",
-      "origin",
-      "git@github.com:Jopqior/gotgenes-pi-packages.git",
-    ]);
-    git(work, ["remote", "add", "upstream", githubUpstream]);
-    return { work, originBare, upstreamBare };
+    git(upstreamBare, ["tag", "pi-subagents-v1.0.0", "main"]);
+    git(upstreamBare, ["tag", "pi-subagents-v21.7.0", "main"]);
+    commit(work, "feat: fork-only change", {
+      "fork-only.txt": "from fork\n",
+    });
+    return { work, upstreamBare };
   }
 
   return {
     scratch,
     git,
     revParse,
-    prepareFetchedUpstream,
     parentsOf,
     gitDir,
     indexTree,
@@ -462,6 +415,8 @@ export function createUpstreamNetwork() {
     runScript,
     recordedInvocations,
     recordedFetches,
+    createRepository,
+    materializeLocalHistory,
     materializeNetwork,
     dispose() {
       rmSync(scratch, { recursive: true, force: true });

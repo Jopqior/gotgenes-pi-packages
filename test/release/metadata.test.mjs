@@ -1,4 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -8,7 +9,7 @@ import {
   requireTaggedReleasePackage,
   validateReleasePackages,
 } from "../../scripts/release/release-metadata.mjs";
-import { createScratchReleaseRepository } from "./helpers/git-repository.mjs";
+import { createTaggedReleaseRepository } from "./helpers/git-repository.mjs";
 
 const original = {
   directory: "demo",
@@ -30,14 +31,14 @@ const registry = (packages = [original, fork]) => ({
   packages,
 });
 
-function writeManifest(repo, directory, manifest) {
-  const folder = path.join(repo.dir, "packages", directory);
+function writeManifest(dir, directory, manifest) {
+  const folder = path.join(dir, "packages", directory);
   mkdirSync(folder, { recursive: true });
   writeFileSync(path.join(folder, "package.json"), JSON.stringify(manifest));
 }
 
-function writeRegistry(repo, value) {
-  const file = path.join(repo.dir, "release-packages.json");
+function writeRegistry(dir, value) {
+  const file = path.join(dir, "release-packages.json");
   writeFileSync(file, JSON.stringify(value));
   return file;
 }
@@ -46,8 +47,8 @@ function taggedPackage(
   manifest = { name: original.name, version: "1.2.3" },
   annotated = false,
 ) {
-  const repo = createScratchReleaseRepository();
-  writeManifest(repo, "demo", manifest);
+  const repo = createTaggedReleaseRepository();
+  writeManifest(repo.dir, "demo", manifest);
   repo.git("add", ".");
   repo.git("commit", "-m", "test: tagged manifest");
   if (annotated) repo.git("tag", "-a", "demo-v1.2.3", "-m", "annotated");
@@ -180,62 +181,66 @@ describe("explicit release registration", () => {
   });
 
   it("checks working manifest identity against explicit registration", () => {
-    const repo = createScratchReleaseRepository();
+    const dir = mkdtempSync(path.join(tmpdir(), "release-metadata-"));
     try {
-      writeManifest(repo, "demo", { name: original.name, version: "1.2.3" });
-      const file = writeRegistry(repo, registry([original]));
-      expect(readReleasePackages(file, repo.dir)).toEqual(registry([original]));
-      writeManifest(repo, "demo", { name: "@gotgenes/demo", version: "1.2.3" });
-      expect(() => readReleasePackages(file, repo.dir)).toThrow(
+      writeManifest(dir, "demo", { name: original.name, version: "1.2.3" });
+      const file = writeRegistry(dir, registry([original]));
+      expect(readReleasePackages(file, dir)).toEqual(registry([original]));
+      writeManifest(dir, "demo", { name: "@gotgenes/demo", version: "1.2.3" });
+      expect(() => readReleasePackages(file, dir)).toThrow(
         /npm name does not match registration/,
       );
     } finally {
-      repo.dispose();
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 
-  it("does not infer registration from an unregistered workspace or its tag", () => {
-    const repo = taggedPackage();
+  it("does not infer registration from an unregistered workspace", () => {
+    const dir = mkdtempSync(path.join(tmpdir(), "release-metadata-"));
     try {
-      const file = writeRegistry(repo, registry([]));
-      const empty = readReleasePackages(file, repo.dir);
+      writeManifest(dir, "demo", { name: original.name, version: "1.2.3" });
+      const file = writeRegistry(dir, registry([]));
+      const empty = readReleasePackages(file, dir);
       expect(empty).toEqual(registry([]));
       expect(() => requireReleasePackage(empty, "demo")).toThrow(
         /no release package registration/,
       );
-      expect(() =>
-        requireTaggedReleasePackage({
-          repo: repo.dir,
-          registry: empty,
-          tag: "demo-v1.2.3",
-        }),
-      ).toThrow(/no release package registration/);
     } finally {
-      repo.dispose();
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 
+  it("rejects an unregistered tag before reading Git", () => {
+    expect(() =>
+      requireTaggedReleasePackage({
+        repo: "/does-not-exist",
+        registry: registry([]),
+        tag: "demo-v1.2.3",
+      }),
+    ).toThrow(/no release package registration/);
+  });
+
   it("fails on missing or malformed registered manifests and unreadable registry", () => {
-    const repo = createScratchReleaseRepository();
+    const dir = mkdtempSync(path.join(tmpdir(), "release-metadata-"));
     try {
-      const file = writeRegistry(repo, registry([original]));
-      expect(() => readReleasePackages(file, repo.dir)).toThrow(
+      const file = writeRegistry(dir, registry([original]));
+      expect(() => readReleasePackages(file, dir)).toThrow(
         /cannot read registered package demo manifest/,
       );
-      writeManifest(repo, "demo", []);
-      expect(() => readReleasePackages(file, repo.dir)).toThrow(
+      writeManifest(dir, "demo", []);
+      expect(() => readReleasePackages(file, dir)).toThrow(
         /invalid .* manifest/,
       );
-      writeFileSync(path.join(repo.dir, "packages/demo/package.json"), "{");
-      expect(() => readReleasePackages(file, repo.dir)).toThrow(
+      writeFileSync(path.join(dir, "packages/demo/package.json"), "{");
+      expect(() => readReleasePackages(file, dir)).toThrow(
         /invalid .* manifest/,
       );
       writeFileSync(file, "{");
-      expect(() => readReleasePackages(file, repo.dir)).toThrow(
+      expect(() => readReleasePackages(file, dir)).toThrow(
         /cannot read release package registry/,
       );
     } finally {
-      repo.dispose();
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });
@@ -246,7 +251,10 @@ describe("tagged release identity", () => {
     (annotated) => {
       const repo = taggedPackage(undefined, annotated);
       try {
-        writeManifest(repo, "demo", { name: "@wrong/head", version: "9.9.9" });
+        writeManifest(repo.dir, "demo", {
+          name: "@wrong/head",
+          version: "9.9.9",
+        });
         repo.git("add", ".");
         repo.git("commit", "-m", "test: moving HEAD");
         expect(
@@ -307,9 +315,9 @@ describe("tagged release identity", () => {
   });
 
   it("fails when a selected tag or tagged manifest is unavailable", () => {
-    const repo = createScratchReleaseRepository();
+    const repo = createTaggedReleaseRepository();
     try {
-      repo.commitOutOfScope("test: no package");
+      repo.git("commit", "--allow-empty", "-m", "test: no package");
       repo.git("tag", "demo-v1.2.3");
       expect(() =>
         requireTaggedReleasePackage({

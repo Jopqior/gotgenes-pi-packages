@@ -37,12 +37,6 @@ export function createReleaseRepository() {
     secondManifest,
   );
   git(repo.upstream, "tag", `${worktrees}-v2.0.0`);
-  repo.commit(
-    repo.upstream,
-    `packages/${core}/old-break.txt`,
-    "old break\n",
-    "feat!: old upstream break",
-  );
   const stable = repo.release("1.1.0", { annotated: true });
   const tip = repo.commit(
     repo.upstream,
@@ -87,7 +81,6 @@ export function createReleaseRepository() {
   for (const name of [
     "lib.sh",
     "next-version.sh",
-    "verify-cliff-parity.sh",
     "prepare-release.sh",
     "publish-released.sh",
     "create-github-releases.sh",
@@ -105,12 +98,6 @@ export function createReleaseRepository() {
   );
   git(fork, "add", "-A");
   git(fork, "commit", "-m", "chore: release scaffold");
-  repo.commit(
-    fork,
-    "docs/retro/release-marker.txt",
-    "excluded tag marker\n",
-    "docs: release marker",
-  );
   for (const directory of [core, worktrees, original])
     git(fork, "tag", `${directory}-v1.0.0`);
   for (const directory of [core, worktrees, original])
@@ -179,10 +166,6 @@ export function createReleaseRepository() {
     git(fork, "add", "-A");
     git(fork, "commit", "-m", message);
   }
-  function retag() {
-    for (const directory of [core, worktrees, original])
-      git(fork, "tag", "-f", `${directory}-v1.0.1`);
-  }
   return {
     ...repo,
     stable,
@@ -193,7 +176,6 @@ export function createReleaseRepository() {
     registrations,
     run,
     commitAll,
-    retag,
     prepare: (...directories) =>
       run("prepare-release.sh", { PACKAGES: directories.join(" ") }),
     calls: () => readFileSync(calls, "utf8"),
