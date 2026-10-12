@@ -14,15 +14,16 @@ Run commands from the repository root.
 
 ## Load the task branch
 
-Read each applicable reference in full before its affected work.
-A synchronization can reach both integration and source-evidence branches; loading one does not satisfy the other.
+For actual synchronization, first read the synchronization constraints and check the Git prerequisites before startup fetch/pull; they override template startup ordering.
+Then read each other applicable reference in full before its affected work.
+A synchronization can reach both assessment and source-evidence branches; loading one does not satisfy the other.
 
-| Task                                                                                    | Required reference and timing                                                                                                                                            |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Find or create a pinned-target issue                                                    | Use the no-argument [fork-sync prompt](../../prompts/fork-sync.md), link this skill in the issue and stop; do not start integration                                      |
-| Plan, perform, resume, review or ship actual synchronization                            | Read [synchronization](references/synchronization.md) before relevant Git operations, including startup fetch/pull; its prerequisites override template startup ordering |
-| Inspect integration source feasibility or prepare/validate fork release-source evidence | Read [release source](references/release-source.md) before evidence work                                                                                                 |
-| Prepare a fork package's first publication                                              | Read [release source](references/release-source.md) and [first release](references/first-release.md) before preparing or publishing the first tagged artifacts           |
+| Task                                                                                                                      | Required reference and timing                                                                                                       |
+| ------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Find or create a pinned-target issue                                                                                      | Use the no-argument [fork-sync prompt](../../prompts/fork-sync.md), link this skill in the issue and stop; do not start integration |
+| Plan, perform, resume, review or ship actual synchronization                                                              | [Synchronization constraints](references/synchronization.md), then [synchronization assessment](references/sync-assessment.md)      |
+| Inspect integration source feasibility or prepare/validate fork release-source evidence, including during synchronization | Read [release source](references/release-source.md) before evidence work                                                            |
+| Handle an untagged fork's first-release handoff, including during synchronization, or prepare its first publication       | Read [release source](references/release-source.md) and [first release](references/first-release.md) before that work               |
 
 Editing synchronization tooling or documentation is not integration work; ordinary non-sync tasks keep their normal startup, review range and workflow.
 When actual synchronization context becomes available, load its reference before subsequent relevant Git operations.

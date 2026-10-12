@@ -1,6 +1,5 @@
 # First fork release handoff
 
-Read [release source](release-source.md) for evidence semantics and tagged-artifact preflight before using this branch.
 Ordinary preparation refuses a missing first tag.
 An approved original package uses [releasing](../../releasing/SKILL.md#a-packages-first-release), not this fork-specific source handoff.
 

@@ -24,7 +24,7 @@ Interpret `next-version.sh` results as follows:
 | Nonzero status               | Derivation failed                     |
 | Untagged package             | Refused; no first version is inferred |
 
-For an untagged fork, use the [first-release handoff](first-release.md).
+An untagged fork requires the separately approved first-release handoff.
 
 ### Version rules
 
