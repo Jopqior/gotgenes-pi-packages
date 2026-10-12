@@ -51,14 +51,17 @@ describe("live synchronization resources and workflow wiring", () => {
       "scripts/fork-sync/sync.sh",
       "scripts/fork-sync/issue.mjs",
       ".pi/prompts/fork-sync.md",
-      "docs/fork-sync/synchronization-guide.md",
-      "docs/fork-sync/release-source-guide.md",
+      ".pi/skills/fork-sync/SKILL.md",
+      ".pi/skills/fork-sync/references/synchronization.md",
+      ".pi/skills/fork-sync/references/release-source.md",
+      ".pi/skills/fork-sync/references/first-release.md",
     ];
     for (const file of resources) expect(existsSync(file), file).toBe(true);
     for (const file of [
       "scripts/upstream-sync.sh",
       ".pi/prompts/upstream-sync.md",
       "docs/upstream",
+      "docs/fork-sync",
       "test/upstream-sync",
     ])
       expect(existsSync(file), file).toBe(false);

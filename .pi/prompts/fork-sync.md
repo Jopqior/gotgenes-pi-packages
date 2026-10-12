@@ -26,10 +26,10 @@ A residual request after a closed match requires a separate operator decision, n
 
 Only with no match, use the file tool to write an English issue body to a temporary file.
 Include the exact line `Upstream target: gotgenes/pi-packages@<full SHA>` and `https://github.com/gotgenes/pi-packages/commit/<full SHA>`.
-Include the [synchronization guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/fork-sync/synchronization-guide.md) in the issue body.
-State that the guide governs synchronization review, validation and finding disposition throughout the ordinary stages.
+Include the [fork-sync skill](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/.pi/skills/fork-sync/SKILL.md) in the issue body.
+Require loading that skill and its synchronization reference before relevant Git operations in every ordinary synchronization stage, including planning startup; it governs review, validation and finding disposition.
 Require root checkout/main landing with a genuine two-parent merge, never a feature-worktree rebase or squash.
-Acceptance criteria: follow the guide's scope through `/plan-issue`, `/tdd-plan` or `/build-plan`, independent review, `/ship` and `/retro` in separate standard stages.
+Acceptance criteria: follow the skill's synchronization scope through `/plan-issue`, `/tdd-plan` or `/build-plan`, independent review, `/ship` and `/retro` in separate standard stages.
 Materially new compatibility choices return to the operator before affected edits; publication remains separately approved for registered fork identities.
 
 Run `ENTRY_MODE=create TARGET="<pinned SHA>" ISSUE_BODY_FILE="<body path>" node scripts/fork-sync/issue.mjs`, passing the previously returned full SHA and temporary file path as quoted environment data rather than interpolated shell source.
@@ -43,5 +43,5 @@ Concurrent independent creators can still race this non-atomic recheck; report t
 Print the URL, state if reused, and `/plan-issue <number>` for the next session (for multiple matches, report them without choosing one).
 End this session; do not automatically invoke planning.
 No conflict analysis, upstream fetch, sync script execution, implementation, push, or release belongs to this entry point.
-The issue, ordinary plan/retro, and Git carry future handoffs; read the [synchronization guide](../../docs/fork-sync/synchronization-guide.md) before integration work.
-Source reconstruction and ordinary version derivation belong to the [release source guide](../../docs/fork-sync/release-source-guide.md); publication authorization remains separate.
+The issue, ordinary plan/retro, and Git carry future handoffs; load the [fork-sync skill](../skills/fork-sync/SKILL.md) and its synchronization reference before subsequent integration work.
+The skill routes source-evidence work and first fork publication to their own required references; publication authorization remains separate.

@@ -16,10 +16,8 @@ This section takes precedence over inherited repository-target, roadmap, and rel
 - Before pushing, verify the remote URL and name the intended remote and branch explicitly.
 - Never import upstream tags into this fork's tag namespace.
   `git fetch --tags`, `git fetch --all --tags`, and a flagless `git fetch upstream` are forbidden; they override `remote.upstream.tagOpt`.
-- Before performing or resuming actual upstream synchronization (including a pinned-target issue), load its constraints.
-  Read the [synchronization guide](docs/fork-sync/synchronization-guide.md) before relevant Git operations, including startup fetch/pull.
-  Its prerequisites take precedence over a template's startup pull; when synchronization context becomes available, load it before subsequent relevant Git operations.
-  Editing synchronization tooling or documentation is not itself integration work.
+- Before planning, performing, resuming, reviewing or shipping actual upstream synchronization (including a pinned-target issue), load `fork-sync` before relevant Git operations, including startup fetch/pull.
+  Its synchronization prerequisites override template startup ordering; editing synchronization tooling or documentation is not itself integration work.
 - Treat inherited upstream issue numbers, roadmap priorities, and release procedures as upstream context, not automatic obligations for this fork.
   Qualify upstream issue references with `gotgenes/pi-packages` or a full URL when adding new documentation so they cannot be mistaken for fork issues.
 - Fork plan/retro files are named `fNNNN-<slug>.md` — `f` plus the four-digit zero-padded fork issue number (e.g. `f0001-spawn-model-selection.md`), never the next free `NNNN` among inherited files.
@@ -180,6 +178,7 @@ Before you do the thing in the left column, load the skill in the right one.
 | build a reproduction, spike, or probe whose result becomes design input                              | `reproduction`           |
 | dispatch a subagent, edit `.pi/agents/*.md`, or read a subagent's report                             | `delegation`             |
 | dispatch a release, publish a package for the first time, add a package, or edit a `files` allowlist | `releasing`              |
+| plan/perform/resume/review/ship upstream sync, or inspect/prepare fork release-source evidence       | `fork-sync`              |
 | `/worktree`, `/sync-worktree`, or a worktree-lane `/ship`                                            | `worktrees`              |
 | run or read `fallow`                                                                                 | `fallow`                 |
 | plan an improvement round or edit a roadmap                                                          | `improvement-discovery`  |

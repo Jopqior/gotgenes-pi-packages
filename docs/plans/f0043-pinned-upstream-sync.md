@@ -39,8 +39,8 @@ A textual merge alone cannot preserve the fork's model-selection behavior or dis
 
 ## Background
 
-The [synchronization guide](../fork-sync/synchronization-guide.md) overrides generic worktree landing, review ranges, validation escalation and co-shipped issue scans.
-The [release source guide](../fork-sync/release-source-guide.md) owns ordinary version derivation and source reconstruction; there is no synchronization recorder or ledger.
+The [synchronization guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/b16c07398824d32132f23d29016e5a5c3d230afc/docs/fork-sync/synchronization-guide.md) overrides generic worktree landing, review ranges, validation escalation and co-shipped issue scans.
+The [release source guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/b16c07398824d32132f23d29016e5a5c3d230afc/docs/fork-sync/release-source-guide.md) owns ordinary version derivation and source reconstruction; there is no synchronization recorder or ledger.
 
 The issue author and authenticated CLI user are both `Jopqior`.
 The issue is open and has `scope:repo`; no open fork PR was found, and the other open fork issue is #26.

@@ -2,7 +2,7 @@
 
 A personal fork of [gotgenes/pi-packages](https://github.com/gotgenes/pi-packages), containing [Pi](https://github.com/earendil-works/pi) extensions with mixed npm identities.
 The maintained subagents core, model selector and worktrees companion use `@jopqior/*`; other packages retain their upstream `@gotgenes/*` identities.
-Retained upstream identities do not authorize fork publication; see each manifest and the [release source guide](docs/fork-sync/release-source-guide.md).
+Retained upstream identities do not authorize fork publication; see each manifest and the [fork-sync skill](.pi/skills/fork-sync/SKILL.md#shared-boundaries).
 Some packages (like pi-permission-system) are designed for broad use; others scratch a personal itch and are shared in case they help others.
 
 ## Packages
@@ -123,10 +123,10 @@ An equivalent command for [Diffview.nvim](https://github.com/sindrets/diffview.n
 ### Upstream sync
 
 From a fresh Pi session at the repo root, invoke the no-argument [fork-sync entry point](.pi/prompts/fork-sync.md) to find or create a fixed-target fork issue, then stop.
-The [synchronization guide](docs/fork-sync/synchronization-guide.md) owns integration constraints and lifecycle exceptions.
-The [release source guide](docs/fork-sync/release-source-guide.md) separates ordinary path-scoped versioning from verified upstream source display.
-Preparation resolves source in temporary repositories before tracked writes; publication and GitHub notes reuse the exact tagged sections offline.
-For an untagged package, follow the [manual first-publication handoff](docs/fork-sync/release-source-guide.md#first-fork-release-handoff) with separate approval of its npm identity and destination.
+The [fork-sync skill](.pi/skills/fork-sync/SKILL.md) routes integration, release-source evidence and first fork publication to task-specific references.
+Load it before synchronization Git operations; it adds constraints to the ordinary lifecycle rather than starting a separate workflow.
+For a fork package without a first tag, use its [first-release handoff](.pi/skills/fork-sync/references/first-release.md) with separate approval of the npm identity and destination.
+An original package's first publication remains in [releasing](.pi/skills/releasing/SKILL.md#a-packages-first-release).
 Core and worktrees retain their separate registered `@jopqior/*` identities; registration and integration never authorize publication.
 
 ### Agentic development workflow

@@ -146,7 +146,7 @@ The package tests cover configuration, provider lifecycle, Git worktree cleanup 
 
 ## Maintainer: first fork publication
 
-Follow the [first fork release handoff](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/fork-sync/release-source-guide.md#first-fork-release-handoff) when bootstrapping a fork identity.
+Follow the [fork-sync skill's first-release handoff](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/.pi/skills/fork-sync/references/first-release.md) when bootstrapping a fork identity.
 The first version is an explicit operator choice, not an inferred upstream version.
 Registration and source review do not authorize publication, tags or GitHub Releases.
 Ordinary preparation refuses an untagged package; there is no first-release generator or application bundle.

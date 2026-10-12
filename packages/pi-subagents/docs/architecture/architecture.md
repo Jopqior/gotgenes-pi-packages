@@ -1278,7 +1278,7 @@ The [historical comparison](../comparison-with-upstream.md) preserves the gotgen
 Start gotgenes synchronization with the repository's no-argument [`/fork-sync` entry point](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/.pi/prompts/fork-sync.md) from the repository root in a fresh Pi session; it only finds or creates a fixed-target issue and stops.
 Compatibility choices and verification belong to that issue's ordinary `/plan-issue` plan, followed by `/tdd-plan` or `/build-plan`, independent review, trunk `/ship`, and `/retro`.
 Integration runs on the root checkout's `main` and preserves a genuine two-parent upstream merge, not the earlier cherry-pick-only policy or a feature-worktree rebase.
-Source reconstruction follows the repository's [release source guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/fork-sync/release-source-guide.md), and publication remains separately approved.
+Source reconstruction follows the repository's [fork-sync skill's release-source reference](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/.pi/skills/fork-sync/references/release-source.md), and publication remains separately approved.
 
 [earendil-works/pi#4207]: https://github.com/earendil-works/pi/issues/4207
 [gotgenes/pi-packages]: https://github.com/gotgenes/pi-packages

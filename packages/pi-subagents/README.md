@@ -21,7 +21,7 @@ Run them in foreground or background, steer them mid-run, resume completed sessi
 
 For each new fork release, the shipped [CHANGELOG](./CHANGELOG.md) records the verified direct upstream package, highest contained stable release, and fixed links to both the stable release commit and actual incorporated commit.
 Scoped upstream changes after that stable release are labeled as unreleased changes to this package.
-The same exact tagged section supplies the [fork's GitHub Release notes](https://github.com/Jopqior/gotgenes-pi-packages/releases); see the [release source guide](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/docs/fork-sync/release-source-guide.md) for source reconstruction and offline tagged validation.
+The same exact tagged section supplies the [fork's GitHub Release notes](https://github.com/Jopqior/gotgenes-pi-packages/releases); see the [fork-sync skill's release-source reference](https://github.com/Jopqior/gotgenes-pi-packages/blob/main/.pi/skills/fork-sync/references/release-source.md) for source reconstruction and offline tagged validation.
 Source provenance does not choose a release level: fork versions use ordinary path-scoped Conventional Commits.
 These claims describe source provenance, not behavioral equivalence; earlier npm artifacts, tagged CHANGELOGs and GitHub Releases remain unchanged.
 

@@ -49,9 +49,8 @@ Successful workflow execution plus verified release commit, tags and GitHub Rele
 Query npm only to investigate a publication failure or when the operator requests it; successful releases require no registry polling or pending-visibility handoff.
 
 Versions and changelogs come from [git-cliff](https://git-cliff.org) reading local git, with no network in the derivation.
-Every package, including core and worktrees, uses the same ordinary path-scoped version policy with the latest-tag lower bound.
-Preparation independently resolves source for forks in temporary repositories before tracked writes and commits one decorated section.
-Downstream publication validates its tagged source claims offline; GitHub notes reuse the exact tagged section bytes, not a second render.
+Every package uses the same ordinary path-scoped version policy with the latest-tag lower bound.
+For fork source reconstruction and tagged evidence, load the fork-source branch below.
 See `docs/decisions/0002-git-cliff-release-automation.md` for why, and for the accepted residual (there is no release-PR review gate).
 
 ## What cuts a release
@@ -73,18 +72,10 @@ Tarball scope and release scope are different lists — check the one you mean.
 Commits that only touch excluded paths do not trigger releases, and neither do files outside the package tree.
 A package's own `CHANGELOG.md` is excluded too, so a release commit never re-enters the next changelog.
 
-## Fork source notes
+## Fork source evidence
 
-Core and worktrees each declare their own direct upstream identity in the schema-3 release registry.
-Source resolution selects incorporated ancestry and the highest contained stable upstream release independently of the predicted version.
-The managed block links both the stable release commit and actual incorporated commit; scoped unreleased package changes are labeled, not rejected.
-An original package has no source block and makes no upstream query during preparation.
-
-The complete selected set passes identity, source and heading checks before tracked writes; later-package failure leaves every selected package untouched.
-Downstream jobs validate tag-at-HEAD, manifest identity/version, clean package paths and critical byte equality, then validate new source claims offline without upstream reselection.
-Existing Releases are never overwritten; a conflicting managed block blocks all new creations.
-Older sections and published artifacts remain immutable; no ledger, generated table, historical backfill or candidate generator remains.
-Read the [release source guide](../../../docs/fork-sync/release-source-guide.md) for reconstruction, failure timing and the manual first-publication handoff.
+Before dispatching a release containing registered forks or inspecting/preparing their source evidence, read [fork-sync](../fork-sync/SKILL.md) and its release-source reference in full.
+That branch owns source reconstruction, display semantics, preparation failure timing and offline tagged-artifact validation.
 Source checks, registration and integration never authorize release dispatch or publication.
 
 ## A package's first release
@@ -95,10 +86,9 @@ Before first publication, obtain explicit separate operator approval of its npm 
 Registration is a required release gate, not publication authorization.
 The generic `next-version.sh` refuses an untagged package rather than inventing its first version, and npm Trusted Publishing cannot create a package that does not yet exist.
 For an approved original package, the operator publishes the first version manually with `pnpm --filter <approved-npm-name> publish --access public --no-git-checks --registry=https://registry.npmjs.org/` (without `--provenance`), tags it `<pkg>-v<version>`, then configures the npmjs.org Trusted Publisher for this fork's `release.yml` workflow.
-For a new fork, read the [manual first-publication handoff](../../../docs/fork-sync/release-source-guide.md#first-fork-release-handoff), inspect the exported resolver/renderer output and review the manually prepared tagged section and package contents before publication.
-No first-version inference or candidate/application bundle is provided.
+For a new fork, load [fork-sync](../fork-sync/SKILL.md) and its release-source and first-release references in full; follow that handoff's source inspection and exact tagged-artifact preflight before publication.
 Never dispatch ordinary preparation for an untagged first release.
-First npm publication is manual without `--provenance`, after exact tagged-artifact preflight and explicit separate npm scope/destination approval; source inspection and registration never grant that approval.
+First npm publication is manual without `--provenance`; source inspection and registration never grant publication approval.
 Configure Trusted Publishing only after that approved first publication, then use ordinary guarded dispatch for later releases.
 An OTP-required publish (`ERR_PNPM_OTP_NON_INTERACTIVE`) needs the operator's interactive terminal.
 
