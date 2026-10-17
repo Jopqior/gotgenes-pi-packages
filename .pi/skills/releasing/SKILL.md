@@ -47,6 +47,8 @@ After the approved release run succeeds, resolve each actually released package'
 For each exact tag, read `gh release view <tag> --repo Jopqior/gotgenes-pi-packages --json tagName,url`, checking the returned tag against the expected one.
 Successful workflow execution plus verified release commit, tags and GitHub Releases completes the release; missing or mismatched evidence requires investigation, not automatic republication.
 Query npm only to investigate a publication failure or when the operator requests it; successful releases require no registry polling or pending-visibility handoff.
+A just-published version can 404 on the npm registry for a few minutes, and `pnpm view` can serve a stale packument meanwhile.
+Use the `publish` job's `Published package <name>@<version>` log line as publication evidence rather than polling the registry.
 
 Versions and changelogs come from [git-cliff](https://git-cliff.org) reading local git, with no network in the derivation.
 Every package uses the same ordinary path-scoped version policy with the latest-tag lower bound.

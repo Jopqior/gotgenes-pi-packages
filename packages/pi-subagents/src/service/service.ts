@@ -59,7 +59,11 @@ export interface SubagentRecord {
   type: string;
   description: string;
   status: SubagentStatus;
-  /** Scheduling and announcement mode, resolved once at the manager choke point. */
+  /**
+   * Whether the agent's current run is in the background: the run in flight, or
+   * the last one to end, and the spawn's mode before the first run starts. A
+   * resume chooses its own mode, so this can change after one.
+   */
   isBackground: boolean;
   result?: string;
   /** The question the agent ended its turn with, when it declared one. */
@@ -98,7 +102,8 @@ export interface ResumeOptions {
   /**
    * Cancels the resumed turn loop. It is wired through the record's own lever,
    * so it ends the resume exactly as `abort(id)` does — the record reads
-   * `stopped`, and either cancel reaches the same run.
+   * `stopped`, and either cancel reaches the same run. A signal that has already
+   * fired stops the resume before its first turn.
    */
   signal?: AbortSignal;
 }

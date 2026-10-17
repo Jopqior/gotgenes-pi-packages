@@ -449,10 +449,10 @@ describe("nested human selection and lifecycle isolation", () => {
       expect(factory).toHaveBeenCalledTimes(1);
       const session = manager.getRecord(id)?.subagentSession;
 
-      await manager.resume(id, "continue");
+      await manager.resume(id, "continue", { background: true });
       expect(provider.select).toHaveBeenCalledTimes(1);
       expect(factory).toHaveBeenCalledTimes(1);
-      expect(stub.resumeTurnLoop).toHaveBeenCalledTimes(1);
+      expect(stub.runTurnLoop).toHaveBeenCalledTimes(2);
       expect(manager.getRecord(id)?.subagentSession).toBe(session);
     });
   });

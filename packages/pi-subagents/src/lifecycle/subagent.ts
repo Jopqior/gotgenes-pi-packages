@@ -1,8 +1,9 @@
 /**
  * subagent.ts — Subagent class: identity, lifecycle status, and per-subagent behavior.
  *
- * Status/stats are delegated to the SubagentState value object; listener
- * lifecycle to RunListeners; workspace prepare/dispose to WorkspaceBracket.
+ * Status/stats are delegated to the SubagentState value object; each run's abort
+ * lever and listener handles to a SubagentRun; workspace prepare/dispose to
+ * WorkspaceBracket.
  * Behavior (abort, steer buffering) lives here rather than on SubagentManager.
  */
 
@@ -13,11 +14,11 @@ import type { CreateSubagentSessionParams } from "#src/lifecycle/create-subagent
 import type { InitialSelection, SpawnSelectionOutcome } from "#src/lifecycle/initial-spawn-selection";
 import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import { subscribeSubagentObserver } from "#src/lifecycle/record-observer";
-import { RunListeners } from "#src/lifecycle/run-listeners";
 import { isSelectionCancellation } from "#src/lifecycle/spawn-selection";
+import { type RunKind, SubagentRun } from "#src/lifecycle/subagent-run";
 import type { SubagentSession, TurnLoopResult } from "#src/lifecycle/subagent-session";
 import { type CarrierClaim, type SettledOutcome, SubagentState, type SubagentStatus } from "#src/lifecycle/subagent-state";
-import { type TurnBudget, wrappedUpAtTurnLimit } from "#src/lifecycle/turn-limits";
+import type { TurnBudget } from "#src/lifecycle/turn-limits";
 import type { LifetimeUsage } from "#src/lifecycle/usage";
 import type { WorkspaceProvider } from "#src/lifecycle/workspace";
 import { WorkspaceBracket } from "#src/lifecycle/workspace-bracket";
@@ -27,20 +28,17 @@ import type { CompactionInfo, ParentSessionInfo, SessionMessage, SubagentType, T
 
 /** Per-subagent lifecycle observer — created by SubagentManager for each spawn. */
 export interface SubagentLifecycleObserver {
-	/** Fires when the subagent transitions to running (inside run(), after markRunning). */
-	onStarted?(agent: Subagent): void;
+	/**
+	 * Fires once a run is under way: the initial run after it transitions to
+	 * running, a resume after the record is rewound, so a subscriber reading it
+	 * sees the run that just started rather than the outcome of the one it
+	 * replaced.
+	 */
+	onRunStarted?(agent: Subagent, kind: RunKind): void;
 	/** Fires once the session is created — the subagent's subagentSession is now available. */
 	onSessionCreated?(agent: Subagent): void;
-	/** Fires once when the run completes or fails (for concurrency drain). */
-	onRunFinished?(agent: Subagent): void;
-	/**
-	 * Fires once a resumed run is under way — after the record is rewound, so a
-	 * subscriber reading it sees the run that just started rather than the
-	 * outcome of the one it replaced.
-	 */
-	onResumeStarted?(agent: Subagent): void;
-	/** Fires once when a resumed run reaches a terminal state. */
-	onResumeFinished?(agent: Subagent): void;
+	/** Fires once when a run reaches a terminal state: it completed, failed, or was stopped. */
+	onRunFinished?(agent: Subagent, kind: RunKind): void;
 	/** Fires when the running agent sends its parent a mid-run message. */
 	onUpdateSent?(agent: Subagent, message: string): void;
 	/**
@@ -119,12 +117,23 @@ export interface SubagentExecution {
 	signal?: AbortSignal;
 }
 
+/** What one resume of a subagent is started with. */
+export interface ResumeRunOptions {
+	/**
+	 * Whether the resume runs in the background. The front door that starts it
+	 * decides, so a resume need not run in the mode the agent was spawned in.
+	 */
+	background: boolean;
+	/** Cancels the resumed run through its own lever, ending it like `abort()` does. */
+	signal?: AbortSignal;
+}
+
 export interface SubagentInit {
 	// Identity
 	id: string;
 	type: SubagentType;
 	description: string;
-	/** The mode SubagentManager resolved for this spawn; drives scheduling and announcement. */
+	/** The mode SubagentManager resolved for this spawn: the initial run's, and whether it queues. */
 	isBackground: boolean;
 
 	/** Execution machinery — always supplied; construct-complete, no test fallbacks. */
@@ -141,12 +150,8 @@ export class Subagent {
 	readonly id: string;
 	readonly type: SubagentType;
 	readonly description: string;
-	/**
-	 * Whether this agent runs in the background. Resolved once at the manager
-	 * choke point, so a consumer asks the record rather than re-deriving it from
-	 * a per-call display snapshot only the tool door ever built (#724).
-	 */
-	readonly isBackground: boolean;
+	/** The spawn's resolved mode, which the initial run takes. */
+	private readonly spawnedInBackground: boolean;
 
 	// Lifecycle status and metrics — owned by a private value object; getters and
 	// mutation methods below delegate to it one line.
@@ -186,16 +191,27 @@ export class Subagent {
 	isRunning(): boolean { return this.state.isRunning(); }
 	canBeSteered(): boolean { return this.state.canBeSteered(); }
 
-	private _abortController: AbortController;
-	/** Cancels whichever run is current. */
-	get abortController(): AbortController { return this._abortController; }
+	/** The run in flight, or the last one to end; undefined until the first run starts. */
+	private currentRun?: SubagentRun;
+
+	/**
+	 * Whether this agent's current run is in the background: the run in flight,
+	 * or the last one to end, and the spawn's mode before the first run starts.
+	 *
+	 * Mode is a fact about a run, not the agent, so a resume can change it. The
+	 * record answers rather than a consumer re-deriving it from a per-call
+	 * display snapshot only the tool door ever built (#724).
+	 */
+	get isBackground(): boolean {
+		return this.currentRun?.inBackground ?? this.spawnedInBackground;
+	}
+
 	private _promise?: Promise<void>;
 	/** Handle on the agent's current run — the initial run, or the live resume that replaced it. */
 	get promise(): Promise<void> | undefined { return this._promise; }
 
 	private readonly execution: SubagentExecution;
 	private readonly selection: InitialSelection;
-	private readonly listeners = new RunListeners();
 	private readonly workspaceBracket: WorkspaceBracket;
 
 	subagentSession?: SubagentSession;
@@ -336,25 +352,24 @@ export class Subagent {
 		this.id = init.id;
 		this.type = init.type;
 		this.description = init.description;
-		this.isBackground = init.isBackground;
+		this.spawnedInBackground = init.isBackground;
 
 		// Lifecycle status and metrics — fresh queued state unless one is supplied
 		this.state = init.state ?? new SubagentState();
 		this.selection = init.selection;
 
-		// Abort controller — always created, never injected
-		this._abortController = new AbortController();
-
 		// Initial terminal notifications settle selection after the original observer.
-		// Keep the caller's execution and observer untouched.
+		// Keep the caller's execution and observer untouched; resumes never settle selection.
 		const originalObserver = init.execution.observer;
 		this.execution = {
 			...init.execution,
 			observer: {
 				...originalObserver,
-				onRunFinished: (agent) => {
-					originalObserver?.onRunFinished?.(agent);
-					this.selection.finished({ stopped: agent.status === "stopped", error: agent.error });
+				onRunFinished: (agent, kind) => {
+					originalObserver?.onRunFinished?.(agent, kind);
+					if (kind === "initial") {
+						this.selection.finished({ stopped: agent.status === "stopped", error: agent.error });
+					}
 				},
 			},
 		};
@@ -374,40 +389,51 @@ export class Subagent {
 	 * captured internally).
 	 */
 	async run(): Promise<void> {
-		this._abortController = new AbortController();
+		const run = new SubagentRun("initial", this.spawnedInBackground, this.execution.signal, () => this.abort());
+		this.currentRun = run;
 		this.markRunning(Date.now());
-		this.execution.observer?.onStarted?.(this);
-		this.listeners.wireSignal(this.execution.signal, () => this.abort());
+		this.execution.observer?.onRunStarted?.(this, run.kind);
+		// Cancelled before it started: end here, before the workspace and the child
+		// session cost anything.
+		if (run.aborted) {
+			this.endBeforeStart(run);
+			return;
+		}
 
 		const runConfig = this.execution.getRunConfig?.();
 		try {
-			this.subagentSession = await this.prepareSession(runConfig);
+			this.subagentSession = await this.prepareSession(run, runConfig);
 		} catch (err) {
-			// A cancelled selection stops the record (the user declined, the run
-			// aborted, or the lease closed); every other prepare failure is an error.
-			// Either way the terminal funnel owns the cleanup.
-			if (isSelectionCancellation(err)) this.stopRunForCancelledSelection();
-			else this.failRun(err);
+			// Selection cancellation is a stop; every other preparation failure is an error.
+			if (isSelectionCancellation(err)) this.stopRunForCancelledSelection(run);
+			else this.fail(run, err);
 			return;
 		}
 
 		this.flushPendingSteers();
-		this.listeners.attachObserver(subscribeSubagentObserver(this.subagentSession, this.state, {
+		this.execution.observer?.onSessionCreated?.(this);
+		await this.runOnSession(run, this.subagentSession, this.execution.prompt);
+	}
+
+	/**
+	 * The body every run shares once its session exists: subscribe the record
+	 * observer, drive the session's turn loop under the run's lever, then end
+	 * the run through its terminal transition. Always resolves.
+	 *
+	 * Nothing here awaits before the turn loop starts, so a resume reaches its
+	 * loop in the same turn as resume().
+	 */
+	private async runOnSession(run: SubagentRun, session: SubagentSession, prompt: string): Promise<void> {
+		run.attachObserver(subscribeSubagentObserver(session, this.state, {
 			onCompact: (info) => this.execution.observer?.onCompacted?.(this, info),
 		}));
-		this.execution.observer?.onSessionCreated?.(this);
-
 		try {
-			const result = await this.subagentSession.runTurnLoop(this.execution.prompt, {
-				maxTurns: this.execution.maxTurns,
-				defaultMaxTurns: runConfig?.defaultMaxTurns,
-				wrapUpTurns: runConfig?.wrapUpTurns,
-				signal: this.abortController.signal,
+			this.complete(run, await session.runTurnLoop(prompt, {
+				signal: run.signal,
 				onTurnBudget: (budget) => { this.state.setTurnBudget(budget); },
-			});
-			this.completeRun(result);
+			}));
 		} catch (err) {
-			this.failRun(err);
+			this.fail(run, err);
 		}
 	}
 
@@ -422,8 +448,8 @@ export class Subagent {
 	 * The conditional awaits keep the no-provider/no-workspace path synchronous:
 	 * the factory is called in the same turn as spawn().
 	 */
-	private async prepareSession(runConfig: RunConfig | undefined): Promise<SubagentSession> {
-		const attempt = this.selection.begin(this.abortController.signal);
+	private async prepareSession(run: SubagentRun, runConfig: RunConfig | undefined): Promise<SubagentSession> {
+		const attempt = this.selection.begin(run.signal);
 		const permit = attempt ? await attempt : undefined;
 		let cwd: string | undefined;
 		if (this.workspaceBracket.hasProvider()) {
@@ -448,6 +474,11 @@ export class Subagent {
 			notifyParent: this.canSendUpdates(runConfig)
 				? (message) => { this.announceUpdate(message); }
 				: undefined,
+			turnLimits: {
+				maxTurns: this.execution.maxTurns,
+				defaultMaxTurns: runConfig?.defaultMaxTurns,
+				wrapUpTurns: runConfig?.wrapUpTurns,
+			},
 		});
 	}
 
@@ -581,13 +612,13 @@ export class Subagent {
 	 * published as the `promise` getter, so waiters track the resume rather than
 	 * the settled handle of the original run.
 	 *
-	 * A resume runs under the record's own controller, like the initial run: the
-	 * controller is reminted per run, so a record aborted on its original run does
-	 * not resume under a spent one. A caller's `signal` is wired to abort() rather
-	 * than forwarded to the turn loop, so both levers stop the same run and both
-	 * leave the record reading `stopped`.
+	 * A resume is a run of its own, like the initial run: it is born with its own
+	 * lever, so a record aborted on its original run does not resume under a spent
+	 * one. A caller's `signal` is wired to abort() rather than forwarded to the
+	 * turn loop, so both levers stop the same run and both leave the record
+	 * reading `stopped`.
 	 */
-	resume(prompt: string, signal?: AbortSignal): Promise<void> {
+	resume(prompt: string, options: ResumeRunOptions): Promise<void> {
 		const subagentSession = this.subagentSession;
 		if (!subagentSession) {
 			// Rejection, not a throw: this method is not async, and a synchronous
@@ -595,55 +626,26 @@ export class Subagent {
 			return Promise.reject(new Error("Subagent not configured for resume — missing session"));
 		}
 
-		this._promise = this.runResume(subagentSession, prompt, signal);
+		this._promise = this.continueSession(subagentSession, prompt, options);
 		return this._promise;
 	}
 
-	/** The resume body. Always resolves — errors terminate through failResume(). */
-	private async runResume(subagentSession: SubagentSession, prompt: string, signal?: AbortSignal): Promise<void> {
-		this._abortController = new AbortController();
-		// After resetForResume, which releases the previous run's listener handles.
+	/**
+	 * The resume's own prefix, then the shared run body. Always resolves.
+	 *
+	 * Synchronous up to the turn loop, so the record reads running, and the
+	 * started notification has fired, by the time resume() returns.
+	 */
+	private async continueSession(session: SubagentSession, prompt: string, options: ResumeRunOptions): Promise<void> {
+		// After resetForResume, which releases the previous run's handles.
 		this.resetForResume(Date.now());
-		this.listeners.wireSignal(signal, () => this.abort());
-		this.execution.observer?.onResumeStarted?.(this);
-		this.listeners.attachObserver(subscribeSubagentObserver(subagentSession, this.state, {
-			onCompact: (info) => this.execution.observer?.onCompacted?.(this, info),
-		}));
-
-		try {
-			this.completeResume(await subagentSession.resumeTurnLoop(prompt, {
-				signal: this.abortController.signal,
-				onTurnBudget: (budget) => { this.state.setTurnBudget(budget); },
-			}));
-		} catch (err) {
-			this.failResume(err);
-		}
-	}
-
-	/** Terminate a resume as completed: mark, dispose or hold the workspace, release listeners, notify observer. */
-	completeResume(result: TurnLoopResult): void {
-		// The harness ending the resume at its turn limit ends the run for good,
-		// as it does for an initial run.
-		const exhausted = result.turnBudget.phase === "exhausted";
-		const finalStatus: SubagentStatus = exhausted ? "aborted" : "completed";
-		// A child answering one question may need to ask another, which holds the
-		// workspace for the next resume the same way the original run did.
-		const finalResult = !exhausted && this.pendingQuestion !== undefined
-			? result.responseText
-			: result.responseText + this.workspaceBracket.dispose({ status: finalStatus, description: this.description });
-		if (exhausted) this.markAborted(finalResult);
-		else this.markCompleted(finalResult);
-		this.listeners.release();
-		this.execution.observer?.onResumeFinished?.(this);
-	}
-
-	/** Terminate a resume as errored: mark, release listeners, best-effort workspace dispose, notify observer. */
-	failResume(err: unknown): void {
-		this.markError(err);
-		this.clearPendingQuestion();
-		this.listeners.release();
-		this.disposeWorkspaceQuietly("error");
-		this.execution.observer?.onResumeFinished?.(this);
+		const run = new SubagentRun("resume", options.background, options.signal, () => this.abort());
+		this.currentRun = run;
+		// Cancelled before it started: the turn loop takes no turn on a fired lever,
+		// so the resume ends like one aborted mid-run.
+		if (run.aborted) this.abort();
+		this.execution.observer?.onRunStarted?.(this, run.kind);
+		await this.runOnSession(run, session, prompt);
 	}
 
 	/** Transition to running state. Sets status and startedAt. */
@@ -717,20 +719,21 @@ export class Subagent {
 	 */
 	stopQueued(): void {
 		this.state.stopQueued();
-		this.execution.observer?.onRunFinished?.(this);
+		// A queued record has never run, so the run it never started is its initial one.
+		this.execution.observer?.onRunFinished?.(this, "initial");
 	}
 
 	/**
-	 * Abort a running agent: fire the current run's AbortController and transition
-	 * to stopped. The controller is reminted at the start of each run and resume,
-	 * so the lever always reaches whichever run is in flight.
+	 * Abort a running agent: pull the current run's lever and transition to
+	 * stopped. Each run and resume is born with its own lever, so it always
+	 * reaches whichever run is in flight.
 	 * Returns false if the agent is not running.
 	 * A still-queued agent is stopped via stopQueued(); its scheduled thunk
 	 * then no-ops on the queued-status guard.
 	 */
 	abort(): boolean {
 		if (!this.isRunning()) return false;
-		this.abortController.abort();
+		this.currentRun?.abort();
 		this.markStopped();
 		return true;
 	}
@@ -754,29 +757,27 @@ export class Subagent {
 		this._pendingSteers = [];
 	}
 
-	/** Reset for resume: running status, new startedAt, clear completedAt/result/error/consumedAt/listeners. */
+	/** Reset for resume: running status, new startedAt, clear completedAt/result/error/consumedAt; release the previous run. */
 	resetForResume(startedAt: number): void {
 		this.state.resetForResume(startedAt);
-		this.listeners.release();
+		this.currentRun?.release();
 	}
 
-	/** Complete a run: release listeners, dispose the workspace, status transition, notify observer. */
-	completeRun(result: TurnLoopResult): void {
-		this.listeners.release();
+	/** Complete a run: release its handles, dispose or hold the workspace, status transition, notify observer. */
+	private complete(run: SubagentRun, result: TurnLoopResult): void {
+		run.release();
 
 		// The harness ending the run at its turn limit is the one way a run that
 		// returned is not complete.
 		const exhausted = result.turnBudget.phase === "exhausted";
 		const finalStatus: SubagentStatus = exhausted ? "aborted" : "completed";
 		// A completed child that declared a question is inviting a resume, so its
-		// workspace stays live for the resume to re-enter. Every other outcome ends
-		// the run for good and tears it down here, including a run that wrapped up
-		// at its turn limit. The question was recorded by ask_parent during the
-		// run, so it is already on the record here.
-		const holdForResume =
-			finalStatus === "completed" &&
-			this.pendingQuestion !== undefined &&
-			!wrappedUpAtTurnLimit({ status: finalStatus, turnBudget: result.turnBudget });
+		// workspace stays live for the resume to re-enter, including a run that
+		// wrapped up at its turn limit: the resume gets a fresh budget to act on the
+		// answer. Every other outcome ends the run for good and tears it down here.
+		// The question was recorded by ask_parent during the run, so it is already
+		// on the record here.
+		const holdForResume = finalStatus === "completed" && this.pendingQuestion !== undefined;
 		const finalResult = holdForResume
 			? result.responseText
 			: result.responseText +
@@ -785,7 +786,7 @@ export class Subagent {
 		if (exhausted) this.markAborted(finalResult);
 		else this.markCompleted(finalResult);
 
-		this.execution.observer?.onRunFinished?.(this);
+		this.execution.observer?.onRunFinished?.(this, run.kind);
 	}
 
 	/**
@@ -819,13 +820,24 @@ export class Subagent {
 		await disposeQuietly(session, "child session release");
 	}
 
-	/** Fail a run: mark error, release listeners, best-effort workspace dispose, notify observer. */
-	failRun(err: unknown): void {
+	/**
+	 * End a run whose caller cancelled it before it started: stopped, with no
+	 * workspace prepared and no session created, then notify like every other
+	 * terminal transition.
+	 */
+	private endBeforeStart(run: SubagentRun): void {
+		this.abort();
+		run.release();
+		this.execution.observer?.onRunFinished?.(this, run.kind);
+	}
+
+	/** Fail a run: mark error, release its handles, best-effort workspace dispose, notify observer. */
+	private fail(run: SubagentRun, err: unknown): void {
 		this.markError(err);
 		this.clearPendingQuestion();
-		this.listeners.release();
+		run.release();
 		this.disposeWorkspaceQuietly("error");
-		this.execution.observer?.onRunFinished?.(this);
+		this.execution.observer?.onRunFinished?.(this, run.kind);
 	}
 
 	/**
@@ -835,12 +847,12 @@ export class Subagent {
 	 * cancellation landed after preparation) is torn down, and the terminal
 	 * observer fires exactly once, like every other funnel.
 	 */
-	private stopRunForCancelledSelection(): void {
-		this.abortController.abort();
+	private stopRunForCancelledSelection(run: SubagentRun): void {
+		run.abort();
 		this.markStopped();
-		this.listeners.release();
+		run.release();
 		this.disposeWorkspaceQuietly("stopped");
-		this.execution.observer?.onRunFinished?.(this);
+		this.execution.observer?.onRunFinished?.(this, run.kind);
 	}
 
 	/**

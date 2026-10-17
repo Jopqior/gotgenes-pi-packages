@@ -121,9 +121,10 @@ describe("GetResultTool — carrier claim", () => {
 
 	it("leaves a claimed resume's claim in place when the wait wakes after the resume started", async () => {
 		const sessionStub = createSubagentSessionStub();
-		sessionStub.runTurnLoop.mockResolvedValue(turnLoopResult({ responseText: "first" }));
 		const resumed = Promise.withResolvers<TurnLoopResult>();
-		sessionStub.resumeTurnLoop.mockReturnValue(resumed.promise);
+		sessionStub.runTurnLoop
+			.mockResolvedValueOnce(turnLoopResult({ responseText: "first" }))
+			.mockReturnValueOnce(resumed.promise);
 		const record = createRunnableTestSubagent({
 			status: "running",
 			completedAt: undefined,
@@ -132,9 +133,10 @@ describe("GetResultTool — carrier claim", () => {
 				// A consumer that resumes the moment the run settles, before the
 				// waiter's continuation runs, as a subagents:completed handler can.
 				observer: {
-					onRunFinished: (agent) => {
+					onRunFinished: (agent, kind) => {
+						if (kind !== "initial") return;
 						agent.claim();
-						void agent.resume("continue");
+						void agent.resume("continue", { background: true });
 					},
 				},
 			}),
@@ -167,12 +169,13 @@ describe("GetResultTool — a wait a resume superseded", () => {
 	function supersededAgent() {
 		const sessionStub = createSubagentSessionStub();
 		let ask: ((question: string) => void) | undefined;
-		sessionStub.runTurnLoop.mockImplementation(() => {
-			ask?.("Which config?");
-			return Promise.resolve(turnLoopResult({ responseText: "first result" }));
-		});
 		const resumed = Promise.withResolvers<TurnLoopResult>();
-		sessionStub.resumeTurnLoop.mockReturnValue(resumed.promise);
+		sessionStub.runTurnLoop
+			.mockImplementationOnce(() => {
+				ask?.("Which config?");
+				return Promise.resolve(turnLoopResult({ responseText: "first result" }));
+			})
+			.mockReturnValueOnce(resumed.promise);
 		const record = createRunnableTestSubagent({
 			status: "running",
 			completedAt: undefined,
@@ -182,9 +185,10 @@ describe("GetResultTool — a wait a resume superseded", () => {
 					return toSubagentSession(sessionStub);
 				},
 				observer: {
-					onRunFinished: (agent) => {
+					onRunFinished: (agent, kind) => {
+						if (kind !== "initial") return;
 						agent.claim();
-						void agent.resume("The project one.");
+						void agent.resume("The project one.", { background: true });
 					},
 				},
 			}),

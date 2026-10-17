@@ -62,7 +62,6 @@ export function createToolDeps(overrides: Partial<AgentToolFixture> = {}): Agent
 					Promise.resolve({ kind: "not-required" }),
 			),
 			spawnAndWait: vi.fn().mockResolvedValue(createTestSubagent()),
-			resume: vi.fn().mockResolvedValue({ kind: "resumed", record: createTestSubagent() }),
 			startResume: vi.fn().mockReturnValue({ kind: "started", record: createTestSubagent() }),
 			getRecord: vi.fn().mockReturnValue(createTestSubagent()),
 		},
@@ -75,32 +74,12 @@ export function createToolDeps(overrides: Partial<AgentToolFixture> = {}): Agent
 }
 
 /**
- * Point the fixture's `manager.resume` at a record built from `overrides`, and
- * return that record so the test can assert on it.
- *
- * Owns the mock's result shape in one place: a test says which record comes
- * back, not how the manager reports it.
- */
-export function mockResumeRecord(
-	deps: AgentToolFixture,
-	overrides: TestSubagentOptions = {},
-): Subagent {
-	const record = createTestSubagent(overrides);
-	deps.manager.resume = vi.fn().mockResolvedValue({ kind: "resumed", record });
-	return record;
-}
-
-/**
- * Point the fixture's `manager.resume` at a refusal, so a door test states the
- * reason it is wording rather than assembling a record that produces it.
- */
-export function mockResumeRefusal(deps: AgentToolFixture, reason: ResumeRefusalReason): void {
-	deps.manager.resume = vi.fn().mockResolvedValue({ kind: "refused", reason });
-}
-
-/**
  * Point the fixture's `manager.startResume` at a record built from `overrides`,
  * and return that record so the test can assert on it.
+ *
+ * Owns the mock's result shape in one place: a test says which record comes
+ * back, not how the manager reports it. Both resume doors start through
+ * `startResume`, so one helper serves either.
  */
 export function mockResumeStart(
 	deps: AgentToolFixture,
@@ -111,8 +90,11 @@ export function mockResumeStart(
 	return record;
 }
 
-/** Point the fixture's `manager.startResume` at a refusal. */
-export function mockResumeStartRefusal(deps: AgentToolFixture, reason: ResumeRefusalReason): void {
+/**
+ * Point the fixture's `manager.startResume` at a refusal, so a door test states
+ * the reason it is wording rather than assembling a record that produces it.
+ */
+export function mockResumeRefusal(deps: AgentToolFixture, reason: ResumeRefusalReason): void {
 	deps.manager.startResume = vi.fn().mockReturnValue({ kind: "refused", reason });
 }
 

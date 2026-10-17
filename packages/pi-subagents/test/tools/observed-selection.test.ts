@@ -160,11 +160,13 @@ describe("real-record background resume", () => {
     const budgetReporters: Array<((budget: TurnBudget) => void) | undefined> = [];
     const session = createMockSession({ model: live, thinkingLevel: "max" });
     const stub = createSubagentSessionStub(session);
-    stub.resumeTurnLoop.mockImplementation((_prompt: string, options: { onTurnBudget?: (budget: TurnBudget) => void }) => {
-      budgetReporters.push(options.onTurnBudget);
-      resumeStarted.resolve(undefined);
-      return resumeGate.promise;
-    });
+    stub.runTurnLoop
+      .mockResolvedValueOnce(turnLoopResult({ responseText: "done" }))
+      .mockImplementation((_prompt: string, options: { onTurnBudget?: (budget: TurnBudget) => void }) => {
+        budgetReporters.push(options.onTurnBudget);
+        resumeStarted.resolve(undefined);
+        return resumeGate.promise;
+      });
     const scope = new SpawnSelectionScope();
     const select = vi.fn();
     const factory = vi.fn(async () => toSubagentSession(stub));

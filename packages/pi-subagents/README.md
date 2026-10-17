@@ -85,7 +85,7 @@ Without a provider, it returns immediately, including when queued.
 
 ## UI
 
-The extension renders a persistent widget above the editor showing active background agents (foreground runs are rendered inline by the `subagent` tool's progress stream):
+The extension renders a persistent widget above the editor showing the agents whose current run is in the background (foreground runs, resumes included, are rendered inline by the `subagent` tool's progress stream):
 
 ![The agents widget: four running Explore agents, each with its model, turn count, tool uses, tokens and context use, and current activity, above a line reading 2 queued](https://raw.githubusercontent.com/Jopqior/gotgenes-pi-packages/main/packages/pi-subagents/docs/assets/widget.png)
 
@@ -158,6 +158,7 @@ An agent file can withhold one with [`locked`](./docs/configuration.md#locking-f
 
 A call with `resume` and `run_in_background: true` resumes the agent without waiting: it returns the agent ID at once, and you are notified when the resumed run finishes.
 Only the call's own flag does this; an agent file's `run_in_background` default does not apply to a resume.
+A background resume shows in the widget regardless of the mode the agent was spawned in, and a foreground resume streams its progress inline.
 
 ### `get_subagent_result`
 
@@ -443,7 +444,7 @@ Resume does not call the provider.
 Both return `SubagentRecord`, a by-value snapshot: nothing in it changes after you receive it, and writing to it cannot reach the agent.
 Poll again for fresh data.
 
-The snapshot carries identity (`id`, `type`, `description`), lifecycle status (`status`, `startedAt`, `completedAt`, `result`, `error`, `pendingQuestion`), the resolved spawn fact `isBackground`, the current run's `turnBudget`, cumulative metrics (`toolUses`, `compactionCount`, `lifetimeUsage`), and `outputFile` — the path to the agent's session JSONL, which you can read with Pi's own `parseSessionEntries`.
+The snapshot carries identity (`id`, `type`, `description`), lifecycle status (`status`, `startedAt`, `completedAt`, `result`, `error`, `pendingQuestion`), `isBackground` (whether the current run is in the background: the spawn's mode until the first run starts, and each resume's own afterwards), the current run's `turnBudget`, cumulative metrics (`toolUses`, `compactionCount`, `lifetimeUsage`), and `outputFile` — the path to the agent's session JSONL, which you can read with Pi's own `parseSessionEntries`.
 
 It also carries `resumeRefusal`: absent when `resume` would start a run, otherwise the reason it would refuse with (the [`resume` contract](#resume-contract) lists them).
 Render a Resume affordance from it without calling `resume` first.
@@ -459,6 +460,7 @@ A new field is therefore a minor release; use a cast or a `Partial<>` for a test
 
 `resume(id, prompt, options?)` continues a settled agent's session, and is the one service call that waits: it resolves when the resumed run reaches a terminal state, carrying the terminal snapshot.
 A caller that does not need the outcome can ignore the promise.
+The resumed run is in the background, as a service spawn is by default: it shows in the widget, and the record's `isBackground` reads `true` regardless of the mode the agent was spawned in.
 
 It never throws and never rejects.
 A resume that could not start resolves to `{ kind: "refused", reason }` instead, promptly — the checks are synchronous and no turn loop runs:
@@ -481,6 +483,7 @@ Pass `claimOutcome: true` to declare that your extension is delivering it, which
 
 Pass `signal` to cancel the resumed turn loop.
 It is wired through the record's own lever, so it ends the resume exactly as `abort(id)` does — either cancel reaches the same run, and the record reads `stopped`.
+A signal that has already fired stops the resume before its first turn.
 
 ### `@jopqior/pi-subagents/settings` — layered config loader
 

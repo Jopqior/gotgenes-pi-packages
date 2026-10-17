@@ -266,7 +266,7 @@ Read each PR's body first (`gh pr view <M> --json body -q .body`) — what a PR 
 
 For ordinary fork work, check whether this push shipped work for **other** issues in the `"$PLAN"^..HEAD` range, re-deriving `PLAN` in the same shell call.
 A co-shipped issue shows as a stacked refactor/enabler, a subject-trailing `(#M)` commit ref, or a sibling `docs/plans/`/`docs/retro/` file added in range — a body-line `Refs #M` is a citation, not a ship (Refs #793).
-A roadmap step heading that names a second issue (`#### Step 16: … ([#885], with [#896])`) is a fold-in: its work shipped here and it closes with this issue, even where no commit subject carries its number (Refs #885).
+A roadmap step heading in the package's `docs/architecture/architecture.md` that names a second issue (`#### Step 16: … ([#885], with [#896])`) is a fold-in: its work shipped here and it closes with this issue, even where no commit subject carries its number (Refs gotgenes/pi-packages#885).
 A mid-batch sibling that shipped on its own ship is already closed by it — this scan is for stacked work that never had a ship of its own.
 Close each with its own short summary — `refactor:` commits are omitted from the changelog, so a stacked refactor issue leaves no reminder.
 A co-shipped issue already `CLOSED` still gets its summary: `gh api repos/Jopqior/gotgenes-pi-packages/issues/<M>/events --jq '.[]|select(.event=="closed")'` showing a `commit_id` means a keyword auto-closed it, so post the summary with `gh issue comment`.

@@ -8,7 +8,6 @@ import type { ParentSnapshot } from "#src/lifecycle/parent-snapshot";
 import type {
 	AgentSpawnConfig,
 	ResumeCallOptions,
-	ResumeOutcome,
 	ResumeRefusalReason,
 	ResumeStart,
 } from "#src/lifecycle/subagent-manager";
@@ -20,6 +19,7 @@ import {
 import { renderBackgroundLaunch, spawnBackground } from "#src/tools/background-spawner";
 import { runForeground } from "#src/tools/foreground-runner";
 import { buildAgentGuidelines, buildDetails, buildTypeListText, textResult } from "#src/tools/helpers";
+import { startProgressStream } from "#src/tools/progress-stream";
 import { renderAgentResult } from "#src/tools/result-renderer";
 import {
 	type ModelInfo,
@@ -38,7 +38,6 @@ export interface AgentToolManager {
 	spawn: (snapshot: ParentSnapshot, type: string, prompt: string, opts: AgentSpawnConfig) => string;
 	waitForSpawnSelection: (id: string, signal?: AbortSignal) => Promise<SpawnSelectionOutcome>;
 	spawnAndWait: (snapshot: ParentSnapshot, type: string, prompt: string, opts: Omit<AgentSpawnConfig, "background">) => Promise<Subagent>;
-	resume: (id: string, prompt: string, options: ResumeCallOptions) => Promise<ResumeOutcome>;
 	startResume: (id: string, prompt: string, options: ResumeCallOptions) => ResumeStart;
 	getRecord: (id: string) => Subagent | undefined;
 }
@@ -108,7 +107,7 @@ export class AgentTool {
 			if (params.run_in_background === true) {
 				return this.resumeInBackground(id, prompt, config);
 			}
-			return this.resumeExisting(id, prompt, signal, config.presentation);
+			return this.resumeExisting(id, prompt, signal, onUpdate, config.presentation);
 		}
 
 		// ---- Background execution — the tool signal is a startup-only lever ----
@@ -131,25 +130,34 @@ export class AgentTool {
 
 	/**
 	 * Continue an existing agent's session with a new prompt, returning its
-	 * resumed outcome directly to the parent.
+	 * resumed outcome directly to the parent. The resumed run is in the
+	 * foreground, so it streams its progress inline as a foreground spawn does.
 	 */
 	private async resumeExisting(
 		id: string,
 		prompt: string,
 		signal: AbortSignal | undefined,
-		presentation: SpawnPresentation,
+		onUpdate: ((update: AgentToolResult<AgentDetails>) => void) | undefined,
+		presentation: Pick<SpawnPresentation, "detailFor">,
 	) {
 		// The manager owns whether a resume happens; this door owns only how the
 		// answer is worded. Resuming commits this call to delivering the outcome,
 		// so it claims it — nothing else announces what is already being returned.
-		const outcome = await this.manager.resume(id, prompt, {
+		const start = this.manager.startResume(id, prompt, {
+			background: false,
 			signal: signal ?? new AbortController().signal,
 			claimOutcome: true,
 		});
-		if (outcome.kind === "refused") {
-			return textResult(resumeRefusalMessage(outcome.reason, id));
+		if (start.kind === "refused") {
+			return textResult(resumeRefusalMessage(start.reason, id));
 		}
-		const record = outcome.record;
+		const record = start.record;
+		const stopStream = startProgressStream({ presentation, onUpdate, getRecord: () => record });
+		try {
+			await record.promise;
+		} finally {
+			stopStream();
+		}
 		// Resume-return delivery edge: the resumed outcome is returned directly.
 		record.markConsumed();
 		return textResult(
@@ -166,7 +174,7 @@ export class AgentTool {
 	 * wired, as for a background spawn.
 	 */
 	private resumeInBackground(id: string, prompt: string, config: ResolvedSpawnConfig) {
-		const start = this.manager.startResume(id, prompt, {});
+		const start = this.manager.startResume(id, prompt, { background: true });
 		if (start.kind === "refused") {
 			return textResult(resumeRefusalMessage(start.reason, id));
 		}
