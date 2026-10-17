@@ -135,3 +135,27 @@ No substantive change followed the reviewed HEAD; this entry records acceptance 
 - Next action: start a fresh Pi session for the separate `/ship 44` stage.
   Use merge `009fd25b5c3c289c25cd0db54f5e40b03e44412b` and its first parent as the integration range anchor, retain the explicit selector dependency contribution in the closing summary, and revalidate shipping prerequisites under `fork-sync`.
   No push, issue closure, release dispatch or publication occurred; release destinations and npm scope still require separate operator approval.
+
+## Stage: Ship (2026-10-17T15:50:20Z)
+
+### Session summary
+
+Validated the completed synchronization on root `main` and pushed it to the fork.
+CI run [39046460678](https://github.com/Jopqior/gotgenes-pi-packages/actions/runs/39046460678) passed on `8a398ed034d1512912d7f504f3932c17e8c001f1`.
+Issue closure wording and publication remain separately approval-gated at this checkpoint.
+
+### Observations
+
+- Verified the genuine two-parent merge, pinned second parent, accepted independent review and separate core/worktrees source evidence.
+  Only the acceptance retro entry followed the reviewed tip; optional human/live checks require no waiver under synchronization policy.
+- Fast-forward-only startup succeeded with 134 unpushed commits, including incoming upstream history.
+  Root lint and dead-code gates passed before pushing explicitly to `origin main`; no upstream tags were fetched.
+- Release candidates use the actual merge's first parent, not the generic plan-parent range.
+  The sole changed registered candidate is `@jopqior/pi-subagents`; its successful prediction is `pi-subagents-v7.0.0`, supported by the incoming current-run-mode breaking commit.
+  Changed `pi-permission-system` and `pi-permission-model-judge` directories are unregistered and not publication-eligible.
+- A read-only worktrees prediction was also run, although worktrees is not a changed candidate in this range.
+  That output grants no release scope; worktrees and selector remain outside this ship's dispatch selection.
+  The pre-merge selector Pi dependency contribution remains part of the issue summary without widening release candidates.
+- Only fork #44 is a close target; incoming upstream issue references are not scanned as co-shipped fork work.
+  No package roadmap phase completes here.
+  The next lifecycle stage after shipping is `/retro 44` on root `main`.
