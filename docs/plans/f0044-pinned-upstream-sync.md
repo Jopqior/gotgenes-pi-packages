@@ -432,6 +432,9 @@ pnpm fallow dead-code
 ```
 
 Run `./scripts/release/verify-cliff-parity.sh` and the read-only `next-version.sh` predictions for registered core, selector and worktrees.
+Implementation-stage operator decision: accept version consistency only for the three packages registered in `scripts/release/release-packages.json`, without changing the checker or adding tags.
+The existing parity checker enumerates all package directories and fails on the unregistered inherited packages' absent fork release tags; record that whole-repository result separately, not as a passing gate.
+For each registered entry, require the latest local package tag to match its manifest version and require `next_tag` from `scripts/release/lib.sh` to succeed, preserving the checker's existing derivation.
 Do not write predicted versions into manifests or dispatch releases.
 
 Use the production source resolver and validator for each `kind: "fork"` registry entry at the completed HEAD:

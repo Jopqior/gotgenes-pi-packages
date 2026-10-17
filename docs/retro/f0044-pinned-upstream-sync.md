@@ -68,3 +68,47 @@ Implementation now uses incoming upstream and existing fork tests, with only nec
 - Fresh-context review of this documentation-only revision returned PASS.
   The reviewer ran `pnpm run check`, `pnpm run lint`, `pnpm run test` and `pnpm fallow dead-code` separately; all passed.
   This review does not certify the future upstream integration or authorize shipping.
+
+## Stage: Implementation — Build (2026-10-17T15:05:23Z)
+
+### Session summary
+
+Completed implementation and validation through step 4 of the [plan](../plans/f0044-pinned-upstream-sync.md), with genuine merge `009fd25b5c3c289c25cd0db54f5e40b03e44412b` incorporating pinned target `23c08264aa180222e8953a835337ada28534f1b7`.
+The merge composes fork selection and live presentation with upstream run ownership, current/last-run background mode and warned-question workspace retention, while retaining fork identities, workflow rules and published core CHANGELOG bytes.
+Step 5's exact-range independent review is pending at this handoff; shipping and publication have not occurred.
+
+### Observations
+
+- Startup verified primary Git/common-directory identity, `main`, clean tracked state, no unmerged entries and no merge/rebase before fast-forward-only pull and explicit no-tags upstream fetch.
+  The target and common base remained unchanged.
+- Reviewed lifecycle and foreground conflict resolutions against final source and existing tests, including kind-aware terminal ordering, initial-only selection settlement, permit checks around session construction, current-run mode, common workspace outcomes and delegated `detailFor` progress.
+  Automatic intersections inspected include session construction, service adapter/public record and widget behavior; unchanged worktrees loading, provider, configuration and recovery entry points were checked against the plan's preservation contracts.
+- Incoming permission-system source/schema/tests and historical artifacts were accounted for by inventory/provenance and required gates, without a new inherited-source audit.
+  Judge dependency changes and the final workspace/lock graph were inspected; ordinary `pnpm install` and `pnpm install --frozen-lockfile` both passed.
+  No upstream tags were imported, no new tests or killing mutations were added, and no unrelated inherited repairs or follow-up issues were introduced.
+- Existing fork fixtures in `test/lifecycle/nested-selection.test.ts` and `test/tools/observed-selection.test.ts` additionally required the incoming explicit resume options and unified `runTurnLoop` sequence.
+  Those necessary migrations preserve their behavioral assertions; the subsequent lifecycle/selection and tools/presentation runs passed.
+  The large lifecycle-test diff primarily comes from upstream's existing reorganization, not a new test-file rewrite.
+- Core `pnpm run check` and root lint passed before committing the merge.
+  Completed-integration root `pnpm run check`, `pnpm run lint`, `pnpm run test` and `pnpm fallow dead-code` then passed separately with long timeouts.
+  The full run includes core 96 files / 2386 tests, selector 7 files / 123 tests, worktrees 8 files / 74 tests and root tooling 23 files / 576 tests.
+  Core `verify:public-types` also passed its bundled-declaration and packaged external-consumer checks.
+  Architecture Mermaid diagrams rendered with `mmdc`; no separate human preview or live Pi/TUI/model acceptance check was performed or claimed.
+- The whole-repository `verify-cliff-parity.sh` exited 1 because its existing all-directory enumeration requires fork release tags for seven unregistered inherited packages.
+  The operator explicitly approved accepting only the three registry entries for this synchronization, without changing tools or adding tags; step 4 now records that decision.
+  Registry-driven checks using `package_json_version`, `latest_tag` and `next_tag` from `scripts/release/lib.sh` passed for core, selector and worktrees, and their separate read-only `next-version.sh` commands succeeded.
+  This is an accepted validation-scope adjustment, not a claimed whole-repository parity pass or permission to publish.
+- Source resolution, rendering and offline validation ran independently for both fork entries at merge HEAD using `scripts/fork-sync/source.mjs` and `scripts/release/release-packages.json`.
+  Core resolves contained upstream `24.0.0` at `63633e512cdb058d585ff4fe1e5ac428a011f91d`; worktrees resolves contained upstream `0.3.3` at `62924b0a8389eed41c4da93b0bf0ea89e0b5c794`.
+  Both incorporate exactly the pinned target and report `unreleasedPackageChanges: false`.
+  Rendered blocks passed `validateUpstreamSource`; sorted local tag ref/object mappings were identical before and after both resolver calls.
+  Temporary result data is `/tmp/f0044-source-results.json`; regenerate it with the plan's production resolver/render/validator sequence for each fork registry entry and assert the incorporated target.
+- Review base is merge first parent `8dd6af570d247d3aef1e454206be9f8af4ce313b`; common base is `1810feed6ab2a83fa74f3b242095e0cc03773570`.
+  Resolve the review tip after committing this handoff, then regenerate `/tmp/f0044-incoming-paths.txt` with `git diff --name-status <common-base> <target>` and `/tmp/f0044-integration-paths.txt` with `git diff --name-status <merge-first-parent> <reviewed-HEAD>`.
+  Selected intersections/reasons and grouped contract entry points remain in the plan; both inventories must be independently regenerated by the reviewer.
+  Local conflict-review inputs are `/tmp/f0044-remerge-lifecycle.diff`, `/tmp/f0044-remerge-tools-tests.diff` and `/tmp/f0044-remerge-docs.diff`, reproducible with `git show --remerge-diff <merge> -- <grouped-paths>`.
+- Preserve the explicit pre-merge selector dependency contribution `aad16ee8b82c824dd3a3375bf8a9f2d472fef533` in review and the eventual closing summary without widening the integration range.
+  Upstream `7dafb7c2e44340b7deb3d4fca65e400611da0423` already supplies the core current-run breaking classification; the merge adds no duplicate breaking marker.
+  There is no new package roadmap completion for fork issue #44.
+- Next action: complete the exact-range independent review, persist its accepted result, then stop for a separate `/ship 44` stage.
+  A fresh Pi session is needed before relying on newly loaded extension behavior; the automated source/test evidence does not claim that this implementation session reloaded its in-process extension.
