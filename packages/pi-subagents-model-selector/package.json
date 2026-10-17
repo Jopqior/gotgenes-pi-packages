@@ -50,16 +50,16 @@
     ]
   },
   "peerDependencies": {
-    "@earendil-works/pi-ai": ">=0.84.4",
-    "@earendil-works/pi-coding-agent": ">=0.84.4",
-    "@earendil-works/pi-tui": ">=0.84.4",
+    "@earendil-works/pi-ai": ">=1.0.0",
+    "@earendil-works/pi-coding-agent": ">=1.0.0",
+    "@earendil-works/pi-tui": ">=1.0.0",
     "@jopqior/pi-subagents": ">=1.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "catalog:",
-    "@earendil-works/pi-ai": "0.84.4",
-    "@earendil-works/pi-coding-agent": "0.84.4",
-    "@earendil-works/pi-tui": "0.84.4",
+    "@earendil-works/pi-ai": "1.0.0",
+    "@earendil-works/pi-coding-agent": "1.0.0",
+    "@earendil-works/pi-tui": "1.0.0",
     "@jopqior/pi-subagents": "^1.0.0",
     "@types/node": "catalog:",
     "rumdl": "catalog:",
