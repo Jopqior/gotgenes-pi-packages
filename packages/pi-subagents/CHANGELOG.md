@@ -5,6 +5,45 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [7.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v6.1.0...pi-subagents-v7.0.0) (2026-10-17)
+
+
+### Features
+
+* **pi-subagents:** stream a foreground resume's progress inline ([#1012](https://github.com/Jopqior/gotgenes-pi-packages/issues/1012)) ([fdf1fab](https://github.com/Jopqior/gotgenes-pi-packages/commit/fdf1fab37df1560b570ee9f2148d185e2b42fc73))
+
+### Bug Fixes
+
+* **pi-subagents:** an abort that lands while a child is starting stops it before its first turn ([e9251f4](https://github.com/Jopqior/gotgenes-pi-packages/commit/e9251f4092872e3a1a177cfe4bb3ad4dd6d3b269)), closes [#1049](https://github.com/Jopqior/gotgenes-pi-packages/issues/1049)
+* **pi-subagents:** a spawn or resume whose signal already fired stops before its first turn ([18b035d](https://github.com/Jopqior/gotgenes-pi-packages/commit/18b035d92c4958fafc2cdbbc1c1f25c3c71909ea)), closes [#1049](https://github.com/Jopqior/gotgenes-pi-packages/issues/1049)
+* **pi-subagents:** keep the workspace of a run that wraps up at its turn limit with a question ([083f8e8](https://github.com/Jopqior/gotgenes-pi-packages/commit/083f8e837451e55d2563074489fa5dc8cfefb52a)), closes [#1050](https://github.com/Jopqior/gotgenes-pi-packages/issues/1050)
+* **pi-subagents:** let a resumed run's finished widget row linger like the first run's ([#1012](https://github.com/Jopqior/gotgenes-pi-packages/issues/1012)) ([ccf9fc8](https://github.com/Jopqior/gotgenes-pi-packages/commit/ccf9fc873eb74125c38d9a88a789e4df270c330e))
+* **pi-subagents:** **breaking:** report the current run's mode, so a background resume shows a widget row ([7dafb7c](https://github.com/Jopqior/gotgenes-pi-packages/commit/7dafb7c2e44340b7deb3d4fca65e400611da0423)), closes [#1012](https://github.com/Jopqior/gotgenes-pi-packages/issues/1012)
+
+### Documentation
+
+* **repo:** organize fork-sync guidance as a skill ([02ca6cb](https://github.com/Jopqior/gotgenes-pi-packages/commit/02ca6cb8fcacf5cb73b93a0596e5efefbf054a8a))
+* **pi-subagents:** describe isBackground as the current run's mode ([#1012](https://github.com/Jopqior/gotgenes-pi-packages/issues/1012)) ([d29d091](https://github.com/Jopqior/gotgenes-pi-packages/commit/d29d091854fc4425bdbf3dccead08ef8c4ed9ff0))
+* **pi-subagents:** say a background resume shows regardless of its spawn mode ([#1012](https://github.com/Jopqior/gotgenes-pi-packages/issues/1012)) ([f207f46](https://github.com/Jopqior/gotgenes-pi-packages/commit/f207f46449feca63aaf5840912951769d700a4a8))
+
+### Miscellaneous Chores
+
+* integrate pinned upstream while preserving fork contracts ([009fd25](https://github.com/Jopqior/gotgenes-pi-packages/commit/009fd25b5c3c289c25cd0db54f5e40b03e44412b)), closes [#44](https://github.com/Jopqior/gotgenes-pi-packages/issues/44)
+
+<!-- upstream-correspondence:start -->
+### Upstream correspondence
+
+Direct upstream package: `@gotgenes/pi-subagents`
+
+Contained stable upstream release: `24.0.0`
+
+Stable release source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/63633e512cdb058d585ff4fe1e5ac428a011f91d/packages/pi-subagents)
+
+Incorporated source: [fixed incorporated upstream commit](https://github.com/gotgenes/pi-packages/blob/23c08264aa180222e8953a835337ada28534f1b7/packages/pi-subagents)
+
+This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
+<!-- upstream-correspondence:end -->
+
 ## [6.1.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v6.0.1...pi-subagents-v6.1.0) (2026-10-11)
 
 
