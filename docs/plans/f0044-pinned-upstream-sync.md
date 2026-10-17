@@ -32,6 +32,9 @@ The incoming run-lifecycle refactor intersects fork-owned selection and presenta
 
 - Do not implement fork [#26](https://github.com/Jopqior/gotgenes-pi-packages/issues/26), which proposes Tool/Agent/Custom selection configuration.
 - Do not redesign selection UI, change core/worktrees dependency ranges, unify all packages' host peers or add a new compatibility harness.
+- Do not author additional regression/characterization tests or run killing mutations for this synchronization.
+  Adopt the pinned upstream tests and preserve existing fork tests, making only necessary interface, fixture and approved-behavior adaptations.
+  A concrete failure or coverage gap requires diagnosis and operator agreement before expanding this test scope.
 - Do not audit or repair unrelated inherited permission-system behavior merely because it appears in the incoming inventory.
 - Do not import upstream tags, rewrite history, squash, rebase an integration worktree, alter existing npm artifacts or overwrite old GitHub Releases.
 - Do not enable the optional permission-prompt timer by default.
@@ -140,7 +143,7 @@ Preserve fork construction-time composition in `Subagent`: invoke the original t
 Queued cancellation and failure before session construction still settle the initial selection outcome exactly once.
 Resume must never consult or finalize the initial selection owner again.
 Retain permit-liveness checks around asynchronous selection/session construction and child inheritance of the root selection lease.
-Tests: steps 1 and 2.
+Verification: existing fork selection/terminal-boundary tests retained through step 2 and rerun in step 4.
 
 Keep `resolveBackgroundMode` at the existing manager choke point.
 Explicit requests continue to override configuration; default requests continue to defer to it.
@@ -222,7 +225,7 @@ Use the upstream common initial/resume terminal rules.
 Completed runs with a pending question retain the workspace even with a warned budget, permitting resume; exhausted runs dispose as aborted, errors dispose as errors, and completed runs without questions dispose as completed.
 Keep result addenda, late workspace notices, rescue and recovery semantics.
 The old initial-only warned-disposal assertion must change in the same merge commit, not be retained alongside contradictory upstream tests.
-Tests: step 2's initial/resume outcome matrix and retained workspace/worktrees tests.
+Verification: the existing upstream initial/resume outcome matrix and retained fork workspace/worktrees tests in steps 2 and 4.
 
 ### Identities, dependencies and workflow resolutions
 
@@ -275,8 +278,8 @@ This is not a historical release-span assessment, a future-major guarantee or pr
 - `packages/pi-subagents/src/tools/agent-tool.ts`, `foreground-runner.ts` and incoming `progress-stream.ts`: use common streaming with live fork presentation and cleanup.
 - `packages/pi-subagents/src/service/service.ts`: retain fork selection types/registration and adopt current-run `isBackground` documentation.
 - Automatically merged `src/service/service-adapter.ts`, `src/lifecycle/create-subagent-session.ts`, `src/ui/agent-widget.ts` and their tests: inspect final source against fork contracts; correct only integration regressions.
-- `packages/pi-subagents/test/lifecycle/subagent.test.ts`, `subagent-manager.test.ts`, incoming `subagent-run.test.ts`: preserve/extend selection ordering, cancellation, mode and outcome coverage; update removed-observer fixtures in the same merge.
-- `packages/pi-subagents/test/tools/foreground-runner.test.ts`, `agent-tool.test.ts`, `get-result-tool.test.ts`, incoming `progress-stream.test.ts`, `test/helpers/make-deps.ts` and its test: migrate affected composition fixtures/assertions and pin shared-stream behavior.
+- `packages/pi-subagents/test/lifecycle/subagent.test.ts`, `subagent-manager.test.ts`, incoming `subagent-run.test.ts`: retain existing fork/upstream selection, cancellation, mode and outcome cases; update removed-observer fixtures in the same merge without adding cases.
+- `packages/pi-subagents/test/tools/foreground-runner.test.ts`, `agent-tool.test.ts`, `get-result-tool.test.ts`, incoming `progress-stream.test.ts`, `test/helpers/make-deps.ts` and its test: retain existing cases and migrate only composition fixtures/assertions required by the adapted interface.
 - `packages/pi-subagents/package.json`, `README.md`, `docs/architecture/architecture.md`, `.pi/skills/package-pi-subagents/SKILL.md`: reconcile identities, existing module listings/diagrams, current run ownership and selection guarantees.
 - `packages/pi-subagents/CHANGELOG.md`: resolve the merge without changing fork published bytes.
 - `AGENTS.md`, `.pi/prompts/ship.md`, `.pi/prompts/tdd-plan.md`, `.pi/skills/releasing/SKILL.md`, `.pi/skills/upstream-watch/SKILL.md`: resolve workflow conflicts with fork policy retained.
@@ -302,11 +305,18 @@ The new helper's direct tests use exact equality, so migrate their fixtures and 
 
 ## Test Impact Analysis
 
-The incoming shared stream enables direct fake-timer tests of immediate output, each tick's fresh record and stop behavior.
-These do not replace caller-level tests that demonstrate the stream receives a record before session creation or uses the correct presentation on resume.
-Retain foreground/agent-tool integration tests and real-manager selection-query/observed-selection tests; they exercise wiring that a helper unit test cannot see.
-Retain run-level outcome/cleanup tests even when the new `SubagentRun` unit suite covers handles alone.
-Do not rewrite the large lifecycle test file wholesale; mechanically migrate removed callback fixtures, preserve fork-only cases, then add small focused cases.
+Use the tests already present in the pinned upstream target and the fork; do not add a new test layer or repeat upstream's test-first development during synchronization.
+Upstream `test/lifecycle/subagent.test.ts` already covers run mode and the initial/resume terminal matrix, including warned-question retention, exhausted/error disposal and ordinary completion.
+Upstream `test/lifecycle/subagent-run.test.ts` covers abort signals and release of caller/observer handles.
+Upstream `test/tools/progress-stream.test.ts` covers immediate output, fresh records on ticks and stopping; `test/tools/agent-tool.test.ts` covers streaming/cleanup/refusal on resume.
+
+Existing fork `test/lifecycle/subagent.test.ts` already covers queued-stop settlement without an external observer, terminal notification before startup-listener detachment, observer failure before selection settlement, no repeat provider consultation on resume, and preservation of the settled selection outcome across resume.
+Retain those behavioral cases rather than adding a spy-based requirement on the internal `selection.finished` call count.
+The selection owner's settlement is idempotent, so an extra internal-call assertion is not itself evidence of a missing observable-behavior test.
+Retain foreground/agent-tool cases and real-manager `selection-query.test.ts` / `observed-selection.test.ts`; they cover fork chooser/presentation behavior absent from upstream.
+Retain run-level outcome/cleanup cases alongside the upstream `SubagentRun` handle tests.
+Adapt callback names/arguments, helper inputs and exact-equality fixtures only where the approved integration requires it; do not rewrite the large lifecycle test file or weaken unrelated assertions.
+If an existing case fails, establish its cause first; a newly discovered coverage gap is an operator gate, not authorization to add tests automatically.
 
 Baseline measured on the fork before integration:
 
@@ -325,10 +335,10 @@ Use the existing public-types consumer command for the affected core declaration
 | Constituency / invariant                                                                                                                                                          | Pinning surface                                                                                                                                             |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Operator: one root chooser owns new descendants, authenticated catalogue belongs to the spawning session, selected pair overrides proposals/locks without changing root settings. | Real-manager `test/lifecycle/nested-selection.test.ts`, selection owner/scope suites and child-session construction tests; retain after observer migration. |
-| Parent caller: selection acknowledgement occurs only after terminal observer delivery when a run ends before admission, and resumes never finalize the initial owner.             | Step 1's direct ownership/order tests in `test/lifecycle/subagent.test.ts`, migrated in step 2.                                                             |
-| Operator/parent: awaiting selection is not reported as execution with a proposed model; query timeout neither aborts nor consumes the run.                                        | `test/tools/selection-query.test.ts`, `observed-selection.test.ts`, and step 2's foreground/shared-stream tests.                                            |
-| Callers: explicit/default background precedence remains centralized; record/widget reflect the chosen resumed run mode.                                                           | `test/config/background-mode.test.ts`, manager/service/widget suites and step 2 mode matrix.                                                                |
-| Worktree users: disposal is once-only with notices/rescue preserved; pending-question completion remains resumable.                                                               | `test/lifecycle/workspace-bracket.test.ts`, step 2 initial/resume terminal matrix and worktrees behavior suite.                                             |
+| Parent caller: selection acknowledgement follows terminal observer delivery, and resume preserves the initial selection outcome without another provider consultation.            | Existing `test/lifecycle/subagent.test.ts` terminal-notification boundary, queued-stop and resume-outcome cases; preserve through step 2.                   |
+| Operator/parent: awaiting selection is not reported as execution with a proposed model; query timeout neither aborts nor consumes the run.                                        | Existing `test/tools/selection-query.test.ts`, `observed-selection.test.ts` and foreground cases, plus incoming shared-stream tests.                        |
+| Callers: explicit/default background precedence remains centralized; record/widget reflect the chosen resumed run mode.                                                           | Existing `test/config/background-mode.test.ts`, manager/service/widget suites and incoming run-mode cases.                                                  |
+| Worktree users: disposal is once-only with notices/rescue preserved; pending-question completion remains resumable.                                                               | Existing `test/lifecycle/workspace-bracket.test.ts`, incoming initial/resume terminal matrix and worktrees behavior suite.                                  |
 | Extension consumers: fork identity, required published-core imports, core-first initialization and service/settings declarations remain usable.                                   | Manifests, selector/worktrees factory suites, package checks and `verify:public-types` in steps 2–4; preserve their stated mock boundaries.                 |
 | Published-artifact consumers: existing fork CHANGELOG sections remain byte-identical.                                                                                             | Compare the entire core CHANGELOG against the actual merge first parent in step 2; no generated new section is planned.                                     |
 
@@ -338,25 +348,22 @@ No cache/token-budget/latency improvement is claimed by this synchronization.
 
 ## TDD Order
 
-### 1. Confirm preconditions and pin initial-selection terminal ownership
+No TDD cycles.
+This section retains the lifecycle's step-discovery heading, but the operator-approved execution is integration plus existing-test validation, not newly authored red → green cycles.
+Do not add characterization/regression cases, a preparatory test commit or killing mutations to satisfy generic TDD boilerplate.
+Necessary adaptations to inherited upstream and existing fork tests remain in scope; required validation and independent review are unchanged.
+
+### 1. Confirm preconditions and existing-test baseline
 
 Re-read synchronization constraints before Git startup operations.
 Require primary checkout `main`, clean tracked state, no unmerged entries and no merge/rebase state; stop rather than stashing/rebasing on failure.
 Confirm the selector dependency checkpoint is present, then use ordinary fast-forward-only startup and regenerate inventory inputs.
 A changed common base or newly overlapping fork contribution requires inspection before continuing; do not substitute a newer upstream target.
 
-Add focused characterization tests through real `Subagent` plus its injectable real initial-selection owner in `test/lifecycle/subagent.test.ts`:
-
-- Initial terminal observer runs before `selection.finished` and the owner receives the terminal status/error once.
-- Queued cancellation before admission settles the initial owner once without creating a session.
-- A subsequent resume does not call the initial owner's `finished` again.
-
-The current behavior should already be green; use killing mutations to establish the red signal rather than authoring a false behavior change.
-Mutations: swap the observer/`finished` order for the ordering test; remove the queued-stop finalization call for the queued case; invoke `selection.finished` from the resume-terminal path for the resume case.
-Restore from a saved working copy after each mutation, rerun the file unpiped and commit the characterization.
-
-Suggested commit: `test(pi-subagents): pin initial selection terminal ownership`.
-This accepts the assessor's optional narrow characterization; no structural preparatory refactoring is recommended.
+Run the existing `test/lifecycle/subagent.test.ts` and relevant selection/presentation suites to establish the current fork baseline before merging.
+Use the existing terminal-notification and resume-outcome cases identified in Test Impact Analysis; do not add direct call-count tests or perform mutations.
+No preparatory refactoring or test commit is planned.
+The assessor's optional characterization was rejected after comparison with the existing behavior coverage.
 
 ### 2. Resolve and commit the genuine pinned integration
 
@@ -371,22 +378,18 @@ Expected conflicts are planned work, not authority to abort/stash/rebase or chan
 Resolve runtime, tests, manifests, CHANGELOG and workflow conflicts under the shared decisions above.
 All removed-observer consumer/fixture changes belong in this same merge commit because the new interface otherwise breaks the tree.
 
-Use small red → green cycles inside the unresolved integration before completing its merge commit:
+Adapt the integration in small groups, validating each against existing tests before completing the merge commit:
 
-1. **Lifecycle seam:** extend the initial/resume matrix in lifecycle/manager tests to exercise selected model/thinking, cancellation before selection and during preparation, a stopped queued run, caller-signal teardown, and selection ownership after resume.
-   Adapt the fork observer wrapper and manager notifications to run kind while preserving step 1.
-   Mutations: remove the `kind === "initial"` guard; remove the selection begin/permit check; make `isBackground` always return the spawn mode; ignore the resume's requested mode; skip caller-signal detachment.
-   Each mutation must redden its corresponding ownership, chooser, mode or teardown case rather than merely causing a type error.
-2. **Foreground presentation seam:** extend incoming progress-stream tests and existing foreground/agent-tool tests for pre-record output, awaiting selection before session creation, selected/live model and thinking, tick updates, foreground resume and cleanup on success/error/refusal.
-   Replace static helper presentation with delegated `detailFor` and wire both consumers.
-   Mutations: spread `presentation.detailBase` instead of `detailFor(record)`; pass `false` for the activity's selection flag; remove the foreground `onRunStarted` record assignment; delete the shared-stream call at either consumer; return a no-op stop function.
-   Name which helper/caller case kills each mutation, including both relocated consumer calls.
-3. **Workspace outcome seam:** retain the upstream initial/resume matrix, explicitly cover warned+question retention, exhausted abort disposal, error disposal and completed-without-question disposal/addenda.
-   Replace the contradictory old initial-only assertion.
-   Mutations: restore the warned+question disposal branch; skip exhausted disposal; skip error disposal; skip ordinary completion disposal.
-   Each outcome class needs its own discriminating test.
+1. **Lifecycle:** adapt the fork observer wrapper and manager notifications to run kind.
+   Retain fork selection/terminal-boundary/resume-outcome cases and upstream run-mode, cancellation and handle-release cases; mechanically migrate removed callback names/arguments where necessary.
+2. **Foreground presentation:** replace static helper presentation with delegated `detailFor` and wire both consumers.
+   Run the incoming progress-stream/agent-tool cases and existing fork foreground, observed-selection and selection-query cases; adapt helper inputs and exact-equality fixtures without adding cases.
+3. **Workspace outcomes:** retain the existing upstream initial/resume matrix for warned-question retention, exhausted/error disposal and ordinary completion/addenda.
+   Reconcile the contradictory old initial-only assertion with the approved upstream behavior in this merge, without adding a parallel matrix.
 
-Run affected files unpiped via `pnpm --filter @jopqior/pi-subagents exec vitest run <test-path>` after each cycle and core check before completing the merge.
+Run affected files unpiped via `pnpm --filter @jopqior/pi-subagents exec vitest run <test-path>` after each adaptation group and core check before completing the merge.
+Diagnose any failure against the pinned upstream and fork contracts before changing assertions or expanding repair scope.
+Do not add tests or run mutations; if existing evidence exposes a concrete coverage gap, stop and request operator agreement on the smallest additional verification.
 Do not run a mutating edit in parallel with reads/checks of the same file.
 Review automatic merges as well as conflicts, including all selection/service/session/widget intersections.
 Regenerate the lock from resolved manifests, then run ordinary `pnpm install` followed by `pnpm install --frozen-lockfile`.
@@ -410,7 +413,8 @@ Confirm current README/architecture module trees, diagrams and package-skill pro
 Retain inherited upstream roadmap completion/Landed notes; this fork issue is not a new package roadmap step.
 Keep fork-specific roadmap/identity sections and sync/release workflow rules intact.
 If a documentation correction remains after the merge, lint it and commit separately as `docs: reconcile fork sync contracts and workflow guidance`.
-If it exposes a runtime regression, add the failing regression test before the minimal correction and use a behavior-named `fix(pi-subagents): ...` commit.
+If existing tests expose a runtime regression, diagnose provenance and correct an in-scope integration regression without weakening the tests; use a behavior-named `fix(pi-subagents): ...` commit.
+If correction would require a new test or other additional verification, present the concrete gap and obtain operator agreement before expanding scope.
 A materially new compatibility decision returns to the operator before edits.
 Do not create speculative follow-ups or repair unrelated inherited findings with passing required gates.
 
@@ -476,9 +480,9 @@ Publication remains separately approved.
 ## Risks and Mitigations
 
 - **Automatic merge hides fork loss:** inspect both inventories and unchanged contract entry points; do not equate no conflict with compatibility.
-- **Initial selection accidentally finalized by resume:** characterize ordering/count before the merge and kill the migrated initial-only guard explicitly.
-- **Stream extraction regresses chooser feedback:** retain real-manager query tests plus direct helper and caller tests; delete each relocated call as a mutation.
-- **Mode or disposal expectations contradict upstream:** replace only the explicitly approved old behavior; pin queued/initial/resume and all terminal outcome classes.
+- **Initial selection behavior regresses on resume:** retain existing terminal-boundary, provider-consultation and settled-outcome tests, and inspect the initial-only finalization guard during merge review.
+- **Stream extraction regresses chooser feedback:** retain existing real-manager query/observed-selection and foreground cases alongside incoming helper/caller tests; inspect relocated call sites without adding mutation work.
+- **Mode or disposal expectations contradict upstream:** retain incoming mode/outcome coverage and reconcile only the explicitly approved old expectations; do not add a duplicate matrix.
 - **Lock graph silently loses needed versions:** preserve the approved selector upgrade, regenerate from final manifests and require frozen installation; do not hand-delete snapshots based on upstream assumptions.
 - **Package identity or published history overwritten:** resolve core manifest/CHANGELOG explicitly, verify full CHANGELOG equality and retain upstream source correspondence as provenance rather than copied release history.
 - **Dependency probe overclaimed:** its evidence covers selector APIs and tests against exact Pi `1.0.0`, not complete old-core spawn/schema integration or arbitrary future majors.

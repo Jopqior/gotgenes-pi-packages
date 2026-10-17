@@ -47,3 +47,24 @@ The next stage is `/tdd-plan`; no upstream merge, review acceptance, push or pub
   Accepted the optional initial-selection terminal-order/initial-only characterization test as the leading implementation step.
 - Do not pre-extract lifecycle finalizers, progress streaming or selection/manager collaborators: upstream already supplies the target structures, and parallel restructuring would increase merge friction.
   Reconcile the fork behavior directly at those seams instead.
+
+## Stage: Planning (2026-10-17T14:15:07Z)
+
+### Session summary
+
+Revised the plan after the operator rejected unnecessary regression/characterization additions and mutation work.
+Implementation now uses incoming upstream and existing fork tests, with only necessary interface, fixture and approved-behavior adaptations; required validation and the exact-range independent integration review remain unchanged.
+
+### Observations
+
+- This decision supersedes the earlier acceptance of the optional initial-selection characterization step.
+  Existing fork terminal-notification, queued-stop and resume-outcome cases already cover the meaningful behavior; a spy on internal `finished` call counts did not establish a missing user-visible coverage requirement.
+- Rechecked the pinned upstream run-mode, terminal-outcome, run-handle, progress-stream and resume-streaming tests before removing the duplicated test-development requirements.
+  Retain existing fork chooser/presentation cases because upstream cannot cover the fork-only selection mechanism.
+- Step 1 is preconditions plus an existing-test baseline, not a test-authoring commit.
+  Step 2 adapts and runs existing tests, without new cases or killing mutations.
+  Concrete failures must be diagnosed; a demonstrated coverage gap requires operator agreement before any additional test or verification work.
+- No integration, source change or test change was performed for this revision.
+- Fresh-context review of this documentation-only revision returned PASS.
+  The reviewer ran `pnpm run check`, `pnpm run lint`, `pnpm run test` and `pnpm fallow dead-code` separately; all passed.
+  This review does not certify the future upstream integration or authorize shipping.
