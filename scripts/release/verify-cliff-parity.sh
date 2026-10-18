@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Assert that git-cliff's view of every package's version agrees with the tags
+# Assert that git-cliff's view of every registered package's version agrees with the tags
 # and the package.json files, and report what each package would release.
 #
 # This is the migration's correctness gate (Refs #865). At migration time it
@@ -26,6 +26,7 @@ cd "$(dirname "$0")/../.."
 . scripts/release/lib.sh
 
 MANIFEST=.release-please-manifest.json
+packages=$(jq -r '.packages[].directory' scripts/release/release-packages.json)
 failures=0
 checked=0
 
@@ -75,7 +76,7 @@ while IFS= read -r pkg; do
   else
     printf '%-28s ok    %s -> would release %s\n' "$pkg" "$pkgver" "${next#"${pkg}-v"}"
   fi
-done < <(release_packages)
+done <<< "$packages"
 
 echo
 if [ "$failures" -ne 0 ]; then

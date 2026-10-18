@@ -63,6 +63,15 @@ describe("entry-point parity", () => {
       "verify-cliff-parity.sh",
     );
     repo.writeManifest("demo", "1.0.0");
+    writeFileSync(
+      path.join(repo.dir, "scripts/release/release-packages.json"),
+      JSON.stringify({
+        schemaVersion: 3,
+        packages: [
+          { directory: "demo", name: "@fixture/demo", kind: "original" },
+        ],
+      }),
+    );
     repo.commitInScope("feat(demo)!: initial scope", "packages/demo/a.txt");
     repo.git("tag", "demo-v1.0.0");
   }
