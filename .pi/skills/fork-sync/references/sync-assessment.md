@@ -72,6 +72,17 @@ Keep mandatory prior-stage retro reads and complete triggered-skill reads.
 
 ## Validation and findings
 
+### Test scope
+
+Apply this policy during planning, implementation, Tidy First triage and independent review.
+
+1. For upstream behavior changes already approved for adoption, reuse incoming and existing fork tests.
+   Adoption, including adoption of a breaking change, does not itself justify additional tests.
+2. Update existing tests only when needed for changed interfaces, test setup, or approved behavior changes.
+   Keep the same scenarios and do not weaken checks to make tests pass.
+3. Keep additional test work outside the default synchronization scope.
+   An exception requires a functional adaptation authored in this integration, a demonstrated behavior/contract gap in existing tests, and explicit operator approval before planning or implementation.
+
 ### Required checks
 
 Run on the completed integration:
@@ -109,14 +120,14 @@ A failure stops the affected completion path; it does not authorize unrelated up
 
 ### Dispose findings by provenance and relevance
 
-| Finding                                                                         | Action                                                                                             |
-| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Regression introduced by resolution or fork adaptation                          | Correct in scope, add regression coverage and revalidate                                           |
-| Inherited behavior breaks selector/worktrees compatibility                      | Treat as an in-scope compatibility decision; return materially new choices to the operator         |
-| Confirmed inherited defect unrelated to fork preservation; required checks pass | Keep outside sync scope; no automatic repair, reproduction, new issue or unresolved ship warning   |
-| Required install/check fails, including inherited failure                       | Stop and report gate/provenance; operator decides next action without implied repair authorization |
-| Specific adaptation uncertainty remains after automated checks                  | Request the smallest justified verification before executing it                                    |
-| Optional human/live check omitted; no concrete gap                              | No check or waiver required                                                                        |
+| Finding                                                                         | Action                                                                                                        |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Regression introduced by resolution or fork adaptation                          | Correct in scope and revalidate; reuse existing tests or obtain approval under the test-scope exception above |
+| Inherited behavior breaks selector/worktrees compatibility                      | Treat as an in-scope compatibility decision; return materially new choices to the operator                    |
+| Confirmed inherited defect unrelated to fork preservation; required checks pass | Keep outside sync scope; no automatic repair, reproduction, new issue or unresolved ship warning              |
+| Required install/check fails, including inherited failure                       | Stop and report gate/provenance; operator decides next action without implied repair authorization            |
+| Specific adaptation uncertainty remains after automated checks                  | Request the smallest justified verification before executing it                                               |
+| Optional human/live check omitted; no concrete gap                              | No check or waiver required                                                                                   |
 
 For an encountered finding, compare the relevant implementation with the pinned target.
 Inspect enough surrounding behavior to establish whether integration altered it or exposed a fork dependency.

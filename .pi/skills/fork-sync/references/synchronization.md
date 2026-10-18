@@ -45,6 +45,7 @@ Fetch reports the target OID and ahead/behind counts, without package selection 
 Merge the locally present approved target with `./scripts/fork-sync/sync.sh --merge --expected-upstream <full SHA>`.
 The merge command does not refresh `upstream/main`.
 If inputs are missing, fetch and inspect explicitly before merging.
+After the merge enters its expected conflict state, resolve `package.json` conflicts before spawning workers or running pnpm-based tools.
 
 Before final validation, complete a genuine two-parent merge with the pinned target as its second parent.
 Feature-worktree rebase, squash and fast-forward landing cannot replace that merge.
