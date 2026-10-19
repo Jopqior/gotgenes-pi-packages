@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v7.0.0...pi-subagents-v8.0.0) (2026-10-19)
+
+
+### Bug Fixes
+
+* **pi-subagents:** keep a stopped run's late result off the resume that replaced it ([7307cae](https://github.com/Jopqior/gotgenes-pi-packages/commit/7307caeda14df5608201ad61a956d87ff8dbbd7c)), closes [#1051](https://github.com/Jopqior/gotgenes-pi-packages/issues/1051)
+* **pi-subagents:** **breaking:** refuse a second resume while one waits for a concurrency slot ([9cd6ef6](https://github.com/Jopqior/gotgenes-pi-packages/commit/9cd6ef694d8241745af1fbe63d74ee68907215f8)), closes [#1013](https://github.com/Jopqior/gotgenes-pi-packages/issues/1013)
+* **pi-subagents:** admit a background resume through maxConcurrent ([b62c410](https://github.com/Jopqior/gotgenes-pi-packages/commit/b62c410498ee1526e52b0bb119f675b5e9435fe4)), closes [#1013](https://github.com/Jopqior/gotgenes-pi-packages/issues/1013)
+* **pi-subagents:** say a queued agent has not started instead of "No output." ([b07e281](https://github.com/Jopqior/gotgenes-pi-packages/commit/b07e2812bc60414a1bf95e50f51dd255aa846061)), closes [#1079](https://github.com/Jopqior/gotgenes-pi-packages/issues/1079)
+* **pi-subagents:** tell a parent whose wait expired on a queued agent that waiting again is how to collect it ([33fbc53](https://github.com/Jopqior/gotgenes-pi-packages/commit/33fbc534c5a943cc3d4bab3ab03794684af34e30)), closes [#1079](https://github.com/Jopqior/gotgenes-pi-packages/issues/1079)
+
+### Documentation
+
+* **pi-subagents:** document resume admission through maxConcurrent ([735ff66](https://github.com/Jopqior/gotgenes-pi-packages/commit/735ff6608222fae2a3321456a1074275bfdff083))
+
+### Miscellaneous Chores
+
+* merge upstream/main ([d9cf700](https://github.com/Jopqior/gotgenes-pi-packages/commit/d9cf700ca5a4af73b57f2c4e6358ab8e01261311))
+
+<!-- upstream-correspondence:start -->
+### Upstream correspondence
+
+Direct upstream package: `@gotgenes/pi-subagents`
+
+Contained stable upstream release: `25.0.1`
+
+Stable release source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/cd353d754517f35a1c284930a3647fa521e0c3f1/packages/pi-subagents)
+
+Incorporated source: [fixed incorporated upstream commit](https://github.com/gotgenes/pi-packages/blob/41405de895fb53f802df89f8978456cd1dae397e/packages/pi-subagents)
+
+This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
+<!-- upstream-correspondence:end -->
+
 ## [7.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v6.1.0...pi-subagents-v7.0.0) (2026-10-17)
 
 
