@@ -119,3 +119,80 @@ The exact GitHub Release and publication log were verified, and the release comm
 - No incoming-history co-shipped scan was performed under synchronization policy, and no other explicit fork close target was identified.
   No worktree existed to tear down; no optional runtime check required a waiver.
 - Next action: `/retro 45` at the root on `main`.
+
+## Stage: Final Retrospective (2026-10-19T15:06:53Z)
+
+### Session summary
+
+Reviewed the planning, implementation, independent-review and shipping transcripts against their stage notes.
+The pinned target landed in two-parent merge `d9cf700ca5a4af73b57f2c4e6358ab8e01261311`; independent review accepted `ff960cc86c5c2e0c26cc92d89868720e9ac18e13`, and the separately approved core release landed in `003215a054bfdd66ee797f388b49bfb1637a1475`.
+This retrospective changes no integration code or publication decision.
+
+### Observations
+
+#### What went well
+
+- The synchronization-specific handoff worked end to end: separate incoming/actual inventories, explicit merge-first-parent review bounds, and separate core/worktrees source checks reached independent PASS without expanding into an upstream audit.
+  The Tidy First assessment rejected speculative helpers and test compatibility layers; implementation retained that boundary.
+- The operator's distinction between upstream test evolution and fork behavior preservation became a durable plan correction before implementation.
+  Shipping also separated integration completion from publication approval and excluded unregistered permission packages.
+
+#### What caused friction (agent side)
+
+- `instruction-violation` (self-identified): Planning and TDD both ran `git pull --ff-only` before loading the synchronization prerequisites, despite the existing `AGENTS.md` override.
+  The planning template says to pull before reading anything; the TDD template says to pull before locating the plan, delaying task classification until after the affected operation.
+  Impact: retrospective deviation records and late prerequisite checks; no recovery or history repair was needed.
+  The prospective fix is an early task-classification/skill-loading branch in those two startup sections, not another copy of the synchronization checks.
+- `wrong-abstraction`: phrases about retaining tests and combining run/selection state blurred behavior preservation with preservation of obsolete APIs and test implementations.
+  The operator asked whether removed upstream tests would return, what combining the flows meant, and why optional state remained.
+  Impact: additional explanation and follow-up commit `20c89267cea64501c49b11820b6c36798a42a9f5` (`docs: clarify state ownership and test migration in plan (#45)`).
+  The agent explained the correction before persisting it; the operator had to request the plan update explicitly.
+- `missing-context`: implementation fixtures still seeded run-owned values through the old state object, and passive report fixtures became runnable under the adopted scheduler.
+  Impact: a failed core typecheck, a failed targeted test run, and migrations in `observed-selection.test.ts` and `get-result-tool.test.ts` before successful reruns.
+  These were interface/setup adaptations, not authorization to restore old state methods or add scenarios.
+- `missing-context`: both planning and implementation first tried the nonexistent `.pi/skills/colgrep/SKILL.md` instead of the advertised package skill path.
+  Impact: one failed read in each stage, followed by correction; no implementation rework.
+
+#### What caused friction (user side)
+
+- The operator supplied the necessary direction; no missing requirement was established.
+  The opportunity is to spend less operator attention on checking whether corrected prose reached the plan: the agent should carry an agreed clarification into the handoff artifact, rather than relying on another reminder.
+- A concise early constraint such as “adopt upstream ownership and test deletions; preserve only still-applicable fork contracts” could shorten the discussion, but producing that precise summary remains the agent's responsibility.
+
+### Diagnostic details
+
+- Model-performance correlation: the inspected planning, TDD and Ship assistant turns, plus all five persisted child transcripts, ran on `openai-codex/gpt-6.1-sol`.
+  The child tasks were compatibility exploration, Tidy First assessment, documentation conflict resolution, lifecycle conflict resolution and independent pre-completion review.
+  Documentation conflict resolution required semantic reconciliation, not just formatting; the evidence does not establish a model/task quality mismatch or justify changing model defaults.
+- Escalation-delay tracking: the fixture failures were handled with log inspection, focused edits and reruns; no rabbit-hole sequence exceeding five consecutive calls on the same failed approach was identified.
+  The lifecycle worker was already dispatched and received steering about the fixture migration.
+- Unused-tool detection: the failed skill reads needed the advertised exact path, not another agent or search mechanism.
+  Exploration and independent review were already used for the judgment-heavy work.
+- Feedback-loop gap analysis: verification was incremental, not end-only: baseline gates preceded the merge; selector/worktrees tests and typechecks, core typechecking and focused report tests ran during adaptation; the full core suite and completed-integration gates preceded independent review.
+  The gap was artifact feedback during planning: the corrected test/state explanation became durable only after the operator's explicit request.
+
+### Proposed adjustment
+
+Repair startup routing in `.pi/prompts/plan-issue.md` and `.pi/prompts/tdd-plan.md` so issue/plan task classification can load `fork-sync` before startup synchronization.
+Keep the actual prerequisites in the existing skill and preserve ordinary fast-forward-only behavior and stop conditions.
+The operator chose to persist the retrospective only, leaving this proposal unimplemented.
+No workflow template or skill was changed.
+
+### Candidates not proposed
+
+- Another `AGENTS.md` warning: the startup override already exists there and in the synchronization skill.
+- A test-preservation rule or automatic clarification-persistence mechanism: the corrected plan and existing behavior-preservation/artifact principles already express the constraint; no new runtime mechanism is justified.
+- Fixture helpers, extra tests or a model-default change: outside this documentation-only retro and unsupported as a necessary follow-up.
+
+### Next work
+
+The synchronization plan has no phase successor; existing fork issue #26 remains separate.
+The newest `docs/triage/2026-10-18-backlog.md` ranks inherited upstream issues, not the fork backlog, so its numbers cannot select fork work.
+The fork tracker currently has only #26 open: configuration-source selection across core and selector.
+Treat `/plan-issue #26` as an available next task, not an inherited severity/rank recommendation.
+
+### Changes made
+
+1. Appended the Final Retrospective to `docs/retro/f0045-pinned-upstream-sync.md`, covering cross-stage friction, diagnostic findings, rejected candidates and next-work provenance.
+   Recorded the operator's decision to save notes only; the proposed startup-routing adjustment remains unimplemented.
+   No production code, tests, templates, skills or release artifacts were changed.
