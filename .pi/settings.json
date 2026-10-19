@@ -54,6 +54,13 @@
     },
     { "source": "npm:@gotgenes/pi-nocd", "extensions": [], "skills": [] },
 
+    {
+      "source": "npm:@juicesharp/rpiv-ask-user-question",
+      "extensions": [],
+      "skills": [],
+      "prompts": [],
+      "themes": []
+    },
     "npm:pi-prompt-template-model",
     "npm:@eko24ive/pi-ask"
   ]
