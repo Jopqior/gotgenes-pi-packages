@@ -98,8 +98,11 @@ Preserve incoming authorship through the merge; no third-party issue/PR mechanis
 
 - `SubagentManager.create()` keeps the fork's `selection: new InitialSpawnSelection(...)` but drops its old initial outcome-seeding `SubagentState` construction.
   The target's `Subagent` constructor creates the initial `SubagentRun`; do not inject a run from the manager.
-- `SubagentInit` retains optional `state?: SubagentState`, adds upstream `outcome?: RunOutcomeInit`, and retains the fork `selection` collaborator.
-  Merge passive fixture seeds by owner rather than widening state to retain removed fields.
+- Adopt the target's revised `SubagentInit` and narrowed `SubagentState`, alongside the fork-specific `selection` collaborator.
+  Upstream still declares optional `state?: SubagentState` and adds `outcome?: RunOutcomeInit`; keeping `state` follows the target, not a fork compatibility exception.
+  State retains metrics and live activity, while each run owns its outcome; do not restore state fields or methods removed upstream.
+  Merge passive fixture seeds by their new owners rather than widening state to accept obsolete fields.
+  Adapt the initial-selection flow to the new lifecycle interfaces without moving selection into run ownership or repeating it on resume.
 - Adopt upstream `currentRun`, `RunOutcome`, scheduler admission and per-run claims/consumption.
   Remove obsolete `releaseClaims()` and any stale calls to removed state methods, including those outside conflict markers.
 - Update the fork initial-selection cancellation funnel in the same merge: write stopped/question/notice changes through the active run, and call `disposeWorkspaceQuietly(run, status)`.
@@ -190,7 +193,7 @@ The complete incoming inventory supplies individual upstream-only filenames with
 | Core `src/service/service.ts`, `src/tools/agent-tool.ts`                                                                           | Retain fork selection contracts and pending wording alongside upstream queued-resume refusal, launch wording and event documentation.                                                                                       |
 | Core `src/tools/get-result-report.ts`, `get-result-tool.ts`                                                                        | Combine run-specific collection and queued reporting with private selection guidance/model suppression.                                                                                                                     |
 | Core `test/helpers/make-subagent.ts`                                                                                               | Split state/outcome seeds and keep real/passive selection helpers; preserve explicit `undefined` semantics for queued/running fixtures.                                                                                     |
-| Core incoming lifecycle, observation and tool tests; new `test/helpers/gated-scheduler{,.test}.ts`                                 | Retain upstream tests and scenarios; resolve conflicts and adjust existing fork fixtures/call sites for removed methods and new ownership.                                                                                  |
+| Core incoming lifecycle, observation and tool tests; new `test/helpers/gated-scheduler{,.test}.ts`                                 | Adopt the target's test additions, deletions and replacements; migrate still-applicable fork-specific coverage and fixtures to the new ownership without restoring obsolete tests or APIs.                                  |
 | Core `test/service/service-adapter.test.ts` and other direct `SubagentState`/`Subagent` fixture constructors                       | Audit source and test callers together; update outcome fields removed from state in the same merge, without rewriting whole files or weakening assertions.                                                                  |
 | Core README, `docs/architecture/architecture.md`, `.pi/skills/package-pi-subagents/SKILL.md`                                       | Combine upstream run/queue/report descriptions with fork identity, selector contracts and current module-layout prose; preserve incoming landed roadmap notes without claiming this fork issue is an upstream roadmap step. |
 | `.pi/agents/pre-completion-reviewer.md`, other incoming `.pi/skills/**`                                                            | Resolve/review the instruction intersections listed above; preserve synchronization exceptions.                                                                                                                             |
@@ -210,9 +213,11 @@ If the final tree requires a different touched-file list or materially different
 ## Test Impact Analysis
 
 This integration does not invent an extraction or a lower-level test API.
-Upstream's run-owned extraction already brings its run/state/outcome-delivery tests, which remain the tests for that behavior; do not duplicate them or remove fork integration scenarios as redundant.
-Keep existing selection, manager, service, report and consumer suites because they exercise different boundaries.
-Necessary fixture/interface adjustments retain their original scenarios and assertions.
+Use the pinned target's test suite as the baseline, accepting upstream test deletions, migrations and replacements rather than taking a union of old and new tests.
+For example, accept the removal of outcome-transition tests from `subagent-state.test.ts` as that responsibility moves to the target's `subagent-run.test.ts`; do not restore old state APIs to keep those tests passing.
+Migrate and retain still-applicable fork-specific behavior coverage, including initial selection, cancellation, resume without re-selection and pending-model suppression.
+Selection, manager, service, report and consumer tests remain useful where they exercise distinct current boundaries; do not duplicate coverage already supplied by the target or discard valid fork behavior checks merely because interfaces changed.
+Necessary fixture/interface adjustments preserve the intent and discriminating assertions of those still-applicable scenarios, not obsolete test code or superseded contracts.
 No additional tests or killing-mutation work is planned under the synchronization test-scope policy.
 If a concrete fork-authored functional adaptation is not discriminated by existing tests, show the gap and seek approval before planning or adding that test and its killing mutation.
 
@@ -256,7 +261,7 @@ Regenerate the complete incoming inventory and intersections using the commands 
 Record the pre-merge fork OID and common base in the ordinary retro; they become the actual review inputs after the merge exists.
 No behavior commit is expected for this read-only checkpoint.
 
-### 2. Complete the approved merge, preserving both test populations
+### 2. Complete the approved merge and migrate applicable fork coverage
 
 Run `./scripts/fork-sync/sync.sh --merge --expected-upstream 41405de895fb53f802df89f8978456cd1dae397e`.
 A conflict exit with unmerged entries is the expected resolution state, not permission to stash, abort or rebase; an unexpected failure stops for operator-directed recovery.
@@ -264,7 +269,8 @@ Resolve `package.json` conflicts first, before workers or pnpm tools: retain the
 Preserve the core fork CHANGELOG byte-for-byte.
 Resolve the core and instruction/doc conflicts using the design above, checking adjacent automatically merged code for stale state methods and workspace signatures.
 Adapt the central helper and direct fixtures in place, incrementally by owner/caller, without mass rewriting the large lifecycle test file.
-Keep the incoming gated scheduler and upstream test scenarios; preserve all fork selection scenarios and assertions.
+Adopt the target's gated scheduler and test evolution, including its test deletions and replacements.
+Migrate still-applicable fork selection scenarios and assertions to the current interfaces; do not restore obsolete tests, removed production APIs or superseded behavior.
 
 Use targeted existing suites while resolving: core lifecycle selection/run/state/manager, nested selection, outcome delivery, service adapter, agent/get-result tools, plus selector and worktrees package suites.
 Run package typechecks after fixture changes; an invalid partial fixture is not grounds to loosen production types.
@@ -349,7 +355,7 @@ Publication remains separately authorized, even after successful review and CI.
 - Conflict markers understate the adaptation: scan adjacent automatic merges for removed `SubagentState` methods, old claim handling and workspace-disposal signatures.
 - A retained selection gate could silently delay startup with neither provider: keep synchronous `begin()` semantics, the conditional workspace await and the existing same-turn factory assertion.
 - Run ownership could be undone by a cancellation fix: update the full stopped/question/notice lifecycle through the same run and retain upstream late-result/waiter tests.
-- A simplistic report resolution could lose either queued admission or pending-choice advice: retain both upstream and fork cases and exact existing assertions.
+- A simplistic report resolution could lose either queued admission or pending-choice advice: retain the target's queued-report coverage and still-applicable fork selection assertions, without restoring superseded cases.
 - Permission license fields could disappear over forwarding: adopt the producer, serializer, tolerant parser, server reconstruction and existing round-trip tests together.
 - An automatic documentation merge could erase fork requirements: review final identity/selection prose and reviewer instructions, not just conflict hunks.
 - Source claims could accidentally use a dependency's anchor or the newest remote tip: resolve each registered fork independently from actual merge ancestry and stop on ambiguity.
