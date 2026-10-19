@@ -97,3 +97,25 @@ Pre-completion reviewer: PASS, with no WARN or FAIL findings.
 - Next action: run `/ship 45` as its separate stage, loading fork-sync prerequisites before startup Git operations.
   Use actual first parent `20c89267cea64501c49b11820b6c36798a42a9f5` as `RANGE_BASE`, retain the genuine two-parent merge and close only the verified fork issue target.
   The issue remains open; nothing was pushed, tagged, published or release-dispatched, and publication still needs separate operator authorization.
+
+## Stage: Ship (2026-10-19T14:58:38Z)
+
+### Session summary
+
+Shipped the completed integration from the primary checkout on `main` through the trunk lane and closed fork #45 with the operator-approved comment.
+The operator separately approved publishing only `@jopqior/pi-subagents` to npmjs.org.
+Release run `39273478724` succeeded and published `@jopqior/pi-subagents@8.0.0`.
+Its tag `pi-subagents-v8.0.0` resolves to release commit `003215a054bfdd66ee797f388b49bfb1637a1475`, whose parent is approved dispatch SHA `2f0072f4dbf3263871de3b2081f19b69776419d2`.
+The exact GitHub Release and publication log were verified, and the release commit was fast-forward-pulled.
+
+### Observations
+
+- Synchronization prerequisites passed before fetch/pull; the local branch had 82 unpushed commits after the successful fast-forward-only pull.
+  The actual merge's first parent supplied the release and closing range, overriding the generic plan anchor.
+- Root lint and dead-code gates passed on the shipping tree; CI run `39272657665` succeeded for the pushed dispatch SHA.
+- The registered changed candidate was core alone; changed `pi-permission-system` and `pi-permission-model-judge` are unregistered and were not publication-eligible.
+  No sibling package was bundled into the dispatch.
+- The major preview was supported by an actual breaking commit adding `resume-queued`; approval covered the package identity, destination and predicted tag.
+- No incoming-history co-shipped scan was performed under synchronization policy, and no other explicit fork close target was identified.
+  No worktree existed to tear down; no optional runtime check required a waiver.
+- Next action: `/retro 45` at the root on `main`.
