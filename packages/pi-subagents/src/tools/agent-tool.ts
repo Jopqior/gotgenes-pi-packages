@@ -171,20 +171,23 @@ export class AgentTool {
 	/**
 	 * Start an existing agent's resume and return at once; the completion notice
 	 * delivers its outcome. Nothing claims the outcome and no tool-call signal is
-	 * wired, as for a background spawn.
+	 * wired, as for a background spawn, and like one it may wait for a
+	 * concurrency slot, which the launch message reports.
 	 */
 	private resumeInBackground(id: string, prompt: string, config: ResolvedSpawnConfig) {
 		const start = this.manager.startResume(id, prompt, { background: true });
 		if (start.kind === "refused") {
 			return textResult(resumeRefusalMessage(start.reason, id));
 		}
+		const queued = start.record.status === "queued";
 		return renderBackgroundLaunch({
-			headline: "Agent resumed in background.",
+			headline: queued ? "Agent resume queued in background." : "Agent resumed in background.",
 			id: start.record.id,
 			displayName: config.identity.displayName,
 			description: config.execution.description,
 			detailBase: config.presentation.detailFor(start.record),
 			outputFile: start.record.outputFile,
+			queuePosition: queued ? { maxConcurrent: this.settings.maxConcurrent } : undefined,
 		});
 	}
 
@@ -330,6 +333,11 @@ function resumeRefusalMessage(refusal: ResumeRefusalReason, id: string): string 
 			return (
 				`Agent "${id}" is still running; wait for it to finish before resuming. ` +
 				"Use steer_subagent to send it a message while it runs."
+			);
+		case "resume-queued":
+			return (
+				`Agent "${id}" already has a resume waiting for a concurrency slot; wait for that run ` +
+				"to finish before resuming it again (get_subagent_result with wait: true returns when it does)."
 			);
 		case "session-released":
 			return `Agent "${id}" had its session released after its retention window; resume is unavailable, but its result is still retrievable via get_subagent_result.`;

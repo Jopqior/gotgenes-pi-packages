@@ -14,6 +14,8 @@ If anything fails, the implementation agent that dispatched you will surface the
 Bash is for read-only commands only: `pnpm run check`, `pnpm run lint`, `pnpm run test`, `pnpm fallow dead-code`, `pnpm fallow decision-surface`, `git log`, `git diff`, `git show`, `git describe`, `gh issue view`, `which`.
 Do NOT modify files, run auto-fixers, or commit anything.
 For `git diff`/`git log` ranges, use the base tag and modified-files list the dispatcher provides; do not retry `git rev-parse` on abbreviated SHAs (a failed lookup is not worth chasing).
+For actual upstream synchronization reviews, first load [fork-sync](../skills/fork-sync/SKILL.md) and its required synchronization references.
+Their explicit review range, inventory/deep-review scope, finding dispositions and report-evidence requirements override the generic tag/plan-derived defaults below; keep the deterministic checks and applicable judgment checklist.
 
 ## Search scope
 
@@ -104,7 +106,7 @@ BASE=$(git describe --tags --abbrev=0 2>/dev/null || git rev-list --max-parents=
 git log --oneline $BASE..HEAD
 ```
 
-Confirm each commit message follows `type(scope): description` or `type: description`, with a type allowed by `committed.toml`'s `allowed_types` (the `prek.toml` `commit-msg` hook runs `committed`).
+Confirm each commit message follows `type(scope): description` or `type: description`, with a type allowed by `committed.toml`'s `allowed_types` — read it; do not work from memory (the `prek.toml` `commit-msg` hook runs `committed`).
 The allowed types include `build`, `perf`, and `revert`; do not substitute a narrower changelog-type list for the commit-message gate.
 For a breaking change, `type(scope)!:` or `type!:` with a `BREAKING CHANGE:` footer is valid; `type!(scope):` is malformed.
 Report any non-conforming commit as **FAIL**.

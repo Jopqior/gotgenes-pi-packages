@@ -127,8 +127,13 @@ describe("pending selection output sites", () => {
   });
 
   it("withholds the proposal and confirmed pair in the real widget callback", () => {
-    const agent = record(true);
-    agent.markRunning(Date.now());
+    const agent = createTestSubagent({
+      awaitingSelection: true,
+      status: "running",
+      completedAt: undefined,
+      selectedPair: { model: selected, thinkingLevel: "high" },
+      execution: makeStubExecution({ model: proposal, thinkingLevel: "low" }),
+    });
     const manager = { listAgents: () => [agent] } as unknown as SubagentManager;
     const widget = new AgentWidget(manager, registry);
     let render: (() => string[]) | undefined;

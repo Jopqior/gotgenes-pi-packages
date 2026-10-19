@@ -150,6 +150,7 @@ classDiagram
         +description: string
         +isBackground: boolean
         -state: SubagentState
+        -currentRun: SubagentRun
         -execution: SubagentExecution
         -selection: InitialSelection
         +status: SubagentStatus
@@ -159,7 +160,7 @@ classDiagram
         +lifetimeUsage: LifetimeUsage
         +subagentSession?: SubagentSession
         +toolCallId?: string
-        +markRunning() delegates
+        +latestRun: RunOutcome
         +markCompleted() delegates
         +isActive(): boolean
         +isTerminalError(): boolean
@@ -168,7 +169,7 @@ classDiagram
         +run()
         +resume(prompt, options)
         +abort(): boolean
-        +waitUntilSettled(signal): Promise~void~
+        +waitUntilSettled(signal): Promise~RunOutcome~
         +waitForSpawnSelection(signal): Promise~SpawnSelectionOutcome~
         +cancelInitialSelection(): boolean
         +steer(message): Promise~SteerOutcome~
@@ -189,24 +190,40 @@ classDiagram
         +finished(terminal)
     }
 
-    class SubagentState {
+    class SubagentRun {
+        +kind: RunKind
+        +inBackground: boolean
         +status: SubagentStatus
         +result?: string
         +error?: string
         +startedAt: number
         +completedAt?: number
+        +pendingQuestion?: string
+        +turnBudget?: TurnBudget
+        +runUpdates: string[]
+        +claimed: boolean
+        +consumed: boolean
+        +replaced: boolean
+        +start(startedAt, callerSignal, onCallerAbort)
+        +markCompleted() ... stopQueued()
+        +claim(): CarrierClaim
+        +markConsumed()
+        +markReplaced()
+        +abort()
+        +isActive(): boolean
+    }
+
+    class SubagentState {
         +toolUses: number
         +lifetimeUsage: LifetimeUsage
         +compactionCount: number
-        +markRunning() ... markStopped()
-        +resetForResume()
+        +activeTools: ReadonlyMap
+        +responseText: string
+        +lastProgressAt: number
         +incrementToolUses()
         +addUsage(delta)
         +incrementCompactions()
-        +isActive(): boolean
-        +isTerminalError(): boolean
-        +isRunning(): boolean
-        +canBeSteered(): boolean
+        +markProgress(at)
     }
 
     class SubagentExecution {
@@ -262,6 +279,7 @@ classDiagram
     SubagentManager --> InitialSpawnSelection : constructs per spawn
     Subagent --> InitialSpawnSelection : uses via InitialSelection
     Subagent --> SubagentState : owns (private)
+    Subagent --> SubagentRun : current run (one per run)
     Subagent --> SubagentExecution : runs via (mandatory)
     SubagentManager --> ParentSnapshot : receives at spawn
     SubagentsService --> SubagentManager : wraps via adapter
@@ -272,18 +290,13 @@ classDiagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> queued : spawn (background, at capacity)
-    [*] --> running : spawn (foreground or under limit)
-    queued --> running : capacity available
+    [*] --> queued : run created (with its agent, or by a resume)
+    queued --> running : start() — at once, or when capacity frees for a queued background run
     queued --> stopped : stopQueued() — never started
     running --> completed : agent finished, including after the turn-budget warning
     running --> error : unhandled exception
     running --> aborted : harness stop at the turn ceiling
     running --> stopped : abort() called
-    completed --> running : resetForResume
-    stopped --> running : resetForResume
-    error --> running : resetForResume
-    aborted --> running : resetForResume
     completed --> [*]
     error --> [*]
     aborted --> [*]
@@ -302,8 +315,12 @@ A `TurnBudgetTracker` (`turn-limits.ts`) counts successful turns and decides whe
 `phase` is `warned` once the warning went out and `exhausted` when the harness stopped the run: the one case a run ends `aborted`.
 Every run, the initial one or a resume, gets a fresh tracker under the limits the session resolved at creation (`resolveTurnLimits`).
 
+The diagram is one run's lifecycle, and a subagent is a sequence of runs: its initial run is born with it, and each resume starts a new run of its own rather than returning a settled one to `running`.
+A settled run's outcome stays as it ended, so a carrier holding that run (a `get_subagent_result` wait a resume overtook) still reads it; the run is marked replaced, and its question counts as answered by the resume.
+The agent's status and outcome fields read through to its current run.
+
 Note: `markStopped` always succeeds regardless of current status.
-Other terminal transitions guard against overwriting `stopped` — once an agent is stopped, only `resetForResume` can return it to `running`.
+Other terminal transitions guard against overwriting `stopped` — once a run is stopped, it stays stopped.
 `stopQueued` composes `markStopped` with a never-started marker and, like every terminal transition, notifies the lifecycle observer — so a queued stop publishes the same events, session entry, and nudge a running stop does.
 
 ## Execution flow
@@ -421,14 +438,14 @@ src/
 │   └── session-dir.ts              session directory derivation
 │
 ├── lifecycle/                      agent execution and state tracking
-│   ├── subagent-manager.ts         collection manager + selection-owner construction + observer wiring + session-retention sweep (consumption-aware; an unanswered question holds the safety cap); the resume choke point, refusing from the record's own predicate and reporting a discriminated outcome, so every front door declines the same resumes
+│   ├── subagent-manager.ts         collection manager + selection-owner construction + observer wiring + session-retention sweep (consumption-aware; an unanswered question holds the safety cap); the resume choke point, refusing from the record's own predicate and reporting a discriminated outcome, so every front door declines the same resumes; each resume's caller decides whether its outcome is claimed; admits a background resume through the limiter like a background spawn, while a foreground one starts at once
 │   ├── create-subagent-session.ts  assembly factory: session creation, spawn-tool denylist, core child-tool install, binding, child built-in selection and MCP pattern expansion; gated-run cancellation checks after asynchronous loader and creation handoffs
-│   ├── subagent-session.ts         born-complete child session: turn loop, steer, shutdown-then-dispose teardown
-│   ├── turn-limits.ts              turn-budget policy: TurnBudget, TurnBudgetTracker warnings/stops, normalizeMaxTurns (minimum 2)
-│   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); delegates initial selection and terminal acknowledgement to its owner after the original observer, rechecking its permit after workspace preparation before creating a session; a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal, including a live run), which the resume choke point and every result carrier read rather than re-deriving; reports each run's start and finish with its kind and retains its current/last mode
-│   ├── subagent-state.ts           lifecycle status + metrics + result-delivery value object (transitions, accumulators, classification predicates); delivery carries per-run carrier handles (each releases only its own claim), retained superseded outcomes, a one-way consumption latch, and a per-run update ledger that renders only what no announcement delivered
-│   ├── initial-spawn-selection.ts  initial provider attempt, pending activity, validated pair, cancellation race, and one-shot tool acknowledgement; receives recorded terminal facts after the original observer
-│   ├── subagent-run.ts             per-run kind, mode, abort lever, caller-signal wiring and observer subscription
+│   ├── subagent-session.ts         born-complete child session: one turn loop for every run (the first carries the parent context and announces completion), steer, shutdown-then-dispose teardown
+│   ├── turn-limits.ts              turn-budget policy: TurnBudget, the TurnBudgetTracker that decides warnings and stops, resolveTurnLimits (a session's limits, resolved at creation), normalizeMaxTurns (minimum 2)
+│   ├── subagent.ts                 owns full execution lifecycle (run, resume, abort, steer, wait-until-settled); constructs the initial run and runs initial/resume through one kind-aware body; delegates initial selection and terminal acknowledgement to its owner after the original observer, rechecking its permit after workspace preparation before creating a session; a teardown with no result text to carry its addendum records it as a notice and announces one produced after delivery; answers why a resume would be refused (resumeRefusal, including a live run and a resume still queued for a slot), which the resume choke point and every result carrier read rather than re-deriving; holds its current run and reads its outcome through it, starting each resume as a new run that marks the one it replaces, born queued and started when its scheduler admits it (a run stopped while it waits never starts); reports each run's start and finish with its kind and retains its current/last mode; wait-until-settled hands back the run the wait began on
+│   ├── subagent-state.ts           what spans a subagent's runs: lifetime metrics and live activity (accumulators, last progress), plus the status vocabulary and its classification predicates
+│   ├── initial-spawn-selection.ts  initial provider attempt, pending activity, validated pair, cancellation race, and one-shot tool acknowledgement; receives recorded initial-run terminal facts after the original observer
+│   ├── subagent-run.ts             one run of a subagent and its outcome: kind (initial or resume), mode, status and result with their transitions, question, workspace notice, turn budget, and an update ledger that renders only what no announcement delivered; delivery carries a revocable claim per carrier (each releases only its own handle) and a one-way consumption latch; born queued with its own abort lever, it wires the caller's signal when it starts and keeps the record-observer unsubscribe until it ends
 │   ├── record-observer.ts          session-event stats observer; stamps each event as the run's last progress
 │   ├── workspace-bracket.ts        child workspace prepare/dispose lifecycle; idempotent dispose, reports a torn-down workspace
 │   ├── concurrency-limiter.ts       background admission gate: schedules run thunks FIFO against the limit
@@ -738,7 +755,7 @@ Pulling each apart by asking "who changes this, how often, and who needs to know
 3. **The hook surface** — the points where an extension alters or augments the child before and around its run.
    This is the child session's own extension binding (see below), not data on the subagent.
 4. **Result delivery** — whether the parent has consumed the result, when to nudge, how the result reaches the caller.
-   This domain now has a home: `consumedAt` is a first-class field on `SubagentState`, marked only at the parent-initiated return edges (`get_subagent_result`, foreground return, resume return); the notification layer reads it to suppress a nudge but never owns it, and the retention sweep reads it to time session release (#617).
+   This domain now has a home: `consumedAt` is a first-class field on each `SubagentRun`, marked only at the parent-initiated return edges (`get_subagent_result`, foreground return, resume return); the notification layer reads it to suppress a nudge but never owns it, and the retention sweep reads it to time session release (#617).
 
 The ~20 optional constructor fields and the runtime `run()` throws are the pressure these four domains exert on one class.
 Separating them is what makes the Phase 17 steps fall out rather than fight back.
@@ -749,9 +766,10 @@ The four domains above describe one run, and a subagent has several: the initial
 What belongs to a run is a fact about that run, not about the agent: its abort lever and the signal wired to it, its session subscription, its turn budget, its mid-run update ledger, its outcome and whether a carrier claimed or consumed it, its mode (foreground or background), and its admission through the concurrency gate.
 What belongs to the agent outlives every run: identity, the child session, the workspace, and the lifetime metrics.
 
-The code draws part of this boundary: `SubagentRun` carries a run's abort lever, signal wiring, session subscription, kind, and mode, and `Subagent.isBackground` reports the current run's mode.
-The remaining per-run facts live as fields on the per-agent record and are cleared by hand where a run begins (`resetForResume`).
-The tells are the bug family of a lever set at one lifecycle edge and read at another ([#913], [#949]) and a method pair that has already diverged.
+The code draws this boundary except for admission: `SubagentRun` carries a run's abort lever, signal wiring, session subscription, kind, mode, and its whole outcome (status, result, question, turn budget, update ledger, claims, and consumption), and `Subagent` reads each through its current run.
+`SubagentState` keeps only what spans runs: the lifetime metrics and live activity.
+A resume starts a new run instead of resetting the old one, and a waiter holds the run it waited on.
+The tells were the bug family of a lever set at one lifecycle edge and read at another ([#913], [#949]) and a method pair that has already diverged.
 
 The target: the record holds its current run, a resume starts a new run instead of resetting the old one, a waiter holds the run it waited on, and the run's kind is a property of the run, decided once where it is published (`subagents:completed` versus `subagents:resumed`) rather than in every layer.
 
@@ -992,6 +1010,10 @@ End-of-planning `src/` totals: 12,420 LOC across 73 files, 2,065 tests across 85
 - Scout inventory (scattered) — the items in files a step already edits ride that step (operator decision, 2026-10-09).
   `result.content[0].text` in the tool tests (102 sites across 5 files) rides [#947]; the events-observer `{id, type, description}` payload triad (5 sites) and the `subagent-session.test.ts` items (an assistant-message literal repeated 10+ times and a third local session mock) ride [#1050]; `(manager as any).sweep()` (8 sites) rides [#1051]; and `prompts.test.ts`'s duplicated append-mode test, with the local `AgentConfig` factories in four test files, rides [#1017].
   The rest is named as the leading candidate for Phase 24, a craftsmanship lean phase if it still stands at that discovery, rather than re-deferred to a boy-scout path that has not reduced it: `settings.ts` `sanitize()` range-check triplication, `index.ts`'s untested inline `createSession` lambda, `sendMessage.mock.calls[0][0]` in `notification.test.ts` (6 sites), the `createManager()` observer defaults, and the five `src/` functions over 60 lines (`index.ts`'s default export, `createSubagentSession`, `toToolDefinition`, `runForeground`, and `resolveSpawnConfig`).
+- [#1079] — filed by [#1013]'s planning; becomes a new step after [#1013] (operator decision).
+  A queued agent's `get_subagent_result` body falls through to `No output.`; queued spawns already reach it, and [#1013] makes a background resume reach it too.
+- [#1080] — filed by [#1079]'s planning; becomes a new step after [#1079] (operator decision).
+  The same report's `Duration` stat reads a queued run's time since spawn as `(running)`; [#1079] fixes the body and the bounded-wait note and leaves the stat to this step.
 
 #### Deferred tidyings swept
 
@@ -1112,7 +1134,7 @@ The widget also resets a record's linger age when a run starts, so a resumed run
 
 Release: independent
 
-#### [#1051] Let each run own its outcome, so a waiter holds the run it waited on
+#### ✅ [#1051] Let each run own its outcome, so a waiter holds the run it waited on
 
 **Cause:** the run's outcome lives on the per-agent `SubagentState`, which simulates a sequence of runs by hand.
 `resetForResume` clears eight fields to start the next run, a one-slot `_superseded` buffer stands in for the run a waiter waited on, and claims are special-cased to survive the reset, the seam [#1015] fixed a bug in.
@@ -1129,9 +1151,15 @@ Release: independent
 - **Commit type:** `refactor:`; `test:` for the ride-along.
 - **Impact 4 / Risk 3 / Priority 12.**
 
+Landed: `SubagentRun` owns one run's outcome (status, result, error, timestamps, the never-started marker, question, workspace notice, turn budget, update ledger, claims, and consumption) and its transitions, and `Subagent` reads each through its current run; `SubagentState` keeps the lifetime metrics and live activity.
+A run is born queued with its agent or its resume and wires the caller's signal when it starts, so a queued agent is claimed on the run it is waiting to start, and a resume's caller passes `claimOutcome` so the new run is born claimed.
+`waitUntilSettled` returns the run the wait began on, a resume marks the run it replaces, and a replaced run reports no open question, so `get_subagent_result` reports that run directly; `liveOutcome`, `withoutQuestion`, and the superseded slot are gone, and a wait two resumes overtook now reports its own run instead of the live record.
+A terminal transition lands on the run it ends, so an aborted run whose turn loop returns after a resume started no longer overwrites the resume (`fix:`, reachable through `SubagentsService.abort` then `resume`).
+The sweep tests drive the real interval through fake timers; the `_superseded`, `resetForResume`, and `as any` rows read 0, `lifecycle/subagent.ts` fell from 846 to 827 lines, `fallow dupes --workspace @gotgenes/pi-subagents` reports no clone group (the `subagent-state.ts` fixture pairing dissolved), and health reads 88 (A).
+
 Release: independent
 
-#### [#1013] Admit a background resume through `maxConcurrent`
+#### ✅ [#1013] Admit a background resume through `maxConcurrent`
 
 **Cause:** admission through the concurrency gate is a fact about a run, but only the initial run is scheduled on the limiter.
 A resume starts directly, so since [#987] a background resume runs at capacity where a background spawn would queue.
@@ -1144,6 +1172,44 @@ A resume starts directly, so since [#987] a background resume runs at capacity w
 - **Outcome:** a background resume at capacity queues and starts when a slot frees, or the decision not to queue is recorded with its reason; pinned either way.
 - **Commit type:** to be decided at plan time.
 - **Impact 3 / Risk 3 / Priority 9.**
+
+Landed: a background resume, from the tool's `run_in_background: true` and from `SubagentsService.resume()`, is admitted through the limiter like a background spawn, and a foreground tool resume starts at once.
+`Subagent.resume` takes a `RunScheduler`: the resume's run is born queued (claimed when the caller asks) and starts when admitted, and a run stopped while it waited never starts, which the guard reads on the run rather than the record.
+`stopQueued` ends a queued run on its own kind's path, so a stopped queued resume publishes `subagents:resumed` once.
+A record whose resume is queued refuses another with the new `resume-queued` member of `ResumeRefusal`, a `fix!:` because the union is published; the tool's launch message says a resume was queued, with its position.
+`concurrency-limiter.ts` needed no change.
+
+Release: independent
+
+#### ✅ [#1079] A queued agent's report says it has not started
+
+**Cause:** the shared outcome body has no arm for a run still waiting on a concurrency slot.
+`renderOutcomeBody` (`src/observation/outcome-delivery.ts`) words `running`, `error`, and a queued run that was stopped, so a queued run falls through to the empty-result fallback and `get_subagent_result` reports `No output.` under `Status: queued`.
+
+- **Smell:** Category C (a status the carrier's body does not distinguish from an empty result).
+- **Target:** `src/observation/outcome-delivery.ts` (`renderOutcomeBody`), `src/tools/get-result-report.ts` (`renderWaitExpired`), and their tests.
+- **Soft dependency:** [#1013] — a background resume at capacity becomes a second way to reach the queued state.
+- **Outcome:** a queued agent's report says it is waiting for a concurrency slot and has not started, and points at `wait: true`; pinned.
+- **Commit type:** `fix:`.
+- **Impact 2 / Risk 1 / Priority 10.**
+
+Landed: `renderOutcomeBody` words a queued run as not started and waiting for a concurrency slot, pointing at `wait: true`, so `get_subagent_result` no longer reports `No output.` for it; only that pull can see the status, since every other carrier renders a settled run.
+A bounded wait that expires on a queued agent now says it is still queued and that waiting again is how to collect it, where the running agent's note (unchanged) says waiting again will not unstick it.
+The report's `Duration` stat is [#1080]'s.
+
+Release: independent
+
+#### [#1080] A queued agent's report does not call its wait running time
+
+**Cause:** the report's `Duration` stat does not distinguish a run waiting on a concurrency slot from a running one.
+`GetResultTool.buildReport` renders it with `formatDuration(startedAt, completedAt)`, which appends `(running)` whenever `completedAt` is unset, and a run's `startedAt` is its construction time until the limiter admits it.
+
+- **Smell:** Category C (a status a carrier's stat does not distinguish).
+- **Target:** `src/tools/get-result-tool.ts` (`buildReport`, `buildGetResultDetails`) and its tests; `formatDuration` in `src/ui/display.ts` is shared, so the call site is the likelier home.
+- **Soft dependency:** [#1079] — the same report's body and bounded-wait note learn the queued state first.
+- **Outcome:** a queued agent's report does not label its time in the queue as running time; pinned.
+- **Commit type:** `fix:`.
+- **Impact 1 / Risk 1 / Priority 5.**
 
 Release: independent
 
@@ -1184,16 +1250,18 @@ Release: independent
 
 ```mermaid
 flowchart TD
-    S947["✅ #947<br/>Bounded wait with progress"] -.soft.-> S1051["#1051<br/>The run owns its outcome"]
+    S947["✅ #947<br/>Bounded wait with progress"] -.soft.-> S1051["✅ #1051<br/>The run owns its outcome"]
     S947 -.soft.-> S912["✅ #912<br/>Ask whether resumable"]
     S1048["✅ #1048<br/>Zone-order moves"] -.soft.-> S1049["✅ #1049<br/>Per-run lever and wiring"]
     S1049 --> S1050["✅ #1050<br/>One run lifecycle"]
     S1049 --> S1051
     S1049 --> S1012["✅ #1012<br/>Background resume widget row"]
     S1050 -.soft.-> S1051
-    S1050 --> S1013["#1013<br/>Resume admission"]
+    S1050 --> S1013["✅ #1013<br/>Resume admission"]
     S1051 -.soft.-> S1013
     S1012 -.soft.-> S1013
+    S1013 -.soft.-> S1079["✅ #1079<br/>Queued report body"]
+    S1079 -.soft.-> S1080["#1080<br/>Queued report duration"]
     S1017["#1017<br/>Drop pre-0.86 arms"]
 ```
 
@@ -1212,9 +1280,9 @@ Every Track A step rewrites `lifecycle/subagent.ts`, so those steps sequence rat
 
 ### Release batches
 
-- Independently releasable: [#947], [#1048], [#1049], [#1050], [#1012], [#1051], [#1013], [#912], [#1017].
-- Release vehicles: [#947] (`feat:` or `fix:`, decided at plan time), [#1049] (`fix:` for [#949]), [#1050] (`fix:` for the resume's workspace rule), [#1012] (`fix!:`), [#1013] (decided at plan time), [#912] (`feat:`), and [#1017] (`docs:` for the configuration note).
-  [#1048] and [#1051] are `refactor:` only and cut no release on their own.
+- Independently releasable: [#947], [#1048], [#1049], [#1050], [#1012], [#1051], [#1013], [#1079], [#1080], [#912], [#1017].
+- Release vehicles: [#947] (`feat:` or `fix:`, decided at plan time), [#1049] (`fix:` for [#949]), [#1050] (`fix:` for the resume's workspace rule), [#1012] (`fix!:`), [#1051] (`fix:` for a stopped run's late result landing on its resume), [#1013] (`fix!:` for the `resume-queued` refusal), [#1079] (`fix:`), [#1080] (`fix:`), [#912] (`feat:`), and [#1017] (`docs:` for the configuration note).
+  [#1048] is `refactor:` only and cuts no release on its own.
 - No batches: every step leaves the package releasable, and the refactoring steps preserve behavior.
 
 ## Refactoring history
@@ -1358,6 +1426,8 @@ Source reconstruction follows the repository's [fork-sync skill's release-source
 [#1049]: https://github.com/gotgenes/pi-packages/issues/1049
 [#1050]: https://github.com/gotgenes/pi-packages/issues/1050
 [#1051]: https://github.com/gotgenes/pi-packages/issues/1051
+[#1079]: https://github.com/gotgenes/pi-packages/issues/1079
+[#1080]: https://github.com/gotgenes/pi-packages/issues/1080
 [ADR-0002]: ../decisions/0002-extensions-on-a-minimal-core.md
 [ADR-0004]: ../decisions/0004-reconsider-ui-direction.md
 [#19]: https://github.com/Jopqior/gotgenes-pi-packages/issues/19

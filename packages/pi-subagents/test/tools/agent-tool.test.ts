@@ -179,6 +179,23 @@ describe("AgentTool — resume path", () => {
 			);
 		});
 
+		it("tells the parent a resume is already waiting for a slot", async () => {
+			const deps = createToolDeps();
+			mockResumeRefusal(deps, "resume-queued");
+
+			const result = await execute(deps, {
+				prompt: "continue",
+				description: "resume",
+				subagent_type: "general-purpose",
+				resume: "agent-1",
+			});
+
+			expect(textOf(result)).toBe(
+				'Agent "agent-1" already has a resume waiting for a concurrency slot; wait for that run ' +
+					"to finish before resuming it again (get_subagent_result with wait: true returns when it does).",
+			);
+		});
+
 		it("names a torn-down workspace as the reason a resume cannot re-enter it", async () => {
 			const deps = createToolDeps();
 			mockResumeRefusal(deps, "workspace-disposed");
@@ -334,8 +351,8 @@ describe("AgentTool — resume path", () => {
 				resume: "agent-1",
 			});
 
-			// The claim is the manager's to take, at the one edge it can be taken:
-			// resetForResume runs synchronously inside Subagent.resume().
+			// The claim is the manager's to take: it passes it into the resume, whose
+			// run is born claimed.
 			expect(deps.manager.startResume).toHaveBeenCalledWith("agent-1", "continue", foregroundStart);
 		});
 
@@ -502,6 +519,24 @@ describe("AgentTool — resume path", () => {
 			expect(result.details).toMatchObject({ status: "background", agentId: "agent-1" });
 		});
 
+		it("says the resume is queued, with its position, when it waits for a slot", async () => {
+			const deps = createToolDeps();
+			mockResumeStart(deps, { status: "queued" });
+
+			const result = await execute(deps, backgroundResume);
+
+			expect(textOf(result)).toBe(
+				"Agent resume queued in background.\n" +
+					"Agent ID: agent-1\n" +
+					"Type: Agent\n" +
+					"Description: answer\n" +
+					"Position: queued (max 4 concurrent)\n" +
+					"\nYou will be notified when this agent completes.\n" +
+					"Use get_subagent_result to retrieve full results, or steer_subagent to send it messages.\n" +
+					"Do not duplicate this agent's work.",
+			);
+		});
+
 		it("leaves the resumed outcome uncollected, for the completion notice to deliver", async () => {
 			const deps = createToolDeps();
 			const record = mockResumeStart(deps);
@@ -511,7 +546,7 @@ describe("AgentTool — resume path", () => {
 			expect(record.consumed).toBe(false);
 		});
 
-		it.for(["unknown-agent", "still-running"] as const)(
+		it.for(["unknown-agent", "still-running", "resume-queued"] as const)(
 			"words a %s refusal the way the foreground resume does",
 			async (reason) => {
 				const foreground = createToolDeps();
