@@ -76,3 +76,24 @@ Independent review is the remaining numbered checkpoint; no push, release, tag o
   The selected deep-review groups remain those in the plan, including unchanged selector/worktrees boundaries; upstream historical records remain inventory-only context.
 - No materially new compatibility decision or concrete follow-up issue was identified.
   No optional live/TUI check was added because automated checks exposed no remaining named adaptation uncertainty.
+
+## Stage: Implementation — TDD (2026-10-19T22:33:22+08:00)
+
+### Session summary
+
+Completed all four synchronization adoption/verification checkpoints, including the genuine pinned merge, applicable existing-fixture migration, local validation and independent review.
+No new Red/Green cycles or test scenarios were authored under the plan's synchronization test-scope policy; the full-suite total increased by 85, from 10,375 to 10,460 passing tests through the incoming changes.
+Pre-completion reviewer: PASS, with no WARN or FAIL findings.
+
+### Observations
+
+- The accepted independent report reviewed `20c89267cea64501c49b11820b6c36798a42a9f5..ff960cc86c5c2e0c26cc92d89868720e9ac18e13`, using actual merge `d9cf700ca5a4af73b57f2c4e6358ab8e01261311`, pinned target `41405de895fb53f802df89f8978456cd1dae397e` and common base `23c08264aa180222e8953a835337ada28534f1b7`.
+  Reviewer agent: `7aacfb25-a0b7-479`; its session transcript is `2026-10-19T14-23-22-153Z_01a1548b-ac29-712d-9c0d-71d25cffd971.jsonl` under this implementation session's `tasks` directory.
+- The reviewer independently regenerated and compared both complete inventories, retained generic deterministic gates and deeply checked the selected fork intersections, resolutions and post-merge contribution.
+  It reported passing required gates, public-consumer types, selector/worktrees contracts, separate core/worktrees source resolution and read-only release derivation checks.
+  No additional runtime check or unrelated inherited repair was required.
+- The fixture/setup adjustments and startup-order deviation are recorded in the preceding integration-validation entry.
+  No further compatibility decision, follow-up issue or substantive post-review change was made; this final commit only records the accepted report and handoff.
+- Next action: run `/ship 45` as its separate stage, loading fork-sync prerequisites before startup Git operations.
+  Use actual first parent `20c89267cea64501c49b11820b6c36798a42a9f5` as `RANGE_BASE`, retain the genuine two-parent merge and close only the verified fork issue target.
+  The issue remains open; nothing was pushed, tagged, published or release-dispatched, and publication still needs separate operator authorization.
