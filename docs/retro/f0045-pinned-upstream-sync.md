@@ -40,3 +40,39 @@ No integration, publication, push or issue closure was performed; the next stage
 - Core `subagent.ts`: extracting the constructor observer wrapper would not simplify this merge and could obscure its ordering contract; not included.
 - Core test fixtures: a bulk migration or compatibility wrapper would add work beyond direct state/outcome seed adaptation; not included.
 - Permission, selector and worktrees cleanup or extra queue/event tests: no demonstrated integration-authored coverage gap justified additional work under synchronization policy; not included.
+
+## Stage: Integration validation (2026-10-19T22:21:41+08:00)
+
+### Session summary
+
+Completed the genuine merge `d9cf700ca5a4af73b57f2c4e6358ab8e01261311`, with first parent `20c89267cea64501c49b11820b6c36798a42a9f5` and pinned second parent `41405de895fb53f802df89f8978456cd1dae397e`.
+The common base remains `23c08264aa180222e8953a835337ada28534f1b7`; implementation followed the plan's adoption checkpoints rather than adding new Red tests or mutation work.
+Independent review is the remaining numbered checkpoint; no push, release, tag or issue mutation occurred.
+
+### Observations
+
+- Startup `git pull --ff-only` ran before locating the plan and discovering its synchronization context, and reported up to date.
+  The primary-checkout Git/common-directory identity, clean state and absent operation state were checked before the subsequent integration command; the next stage must load the synchronization prerequisites before startup Git operations.
+- The merge's remerge diff was inspected alongside first-parent diffs and final source for the selected contract groups in the plan.
+  Core selection remains separate from run-owned outcomes; cancellation and question writes use the run owner, while the original-observer-first wrapper and conditional workspace await remain intact.
+  Queued, pending-selection and ordinary running report guidance remain distinct, with pending model details suppressed.
+- Core manifest identity/version and core CHANGELOG bytes match the pre-merge fork.
+  The permission package matches the pinned target, including its manifest, incoming release section, bounded license, forwarding parser and audit behavior; no permission configuration was changed.
+  Selector/worktrees paths, dependency requirements, lockfile and release tooling did not change.
+- Existing fixture migration exposed the removed `markRunning` call in `test/tools/observed-selection.test.ts`; it now seeds a running outcome through the existing helper.
+  The adopted gated-scheduler fixture in `get-result-tool.test.ts` needed the existing runnable selection helper rather than a passive fixture.
+  These are interface/setup adaptations within the plan, not new scenarios or widened production APIs; the audited service-adapter usage fixture required no edit.
+- Required completed-integration gates passed: `pnpm run test`, `pnpm run check`, root `pnpm run lint` and `pnpm fallow dead-code`.
+  Full-suite totals measured from the logs changed from 10,375 to 10,460 passing tests; core changed from 2,386 to 2,402 and permission from 6,344 to 6,413.
+  Logs: `/tmp/f0045-{test,check,lint,fallow}-final.log`; baseline logs use the `-start.log` suffix.
+  Targeted report/service, core, selector and worktrees suites and applicable package checks also passed; packaged core public declarations and external-consumer typechecking passed in `/tmp/f0045-public-types-final.log`.
+- The read-only version previews and `verify-cliff-parity.sh` succeeded; selector had nothing to release.
+  Preview results do not authorize publication or fix a future release version.
+- Separate real resolver checks at the merge identified core stable `25.0.1` at `cd353d754517f35a1c284930a3647fa521e0c3f1` and worktrees stable `0.3.3` at `62924b0a8389eed41c4da93b0bf0ea89e0b5c794`, each incorporating this issue's pinned target without a scoped unreleased tail.
+  Outputs are in `/tmp/f0045-source-final.log`; these are generated evidence, not written CHANGELOG blocks or inherited source claims.
+- The complete incoming inventory has 72 paths and the merge's first-parent inventory has 71 paths, measured with `wc -l`.
+  The manifest and core CHANGELOG resolutions leave no first-parent delta; the existing observed-selection fixture adds a path outside the incoming listing.
+  Regenerate from the resolved common base/target and actual first parent/reviewed HEAD using step 4's commands; refresh the actual inventory after this handoff commit.
+  The selected deep-review groups remain those in the plan, including unchanged selector/worktrees boundaries; upstream historical records remain inventory-only context.
+- No materially new compatibility decision or concrete follow-up issue was identified.
+  No optional live/TUI check was added because automated checks exposed no remaining named adaptation uncertainty.
