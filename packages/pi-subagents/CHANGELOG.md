@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [8.0.1](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v8.0.0...pi-subagents-v8.0.1) (2026-11-02)
+
+
+### Bug Fixes
+
+* **pi-subagents:** show a queued agent's Duration as its time in the queue ([eb0bea4](https://github.com/Jopqior/gotgenes-pi-packages/commit/eb0bea464b625e23024035534b58b7c585baba28)), closes [#1080](https://github.com/Jopqior/gotgenes-pi-packages/issues/1080)
+* **pi-subagents:** label a queued resume's navigator entry with its time in the queue ([ba7a5be](https://github.com/Jopqior/gotgenes-pi-packages/commit/ba7a5be361b175a6c8d273d966f48cc17d01d4f6)), closes [#1085](https://github.com/Jopqior/gotgenes-pi-packages/issues/1085)
+* **pi-subagents:** label a reloaded resume stopped while queued with its time in the queue ([#1086](https://github.com/Jopqior/gotgenes-pi-packages/issues/1086)) ([473e97d](https://github.com/Jopqior/gotgenes-pi-packages/commit/473e97de6f257ac00a6dc79a69941fa6656e4529)), closes [#1086](https://github.com/Jopqior/gotgenes-pi-packages/issues/1086)
+* **pi-subagents:** drop a forced parent prompt's whole skills section from a child's identity ([#1017](https://github.com/Jopqior/gotgenes-pi-packages/issues/1017)) ([8593f1d](https://github.com/Jopqior/gotgenes-pi-packages/commit/8593f1d8f8c9d42a249cde2830567207995a5661))
+
+### Documentation
+
+* **pi-subagents:** describe the prompt layers Pi renders today ([#1017](https://github.com/Jopqior/gotgenes-pi-packages/issues/1017)) ([eac8a2e](https://github.com/Jopqior/gotgenes-pi-packages/commit/eac8a2e39ac4ff2405079169a8e4fe460115d964))
+* **pi-subagents:** archive Phase 23 to history ([d376574](https://github.com/Jopqior/gotgenes-pi-packages/commit/d376574ec45911862855d98a506f9bc7aa4b6c0c)), closes [#947](https://github.com/Jopqior/gotgenes-pi-packages/issues/947)
+
+### Miscellaneous Chores
+
+* sync pinned upstream target ([#46](https://github.com/Jopqior/gotgenes-pi-packages/issues/46)) ([cf41770](https://github.com/Jopqior/gotgenes-pi-packages/commit/cf417701fd84192f0550996d62fafdb515721bf5))
+
+<!-- upstream-correspondence:start -->
+### Upstream correspondence
+
+Direct upstream package: `@gotgenes/pi-subagents`
+
+Contained stable upstream release: `25.0.5`
+
+Stable release source: [fixed upstream release commit](https://github.com/gotgenes/pi-packages/blob/a4dd5f7611a2d7687a50899e99be7bd727ddc2b0/packages/pi-subagents)
+
+Incorporated source: [fixed incorporated upstream commit](https://github.com/gotgenes/pi-packages/blob/52854c12d590142e61a4f6a6947be9084035300d/packages/pi-subagents)
+
+Includes unreleased changes to this package.
+
+This records incorporated source provenance, not behavioral equivalence or the identity of historical npm artifacts.
+<!-- upstream-correspondence:end -->
+
 ## [8.0.0](https://github.com/Jopqior/gotgenes-pi-packages/compare/pi-subagents-v7.0.0...pi-subagents-v8.0.0) (2026-10-19)
 
 
