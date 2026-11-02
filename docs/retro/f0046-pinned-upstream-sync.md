@@ -123,3 +123,6 @@ Implementation details, merge OIDs, conflict resolutions, checks and evidence lo
   No push, issue closure, release dispatch or publication occurred.
   Next: start a fresh session for changed templates/extension loading, then `/ship 46` on root `main`, preserving `RANGE_BASE=7fc45ab047ce02fe2067332b3a79d22fdfe11bf5` and closing only the fork synchronization issue.
   Publication still requires separate explicit destination/scope approval.
+- Post-stage tooling update (2026-11-02T04:25:48Z): `command -v pnpm` now resolves `/home/whh/.nvm/versions/node/v26.13.0/bin/pnpm`, and `pnpm --version` reports `11.25.0`.
+  Removed the disposable `/tmp/f0046-bin/pnpm` script and its empty directory; subsequent stages should invoke `pnpm` directly without the temporary `PATH` prefix.
+  Validation logs remain intact; the earlier workaround records the environment at implementation time.
