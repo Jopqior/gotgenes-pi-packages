@@ -128,6 +128,7 @@ A missing export throws `is not a function` at runtime but surfaces as `TS2305` 
 
 - Run a single file: `pnpm --filter @gotgenes/<pkg> exec vitest run <test-path>` — plain `pnpm vitest run` fails at the repo root (`Command "vitest" not found`).
 - Run the full suite: `pnpm --filter @gotgenes/<pkg> exec vitest run`
+- A root gate that hits a long timeout may have stalled: re-run it alone, one gate per call, and never record it as slow without a measured run.
 - Run Vitest unpiped, or retain a raw log using `git-workflow`'s status-preserving redirect pattern.
   Use a new path for every rerun, such as `/tmp/test-attempt-1.log` then `/tmp/test-attempt-2.log`; preserve failed and interrupted logs.
   Narrow failures with a test path and `-t "<name>"`, rather than piping output through `tail` or `grep`.

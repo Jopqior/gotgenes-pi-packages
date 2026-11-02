@@ -1,6 +1,6 @@
 {
   "name": "@gotgenes/pi-permission-model-judge",
-  "version": "3.0.0",
+  "version": "5.0.0",
   "description": "Deny-first typo-path model judge — a pi-permission-system Authorizer chain link",
   "type": "module",
   "imports": {
@@ -75,6 +75,6 @@
     "vitest": "catalog:"
   },
   "dependencies": {
-    "zod": "^4.4.3"
+    "zod": "^4.6.7"
   }
 }

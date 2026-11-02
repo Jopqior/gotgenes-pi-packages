@@ -127,6 +127,7 @@ The `permission` object uses deep-shallow merge; scalar fields use simple replac
   For a soft-deprecation window, keep the field optional in the schema and ignore its value.
 - When adding an optional field to `PermissionSystemExtensionConfig`, do not include it in `DEFAULT_EXTENSION_CONFIG` with an explicit `undefined` value — tests use `deepEqual` and it breaks equality.
 - When adding a field, define it in `unifiedConfigSchema` (`config-schema.ts`, with `.meta({ description, markdownDescription })`) and regenerate the schema (`pnpm run gen:schema`); `UnifiedPermissionConfig` is inferred from it.
+  An array field chains `.max(MAX_CONFIG_ARRAY_ITEMS)`: zod checks the bound before walking the elements, so an unbounded array lets an oversized file allocate one issue per entry (CVE-2023-54404).
   Then carry it through `PermissionSystemExtensionConfig` (`extension-config.ts`) and merge it in `mergeUnifiedConfigs()` (`config-loader.ts` — a number goes in its "Number scalars" loop).
   A field on the runtime type but not the merge intermediate is silently dropped before runtime.
   `commandEffects` is the one exception: its scope is provenance the review log reports, so `loadAndMergeConfigs` folds it per layer into `declaredCommandEffects` and `ConfigStore` holds it beside the runtime config, where `save()` cannot drop it.

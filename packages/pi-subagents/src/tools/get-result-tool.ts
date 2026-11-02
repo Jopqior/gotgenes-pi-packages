@@ -15,8 +15,8 @@ import type { Subagent } from "#src/types";
 import { BoundedLines } from "#src/ui/bounded-lines";
 import {
 	describeActivity,
-	formatDuration,
 	formatMs,
+	formatRunDuration,
 	getDisplayName,
 	modelLabel,
 	type Theme,
@@ -143,7 +143,7 @@ export class GetResultTool {
 			tokens: formatLifetimeTokens(record),
 			contextPercent: record.getContextPercent(),
 			compactionCount: record.compactionCount,
-			duration: formatDuration(outcome.startedAt, outcome.completedAt),
+			duration: formatRunDuration(outcome),
 			description: record.description,
 			result: outcome.result,
 			error: outcome.error,
@@ -181,7 +181,7 @@ export class GetResultTool {
 			tokens: formatLifetimeTokens(record),
 			contextPercent: record.getContextPercent(),
 			compactionCount: record.compactionCount,
-			duration: formatDuration(outcome.startedAt, outcome.completedAt),
+			duration: formatRunDuration(outcome),
 			preview: buildPreview(outcome.result),
 			error: outcome.error,
 			turnBudget: outcome.turnBudget,

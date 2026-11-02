@@ -15,6 +15,7 @@ import type { RunConfig } from "#src/runtime";
 import type { SpawnSelection, SpawnSelectionProvider } from "#src/service/service";
 import { GetResultTool } from "#src/tools/get-result-tool";
 import type { AgentConfig, Subagent } from "#src/types";
+import { makeAgentConfig } from "#test/helpers/make-agent-config";
 import { makeModel } from "#test/helpers/make-model";
 import { makeWorkspace, makeWorkspaceProvider } from "#test/helpers/make-workspace";
 import { createBlockingFactory, createSessionFactory } from "#test/helpers/manager-stubs";
@@ -30,19 +31,6 @@ type SessionFactory = (params: CreateSubagentSessionParams) => Promise<SubagentS
 /** Default factory: resolves to a fresh SubagentSession stub on every spawn. */
 function defaultFactory(): SessionFactory {
   return vi.fn(async (_params: CreateSubagentSessionParams) => toSubagentSession(createSubagentSessionStub()));
-}
-
-function makeAgentConfig(overrides: Partial<AgentConfig> = {}): AgentConfig {
-  return {
-    name: "test-agent",
-    description: "Test agent",
-    toolNames: ["read", "grep"],
-    systemPrompt: "You are a test agent.",
-    promptMode: "replace",
-    inheritContext: false,
-    runInBackground: false,
-    ...overrides,
-  };
 }
 
 /** Registry with default agents only. */
