@@ -100,3 +100,26 @@ Independent pre-completion review follows this committed handoff; no push, relea
 - No new functional compatibility choice, test gap, cleanup or follow-up issue was needed.
   Ordinary Red/Green and killing mutations were intentionally not performed: the synchronization plan authorizes adoption of existing tests, not new test scenarios.
   The next step is the exact-ref independent review, followed by TDD stage notes and a separate `/ship 46` session/action.
+
+## Stage: Implementation — TDD (2026-11-02T12:22:42+08:00)
+
+### Session summary
+
+Completed the four numbered synchronization steps, including the genuine merge, validation, per-fork source checks and independent review.
+As approved by the plan, no new Red/Green cycle or killing mutation was introduced; adopted tests produce a net increase of 46 passing tests, from 10,460 to 10,506.
+Implementation details, merge OIDs, conflict resolutions, checks and evidence locations are recorded in the preceding handoff entry.
+
+### Observations
+
+- Pre-completion reviewer: PASS, with no required fix or WARN finding.
+  Independently reviewed range: `7fc45ab047ce02fe2067332b3a79d22fdfe11bf5..7ed6a6ff0eac595199d4ad9b09277c94f382c6c7`.
+  The reviewer regenerated both complete inventories and candidate intersections, inspected conflict resolutions and automatic fork intersections, reran the four root gates and packaged public-type consumer check, and checked Mermaid rendering and per-fork source evidence.
+- The recorded startup ordering miss and disposable-toolchain workaround are the implementation deviations; neither changed the pinned target, fork identities, approved behavior or test scope.
+  Existing tests answered the synchronization questions without new scenarios, functional adaptations or follow-up issues.
+  The reviewer accepted the explicitly labeled pre-merge churn measurements as such, not as post-merge values.
+- Both source claims incorporate `52854c12d590142e61a4f6a6947be9084035300d`; core's scoped unreleased tail is informational and worktrees has none.
+  No optional live Pi/model check or retired packed worktrees matrix was needed; their omission is not an unresolved ship warning.
+- Only these stage notes follow the reviewed HEAD; no substantive implementation change followed the PASS.
+  No push, issue closure, release dispatch or publication occurred.
+  Next: start a fresh session for changed templates/extension loading, then `/ship 46` on root `main`, preserving `RANGE_BASE=7fc45ab047ce02fe2067332b3a79d22fdfe11bf5` and closing only the fork synchronization issue.
+  Publication still requires separate explicit destination/scope approval.
