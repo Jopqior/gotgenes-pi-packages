@@ -126,3 +126,20 @@ Implementation details, merge OIDs, conflict resolutions, checks and evidence lo
 - Post-stage tooling update (2026-11-02T04:25:48Z): `command -v pnpm` now resolves `/home/whh/.nvm/versions/node/v26.13.0/bin/pnpm`, and `pnpm --version` reports `11.25.0`.
   Removed the disposable `/tmp/f0046-bin/pnpm` script and its empty directory; subsequent stages should invoke `pnpm` directly without the temporary `PATH` prefix.
   Validation logs remain intact; the earlier workaround records the environment at implementation time.
+
+## Stage: Ship (2026-11-02T04:56:15Z)
+
+### Session summary
+
+Started the trunk-lane ship from the clean primary checkout on `main`, after loading the synchronization constraints before fetch/pull.
+Verified the genuine two-parent integration, accepted independent review and per-fork source evidence recorded above; subsequent commits contain only stage notes.
+
+### Observations
+
+- Fast-forward-only origin synchronization succeeded; local `main` was ahead by 73 commits, including incoming upstream history.
+- Pre-push root `pnpm run lint` and `pnpm fallow dead-code` passed with the restored native pnpm executable.
+- Origin fetch/push URLs both target `Jopqior/gotgenes-pi-packages`; no effective URL rewrite was configured.
+- Release selection and the closing summary use the actual merge's first parent, `7fc45ab047ce02fe2067332b3a79d22fdfe11bf5`, rather than the plan parent or incoming issue references.
+- Only fork issue #46 is a close target; the synchronization exception skips incoming-history co-shipped issue scans.
+- The plan recommends independent release, but exact registered package selection, npm scope and destination still require separate publication approval after CI.
+- Push, CI verification, issue closure and any separately approved release follow this committed checkpoint; their final outcomes are recorded in the ship session and GitHub.
