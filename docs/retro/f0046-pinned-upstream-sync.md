@@ -48,3 +48,55 @@ These candidates were considered and rejected, not queued implementation work:
 - `test/lifecycle/subagent-manager.test.ts`: no advance fixture refactor; upstream already supplies `makeAgentConfig`, and both fork/incoming imports must survive resolution.
 - Existing selector presentation tests: no migration or duplicate scenarios merely for synchronization.
 - Lifecycle/service and permission modules: no unrelated structural cleanup; no preparatory commit was recommended.
+
+## Stage: Implementation handoff (2026-11-02T12:12:09+08:00)
+
+### Session summary
+
+Integrated the plan's fixed target as the genuine two-parent merge `cf417701fd84192f0550996d62fafdb515721bf5` (`chore: sync pinned upstream target (#46)`).
+Resolved the nine forecast conflicts, adopted incoming tests without adding scenarios, and completed the required integration checks and separate source-feasibility checks.
+Independent pre-completion review follows this committed handoff; no push, release dispatch or publication has occurred.
+
+### Observations
+
+- Merge first parent: `7fc45ab047ce02fe2067332b3a79d22fdfe11bf5`; second parent/pinned target: `52854c12d590142e61a4f6a6947be9084035300d`; common base: `41405de895fb53f802df89f8978456cd1dae397e`.
+  The intervening fork commits after planning HEAD changed only this issue's plan and retro, so the selected contract intersections did not expand.
+  Resolve reviewed HEAD after this handoff commit; independent review must use the merge first parent through that HEAD, not a tag or the plan parent.
+- The startup pull again ran before synchronization guidance was loaded and reported `Already up to date.`.
+  This repeated ordering miss was reported to the operator; primary-checkout identity, `main`, clean index/worktree, no unmerged entries and no pending operation were checked before subsequent synchronization work.
+- This session had neither a `pnpm` nor a `corepack` executable on `PATH`.
+  A disposable `/tmp/f0046-bin/pnpm` shim executes the cached `11.25.0` entry point with Node; commands and hooks use `export PATH="/tmp/f0046-bin:$PATH"`.
+  No repository tool scripts or global configuration changed.
+  Initial autoformat notifications failed in that environment; explicit Biome/rumdl checks and commit hooks subsequently passed.
+- Manifest resolution retains the fork name, version, metadata, exports, peers and package files exactly; core `CHANGELOG.md` is byte-identical to the merge first-parent blob.
+  The lockfile retains published fork development dependencies and applies only the incoming Zod update and corresponding peer-resolution identifiers.
+  `pnpm install --frozen-lockfile` passed without regeneration; no workspace configuration drift remained.
+- Display/manager import resolutions retain both fork and incoming helpers.
+  Read staged source and first-parent diffs for the automatic `display.ts` and `get-result-tool.ts` merges, then inspected the actual merge's remerge diff for all conflicts.
+  Pending-selection precedence, hidden provisional models and selection-specific timeout advice remain in the resolved source and existing regression suites.
+  Reviewed the unchanged selection-before-workspace path, post-workspace permit check, service registration, selector initialization, and worktrees identity/import/configuration/provider/disposal entry points.
+- Architecture resolution adopts the upstream Phase 23 archive and removes its stale active roadmap while retaining fork selection/current-state descriptions and fork history.
+  Recomputed source LOC, health, complexity and duplication using the documented commands; the current analysis explicitly labels history-dependent measurements with the pre-merge ref.
+  The upstream historical snapshot and phase history remain inherited measurements, not new fork targets.
+  Evidence: `/tmp/f0046-architecture-final-*`, `/tmp/f0046-architecture-core-tests.log` and `/tmp/f0046-committed-architecture-diff.txt`.
+- Baseline root `check`, `lint`, `test` and `fallow dead-code` passed; logs: `/tmp/f0046-baseline-{check,lint,test,fallow}.log`.
+  On the completed merge, the same four root gates passed; logs: `/tmp/f0046-final-{check,lint,test,fallow}.log`.
+  Root test summaries total 10,506 passing tests versus 10,460 at baseline, a net increase of 46 from adopted upstream tests and removals.
+  Core has 2,412 tests across 98 files; selector has 123 and worktrees 74, both unchanged from baseline.
+- Targeted core verification passed 548 tests across 15 files; the six-file pending-presentation subset passed 217.
+  Affected permission configuration tests passed 228; affected model-judge tests passed 43.
+  Core `verify:public-types` passed after the completed merge, including the external consumer against the packed fork package; log: `/tmp/f0046-final-public-types.log`.
+  Root checks cover selector/worktrees typechecks and behavior suites; no new packed matrix or optional live harness was introduced.
+- Separate actual source resolution at merge HEAD succeeded for both registered forks; raw results: `/tmp/f0046-final-source-results.jsonl`.
+  Core incorporates the pinned target, contains stable upstream `25.0.5` at `a4dd5f7611a2d7687a50899e99be7bd727ddc2b0`, and reports an unreleased package tail.
+  The scoped tail is the inherited phase-archive commit `d376574ec45911862855d98a506f9bc7aa4b6c0c` changing release-relevant `docs/fallow-snapshot.json`.
+  Worktrees independently incorporates the same target, contains stable upstream `0.3.3` at `62924b0a8389eed41c4da93b0bf0ea89e0b5c794`, and reports no package tail.
+  These results match the plan's predictions and do not authorize publication.
+- Complete incoming inventory: `/tmp/f0046-incoming-paths.txt`; candidate intersections: `/tmp/f0046-intersections.txt`; actual inventory: `/tmp/f0046-integration-paths.txt`; remerge diff: `/tmp/f0046-actual-remerge-diff.txt`.
+  Regenerate incoming paths with `git diff --name-status 41405de895fb53f802df89f8978456cd1dae397e 52854c12d590142e61a4f6a6947be9084035300d` and actual paths with `git diff --name-status 7fc45ab047ce02fe2067332b3a79d22fdfe11bf5 <reviewed-HEAD>`.
+  Incoming has 71 paths; merge-only integration has 69: core manifest and CHANGELOG intentionally have no first-parent diff.
+  The committed handoff adds this retro as an integration-only path; regenerate the final actual inventory for review.
+  Review depth, contract groups, entry points and inventory-generation inputs remain in the plan; no unrelated upstream module or historical document was assigned a fresh audit.
+- No new functional compatibility choice, test gap, cleanup or follow-up issue was needed.
+  Ordinary Red/Green and killing mutations were intentionally not performed: the synchronization plan authorizes adoption of existing tests, not new test scenarios.
+  The next step is the exact-ref independent review, followed by TDD stage notes and a separate `/ship 46` session/action.
